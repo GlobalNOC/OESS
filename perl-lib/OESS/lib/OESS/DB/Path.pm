@@ -3,6 +3,8 @@ use warnings;
 
 package OESS::DB::Path;
 
+use OESS::DB::Interface;
+
 use Data::Dumper;
 
 =head1 OESS::DB::Path
@@ -170,6 +172,57 @@ sub fetch_all {
     }
 
     return $paths;
+}
+
+sub add_link {
+    my $args = {
+        db             => undef,
+        link_id        => undef,
+        path_id        => undef,
+        interface_a_id => undef,
+        interface_z_id => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `link_id` is missing.') if !defined $args->{link_id};
+    return (undef, 'Required argument `path_id` is missing.') if !defined $args->{path_id};
+    return (undef, 'Required argument `interface_a_id` is missing.') if !defined $args->{interface_a_id};
+    return (undef, 'Required argument `interface_z_id` is missing.') if !defined $args->{interface_z_id};
+
+    my ($vlan_a_id, $err_a) = OESS::DB::Interface::get_available_internal_vlan(
+        db => $args->{db},
+        interface_id => $args->{interface_a_id}
+    );
+    if (defined $err_a) {
+        return (undef, $err_a);
+    }
+
+    my ($vlan_z_id, $err_z) = OESS::DB::Interface::get_available_internal_vlan(
+        db => $args->{db},
+        interface_id => $args->{interface_z_id}
+    );
+    if (defined $err_z) {
+        return (undef, $err_z);
+    }
+
+    my $q = "
+        insert into link_path_membership (
+            link_id, path_id, start_epoch, end_epoch,
+            interface_a_vlan_id, interface_z_vlan_id
+        ) VALUES (?, ?, UNIX_TIMESTAMP(NOW()), -1, ?, ?)
+    ";
+    my $res = $args->{db}->execute_query($q, [
+        $args->{link_id},
+        $args->{path_id},
+        $vlan_a_id,
+        $vlan_z_id
+    ]);
+    if (!defined $res) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    return ($res, undef);
 }
 
 1;

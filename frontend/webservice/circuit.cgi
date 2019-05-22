@@ -98,76 +98,76 @@ sub get_circuits {
 
 
 my $provision = GRNOC::WebService::Method->new(
-    name => 'provision',
-    callback => \&provision,
+    name        => 'provision',
+    callback    => \&provision,
     description => 'Creates and provisions a new Circuit.'
 );
 $provision->add_input_parameter(
-    name            => 'circuit_id',
-    pattern         => $GRNOC::WebService::Regex::INTEGER,
-    required        => 0,
-    description     => "-1 or undefined indicate circuit is to be added."
+    name        => 'circuit_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 0,
+    description => "-1 or undefined indicate circuit is to be added."
 );
 $provision->add_input_parameter(
-    name => 'workgroup_id',
-    pattern => $GRNOC::WebService::Regex::INTEGER,
-    required => 1,
+    name        => 'workgroup_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
     description => 'Identifier of managing Workgroup.'
 );
 
 $provision->add_input_parameter(
-    name            => 'description',
-    pattern         => $GRNOC::WebService::Regex::TEXT,
-    required        => 1,
-    description     => "The description of the circuit."
+    name        => 'description',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 1,
+    description => "The description of the circuit."
 );
 
 $provision->add_input_parameter(
-	name            => 'provision_time',
-	pattern         => $GRNOC::WebService::Regex::INTEGER,
-	required        => 1,
-	description     => "Timestamp of when circuit should be created in epoch time format. -1 means now."
+	name        => 'provision_time',
+	pattern     => $GRNOC::WebService::Regex::INTEGER,
+	required    => 1,
+	description => "Timestamp of when circuit should be created in epoch time format. -1 means now."
 );
 $provision->add_input_parameter(
-    name            => 'remove_time',
-    pattern         => $GRNOC::WebService::Regex::INTEGER,
-    required        => 1,
-    description     => "The time the circuit should be removed from the network in epoch time format. -1 means never."
-);
-
-$provision->add_input_parameter(
-	name            => 'link',
-	pattern         => $GRNOC::WebService::Regex::TEXT,
-	required        => 0,
-	multiple        => 1,
-	description     => "Array of names of links to be used in the primary path."
+    name        => 'remove_time',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => "The time the circuit should be removed from the network in epoch time format. -1 means never."
 );
 
 $provision->add_input_parameter(
-    name            => 'endpoint',
-    pattern         => $GRNOC::WebService::Regex::TEXT,
-    required        => 1,
-    multiple        => 1,
-    description     => 'JSON array of endpoints to be used.'
+	name        => 'link',
+	pattern     => $GRNOC::WebService::Regex::TEXT,
+	required    => 0,
+	multiple    => 1,
+	description => "Array of names of links to be used in the primary path."
 );
 
 $provision->add_input_parameter(
-    name            => 'external_identifier',
-    pattern         => $GRNOC::WebService::Regex::TEXT,
-    required        => 0,
-    description     => "External Identifier of the circuit"
+    name        => 'endpoint',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 1,
+    multiple    => 1,
+    description => 'JSON array of endpoints to be used.'
+);
+
+$provision->add_input_parameter(
+    name        => 'external_identifier',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "External Identifier of the circuit"
 );
 $provision->add_input_parameter(
-    name            => 'remote_url',
-    pattern         => $GRNOC::WebService::Regex::TEXT,
-    required        => 0,
-    description     => "The remote URL for the IDC"
+    name        => 'remote_url',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "The remote URL for the IDC"
 );
 $provision->add_input_parameter(
-    name            => 'remote_requester',
-    pattern         => $GRNOC::WebService::Regex::TEXT,
-    required        => 0,
-    description     => "The remote requester."
+    name        => 'remote_requester',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "The remote requester."
 );
 $ws->register_method($provision);
 
@@ -223,15 +223,14 @@ sub provision {
         }
 
         # Populate Endpoint modal with selected Interface details.
-        $ep->{entity_id} = $entity->{entity_id};
-        $ep->{interface} = $interface->{name};
+        $ep->{entity_id}    = $entity->{entity_id};
+        $ep->{interface}    = $interface->{name};
         $ep->{interface_id} = $interface->{interface_id};
-        $ep->{node} = $interface->{node}->{name};
-        $ep->{node_id} = $interface->{node}->{node_id};
-        warn Dumper($ep);
+        $ep->{node}         = $interface->{node}->{name};
+        $ep->{node_id}      = $interface->{node}->{node_id};
 
         my $endpoint = new OESS::Endpoint(db => $db, model => $ep);
-        # warn Dumper($endpoint->to_hash);
+        $circuit->add_endpoint($endpoint);
 
         if ($interface->cloud_interconnect_type eq 'azure-express-route') {
             my $interface2 = $entity->select_interface(
@@ -245,21 +244,41 @@ sub provision {
             }
 
             # Populate Endpoint modal with selected Interface details.
-            $ep->{entity_id} = $entity->{entity_id};
-            $ep->{interface} = $interface2->{name};
+            $ep->{entity_id}    = $entity->{entity_id};
+            $ep->{interface}    = $interface2->{name};
             $ep->{interface_id} = $interface2->{interface_id};
-            $ep->{node} = $interface2->{node}->{name};
-            $ep->{node_id} = $interface2->{node}->{node_id};
-            warn Dumper($ep);
+            $ep->{node}         = $interface2->{node}->{name};
+            $ep->{node_id}      = $interface2->{node}->{node_id};
 
             my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
-            # warn Dumper($endpoint2->to_hash);
+            $circuit->add_endpoint($endpoint2);
         }
-
-        $circuit->add_endpoint($endpoint);
     }
 
-    warn Dumper($circuit->to_hash);
+    if (defined $args->{link}->{value}) {
+        if (@{$circuit->endpoints} > 2) {
+            $method->set_error("Static path are unavailable to Circuits with more than two Endpoints.");
+            return;
+        }
+
+        my $path = new OESS::Path(
+            db => $db,
+            model => {
+                mpls_type  => 'strict',
+                state      => 'active',
+                type       => 'primary'
+            }
+        );
+        foreach my $value (@{$args->{link}->{value}}) {
+            my $link = new OESS::Link(db => $db, name => $value);
+            if (!defined $link) {
+                $method->set_error("Unknown link $value specified in static Path.");
+            }
+            $path->add_link($link);
+        }
+
+        $circuit->add_path($path);
+    }
 
     $db->start_transaction;
 
@@ -269,6 +288,11 @@ sub provision {
         $method->set_error($error);
         return;
     }
+
+    warn Dumper($circuit->to_hash);
+
+    # Put rollback in place for quick tests
+    # $db->rollback;
     $db->commit;
 
     return {status => 1, circuit_id => $circuit_id};

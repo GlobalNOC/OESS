@@ -18,7 +18,8 @@ use OESS::DB::Link;
 
     my $link = new OESS::Link(
         db      => $db,
-        link_id => 100
+        link_id => 100,          # Optional
+        name    => 'mx2-2-mx1-1' # Optional
     );
 
     # or
@@ -37,15 +38,19 @@ use OESS::DB::Link;
         }
     );
 
+new creates a new Link object. When loading an existing link from the
+database C<link_id> or C<name> must be specified.
+
 =cut
 sub new {
     my $that  = shift;
     my $class = ref($that) || $that;
 
     my $self = {
-        db => undef,
+        db      => undef,
         link_id => undef,
-        logger => Log::Log4perl->get_logger("OESS.Link"),
+        name    => undef,
+        logger  => Log::Log4perl->get_logger("OESS.Link"),
         @_
     };
     bless $self, $class;
@@ -55,12 +60,14 @@ sub new {
         return;
     }
 
-    if (defined $self->{db} && defined $self->{link_id}) {
+    if (defined $self->{db} && (defined $self->{link_id} || defined $self->{name})) {
         eval {
-            $self->{model} = OESS::DB::Link::fetch(
+            my $links = OESS::DB::Link::fetch_all(
                 db => $self->{db},
+                name => $self->{name},
                 link_id => $self->{link_id}
             );
+            $self->{model} = $links->[0];
         };
         if ($@) {
             $self->{logger}->error("Couldn't create Link: $@");

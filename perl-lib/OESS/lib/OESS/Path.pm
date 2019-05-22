@@ -113,6 +113,67 @@ sub to_hash {
     return $hash;
 }
 
+sub create {
+    my $self = shift;
+    my $args = {
+        circuit_id => undef,
+        @_
+    };
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error("Couldn't create Link: DB handle is missing.");
+        return (undef, "Couldn't create Link: DB handle is missing.");
+    }
+
+    return (undef, 'Required argument `circuit_id` is missing.') if !defined $args->{circuit_id};
+    $self->{circuit_id} = $args->{circuit_id};
+
+    # TODO - Validate Path
+
+    # TODO - Save Path
+    my ($path_id, $path_err) = OESS::DB::Path::create(
+        db => $self->{db},
+        model => {
+            circuit_id => $self->circuit_id,
+            state => $self->state,
+            type => $self->type,
+            mpls_type => $self->mpls_type
+        }
+    );
+    if (defined $path_err) {
+        return (undef, $path_err);
+    }
+
+    foreach my $link (@{$self->{links}}) {
+
+        my ($path_lk, $path_lk_err) = OESS::DB::Path::add_link(
+            db             => $self->{db},
+            link_id        => $link->link_id,
+            path_id        => $path_id,
+            interface_a_id => $link->interface_a_id,
+            interface_z_id => $link->interface_z_id
+        );
+        if (defined $path_lk_err) {
+            return (undef, $path_lk_err);
+        }
+    }
+
+    $self->{circuit_id} = $args->{circuit_id};
+    $self->{path_id} = $path_id;
+
+    return ($path_id, undef);
+}
+
+=head2 add_link
+
+=cut
+sub add_link {
+    my $self = shift;
+    my $link = shift;
+
+    push @{$self->{links}}, $link;
+}
+
 =head2 load_links
 
 =cut

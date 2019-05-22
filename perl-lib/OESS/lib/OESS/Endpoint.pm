@@ -198,7 +198,7 @@ sub _build_from_model{
         }
     } else {
         $self->{circuit_id} = $self->{model}->{circuit_id};
-        $self->{circuit_endpoint_id} = $self->{model}->{circuit_edge_id} || $self->{model}->{circuit_ep_id};
+        $self->{circuit_ep_id} = $self->{model}->{circuit_edge_id} || $self->{model}->{circuit_ep_id};
         $self->{start_epoch} = $self->{model}->{start_epoch};
     }
 
@@ -235,7 +235,7 @@ sub to_hash{
         $obj->{'mtu'} = $self->mtu();
     }else{
         $obj->{'circuit_id'} = $self->circuit_id();
-        $obj->{'circuit_endpoint_id'} = $self->circuit_endpoint_id();
+        $obj->{'circuit_ep_id'} = $self->circuit_endpoint_id();
         $obj->{'start_epoch'} = $self->start_epoch();
     }
     
@@ -501,7 +501,7 @@ sub start_epoch{
 =cut
 sub circuit_endpoint_id{
     my $self = shift;
-    return $self->{'circuit_endpoint_id'};
+    return $self->{'circuit_ep_id'};
 }
 
 =head2 entity
@@ -769,6 +769,7 @@ sub create {
             return (undef, "Couldn't create Endpoint: " . $self->{db}->get_error);
         }
 
+        $self->{circuit_ep_id} = $circuit_ep_id;
         return ($circuit_ep_id, undef);
 
     } elsif (defined $args->{vrf_id}) {

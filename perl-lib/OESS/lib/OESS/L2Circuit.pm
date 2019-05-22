@@ -237,6 +237,16 @@ sub load_users {
     return 1;
 }
 
+=head2 add_path
+
+=cut
+sub add_path {
+    my $self = shift;
+    my $path = shift;
+
+    push @{$self->{paths}}, $path;
+}
+
 =head2 load_paths
 
 =cut
@@ -997,6 +1007,16 @@ sub create {
             return (undef, "Couldn't create Circuit: $ep_err");
         }
     }
+
+    foreach my $path (@{$self->{paths}}) {
+        my ($path_id, $path_err) = $path->create(circuit_id => $circuit_id);
+        if (defined $path_err) {
+            $self->{logger}->error("Couldn't create Circuit: $path_err");
+            return (undef, "Couldn't create Circuit: $path_err");
+        }
+    }
+
+    $self->{circuit_id} = $circuit_id;
 
     return ($circuit_id, undef);
 }

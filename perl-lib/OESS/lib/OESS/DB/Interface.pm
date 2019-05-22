@@ -10,6 +10,8 @@ use OESS::DB::ACL;
 use OESS::ACL;
 use OESS::Node;
 
+use OESS::DB::Node;
+
 use Data::Dumper;
 
 =head2 fetch
@@ -253,6 +255,65 @@ sub update {
         "UPDATE interface SET $fields WHERE interface_id=?",
         $values
     );
+}
+
+sub get_available_internal_vlan {
+    my $args = {
+        db           => undef,
+        interface_id => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `interface_id` is missing.') if !defined $args->{interface_id};
+
+    my $query = "
+        select CASE
+        WHEN link_instantiation.interface_a_id = ?
+            THEN link_path_membership.interface_a_vlan_id
+            ELSE link_path_membership.interface_z_vlan_id
+        END as 'internal_vlan_id'
+        from link_path_membership
+        join link on (
+            link.link_id=link_path_membership.link_id and link_path_membership.end_epoch=-1
+        )
+        join link_instantiation
+        on link.link_id = link_instantiation.link_id
+        and link_instantiation.end_epoch=-1
+        and (
+            link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?
+        )
+        join path_instantiation on link_path_membership.path_id = path_instantiation.path_id
+        and path_instantiation.end_epoch = -1
+    ";
+
+    my $used = {};
+
+    my $results = $args->{db}->execute_query(
+        $query,
+        [$args->{interface_id}, $args->{interface_id}, $args->{interface_id}]
+    );
+    if (!defined $results) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    foreach my $row (@$results){
+        $used->{$row->{'internal_vlan_id'}} = 1;
+    }
+
+    my ($allowed_vlan_tags, $err) = OESS::DB::Node::get_allowed_vlans(
+        db => $args->{db},
+        interface_id => $args->{interface_id}
+    );
+    if (defined $err) {
+        return (undef, $err);
+    }
+
+    foreach my $tag (@$allowed_vlan_tags) {
+        return ($tag, undef) if !exists $used->{$tag};
+    }
+
+    return (undef, "Couldn't find an available internal VLAN.");
 }
 
 1;
