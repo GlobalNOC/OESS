@@ -4,6 +4,7 @@ use warnings;
 package OESS::Path;
 
 use Data::Dumper;
+use Graph::Directed;
 
 use OESS::DB::Link;
 use OESS::DB::Path;
@@ -241,6 +242,37 @@ sub state {
         $self->{state} = $state;
     }
     return $self->{state};
+}
+
+=head2 connects
+
+    my $ok = $self->connects($node_a_id, $node_z_id);
+
+connects returns C<1> if C<$node_a_id> connects to C<$node_z_id>
+through the Links of this Path.
+
+=cut
+sub connects {
+    my $self      = shift;
+    my $node_a_id = shift;
+    my $node_z_id = shift;
+
+    my $g = new Graph::Undirected;
+    foreach my $link (@{$self->{links}}) {
+        $g->add_edge($link->node_a_id, $link->node_z_id);
+    }
+
+    # Returns list of nodes including $node_a_id and $node_z_id, so if
+    # the length of the path is less than two no path exists. In
+    # theory if the same node is passed twice a list of size one would
+    # be returned, but static paths must include at least one link so
+    # this case doesn't apply to us.
+    my @path = $g->SP_Dijkstra($node_a_id, $node_z_id);
+    if (@path < 2) {
+        return 0;
+    }
+
+    return 1;
 }
 
 1;

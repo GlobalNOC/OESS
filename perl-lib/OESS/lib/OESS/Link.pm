@@ -96,8 +96,10 @@ sub from_hash {
     $self->{remote_urn} = $hash->{remote_urn};
     $self->{status} = $hash->{status};
     $self->{metric} = $hash->{metric};
+    $self->{node_a_id} = $hash->{node_a_id};
     $self->{interface_a_id} = $hash->{interface_a_id};
     $self->{ip_a} = $hash->{ip_a};
+    $self->{node_z_id} = $hash->{node_z_id};
     $self->{interface_z_id} = $hash->{interface_z_id};
     $self->{ip_z} = $hash->{ip_z};
     return 1;
@@ -115,8 +117,10 @@ sub to_hash {
         remote_urn => $self->remote_urn,
         status => $self->status,
         metric => $self->metric,
+        node_a_id => $self->node_a_id,
         interface_a_id => $self->interface_a_id,
         ip_a => $self->ip_a,
+        node_z_id => $self->node_z_id,
         interface_z_id => $self->interface_z_id,
         ip_z => $self->ip_z
     };
@@ -179,6 +183,18 @@ sub metric {
     return $self->{metric};
 }
 
+=head2 node_a_id
+
+=cut
+sub node_a_id {
+    my $self = shift;
+    my $node_a_id = shift;
+    if (defined $node_a_id) {
+        $self->{node_a_id} = $node_a_id;
+    }
+    return $self->{node_a_id};
+}
+
 =head2 interface_a_id
 
 =cut
@@ -201,6 +217,18 @@ sub ip_a {
         $self->{ip_a} = $ip_a;
     }
     return $self->{ip_a};
+}
+
+=head2 node_z_id
+
+=cut
+sub node_z_id {
+    my $self = shift;
+    my $node_z_id = shift;
+    if (defined $node_z_id) {
+        $self->{node_z_id} = $node_z_id;
+    }
+    return $self->{node_z_id};
 }
 
 =head2 interface_z_id

@@ -387,6 +387,14 @@ sub node{
     return $self->{'interface'}->node();
 }
 
+=head2 node_id
+
+=cut
+sub node_id {
+    my $self = shift;
+    return $self->{'interface'}->node->node_id;
+}
+
 =head2 type
 
 =cut

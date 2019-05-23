@@ -234,8 +234,8 @@ sub provision {
 
         if ($interface->cloud_interconnect_type eq 'azure-express-route') {
             my $interface2 = $entity->select_interface(
-                inner_tag => $endpoint->{inner_tag},
-                tag => $endpoint->{tag},
+                inner_tag    => $endpoint->{inner_tag},
+                tag          => $endpoint->{tag},
                 workgroup_id => $args->{workgroup_id}->{value}
             );
             if (!defined $interface2) {
@@ -269,12 +269,25 @@ sub provision {
                 type       => 'primary'
             }
         );
+
         foreach my $value (@{$args->{link}->{value}}) {
             my $link = new OESS::Link(db => $db, name => $value);
             if (!defined $link) {
+                $db->rollback;
                 $method->set_error("Unknown link $value specified in static Path.");
+                return;
             }
             $path->add_link($link);
+        }
+
+        my $eps = $circuit->endpoints;
+        my $node_a = $eps->[0]->node_id;
+        my $node_z = $eps->[1]->node_id;
+
+        my $ok = $path->connects($node_a, $node_z);
+        if (!$ok) {
+            $method->set_error("Static Path doesn't connect selected Endpoints.");
+            return;
         }
 
         $circuit->add_path($path);

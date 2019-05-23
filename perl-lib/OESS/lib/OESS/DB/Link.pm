@@ -98,9 +98,13 @@ sub fetch {
         SELECT link.link_id, link.name, link.remote_urn, link.status,
                link.metric,
                link_instantiation.interface_a_id, link_instantiation.ip_a,
-               link_instantiation.interface_z_id, link_instantiation.ip_z
+               link_instantiation.interface_z_id, link_instantiation.ip_z,
+               interface_a.node_id as node_a_id,
+               interface_z.node_id as node_z_id
         FROM link
-        JOIN link_instantiation ON link.link_id=link_instantiation.link_id
+        JOIN link_instantiation ON link.link_id=link_instantiation.link_id AND link_instantiation.end_epoch=-1
+        JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
+        JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
         WHERE link.link_id=? AND link_instantiation.end_epoch=-1
     ";
     my $link = $args->{db}->execute_query($q, [
@@ -192,10 +196,14 @@ sub fetch_all {
         SELECT link.link_id, link.name, link.remote_urn, link.status,
                link.metric,
                link_instantiation.interface_a_id, link_instantiation.ip_a,
-               link_instantiation.interface_z_id, link_instantiation.ip_z
+               link_instantiation.interface_z_id, link_instantiation.ip_z,
+               interface_a.node_id as node_a_id,
+               interface_z.node_id as node_z_id
         FROM link
-        JOIN link_instantiation ON link.link_id=link_instantiation.link_id
-        JOIN link_path_membership ON link.link_id=link_path_membership.link_id
+        JOIN link_instantiation ON link.link_id=link_instantiation.link_id AND link_instantiation.end_epoch=-1
+        JOIN link_path_membership ON link.link_id=link_path_membership.link_id AND link_path_membership.end_epoch=-1
+        JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
+        JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
         $where
     ";
 
