@@ -132,9 +132,6 @@ sub create {
     return (undef, 'Required argument `circuit_id` is missing.') if !defined $args->{circuit_id};
     $self->{circuit_id} = $args->{circuit_id};
 
-    # TODO - Validate Path
-
-    # TODO - Save Path
     my ($path_id, $path_err) = OESS::DB::Path::create(
         db => $self->{db},
         model => {
@@ -149,7 +146,6 @@ sub create {
     }
 
     foreach my $link (@{$self->{links}}) {
-
         my ($path_lk, $path_lk_err) = OESS::DB::Path::add_link(
             db             => $self->{db},
             link_id        => $link->link_id,

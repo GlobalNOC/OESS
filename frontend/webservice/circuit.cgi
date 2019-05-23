@@ -302,12 +302,11 @@ sub provision {
         return;
     }
 
-    warn Dumper($circuit->to_hash);
-
     # Put rollback in place for quick tests
     # $db->rollback;
     $db->commit;
 
+    warn Dumper($circuit->to_hash);
     return {status => 1, circuit_id => $circuit_id};
 }
 

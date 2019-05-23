@@ -46,8 +46,8 @@ sub create {
 
     my $path_id = $args->{db}->execute_query($q1, [
         $args->{model}->{circuit_id},
-        $args->{model}->{state},
         $args->{model}->{type},
+        $args->{model}->{state},
         $args->{model}->{mpls_type}
     ]);
     if (!defined $path_id) {
