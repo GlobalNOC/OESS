@@ -113,6 +113,9 @@ sub to_hash {
     return $hash;
 }
 
+=head2 create
+
+=cut
 sub create {
     my $self = shift;
     my $args = {

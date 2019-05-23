@@ -35,6 +35,7 @@ sub fetch{
 
     if (!defined($entity) || !defined($entity->[0])) {
         warn "Couldn't find entity $params{name}.";
+        return;
     }
 
     $entity = $entity->[0];

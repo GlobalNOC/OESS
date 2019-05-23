@@ -41,7 +41,17 @@ use OESS::User;
     # or
 
     my $entity = new OESS::Entity(
-        model => { ... }
+        model => {
+            name        => 'name'
+            description => 'description'
+            logo_url    => 'https://...'
+            url         => 'https://...'
+            interfaces  => [],           # Optional
+            parents     => [],           # Optional
+            children    => [],           # Optional
+            entity_id   => 100,          # Optional
+            users       => []            # Optional
+        }
     );
 
 new creates a new Entity object loaded from the database or the
@@ -53,13 +63,14 @@ sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS.Entity");
-
     my %args = (
         db           => undef,
         name         => undef,
         entity_id    => undef,
+        interface_id => undef,
+        vlan         => undef,
         model        => undef,
+        logger       => Log::Log4perl->get_logger("OESS.Entity"),
         reservations => {},
         @_
     );
@@ -68,20 +79,23 @@ sub new{
 
     bless $self, $class;
 
-    $self->{'logger'} = $logger;
-
     if (!defined $self->{'db'}) {
         $self->{'logger'}->warn("No Database Object specified");
     }
 
-    my $can_lookup = (defined $self->{interface_id} && defined $self->{vlan});
-    if (defined $self->{entity_id} || defined $self->{name} || $can_lookup) {
+    my $by_id = defined $self->{entity_id};
+    my $by_name = defined $self->{name};
+    my $by_vlan = (defined $self->{interface_id} && defined $self->{vlan});
+
+    if (defined $self->{db} && ($by_id || $by_name || $by_vlan)) {
         my $fetch_ok = $self->_fetch_from_db();
         return undef if !$fetch_ok;
-    }
 
-    if (defined $self->{model}) {
+    } elsif (defined $self->{model}) {
         $self->_from_hash($self->{model});
+
+    } else {
+        return undef;
     }
 
     return $self;

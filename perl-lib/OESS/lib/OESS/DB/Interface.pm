@@ -257,6 +257,9 @@ sub update {
     );
 }
 
+=head2 get_available_internal_vlan
+
+=cut
 sub get_available_internal_vlan {
     my $args = {
         db           => undef,

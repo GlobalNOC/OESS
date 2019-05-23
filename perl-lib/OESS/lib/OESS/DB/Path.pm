@@ -174,6 +174,9 @@ sub fetch_all {
     return $paths;
 }
 
+=head2 add_link
+
+=cut
 sub add_link {
     my $args = {
         db             => undef,

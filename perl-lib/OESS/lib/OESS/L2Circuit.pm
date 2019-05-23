@@ -1021,6 +1021,9 @@ sub create {
     return ($circuit_id, undef);
 }
 
+=head2 update
+
+=cut
 sub update {
     my $self = shift;
 
@@ -1031,6 +1034,9 @@ sub update {
     return 1;
 }
 
+=head2 remove
+
+=cut
 sub remove {
     my $self = shift;
 
