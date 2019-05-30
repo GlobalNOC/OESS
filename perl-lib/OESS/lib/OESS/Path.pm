@@ -222,6 +222,11 @@ sub update {
 
 =head2 add_link
 
+    $path->add_link($link);
+
+add_link adds an C<OESS::Link> to this Path. If C<$link->{link_id}>
+isn't defined, C<$this->update> will not save your data.
+
 =cut
 sub add_link {
     my $self = shift;
@@ -232,6 +237,10 @@ sub add_link {
 }
 
 =head2 remove_link
+
+    $path->remove_link($link_id);
+
+remove_link removes the link identified by C<$link_id> from this Path.
 
 =cut
 sub remove_link {
