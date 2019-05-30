@@ -120,6 +120,47 @@ sub fetch {
     return ($link->[0], undef);
 }
 
+=head2 fetch_history
+
+    my $link = OESS::DB::Link::fetch(db => $conn, link_id => 1);
+
+fetch_history returns every instantiation of Link C<link_id> from
+database C<db>.
+
+=cut
+sub fetch_history {
+    my $args = {
+        db => undef,
+        link_id => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `link_id` is missing.') if !defined $args->{link_id};
+
+    my $q = "
+        SELECT link.link_id, link.name, link.remote_urn, link.status,
+               link.metric,
+               link_instantiation.interface_a_id, link_instantiation.ip_a,
+               link_instantiation.interface_z_id, link_instantiation.ip_z,
+               interface_a.node_id as node_a_id,
+               interface_z.node_id as node_z_id
+        FROM link
+        JOIN link_instantiation ON link.link_id=link_instantiation.link_id
+        JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
+        JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
+        WHERE link.link_id=?
+    ";
+    my $links = $args->{db}->execute_query($q, [
+        $args->{link_id}
+    ]);
+    if (!defined $links) {
+        return (undef, "Couldn't find history of Link $args->{link_id}: " . $args->{db}->get_error);
+    }
+
+    return ($links, undef);
+}
+
 =head2 fetch_all
 
     my $acl = OESS::DB::Link::fetch_all(
@@ -213,6 +254,102 @@ sub fetch_all {
     }
 
     return $links;
+}
+
+=head2 update
+
+    my $id = OESS::DB::Link::update(
+        db => $db,
+        link => {
+            link_id        => 1,
+            interface_a_id => 100,
+            ip_a           => undef,
+            interface_z_id => 21,
+            ip_z           => undef,
+            name           => 'Link', # Optional
+            status         => 'up',   # Optional
+            remote_urn     => undef,  # Optional
+            metric         => 553     # Optional
+        }
+    );
+
+=cut
+sub update {
+    my $args = {
+        db  => undef,
+        link => {},
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `link->link_id` is missing.') if !defined $args->{link}->{link_id};
+    return (undef, 'Required argument `link->interface_a_id` is missing.') if !defined $args->{link}->{interface_a_id};
+    return (undef, 'Required argument `link->ip_a` is missing.') if !exists $args->{link}->{ip_a};
+    return (undef, 'Required argument `link->interface_z_id` is missing.') if !defined $args->{link}->{interface_z_id};
+    return (undef, 'Required argument `link->ip_z` is missing.') if !exists $args->{link}->{ip_z};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{link}->{name}) {
+        push @$params, 'name=?';
+        push @$values, $args->{link}->{name};
+    }
+    if (defined $args->{link}->{status}) {
+        push @$params, 'status=?';
+        push @$values, $args->{link}->{status};
+    }
+    if (defined $args->{link}->{remote_urn}) {
+        push @$params, 'remote_urn=?';
+        push @$values, $args->{link}->{remote_urn};
+    }
+    if (defined $args->{link}->{metric}) {
+        push @$params, 'metric=?';
+        push @$values, $args->{link}->{metric};
+    }
+
+    my $fields = join(', ', @$params);
+    push @$values, $args->{link}->{link_id};
+
+    my $ok = $args->{db}->execute_query(
+        "UPDATE link SET $fields WHERE link_id=?",
+        $values
+    );
+    if (!defined $ok) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $inst_ok = $args->{db}->execute_query(
+        "UPDATE link_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE link_id=? and end_epoch=-1",
+        [$args->{link}->{link_id}]
+    );
+    if (!defined $inst_ok) {
+        return (undef, $args->{db}->get_error);
+    }
+
+
+    my $q2 = "
+        INSERT INTO link_instantiation (
+            link_id, openflow, mpls, interface_a_id, ip_a,
+            interface_z_id, ip_z, start_epoch, end_epoch
+        )
+        VALUES (?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
+    ";
+
+    my $link_instantiation_id = $args->{db}->execute_query($q2, [
+        $args->{link}->{link_id},
+        0,
+        1,
+        $args->{link}->{interface_a_id},
+        $args->{link}->{ip_a},
+        $args->{link}->{interface_z_id},
+        $args->{link}->{ip_z}
+    ]);
+    if (!defined $link_instantiation_id) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    return ($ok, undef);
 }
 
 1;

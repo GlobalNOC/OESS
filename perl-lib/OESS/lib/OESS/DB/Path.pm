@@ -4,6 +4,7 @@ use warnings;
 package OESS::DB::Path;
 
 use OESS::DB::Interface;
+use OESS::DB::Link;
 
 use Data::Dumper;
 
@@ -174,7 +175,84 @@ sub fetch_all {
     return $paths;
 }
 
+=head2 update
+
+    my ($ok, $err) = OESS::DB::Path::update(
+        db => $db,
+        path => {
+            path_id => 1,
+            state   => 'active'
+        }
+    );
+
+update modifies the C<path_state> in both the C<path> and
+C<path_instantiation> tables.
+
+=cut
+sub update {
+    my $args = {
+        db  => undef,
+        path => {},
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `path->path_id` is missing.') if !defined $args->{path}->{path_id};
+    return (undef, 'Required argument `path->state` is missing.') if !defined $args->{path}->{state};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{path}->{state}) {
+        push @$params, 'path.path_state=?';
+        push @$values, $args->{path}->{state};
+    }
+
+    my $fields = join(', ', @$params);
+    push @$values, $args->{path}->{path_id};
+
+    my $ok = $args->{db}->execute_query(
+        "UPDATE path SET $fields WHERE path_id=?",
+        $values
+    );
+    if (!defined $ok) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $inst_ok = $args->{db}->execute_query(
+        "UPDATE path_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE path_id=? and end_epoch=-1",
+        [$args->{path}->{path_id}]
+    );
+    if (!defined $inst_ok) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $q2 = "
+        INSERT INTO path_instantiation (path_id, path_state, start_epoch, end_epoch)
+        VALUES (?, ?, UNIX_TIMESTAMP(NOW()), -1)
+    ";
+
+    my $path_instantiation_id = $args->{db}->execute_query($q2, [
+        $args->{path}->{path_id},
+        $args->{path}->{state}
+    ]);
+    if (!defined $path_instantiation_id) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    return ($ok, undef);
+}
+
 =head2 add_link
+
+    my ($ok, $err) = OESS::DB::Path::add_link(
+        path_id => 100,
+        link_id => 100
+    );
+    warn $err if (defined $err);
+
+add_link creates a new C<link_path_membership> identified by
+C<path_id> and C<link_id>.
 
 =cut
 sub add_link {
@@ -182,20 +260,24 @@ sub add_link {
         db             => undef,
         link_id        => undef,
         path_id        => undef,
-        interface_a_id => undef,
-        interface_z_id => undef,
         @_
     };
 
     return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
     return (undef, 'Required argument `link_id` is missing.') if !defined $args->{link_id};
     return (undef, 'Required argument `path_id` is missing.') if !defined $args->{path_id};
-    return (undef, 'Required argument `interface_a_id` is missing.') if !defined $args->{interface_a_id};
-    return (undef, 'Required argument `interface_z_id` is missing.') if !defined $args->{interface_z_id};
+
+    my ($link, $err) = OESS::DB::Link::fetch(
+        db => $args->{db},
+        link_id => $args->{link_id}
+    );
+    if (defined $err) {
+        return (undef, $err);
+    }
 
     my ($vlan_a_id, $err_a) = OESS::DB::Interface::get_available_internal_vlan(
         db => $args->{db},
-        interface_id => $args->{interface_a_id}
+        interface_id => $link->{interface_a_id}
     );
     if (defined $err_a) {
         return (undef, $err_a);
@@ -203,7 +285,7 @@ sub add_link {
 
     my ($vlan_z_id, $err_z) = OESS::DB::Interface::get_available_internal_vlan(
         db => $args->{db},
-        interface_id => $args->{interface_z_id}
+        interface_id => $link->{interface_z_id}
     );
     if (defined $err_z) {
         return (undef, $err_z);
@@ -226,6 +308,106 @@ sub add_link {
     }
 
     return ($res, undef);
+}
+
+=head2 remove_link
+
+    my ($ok, $err) = OESS::DB::Path::remove_link(
+        path_id => 100,
+        link_id => 100
+    );
+    warn $err if (defined $err);
+
+remove_link decoms the C<link_path_membership> identified by
+C<path_id> and C<link_id>. This effectively removes a link from the
+path identified by C<path_id>.
+
+=cut
+sub remove_link {
+    my $args = {
+        db             => undef,
+        link_id        => undef,
+        path_id        => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `link_id` is missing.') if !defined $args->{link_id};
+    return (undef, 'Required argument `path_id` is missing.') if !defined $args->{path_id};
+
+    my $q = "
+        UPDATE link_path_membership
+        SET end_epoch=UNIX_TIMESTAMP(NOW())
+        WHERE end_epoch=-1 AND link_id=? AND path_id=?
+    ";
+    my $res = $args->{db}->execute_query($q, [
+        $args->{link_id},
+        $args->{path_id}
+    ]);
+    if (!defined $res) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    return ($res, undef);
+}
+
+=head2 get_links
+
+    my ($links, $err) = OESS::DB::Path::get_links(
+        db      => $conn,
+        path_id => 1
+    );
+
+get_links returns a list of all Links from database C<db> associated
+with C<path_id>.
+
+=cut
+sub get_links {
+    my $args = {
+        db => undef,
+        path_id => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `path_id` is missing.') if !defined $args->{path_id};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{path_id}) {
+        push @$params, 'link_path_membership.path_id=?';
+        push @$values, $args->{path_id};
+    }
+
+    # push @$params, 'link_instantiation.end_epoch=?';
+    # push @$values, -1;
+
+    my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : '';
+
+    my $q = "
+        SELECT link.link_id, link.name, link.remote_urn, link.status,
+               link.metric,
+               link_instantiation.interface_a_id, link_instantiation.ip_a,
+               link_instantiation.interface_z_id, link_instantiation.ip_z,
+               link_path_membership.interface_a_vlan_id as vlan_a_id,
+               link_path_membership.interface_z_vlan_id as vlan_z_id,
+               interface_a.node_id as node_a_id,
+               interface_z.node_id as node_z_id
+        FROM link
+        JOIN link_instantiation ON link.link_id=link_instantiation.link_id AND link_instantiation.end_epoch=-1
+        JOIN link_path_membership ON link.link_id=link_path_membership.link_id AND link_path_membership.end_epoch=-1
+        JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
+        JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
+        $where
+    ";
+
+    my $links = $args->{db}->execute_query($q, $values);
+    if (!defined $links) {
+        return (undef, "Couldn't find Links: " . $args->{db}->get_error);
+    }
+
+    return ($links, undef);
 }
 
 1;

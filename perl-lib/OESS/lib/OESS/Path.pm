@@ -44,6 +44,8 @@ sub new {
         db => undef,
         path_id => undef,
         logger => Log::Log4perl->get_logger("OESS.Path"),
+        links_to_add    => [],
+        links_to_remove => [],
         @_
     };
     bless $self, $class;
@@ -55,21 +57,29 @@ sub new {
 
     if (defined $self->{db} && defined $self->{path_id}) {
         eval {
-            $self->{model} = OESS::DB::Path::fetch(
+            my ($model, $err) = OESS::DB::Path::fetch(
                 db => $self->{db},
                 path_id => $self->{path_id}
             );
+            if (defined $err) {
+                $self->{logger}->error("Couldn't load Path: $err");
+            }
+            $self->{model} = $model;
         };
         if ($@) {
             $self->{logger}->error("Couldn't create Path: $@");
+            warn "Couldn't create Path: $@";
             return;
         }
     }
 
     if (!defined $self->{model}) {
         $self->{logger}->error("Couldn't create Path.");
+        warn "Couldn't create Path.";
+        warn Dumper($self->{model});
         return;
     }
+
     $self->from_hash($self->{model});
 
     return $self;
@@ -125,8 +135,8 @@ sub create {
     };
 
     if (!defined $self->{db}) {
-        $self->{'logger'}->error("Couldn't create Link: DB handle is missing.");
-        return (undef, "Couldn't create Link: DB handle is missing.");
+        $self->{'logger'}->error("Couldn't create Path: DB handle is missing.");
+        return (undef, "Couldn't create Path: DB handle is missing.");
     }
 
     return (undef, 'Required argument `circuit_id` is missing.') if !defined $args->{circuit_id};
@@ -149,9 +159,7 @@ sub create {
         my ($path_lk, $path_lk_err) = OESS::DB::Path::add_link(
             db             => $self->{db},
             link_id        => $link->link_id,
-            path_id        => $path_id,
-            interface_a_id => $link->interface_a_id,
-            interface_z_id => $link->interface_z_id
+            path_id        => $path_id
         );
         if (defined $path_lk_err) {
             return (undef, $path_lk_err);
@@ -164,6 +172,54 @@ sub create {
     return ($path_id, undef);
 }
 
+=head2 update
+
+    my $err = $path->update;
+    $db->rollback if (defined $err);
+
+update saves any changes made to this Path and maintains link
+relationships based on calls to C<add_link> and C<remove_link>.
+
+=cut
+sub update {
+    my $self = shift;
+    my $args = {
+        @_
+    };
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error("Couldn't create Link: DB handle is missing.");
+        return "Couldn't update Path: DB handle is missing.";
+    }
+
+    # Set state and create new path_instantiation
+    my ($update_ok, $update_err) = OESS::DB::Path::update(
+        db => $self->{db},
+        path => { path_id => $self->path_id, state => $self->state }
+    );
+    return $update_err if (defined $update_err);
+
+    foreach my $link_id (@{$self->{links_to_remove}}) {
+        my ($decom_ok, $decom_err) = OESS::DB::Path::remove_link(
+            db => $self->{db},
+            link_id => $link_id,
+            path_id => $self->path_id
+        );
+        return $decom_err if (defined $decom_err);
+    }
+
+    foreach my $link_id (@{$self->{links_to_add}}) {
+        my ($create_ok, $create_err) = OESS::DB::Path::add_link(
+            db => $self->{db},
+            link_id => $link_id,
+            path_id => $self->path_id
+        );
+        return $create_err if (defined $create_err);
+    }
+
+    return;
+}
+
 =head2 add_link
 
 =cut
@@ -171,7 +227,34 @@ sub add_link {
     my $self = shift;
     my $link = shift;
 
+    push @{$self->{links_to_add}}, $link->link_id;
     push @{$self->{links}}, $link;
+}
+
+=head2 remove_link
+
+=cut
+sub remove_link {
+    my $self = shift;
+    my $link_id = shift;
+
+    my $new_links = [];
+    foreach my $link (@{$self->{links}}) {
+        if ($link->link_id == $link_id) {
+            push @{$self->{links_to_remove}}, $link_id;
+        } else {
+            push @$new_links, $link;
+        }
+    }
+    $self->{links} = $new_links;
+}
+
+=head2 links
+
+=cut
+sub links {
+    my $self = shift;
+    return $self->{links};
 }
 
 =head2 load_links
@@ -180,12 +263,14 @@ sub add_link {
 sub load_links {
     my $self = shift;
 
-    my ($link_datas, $error) = OESS::DB::Link::fetch_all(
+    my ($link_datas, $error) = OESS::DB::Path::get_links(
         db => $self->{db},
         path_id => $self->path_id
     );
     if (defined $error) {
         $self->{logger}->error($error);
+        warn $error;
+        return;
     }
 
     $self->{links} = [];
