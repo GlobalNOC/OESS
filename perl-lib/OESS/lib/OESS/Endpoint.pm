@@ -110,8 +110,8 @@ sub new{
         return;
     }
 
-    if (($self->type() eq 'circuit' && defined($self->circuit_id()) && $self->circuit_id() != -1) ||
-        ($self->type() eq 'vrf' && defined($self->vrf_endpoint_id()) && $self->vrf_endpoint_id() != -1)){
+    if ((defined($self->circuit_id()) && $self->circuit_id() != -1) ||
+        (defined($self->vrf_endpoint_id()) && $self->vrf_endpoint_id() != -1)){
         $self->_fetch_from_db();
     }else{
         $self->_build_from_model();
@@ -190,7 +190,7 @@ sub _build_from_model{
 # TODO Abstract away types
 
 
-    if ($self->{'type'} eq 'vrf') {
+    if (defined $self->{'vrf_endpoint_id'}) {
         $self->{'peers'} = [];
 
         foreach my $peer (@{$self->{'model'}->{'peerings'}}) {
@@ -222,7 +222,7 @@ sub to_hash{
     if(defined($self->entity())){
         $obj->{'entity'} = $self->entity->to_hash();
     }
-    if($self->{'type'} eq 'vrf'){
+    if (defined $self->{'vrf_endpoint_id'}) {
 
         my @peers;
         foreach my $peer (@{$self->{'peers'}}){

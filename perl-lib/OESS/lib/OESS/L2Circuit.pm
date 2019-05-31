@@ -204,6 +204,30 @@ sub user_id{
     return $self->{'user_id'};
 }
 
+=head2 reason
+
+=cut
+sub reason{
+    my $self = shift;
+    my $reason = shift;
+    if (defined $reason) {
+        $self->{'reason'} = $reason;
+    }
+    return $self->{'reason'};
+}
+
+=head2 state
+
+=cut
+sub state{
+    my $self = shift;
+    my $state = shift;
+    if (defined $state) {
+        $self->{'state'} = $state;
+    }
+    return $self->{'state'};
+}
+
 =head2 workgroup_id
 
 =cut
@@ -1024,6 +1048,12 @@ sub create {
 =head2 update
 
     my $err = $l2vpn->update;
+    $db->rollback if defined $err;
+
+update saves any changes made to this L2Circuit.
+
+Note that any changes to the userlying Endpoint or Path objects will
+not be propagated to the database by this method call.
 
 =cut
 sub update {
@@ -1033,7 +1063,11 @@ sub update {
         $self->{'logger'}->error('Unable to write db; Handle is missing.');
     }
 
-    return 1;
+    my $err = OESS::DB::Circuit::update(
+        db => $self->{db},
+        circuit => $self->to_hash
+    );
+    return $err;
 }
 
 =head2 remove

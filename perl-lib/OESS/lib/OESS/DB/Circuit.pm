@@ -227,7 +227,7 @@ sub fetch_endpoints_on_interface {
 
 =head2 update
 
-    my ($ok, $err) = OESS::DB::Circuit::update(
+    my $err = OESS::DB::Circuit::update(
         db => $db,
         circuit => {
             circuit_id          => 1,
@@ -261,10 +261,6 @@ sub update {
     my $params = [];
     my $values = [];
 
-    if (defined $args->{circuit}->{reason}) {
-        push @$params, 'circuit.reason=?';
-        push @$values, $args->{circuit}->{reason};
-    }
     if (defined $args->{circuit}->{name}) {
         push @$params, 'circuit.name=?';
         push @$values, $args->{circuit}->{name};
