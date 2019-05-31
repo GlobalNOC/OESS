@@ -180,6 +180,11 @@ sub create {
 update saves any changes made to this Path and maintains link
 relationships based on calls to C<add_link> and C<remove_link>.
 
+Note that any changes to the underlying Link objects will not be
+propagated to the database by this method call. We maintain the object
+structure, Path details, and Link-to-Path relationships. B<Nothing
+else.>
+
 =cut
 sub update {
     my $self = shift;

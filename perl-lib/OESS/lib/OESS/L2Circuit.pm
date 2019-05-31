@@ -1023,6 +1023,8 @@ sub create {
 
 =head2 update
 
+    my $err = $l2vpn->update;
+
 =cut
 sub update {
     my $self = shift;

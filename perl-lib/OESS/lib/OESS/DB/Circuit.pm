@@ -225,4 +225,105 @@ sub fetch_endpoints_on_interface {
     return \@results;
 }
 
+=head2 update
+
+    my ($ok, $err) = OESS::DB::Circuit::update(
+        db => $db,
+        circuit => {
+            circuit_id          => 1,
+            user_id             => 100, # Used as last_modified_by_id
+            reason              => 1,
+            state               => 1,
+            name                => 1, # Optional
+            description         => 1, # Optional
+            external_identifier => 1, # Optional
+            remote_requester    => 1, # Optional
+            remote_url          => 1  # Optional
+        }
+    );
+
+update modifies the circuit identified by C<circuit_id>.
+
+=cut
+sub update {
+    my $args = {
+        db  => undef,
+        circuit => {},
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `circuit->circuit_id` is missing.') if !defined $args->{circuit}->{circuit_id};
+    return (undef, 'Required argument `circuit->user_id` is missing.') if !defined $args->{circuit}->{user_id};
+    return (undef, 'Required argument `circuit->reason` is missing.') if !exists $args->{circuit}->{reason};
+    return (undef, 'Required argument `circuit->state` is missing.') if !defined $args->{circuit}->{state};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{circuit}->{reason}) {
+        push @$params, 'circuit.reason=?';
+        push @$values, $args->{circuit}->{reason};
+    }
+    if (defined $args->{circuit}->{name}) {
+        push @$params, 'circuit.name=?';
+        push @$values, $args->{circuit}->{name};
+    }
+    if (defined $args->{circuit}->{description}) {
+        push @$params, 'circuit.description=?';
+        push @$values, $args->{circuit}->{description};
+    }
+    if (defined $args->{circuit}->{external_identifier}) {
+        push @$params, 'circuit.external_identifier=?';
+        push @$values, $args->{circuit}->{external_identifier};
+    }
+    if (defined $args->{circuit}->{remote_requester}) {
+        push @$params, 'circuit.remote_requester=?';
+        push @$values, $args->{circuit}->{remote_requester};
+    }
+    if (defined $args->{circuit}->{remote_url}) {
+        push @$params, 'circuit.remote_url=?';
+        push @$values, $args->{circuit}->{remote_url};
+    }
+    if (defined $args->{circuit}->{state}) {
+        push @$params, 'circuit.circuit_state=?';
+        push @$values, $args->{circuit}->{state};
+    }
+
+    my $fields = join(', ', @$params);
+    push @$values, $args->{circuit}->{circuit_id};
+
+    my $ok = $args->{db}->execute_query(
+        "UPDATE circuit SET $fields WHERE circuit_id=?",
+        $values
+    );
+    if (!defined $ok) {
+        return $args->{db}->get_error;
+    }
+
+    my $inst_ok = $args->{db}->execute_query(
+        "UPDATE circuit_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE circuit_id=? and end_epoch=-1",
+        [$args->{circuit}->{circuit_id}]
+    );
+    if (!defined $inst_ok) {
+        return $args->{db}->get_error;
+    }
+
+    my $q2 = "
+        INSERT INTO circuit_instantiation (circuit_id, reason, circuit_state, modified_by_user_id, start_epoch, end_epoch)
+        VALUES (?, ?, ?, ?, UNIX_TIMESTAMP(NOW()), -1)
+    ";
+    my $circuit_instantiation_id = $args->{db}->execute_query($q2, [
+        $args->{circuit}->{circuit_id},
+        $args->{circuit}->{reason},
+        $args->{circuit}->{state},
+        $args->{circuit}->{user_id}
+    ]);
+    if (!defined $circuit_instantiation_id) {
+        return $args->{db}->get_error;
+    }
+
+    return;
+}
+
 1;
