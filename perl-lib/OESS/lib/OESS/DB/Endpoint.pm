@@ -259,7 +259,7 @@ sub remove_circuit_edge_membership{
     my $result = $db->execute_query(
         "DELETE FROM circuit_edge_interface_membership ".
         "WHERE circuit_edge_id = ? AND end_epoch = -1",
-        [$endpoint->{circuit_endpoint_id}]);
+        [$endpoint->{circuit_ep_id}]);
     return $result;
 }
 
@@ -315,7 +315,7 @@ sub update_circuit_edge_membership{
              $endpoint->{start_epoch},
              $endpoint->{tag},
              $endpoint->{inner_tag},
-             $endpoint->{circuit_endpoint_id},
+             $endpoint->{circuit_ep_id},
              $endpoint->{unit}]);
     return $result;
 }

@@ -6,6 +6,7 @@ use warnings;
 package OESS::Endpoint;
 
 use OESS::DB;
+use OESS::DB::Endpoint;
 use OESS::Interface;
 use OESS::Entity;
 use OESS::Node;
@@ -235,7 +236,7 @@ sub to_hash{
         $obj->{'mtu'} = $self->mtu();
     }else{
         $obj->{'circuit_id'} = $self->circuit_id();
-        $obj->{'circuit_ep_id'} = $self->circuit_endpoint_id();
+        $obj->{'circuit_ep_id'} = $self->circuit_ep_id();
         $obj->{'start_epoch'} = $self->start_epoch();
     }
     
@@ -264,6 +265,7 @@ sub from_hash{
         $self->{'mtu'} = $hash->{'mtu'};
     }else{
         $self->{'circuit_id'} = $hash->{'circuit_id'};
+        $self->{'circuit_ep_id'} = $hash->{'circuit_ep_id'};
         $self->{start_epoch} = $hash->{start_epoch};
     }
 
@@ -281,20 +283,28 @@ sub from_hash{
 =cut
 sub _fetch_from_db{
     my $self = shift;
-    
+
     my $db = $self->{'db'};
     my $hash;
 
     if($self->{'type'} eq 'circuit'){
-        $hash = OESS::DB::Circuit::fetch_circuit_endpoint( db => $db,
-                        circuit_id => $self->{'circuit_id'},
-                        interface_id => $self->{'interface_id'});
+        my ($data, $err) = OESS::DB::Endpoint::fetch_all(
+            circuit_id => $self->{circuit_id},
+            interface_id => $self->{interface_id}
+        );
+        if (!defined $err) {
+            $hash = $data->[0];
+        }
+
+        # $hash = OESS::DB::Circuit::fetch_circuit_endpoint( db => $db,
+        #                 circuit_id => $self->{'circuit_id'},
+        #                 interface_id => $self->{'interface_id'});
 
         # Do a little moving around to make the hash compatible with from_hash
         $hash->{'interface'} = {'interface_id' => $hash->{'interface_id'}}
-        
+
     }else{
-        
+
         $hash = OESS::DB::VRF::fetch_endpoint(db => $db, vrf_endpoint_id => $self->{'vrf_endpoint_id'});
     }
     $self->from_hash($hash);
@@ -504,10 +514,10 @@ sub start_epoch{
     return $self->{start_epoch};
 }
 
-=head2 circuit_endpoint_id
+=head2 circuit_ep_id
 
 =cut
-sub circuit_endpoint_id{
+sub circuit_ep_id{
     my $self = shift;
     return $self->{'circuit_ep_id'};
 }
@@ -563,7 +573,7 @@ sub decom{
         
     }else{
 
-        $res = OESS::DB::Circuit::decom_endpoint(db => $self->{'db'}, circuit_endpoint_id => $self->circuit_endpoint_id());
+        $res = OESS::DB::Circuit::decom_endpoint(db => $self->{'db'}, circuit_endpoint_id => $self->circuit_ep_id());
 
     }
 
