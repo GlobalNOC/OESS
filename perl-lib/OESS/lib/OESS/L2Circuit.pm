@@ -568,11 +568,13 @@ sub get_path{
         return;
     }
 
-    if ($path eq 'tertiary') {
-        return $self->{model}->{'tertiary_links'};
-    } else {
-        return $self->{model}->{'links'};
+    foreach my $p (@{$self->{paths}}) {
+        if ($p->type eq $path) {
+            return $p;
+        }
     }
+
+    return;
 }
 
 =head2 get_active_path

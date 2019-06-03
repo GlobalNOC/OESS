@@ -101,6 +101,7 @@ sub fetch_all {
 
     if (!defined $type || $type eq 'circuit') {
         #       circuit_ep_id: 36
+        #          circuit_id: 30
         #           entity_id: 3
         #              entity: mx960-1
         #        interface_id: 57
@@ -117,7 +118,7 @@ sub fetch_all {
         # cloud_connection_id: NULL
 
         $q = "
-            SELECT circuit_ep.circuit_edge_id AS circuit_ep_id,
+            SELECT circuit_ep.circuit_edge_id AS circuit_ep_id, circuit_ep.circuit_id,
                    entity.entity_id, entity.name AS entity,
                    interface.interface_id, interface.name AS interface, interface.operational_state,
                    node.node_id, node.name AS node,
@@ -146,6 +147,7 @@ sub fetch_all {
 
     if (!defined $type || $type eq 'vrf') {
         #           vrf_ep_id: 3
+        #              vrf_id: 30
         #           entity_id: 3
         #              entity: mx960-1
         #        interface_id: 57
@@ -162,7 +164,7 @@ sub fetch_all {
         # cloud_connection_id: NULL
 
         $q = "
-            SELECT vrf_ep.vrf_ep_id,
+            SELECT vrf_ep.vrf_ep_id, vrf_ep.vrf_id,
                    entity.entity_id, entity.name AS entity,
                    interface.interface_id, interface.name AS interface, interface.operational_state,
                    node.node_id, node.name AS node,
@@ -308,11 +310,10 @@ sub update_circuit_edge_membership{
             "inner_tag, ".
             "circuit_edge_id, ".
             "unit".
-            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ") VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
             [$endpoint->{interface}->{interface_id},
              $endpoint->{circuit_id},
              -1,
-             $endpoint->{start_epoch},
              $endpoint->{tag},
              $endpoint->{inner_tag},
              $endpoint->{circuit_ep_id},

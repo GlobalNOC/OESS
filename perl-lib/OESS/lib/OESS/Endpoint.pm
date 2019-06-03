@@ -615,17 +615,16 @@ sub update_db_circuit{
                         db       => $self->{db},
                         endpoint => $endpoint);
     if(!defined($result)){
-        $self->{db}->rollback();
         return $self->{db}->{error};
     }
+
     $result = OESS::DB::Endpoint::update_circuit_edge_membership(
                         db       => $self->{db},
                         endpoint => $endpoint);
     if(!defined($result)){
-        $self->{db}->rollback();
         return $self->{db}->{error};
     }
-    return undef;
+    return;
 }
 
 =head2 update_db
@@ -635,21 +634,15 @@ sub update_db {
     my $self = shift;
     my $error = undef;
 
-    $self->{db}->start_transaction();
-
-    if($self->type() eq 'vrf'){
+    if ($self->type() eq 'vrf' || defined $self->{vrf_endpoint_id}) {
         $error = $self->update_db_vrf();
-    }elsif($self->type() eq 'circuit') {
+    } elsif ($self->type() eq 'circuit' || defined $self->{circuit_ep_id}) {
         $error = $self->update_db_circuit();
-    }
-    
-    if(defined($error)){
-        $self->{db}->rollback();
-        return $error;
+    } else {
+        $error = 'Unknown Endpoint type specified.';
     }
 
-    $self->{db}->commit();
-    return;
+    return $error;
 }
 
 =head2 move_endpoints
