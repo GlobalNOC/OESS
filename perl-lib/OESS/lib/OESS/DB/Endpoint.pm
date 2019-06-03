@@ -321,6 +321,32 @@ sub update_circuit_edge_membership{
     return $result;
 }
 
+=head2 remove_vrf_ep
+
+    my $error = OESS::DB::Endpoint::remove_vrf_ep(
+        db => $db,
+        vrf_ep_id => 100
+    );
+
+=cut
+sub remove_vrf_ep {
+    my $args = {
+        db        => undef,
+        vrf_ep_id => undef,
+        @_
+    };
+
+    my $ok = $args->{db}->execute_query(
+        "delete from vrf_ep where vrf_ep_id=?",
+        [$args->{vrf_ep_id}]
+    );
+    if (!$ok) {
+        return $args->{db}->get_error;
+    }
+
+    return;
+}
+
 =head2 remove_vrf_peers
 
 =cut

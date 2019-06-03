@@ -788,4 +788,59 @@ sub create {
 
 }
 
+=head2 remove
+
+    my $error = $endpoint->remove;
+    if (defined $error) {
+        warn $error;
+    }
+
+remove deletes this endpoint from the
+circuit_edge_interface_membership or vrf_ep table depending on if it's
+a Circuit or VRF Endpoint. This method should be wrapped in a
+transaction.
+
+=cut
+sub remove {
+    my $self = shift;
+    my $args = { @_ };
+
+    if (!defined $self->{db}) {
+        $self->{logger}->error("Couldn't remove Endpoint: DB handle is missing.");
+        return "Couldn't remove Endpoint: DB handle is missing.";
+    }
+
+    my $endpoint = $self->to_hash;
+
+    if ($self->type eq 'vrf' || defined $self->{vrf_endpoint_id}) {
+        my $result = OESS::DB::Endpoint::remove_vrf_peers(
+            db => $self->{db},
+            endpoint => $endpoint
+        );
+        if (!defined $result) {
+            return $self->{db}->{error};
+        }
+
+        my $error = OESS::DB::Endpoint::remove_vrf_ep(
+            db => $self->{db},
+            vrf_ep_id => $endpoint->{vrf_ep_id}
+        );
+        return $error if (defined $error);
+    }
+    elsif ($self->type eq 'circuit' || defined $self->{circuit_ep_id}) {
+        my $result = OESS::DB::Endpoint::remove_circuit_edge_membership(
+            db       => $self->{db},
+            endpoint => $endpoint
+        );
+        if (!defined $result) {
+            return $self->{db}->{error};
+        }
+    }
+    else {
+        return 'Unknown Endpoint type specified.';
+    }
+
+    return;
+}
+
 1;

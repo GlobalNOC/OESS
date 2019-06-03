@@ -184,6 +184,10 @@ sub provision {
         return;
     }
 
+    if (defined $args->{circuit_id}->{value}) {
+        return update($method, $args);
+    }
+
     my $circuit = new OESS::L2Circuit(
         db => $db,
         model => {
@@ -308,6 +312,134 @@ sub provision {
 
     warn Dumper($circuit->to_hash);
     return {status => 1, circuit_id => $circuit_id};
+}
+
+
+sub update {
+    my ($method, $args) = @_;
+
+    $db->start_transaction;
+
+    my $circuit = new OESS::L2Circuit(
+        db => $db,
+        circuit_id => $args->{circuit_id}->{value}
+    );
+    if (!defined $circuit) {
+        $method->set_error("Couldn't load Circuit from database.");
+        return;
+    }
+
+    $circuit->load_endpoints;
+    $circuit->load_paths;
+
+    $circuit->description($args->{description}->{value});
+    $circuit->remote_url($args->{remote_url}->{value});
+    $circuit->remote_requester($args->{remote_requester}->{value});
+    $circuit->external_identifier($args->{external_identifier}->{value});
+
+    my $err = $circuit->update;
+    if (defined $err) {
+        $method->set_error("Couldn't update Circuit: $err");
+        return;
+    }
+
+    # Hash to track which endpoints have been updated and which shall
+    # be removed.
+    my $endpoints = {};
+    foreach my $ep (@{$circuit->endpoints}) {
+        $endpoints->{$ep->circuit_ep_id} = $ep;
+    }
+
+    foreach my $value (@{$args->{endpoint}->{value}}) {
+        my $ep;
+        eval{
+            $ep = decode_json($value);
+        };
+        if ($@) {
+            $method->set_error("Cannot decode endpoint: $@");
+            return;
+        }
+
+        if (!defined $ep->{circuit_ep_id}) {
+            warn "Adding Endpoint";
+
+            my $entity = new OESS::Entity(db => $db, name => $ep->{entity});
+
+            my $interface = $entity->select_interface(
+                inner_tag    => $ep->{inner_tag},
+                tag          => $ep->{tag},
+                workgroup_id => $args->{workgroup_id}->{value}
+            );
+            if (!defined $interface) {
+                $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
+                return;
+            }
+
+            $ep->{entity_id}    = $entity->{entity_id};
+            $ep->{interface}    = $interface->{name};
+            $ep->{interface_id} = $interface->{interface_id};
+            $ep->{node}         = $interface->{node}->{name};
+            $ep->{node_id}      = $interface->{node}->{node_id};
+
+            my $endpoint = new OESS::Endpoint(db => $db, model => $ep);
+            $endpoint->create(
+                circuit_id => $circuit->circuit_id,
+                workgroup_id => $args->{workgroup_id}->{value}
+            );
+            $circuit->add_endpoint($endpoint);
+
+        } else {
+            my $endpoint = $circuit->get_endpoint(
+                circuit_ep_id => $ep->{circuit_ep_id}
+            );
+
+            $endpoint->bandwidth($ep->{bandwidth});
+            $endpoint->inner_tag($ep->{inner_tag});
+            $endpoint->tag($ep->{tag});
+            $endpoint->mtu($ep->{mtu});
+            my $err = $endpoint->update_db;
+            if (defined $err) {
+                $method->set_error("Couldn't update Endpoint: $err");
+                return;
+            }
+
+            delete $endpoints->{$endpoint->circuit_ep_id};
+        }
+    }
+
+    foreach my $key (keys %$endpoints) {
+        my $endpoint = $endpoints->{$key};
+        $endpoint->remove;
+        $circuit->remove_endpoint($endpoint->{circuit_ep_id});
+    }
+
+    # Hash to track which links have been updated and which shall be
+    # removed from the primary / strict path.
+    my $path  = $circuit->get_path(path => 'primary');
+    my $links = {};
+    foreach my $link (@{$path->links}) {
+        $links->{$link->name} = $link;
+    }
+
+    foreach my $value (@{$args->{link}->{value}}) {
+        if (!defined $links->{$value}) {
+            # New
+        } else {
+            # Update / Ignore
+            delete $links->{$value};
+        }
+    }
+
+    foreach my $key (keys %$links) {
+        $path->remove_link(name => $key);
+    }
+
+    # Put rollback in place for quick tests
+    # $db->rollback;
+    $db->commit;
+
+    warn Dumper($circuit->to_hash);
+    return $circuit->to_hash;
 }
 
 
