@@ -102,8 +102,8 @@ $acl_id = $db->add_acl(
 ok($acl_id, 'acl added');
 
 my $acls = $db->get_acls( owner_workgroup_id => 11 );
-is(@$acls, 1, '1 ACL Retrieved');
-my $acl = $acls->[0];
+is(@$acls, 2, '1 ACL Retrieved');
+my $acl = $acls->[1];
 
 is($acl->{'vlan_end'},undef,'vlan_end ok');
 is($acl->{'vlan_start'},100,'vlan_start ok');
@@ -143,6 +143,6 @@ $acl_id = $db->add_acl(
 ok($acl_id, 'acl added');
 
 my $acls = $db->get_acls( owner_workgroup_id => 11 );
-is(@$acls, 2, '2 ACLs Retrieved');
-is($acls->[1]{'eval_position'}, '30', 'correct eval position');
+is(@$acls, 3, '2 ACLs Retrieved');
+is($acls->[2]{'eval_position'}, '30', 'correct eval position');
 

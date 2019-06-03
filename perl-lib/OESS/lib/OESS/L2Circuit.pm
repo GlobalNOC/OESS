@@ -975,6 +975,36 @@ sub get_endpoint {
     return;
 }
 
+=head2 remove_endpoint
+
+    my $ok = $l2vpn->remove_endpoint(
+        circuit_ep_id => 100
+    );
+
+remove_endpoint removes the endpoint identified by C<circuit_ep_id>
+from this L2Circuit.
+
+=cut
+sub remove_endpoint {
+    my $self = shift;
+    my $circuit_ep_id = shift;
+
+    if (!defined $circuit_ep_id) {
+        return;
+    }
+
+    my $new_endpoints = [];
+    foreach my $ep (@{$self->{endpoints}}) {
+        if ($circuit_ep_id == $ep->{circuit_ep_id}) {
+            next;
+        }
+        push @$new_endpoints, $ep;
+    }
+    $self->{endpoints} = $new_endpoints;
+
+    return 1;
+}
+
 =head2 create
 
     $db->start_transaction;
