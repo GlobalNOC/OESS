@@ -188,10 +188,7 @@ sub _build_from_model{
         }
     }
 
-# TODO Abstract away types
-
-
-    if (defined $self->{'vrf_endpoint_id'}) {
+    if ($self->{type} eq 'vrf' || defined $self->{'vrf_endpoint_id'}) {
         $self->{'peers'} = [];
 
         foreach my $peer (@{$self->{'model'}->{'peerings'}}) {
@@ -234,13 +231,14 @@ sub to_hash{
         $obj->{'vrf_id'} = $self->vrf_id();
         $obj->{'vrf_endpoint_id'} = $self->vrf_endpoint_id();
         $obj->{'mtu'} = $self->mtu();
+        $obj->{'type'} = 'vrf';
     }else{
         $obj->{'circuit_id'} = $self->circuit_id();
         $obj->{'circuit_ep_id'} = $self->circuit_ep_id();
         $obj->{'start_epoch'} = $self->start_epoch();
+        $obj->{'type'} = 'circuit';
     }
-    
-    $obj->{'type'} = $self->{'type'};
+
     $obj->{'unit'} = $self->{'unit'};
     return $obj;
 
@@ -259,11 +257,11 @@ sub from_hash{
     $self->{cloud_account_id} = $hash->{cloud_account_id};
     $self->{cloud_connection_id} = $hash->{cloud_connection_id};
 
-    if($self->{'type'} eq 'vrf'){
+    if ($self->{'type'} eq 'vrf' || !defined $hash->{'circuit_ep_id'}) {
         $self->{'peers'} = $hash->{'peers'};
         $self->{'vrf_id'} = $hash->{'vrf_id'};
         $self->{'mtu'} = $hash->{'mtu'};
-    }else{
+    } else {
         $self->{'circuit_id'} = $hash->{'circuit_id'};
         $self->{'circuit_ep_id'} = $hash->{'circuit_ep_id'};
         $self->{start_epoch} = $hash->{start_epoch};
@@ -295,10 +293,6 @@ sub _fetch_from_db{
         if (!defined $err) {
             $hash = $data->[0];
         }
-
-        # $hash = OESS::DB::Circuit::fetch_circuit_endpoint( db => $db,
-        #                 circuit_id => $self->{'circuit_id'},
-        #                 interface_id => $self->{'interface_id'});
 
         # Do a little moving around to make the hash compatible with from_hash
         $hash->{'interface'} = {'interface_id' => $hash->{'interface_id'}}
@@ -561,16 +555,15 @@ sub workgroup_id {
 =cut
 sub decom{
     my $self = shift;
-    
+
     my $res;
     if($self->type() eq 'vrf'){
-
         foreach my $peer (@{$self->peers()}){
             $peer->decom();
         }
-        
+
         $res = OESS::DB::VRF::decom_endpoint(db => $self->{'db'}, vrf_endpoint_id => $self->vrf_endpoint_id());
-        
+
     }else{
 
         $res = OESS::DB::Circuit::decom_endpoint(db => $self->{'db'}, circuit_endpoint_id => $self->circuit_ep_id());
