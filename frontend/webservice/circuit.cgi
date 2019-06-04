@@ -36,8 +36,8 @@ my $mq = OESS::RabbitMQ::Client->new(
 my $ws = GRNOC::WebService::Dispatcher->new();
 
 my $get_circuits = GRNOC::WebService::Method->new(
-    name => 'get_circuits',
-    callback => \&get_circuits,
+    name => 'get',
+    callback => \&get,
     description => 'Returns a list of Circuits filtered by the provided parameters.'
 );
 $get_circuits->add_input_parameter(
@@ -61,7 +61,7 @@ $get_circuits->add_input_parameter(
 );
 $ws->register_method($get_circuits);
 
-sub get_circuits {
+sub get {
     my ($method, $args) = @_;
 
     my $circuits = [];

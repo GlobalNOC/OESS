@@ -87,7 +87,9 @@ sub new {
             $self->{logger}->error("Couldn't load L2Circuit: $@");
             return;
         }
-    } elsif (!defined $self->{model}) {
+    }
+
+    if (!defined $self->{model}) {
         $self->{logger}->debug('Optional argument `model` is missing.');
         $self->{logger}->error("Couldn't load L2Circuit from db or model.");
         return;
