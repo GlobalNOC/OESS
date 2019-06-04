@@ -50,7 +50,6 @@ sub create {
     }
 
     my $circuit = [
-        $args->{model}->{name},
         $args->{model}->{description},
         $args->{model}->{workgroup_id},
         $args->{model}->{external_identifier},
@@ -67,7 +66,7 @@ sub create {
                 circuit_state, restore_to_primary, static_mac,
                 remote_url, remote_requester, type
          )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         $circuit
     );
     if (!defined $circuit_id) {
@@ -326,7 +325,9 @@ sub update {
 
     my $error = OESS::DB::Circuit::remove(
         db         => $db,
-        circuit_id => 100
+        circuit_id => 100,
+        user_id    => 101,
+        reason     => 'User request' # Optional
     );
 
 =cut
@@ -334,11 +335,14 @@ sub remove {
     my $args = {
         db  => undef,
         circuit_id => undef,
+        user_id    => undef,
+        reason     => 'User requested remove of circuit',
         @_
     };
 
     return 'Required argument `db` is missing.' if !defined $args->{db};
     return 'Required argument `circuit_id` is missing.' if !defined $args->{circuit_id};
+    return 'Required argument `user_id` is missing.' if !defined $args->{user_id};
 
     my $ok = $args->{db}->execute_query(
         "UPDATE circuit SET circuit_state='decom' WHERE circuit_id=?",
@@ -349,10 +353,24 @@ sub remove {
     }
 
     my $inst_ok = $args->{db}->execute_query(
-        "UPDATE circuit_instantiation SET circuit_state='decom', end_epoch=UNIX_TIMESTAMP(NOW()) WHERE circuit_id=? and end_epoch=-1",
+        "UPDATE circuit_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE circuit_id=? and end_epoch=-1",
         [$args->{circuit_id}]
     );
     if (!defined $inst_ok) {
+        return $args->{db}->get_error;
+    }
+
+    my $q2 = "
+        INSERT INTO circuit_instantiation (circuit_id, reason, circuit_state, modified_by_user_id, start_epoch, end_epoch)
+        VALUES (?, ?, ?, ?, UNIX_TIMESTAMP(NOW()), -1)
+    ";
+    my $circuit_instantiation_id = $args->{db}->execute_query($q2, [
+        $args->{circuit_id},
+        $args->{reason},
+        'decom',
+        $args->{user_id}
+    ]);
+    if (!defined $circuit_instantiation_id) {
         return $args->{db}->get_error;
     }
 

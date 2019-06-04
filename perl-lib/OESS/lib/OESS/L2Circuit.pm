@@ -1035,8 +1035,8 @@ sub create {
     my $self = shift;
 
     if (!defined $self->{db}) {
-        $self->{'logger'}->error("Couldn't create Circuit: DB handle is missing.");
-        return (undef, "Couldn't create Circuit: DB handle is missing.");
+        $self->{'logger'}->error("Database handle is missing.");
+        return (undef, "Database handle is missing.");
     }
 
     my ($circuit_id, $circuit_err) = OESS::DB::Circuit::create(
@@ -1054,32 +1054,8 @@ sub create {
         }
     );
     if (defined $circuit_err) {
-        $self->{logger}->error("Couldn't create Circuit: $circuit_err");
-        return (undef, "Couldn't create Circuit: $circuit_err");
-    }
-
-    if (@{$self->{endpoints}} < 2) {
-        $self->{logger}->error("Couldn't create Circuit: Circuit requires at least two Endpoints.");
-        return (undef, "Couldn't create Circuit: Circuit requires at least two Endpoints.");
-    }
-
-    foreach my $ep (@{$self->{endpoints}}) {
-        my ($ep_id, $ep_err) = $ep->create(
-            circuit_id => $circuit_id,
-            workgroup_id => $self->workgroup_id
-        );
-        if (defined $ep_err) {
-            $self->{logger}->error("Couldn't create Circuit: $ep_err");
-            return (undef, "Couldn't create Circuit: $ep_err");
-        }
-    }
-
-    foreach my $path (@{$self->{paths}}) {
-        my ($path_id, $path_err) = $path->create(circuit_id => $circuit_id);
-        if (defined $path_err) {
-            $self->{logger}->error("Couldn't create Circuit: $path_err");
-            return (undef, "Couldn't create Circuit: $path_err");
-        }
+        $self->{logger}->error($circuit_err);
+        return (undef, $circuit_err);
     }
 
     $self->{circuit_id} = $circuit_id;
@@ -1114,17 +1090,32 @@ sub update {
 
 =head2 remove
 
-    my $err = $l2conn->remove;
+    my $err = $l2conn->remove(
+        user_id => 101
+        reason  => 'user request' # Optional
+    );
 
 =cut
 sub remove {
     my $self = shift;
+    my $args = {
+        user_id    => undef,
+        reason     => 'User requested remove of circuit',
+        @_
+    };
+
+    return 'Required argument `user_id` is missing.' if !defined $args->{user_id};
 
     if (!defined $self->{db}) {
-        $self->{'logger'}->error('Unable to remove Circuit; Database handle is missing.');
+        $self->{'logger'}->error('Database handle is missing.');
     }
 
-    my $err = OESS::DB::Circuit::remove(db => $self->{db}, circuit_id => $self->circuit_id);
+    my $err = OESS::DB::Circuit::remove(
+        db => $self->{db},
+        circuit_id => $self->circuit_id,
+        user_id => $args->{user_id},
+        reason => $args->{reason}
+    );
     return $err;
 }
 

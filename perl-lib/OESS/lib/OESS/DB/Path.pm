@@ -284,6 +284,14 @@ sub remove {
         return $args->{db}->get_error;
     }
 
+    my $mship_ok = $args->{db}->execute_query(
+        "UPDATE link_path_membership SET end_epoch=UNIX_TIMESTAMP(NOW()) where path_id=? and end_epoch=-1;",
+        [$args->{path_id}]
+    );
+    if (!defined $mship_ok) {
+        return $args->{db}->get_error;
+    }
+
     return;
 }
 

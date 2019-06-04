@@ -13,7 +13,6 @@ use GRNOC::WebService::Dispatcher;
 use GRNOC::WebService::Method;
 
 use OESS::Cloud;
-use OESS::Cloud::AWS;
 use OESS::DB;
 use OESS::DB::Circuit;
 use OESS::DB::Entity;
@@ -134,6 +133,13 @@ $provision->add_input_parameter(
     required    => 1,
     description => "The time the circuit should be removed from the network in epoch time format. -1 means never."
 );
+$provision->add_input_parameter(
+    name        => 'skip_cloud_provisioning',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 0,
+    default     => 0,
+    description => "If set to 1 cloud provider configurations will not be performed."
+);
 
 $provision->add_input_parameter(
 	name        => 'link',
@@ -188,6 +194,8 @@ sub provision {
         return update($method, $args);
     }
 
+    $db->start_transaction;
+
     my $circuit = new OESS::L2Circuit(
         db => $db,
         model => {
@@ -202,6 +210,19 @@ sub provision {
             workgroup_id => $args->{workgroup_id}->{value}
         }
     );
+
+    my ($circuit_id, $circuit_error) = $circuit->create;
+    if (defined $circuit_error) {
+        $method->set_error("Couldn't create Circuit: $circuit_error");
+        $db->rollback;
+        return;
+    }
+
+    if (@{$args->{endpoint}->{value}} < 2) {
+        $method->set_error("Couldn't create Circuit: Circuit requires at least two Endpoints.");
+        $db->rollback;
+        return;
+    }
 
     # Endpoint: { entity: 'entity name', bandwidth: 0, tag: 100, inner_tag: 100, peerings: [{ version: 4 }]  }
     foreach my $value (@{$args->{endpoint}->{value}}) {
@@ -222,7 +243,8 @@ sub provision {
             workgroup_id => $args->{workgroup_id}->{value}
         );
         if (!defined $interface) {
-            $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
+            $method->set_error("Couldn't create Circuit: Cannot find a valid Interface for $ep->{entity}.");
+            $db->rollback;
             return;
         }
 
@@ -244,6 +266,7 @@ sub provision {
             );
             if (!defined $interface2) {
                 $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
+                $db->rollback;
                 return;
             }
 
@@ -259,9 +282,33 @@ sub provision {
         }
     }
 
+    if (!$args->{skip_cloud_provisioning}->{value}) {
+        eval {
+            $circuit->{endpoints} = OESS::Cloud::setup_endpoints($circuit->name, $circuit->endpoints);
+        };
+        if ($@) {
+            $method->set_error("Couldn't create Circuit: $@");
+            $db->rollback;
+            return;
+        }
+    }
+
+    foreach my $ep (@{$circuit->endpoints}) {
+        my ($ep_id, $ep_err) = $ep->create(
+            circuit_id => $circuit_id,
+            workgroup_id => $args->{workgroup_id}->{value}
+        );
+        if (defined $ep_err) {
+            $method->set_error("Couldn't create Circuit: $ep_err");
+            $db->rollback;
+            return;
+        }
+    }
+
     if (defined $args->{link}->{value}) {
         if (@{$circuit->endpoints} > 2) {
-            $method->set_error("Static path are unavailable to Circuits with more than two Endpoints.");
+            $method->set_error("Couldn't create Circuit: Static path are unsupported on Circuits with more than two Endpoints.");
+            $db->rollback;
             return;
         }
 
@@ -277,8 +324,8 @@ sub provision {
         foreach my $value (@{$args->{link}->{value}}) {
             my $link = new OESS::Link(db => $db, name => $value);
             if (!defined $link) {
+                $method->set_error("Couldn't create Circuit: Unknown link $value used in static Path.");
                 $db->rollback;
-                $method->set_error("Unknown link $value specified in static Path.");
                 return;
             }
             $path->add_link($link);
@@ -290,20 +337,19 @@ sub provision {
 
         my $ok = $path->connects($node_a, $node_z);
         if (!$ok) {
-            $method->set_error("Static Path doesn't connect selected Endpoints.");
+            $method->set_error("Couldn't create Circuit: Static Path doesn't connect selected Endpoints.");
+            $db->rollback;
+            return;
+        }
+
+        my ($path_id, $path_err) = $path->create(circuit_id => $circuit_id);
+        if (defined $path_err) {
+            $method->set_error("Couldn't create Circuit: $path_err");
+            $db->rollback;
             return;
         }
 
         $circuit->add_path($path);
-    }
-
-    $db->start_transaction;
-
-    my ($circuit_id, $error) = $circuit->create;
-    if (defined $error) {
-        $db->rollback;
-        $method->set_error($error);
-        return;
     }
 
     # Put rollback in place for quick tests
@@ -460,6 +506,13 @@ $remove->add_input_parameter(
     required => 1,
     description => 'Identifier of Circuit to remove.'
 );
+$remove->add_input_parameter(
+    name        => 'skip_cloud_provisioning',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 0,
+    default     => 0,
+    description => "If set to 1 cloud provider configurations will not be performed."
+);
 $ws->register_method($remove);
 
 sub remove {
@@ -490,10 +543,21 @@ sub remove {
     $circuit->load_endpoints;
     $circuit->load_paths;
 
+    if (!$args->{skip_cloud_provisioning}->{value}) {
+        eval {
+            $circuit->{endpoints} = OESS::Cloud::cleanup_endpoints($circuit->name, $circuit->endpoints);
+        };
+        if ($@) {
+            $method->set_error("Couldn't remove Circuit: $@");
+            $db->rollback;
+            return;
+        }
+    }
+
     foreach my $ep (@{$circuit->endpoints}) {
         my $err = $ep->remove;
         if (defined $err) {
-            $method->set_error($err);
+            $method->set_error("Couldn't remove Circuit: $err");
             $db->rollback;
             return;
         }
@@ -502,15 +566,15 @@ sub remove {
     foreach my $path (@{$circuit->paths}) {
         my $err = $path->remove;
         if (defined $err) {
-            $method->set_error($err);
+            $method->set_error("Couldn't remove Circuit: $err");
             $db->rollback;
             return;
         }
     }
 
-    my $err = $circuit->remove;
+    my $err = $circuit->remove(user_id => $user->{user_id});
     if (defined $err) {
-        $method->set_error('c: ' .$err);
+        $method->set_error("Couldn't remove Circuit: $err");
         $db->rollback;
         return;
     }
