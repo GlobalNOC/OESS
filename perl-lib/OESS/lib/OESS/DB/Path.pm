@@ -243,6 +243,50 @@ sub update {
     return ($ok, undef);
 }
 
+=head2 remove
+
+    my $error = OESS::DB::Path::remove(
+        db => $db,
+        path_id => 1
+    );
+
+remove sets the C<path_state> in both the C<path> and
+C<path_instantiation> tables to 'decom' and sets the end_epoch to
+none.
+
+=cut
+sub remove {
+    my $args = {
+        db  => undef,
+        path_id => undef,
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `path_id` is missing.' if !defined $args->{path_id};
+
+    my $params = [];
+    my $values = [];
+
+    my $ok = $args->{db}->execute_query(
+        "UPDATE path SET path_state='decom' WHERE path_id=?",
+        [$args->{path_id}]
+    );
+    if (!defined $ok) {
+        return $args->{db}->get_error;
+    }
+
+    my $inst_ok = $args->{db}->execute_query(
+        "UPDATE path_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()), path_state='decom' WHERE path_id=? and end_epoch=-1",
+        [$args->{path_id}]
+    );
+    if (!defined $inst_ok) {
+        return $args->{db}->get_error;
+    }
+
+    return;
+}
+
 =head2 add_link
 
     my ($ok, $err) = OESS::DB::Path::add_link(

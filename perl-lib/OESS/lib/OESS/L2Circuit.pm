@@ -296,6 +296,14 @@ sub load_paths {
     return 1;
 }
 
+=head2 paths
+
+=cut
+sub paths {
+    my $self = shift;
+    return $self->{paths};
+}
+
 =head2 load_workgroup
 
 =cut
@@ -1104,15 +1112,18 @@ sub update {
 
 =head2 remove
 
+    my $err = $l2conn->remove;
+
 =cut
 sub remove {
     my $self = shift;
 
     if (!defined $self->{db}) {
-        $self->{'logger'}->error('Unable to write db; Handle is missing.');
+        $self->{'logger'}->error('Unable to remove Circuit; Database handle is missing.');
     }
 
-    return 1;
+    my $err = OESS::DB::Circuit::remove(db => $self->{db}, circuit_id => $self->circuit_id);
+    return $err;
 }
 
 1;

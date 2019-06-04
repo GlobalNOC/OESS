@@ -322,4 +322,41 @@ sub update {
     return;
 }
 
+=head2 remove
+
+    my $error = OESS::DB::Circuit::remove(
+        db         => $db,
+        circuit_id => 100
+    );
+
+=cut
+sub remove {
+    my $args = {
+        db  => undef,
+        circuit_id => undef,
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `circuit_id` is missing.' if !defined $args->{circuit_id};
+
+    my $ok = $args->{db}->execute_query(
+        "UPDATE circuit SET circuit_state='decom' WHERE circuit_id=?",
+        [$args->{circuit_id}]
+    );
+    if (!defined $ok) {
+        return $args->{db}->get_error;
+    }
+
+    my $inst_ok = $args->{db}->execute_query(
+        "UPDATE circuit_instantiation SET circuit_state='decom', end_epoch=UNIX_TIMESTAMP(NOW()) WHERE circuit_id=? and end_epoch=-1",
+        [$args->{circuit_id}]
+    );
+    if (!defined $inst_ok) {
+        return $args->{db}->get_error;
+    }
+
+    return;
+}
+
 1;

@@ -193,7 +193,7 @@ sub update {
     };
 
     if (!defined $self->{db}) {
-        $self->{'logger'}->error("Couldn't create Link: DB handle is missing.");
+        $self->{'logger'}->error("Couldn't update Path: DB handle is missing.");
         return "Couldn't update Path: DB handle is missing.";
     }
 
@@ -224,6 +224,30 @@ sub update {
 
     return;
 }
+
+=head2 remove
+
+    my $error = $path->remove;
+
+remove decoms this Path in the database. This acts as a delete while
+additionally maintaining the path's history.
+
+=cut
+sub remove {
+    my $self = shift;
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error("Couldn't remove Path: DB handle is missing.");
+        return "Couldn't remove Path: DB handle is missing.";
+    }
+
+    my $error = OESS::DB::Path::remove(
+        db => $self->{db},
+        path_id => $self->path_id
+    );
+    return $error;
+}
+
 
 =head2 add_link
 

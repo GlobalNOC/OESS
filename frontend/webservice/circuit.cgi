@@ -465,11 +465,59 @@ $ws->register_method($remove);
 sub remove {
     my ($method, $args) = @_;
 
-    my $user = OESS::DB::User::get(db => $db, auth_name => $ENV{REMOTE_USER});
+    my $user = OESS::DB::User::fetch(db => $db, username => $ENV{REMOTE_USER});
+    if (!defined $user) {
+        $method->set_error("User '$user->{auth_name}' is invalid.");
+        return;
+    }
     if ($user->{type} eq 'read-only') {
         $method->set_error("User '$user->{auth_name}' is read-only.");
         return;
     }
+
+    $db->start_transaction;
+
+    my $circuit = new OESS::L2Circuit(
+        db => $db,
+        circuit_id => $args->{circuit_id}->{value}
+    );
+    if (!defined $circuit) {
+        $method->set_error("Couldn't load Circuit from database.");
+        $db->rollback;
+        return;
+    }
+
+    $circuit->load_endpoints;
+    $circuit->load_paths;
+
+    foreach my $ep (@{$circuit->endpoints}) {
+        my $err = $ep->remove;
+        if (defined $err) {
+            $method->set_error($err);
+            $db->rollback;
+            return;
+        }
+    }
+
+    foreach my $path (@{$circuit->paths}) {
+        my $err = $path->remove;
+        if (defined $err) {
+            $method->set_error($err);
+            $db->rollback;
+            return;
+        }
+    }
+
+    my $err = $circuit->remove;
+    if (defined $err) {
+        $method->set_error('c: ' .$err);
+        $db->rollback;
+        return;
+    }
+
+    # Put rollback in place for quick tests
+    # $db->rollback;
+    $db->commit;
 
     return {status => 1};
 }
