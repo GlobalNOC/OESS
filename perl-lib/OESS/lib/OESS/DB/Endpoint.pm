@@ -38,6 +38,7 @@ Endpoints will contain C<circuit_ep_id>.
         node                => 'test.grnoc.iu.edu',
         node_id             => 2,
         interface           => 'xe-7/0/2',
+        description         => 'na',
         interface_id        => 57,
         unit                => 6,
         tag                 => 6,
@@ -106,6 +107,7 @@ sub fetch_all {
         #              entity: mx960-1
         #        interface_id: 57
         #           interface: xe-7/0/2
+        #         description: 'na'
         #   operational_state: up
         #             node_id: 2
         #                node: mx960-1.sdn-test.grnoc.iu.edu
@@ -120,7 +122,7 @@ sub fetch_all {
         $q = "
             SELECT circuit_ep.circuit_edge_id AS circuit_ep_id, circuit_ep.circuit_id,
                    entity.entity_id, entity.name AS entity,
-                   interface.interface_id, interface.name AS interface, interface.operational_state,
+                   interface.interface_id, interface.name AS interface, interface.operational_state, interface.description,
                    node.node_id, node.name AS node,
                    unit, extern_vlan_id AS tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
@@ -152,6 +154,7 @@ sub fetch_all {
         #              entity: mx960-1
         #        interface_id: 57
         #           interface: xe-7/0/2
+        #         description: 'na'
         #   operational_state: up
         #             node_id: 2
         #                node: mx960-1.sdn-test.grnoc.iu.edu
@@ -166,7 +169,7 @@ sub fetch_all {
         $q = "
             SELECT vrf_ep.vrf_ep_id, vrf_ep.vrf_id,
                    entity.entity_id, entity.name AS entity,
-                   interface.interface_id, interface.name AS interface, interface.operational_state,
+                   interface.interface_id, interface.name AS interface, interface.operational_state, interface.description,
                    node.node_id, node.name AS node,
                    unit, tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id

@@ -135,8 +135,13 @@ sub _build_from_model{
     $self->{mtu} = $self->{model}->{mtu};
 
     if (defined $self->{'model'}->{'interface'}) {
-        $self->{'interface'} = OESS::Interface->new(db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
-        $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
+        my $intf = OESS::Interface->new(db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
+        $self->{'interface'} = $intf->{'name'};
+        $self->{'interface_id'} = $intf->{'interface_id'};
+        $self->{'node'} = $intf->node->name;
+        $self->{'node_id'} = $intf->node->node_id;
+        $self->{'description'} = $intf->{'description'};
+        $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, interface_id => $intf->{'interface_id'}, vlan => $self->{'tag'});
     } else {
         $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, name => $self->{'model'}->{'entity'});
 
@@ -210,8 +215,13 @@ sub to_hash{
     my $self = shift;
     my $obj;
 
-    $obj->{'interface'} = $self->interface()->to_hash();
-    $obj->{'node'} = $self->interface()->node()->to_hash();
+    # $obj->{'interface'} = $self->interface()->to_hash();
+    $obj->{'interface'} = $self->{'interface'};
+    $obj->{'interface_id'} = $self->{'interface_id'};
+    # $obj->{'node'} = $self->interface()->node()->to_hash();
+    $obj->{'node'} = $self->{'node'};
+    $obj->{'node_id'} = $self->{'node_id'};
+    $obj->{'description'} = $self->{'description'};
     $obj->{'inner_tag'} = $self->inner_tag();
     $obj->{'tag'} = $self->tag();
     $obj->{'bandwidth'} = $self->bandwidth();
@@ -253,6 +263,10 @@ sub from_hash{
 
     $self->{'bandwidth'} = $hash->{'bandwidth'};
     $self->{'interface'} = $hash->{'interface'};
+    $self->{'interface_id'} = $hash->{'interface_id'};
+    $self->{'node'} = $hash->{'node'};
+    $self->{'node_id'} = $hash->{'node_id'};
+    $self->{'description'} = $hash->{'description'};
 
     $self->{cloud_account_id} = $hash->{cloud_account_id};
     $self->{cloud_connection_id} = $hash->{cloud_connection_id};
@@ -285,7 +299,7 @@ sub _fetch_from_db{
     my $db = $self->{'db'};
     my $hash;
 
-    if($self->{'type'} eq 'circuit'){
+    if ($self->{'type'} eq 'circuit') {
         my ($data, $err) = OESS::DB::Endpoint::fetch_all(
             circuit_id => $self->{circuit_id},
             interface_id => $self->{interface_id}
@@ -293,16 +307,11 @@ sub _fetch_from_db{
         if (!defined $err) {
             $hash = $data->[0];
         }
-
-        # Do a little moving around to make the hash compatible with from_hash
-        $hash->{'interface'} = {'interface_id' => $hash->{'interface_id'}}
-
-    }else{
-
+    } else {
         $hash = OESS::DB::VRF::fetch_endpoint(db => $db, vrf_endpoint_id => $self->{'vrf_endpoint_id'});
     }
-    $self->from_hash($hash);
 
+    $self->from_hash($hash);
 }
 
 =head2 get_endpoints_on_interface
@@ -383,12 +392,25 @@ sub interface{
     return $self->{'interface'};
 }
 
+=head2 description
+
+=cut
+sub description{
+    my $self = shift;
+    my $description = shift;
+
+    if(defined($description)){
+        $self->{'description'} = $description;
+    }
+    return $self->{'description'};
+}
+
 =head2 node
 
 =cut
 sub node{
     my $self = shift;
-    return $self->{'interface'}->node();
+    return $self->{'node'};
 }
 
 =head2 node_id
@@ -396,7 +418,7 @@ sub node{
 =cut
 sub node_id {
     my $self = shift;
-    return $self->{'interface'}->node->node_id;
+    return $self->{'node_id'};
 }
 
 =head2 type

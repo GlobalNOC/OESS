@@ -9,7 +9,7 @@ class GlobalState extends Component {
     this.id = id;
 
     [this.circuit, this.history, this.events, this.raw] = await Promise.all([
-      getCircuit(id),
+      getCircuit(id, session.data.workgroup_id),
       getCircuitHistory(id),
       getCircuitEvents(id),
       getRawCircuit(id)

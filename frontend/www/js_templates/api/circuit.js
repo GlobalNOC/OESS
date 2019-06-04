@@ -80,13 +80,15 @@ async function provisionCircuit(workgroupID, description, endpoints, staticMAC, 
   }
 }
 
-async function getCircuit(id) {
-  let url = `[% path %]services/data.cgi?method=get_circuit_details&circuit_id=${id}`;
+async function getCircuit(id, workgroupId) {
+  let url = `[% path %]services/circuit.cgi?method=get&circuit_id=${id}&workgroup_id=${workgroupId}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();
-    return data.results;
+    if ('error_text' in data) throw(data.error_text);
+    if (data.results.length == 0) throw('Circuit not found.');
+    return data.results[0];
   } catch(error) {
     console.log('Failure occurred in getCircuit:', error);
     return null;
@@ -94,14 +96,15 @@ async function getCircuit(id) {
 }
 
 async function getCircuits(workgroupID) {
-  let url = `[% path %]services/data.cgi?method=get_existing_circuits&workgroup_id=${workgroupID}`;
+  let url = `[% path %]services/circuit.cgi?method=get&workgroup_id=${workgroupID}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();
+    if ('error_text' in data) throw(data.error_text);
     return data.results;
   } catch(error) {
-    console.log('Failure occurred in getCircuit:', error);
+    console.log('Failure occurred in getCircuits:', error);
     return [];
   }
 }

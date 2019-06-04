@@ -5,7 +5,7 @@ function NewEndpoint(endpoint) {
   e.querySelector('.l2vpn-entity').innerHTML = endpoint.entity || 'NA';
   e.querySelector('.l2vpn-node').innerHTML = endpoint.node;
   e.querySelector('.l2vpn-interface').innerHTML = endpoint.interface;
-  e.querySelector('.l2vpn-interface-description').innerHTML = endpoint.interface_description;
+  e.querySelector('.l2vpn-interface-description').innerHTML = endpoint.description;
   e.querySelector('.l2vpn-tag').innerHTML = endpoint.tag;
   e.querySelector('.l2vpn-graph').setAttribute('src', `https://io3.bldc.grnoc.iu.edu/grafana/d-solo/te5oS11mk/oess-l2-interface?panelId=2&amp;orgId=1&amp;from=now-1h&amp;to=now&amp;var-node=${endpoint.node}&amp;var-interface=${endpoint.interface}&amp;refresh=30s`);
 
@@ -67,7 +67,7 @@ class Endpoint extends Component {
 
     <div style="">
       <h3>${props.node} <small></small></h3>
-      <h4>${props.interface} <small>${props.interface_description}</small></h4>
+      <h4>${props.interface} <small>${props.description}</small></h4>
       <h5>${props.tag}</h5>
     </div>
 `;
@@ -84,7 +84,7 @@ class Endpoint extends Component {
       <div style="">
         <h3>${props.entity.name} <small></small></h3>
         <h4>${props.node}</h4>
-        <h4>${props.interface} <small>${props.interface_description}</small></h4>
+        <h4>${props.interface} <small>${props.description}</small></h4>
         <h5>${props.tag}</h5>
       </div>
 `;
