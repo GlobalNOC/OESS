@@ -215,10 +215,8 @@ sub to_hash{
     my $self = shift;
     my $obj;
 
-    # $obj->{'interface'} = $self->interface()->to_hash();
     $obj->{'interface'} = $self->{'interface'};
     $obj->{'interface_id'} = $self->{'interface_id'};
-    # $obj->{'node'} = $self->interface()->node()->to_hash();
     $obj->{'node'} = $self->{'node'};
     $obj->{'node_id'} = $self->{'node_id'};
     $obj->{'description'} = $self->{'description'};
@@ -227,20 +225,23 @@ sub to_hash{
     $obj->{'bandwidth'} = $self->bandwidth();
     $obj->{cloud_account_id} = $self->cloud_account_id();
     $obj->{cloud_connection_id} = $self->cloud_connection_id();
-    if(defined($self->entity())){
+    $obj->{'mtu'} = $self->mtu();
+    $obj->{'unit'} = $self->unit();
+
+    if (defined $self->entity()) {
         $obj->{'entity'} = $self->entity->to_hash();
     }
-    if (defined $self->{'vrf_endpoint_id'}) {
 
-        my @peers;
-        foreach my $peer (@{$self->{'peers'}}){
-            push(@peers, $peer->to_hash());
+    if (defined $self->{'vrf_endpoint_id'}) {
+        if (defined $self->{'peers'}) {
+            $obj->{'peers'} = [];
+            foreach my $peer (@{$self->{'peers'}}){
+                push(@{$obj->{'peers'}}, $peer->to_hash());
+            }
         }
 
-        $obj->{'peers'} = \@peers;
         $obj->{'vrf_id'} = $self->vrf_id();
         $obj->{'vrf_endpoint_id'} = $self->vrf_endpoint_id();
-        $obj->{'mtu'} = $self->mtu();
         $obj->{'type'} = 'vrf';
     }else{
         $obj->{'circuit_id'} = $self->circuit_id();
@@ -249,9 +250,7 @@ sub to_hash{
         $obj->{'type'} = 'circuit';
     }
 
-    $obj->{'unit'} = $self->{'unit'};
     return $obj;
-
 }
 
 =head2 from_hash
@@ -261,31 +260,30 @@ sub from_hash{
     my $self = shift;
     my $hash = shift;
 
-    $self->{'bandwidth'} = $hash->{'bandwidth'};
     $self->{'interface'} = $hash->{'interface'};
     $self->{'interface_id'} = $hash->{'interface_id'};
     $self->{'node'} = $hash->{'node'};
     $self->{'node_id'} = $hash->{'node_id'};
     $self->{'description'} = $hash->{'description'};
-
+    $self->{'inner_tag'} = $hash->{'inner_tag'};
+    $self->{'tag'} = $hash->{'tag'};
+    $self->{'bandwidth'} = $hash->{'bandwidth'};
     $self->{cloud_account_id} = $hash->{cloud_account_id};
     $self->{cloud_connection_id} = $hash->{cloud_connection_id};
+    $self->{'mtu'} = $hash->{'mtu'};
+    $self->{'unit'} = $hash->{'unit'};
+
+    $self->{'type'} = $hash->{'type'};
 
     if ($self->{'type'} eq 'vrf' || !defined $hash->{'circuit_ep_id'}) {
         $self->{'peers'} = $hash->{'peers'};
         $self->{'vrf_id'} = $hash->{'vrf_id'};
-        $self->{'mtu'} = $hash->{'mtu'};
+        $self->{'vrf_endpoint_id'} = $hash->{'vrf_endpoint_id'};
     } else {
         $self->{'circuit_id'} = $hash->{'circuit_id'};
         $self->{'circuit_ep_id'} = $hash->{'circuit_ep_id'};
         $self->{start_epoch} = $hash->{start_epoch};
     }
-
-    $self->{'inner_tag'} = $hash->{'inner_tag'};
-    $self->{'tag'} = $hash->{'tag'};
-    $self->{'bandwidth'} = $hash->{'bandwidth'};
-
-    $self->{'unit'} = $hash->{'unit'};
 
     $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
 }
