@@ -426,6 +426,8 @@ class EndpointSelectionModal extends Component {
     this.props.entityName = 'TBD';
     this.props.entityNode = 'TBD';
 
+    this.props.interface = props.interface;
+
     this.entityForm = new EntityForm({
       onSubmit: this.onSubmitEntity.bind(this),
       onCancel: this.onCancelEntity.bind(this),
@@ -551,8 +553,8 @@ class EndpointSelectionModal extends Component {
     return 1;
   }
 
-  onInterfaceChange(intf) {
-    this.props.interface = intf;
+  onInterfaceChange(interface_id) {
+    this.props.interface = interface_id;
     this.props.vlan = null;
     this.props.entity = null;
     update();
@@ -622,7 +624,7 @@ class EndpointSelectionModal extends Component {
         vlan:   props.tag
       }),
       this.interfaceForm.render({
-        interface: props.interface_id,
+        interface: this.props.interface,
         vlan:      props.tag
       })
     ]);
