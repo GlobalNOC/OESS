@@ -260,41 +260,42 @@ sub _write_cache{
 
     foreach my $vrf (keys (%{$self->{'vrfs'}})){
         $self->{'logger'}->error("Writing cache for VRF: " . $vrf);
-	$vrf = $self->get_vrf_object($vrf);
+        $vrf = $self->get_vrf_object($vrf);
 
-	my $eps = $vrf->endpoints();
-	
-	my @ints;
-	foreach my $ep (@$eps){
-	    my @bgp;
+        my $eps = $vrf->endpoints();
 
-	    foreach my $bgp (@{$ep->peers()}){
-		push(@bgp, $bgp->to_hash());
-	    }
-	    
-            my $int_obj = { name => $ep->interface()->name,
-                            mtu  => $ep->mtu(),
-                            type => $ep->interface()->cloud_interconnect_type,
-                            tag => $ep->tag(),
-                            unit => $ep->unit(),
-                            inner_tag => $ep->inner_tag(),
-                            bandwidth => $ep->bandwidth(),
-                            peers => \@bgp };
-	    
-	    
-	    if(defined($switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()})){
-		push(@{$switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()}{'interfaces'}}, $int_obj); 
-            }else{
-                $switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()} = { name => $vrf->name(),
-                                                                             vrf_id => $vrf->vrf_id(),
-                                                                             interfaces => [$int_obj],
-                                                                             prefix_limit => $vrf->prefix_limit(),
-                                                                             state => $vrf->state(),
-                                                                             local_asn => $vrf->local_asn(),
+        my @ints;
+        foreach my $ep (@$eps){
+            my @bgp;
 
-		}	
-	    }
-	}
+            foreach my $bgp (@{$ep->peers()}){
+                push(@bgp, $bgp->to_hash());
+            }
+
+            my $int_obj = {
+                name => $ep->interface(),
+                mtu  => $ep->mtu(),
+                type => $ep->interface()->cloud_interconnect_type,
+                tag => $ep->tag(),
+                unit => $ep->unit(),
+                inner_tag => $ep->inner_tag(),
+                bandwidth => $ep->bandwidth(),
+                peers => \@bgp
+            };
+
+            if (defined $switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}) {
+                push(@{$switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}{'interfaces'}}, $int_obj);
+            } else {
+                $switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()} = {
+                    name => $vrf->name(),
+                    vrf_id => $vrf->vrf_id(),
+                    interfaces => [$int_obj],
+                    prefix_limit => $vrf->prefix_limit(),
+                    state => $vrf->state(),
+                    local_asn => $vrf->local_asn(),
+                };
+            }
+        }
     }
 
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
