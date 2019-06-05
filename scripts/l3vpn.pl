@@ -27,28 +27,26 @@ my $endpoints = shift(@$results);
 $endpoints = $endpoints->{'endpoints'};
 
 foreach my $endpoint (@$endpoints){
-	
-	my $peers = $endpoint->{'peers'};
+        my $peers = $endpoint->{'peers'};
 
-	foreach my $peer (@$peers) {
-		if(defined($peer->{'operational_state'})){
-			#print $peer->{'operational_state'} . "\n";
-			if($peer->{'operational_state'} eq 'down'){
-				$status_str = $status_str . ' ' . $peer->{peer_ip};
-				$status = 0;
-			}
-		}
-	}
+        foreach my $peer (@$peers) {
+                if(defined($peer->{'operational_state'})){
+                        if($peer->{'operational_state'} eq 'down'){
+                                $status_str = $status_str . ' ' . $peer->{peer_ip};
+                                $status = 0;
+                        }
+                }
+        }
 
 }
 
 if($status){
-	print 'vrfs work fine!';
-	exit(0);
+        print 'vrfs work fine!';
+        exit(0);
 }
 else{
-	print $status_str . "\n";
-	exit(2);
+        print $status_str . "\n";
+        exit(2);
 }
 
 
