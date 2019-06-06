@@ -41,12 +41,6 @@ sub fetch{
     $details->{'created_by'} = $created_by;
     $details->{'workgroup'} = $workgroup;
 
-    # my $ep_ids = OESS::DB::VRF::fetch_endpoints(db => $db, vrf_id => $vrf_id);
-
-    # foreach my $ep (@$ep_ids){
-    #     push(@{$details->{'endpoints'}}, OESS::Endpoint->new(db => $db, type => 'vrf', vrf_endpoint_id => $ep->{'vrf_ep_id'}));
-    # }
-
     my ($endpoints, $error) = OESS::DB::Endpoint::fetch_all(db => $db, vrf_id => $vrf_id);
     if (defined $error) {
         warn $error;

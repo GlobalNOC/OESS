@@ -40,46 +40,30 @@ sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS.Endpoint");
-
-    my %args = (
+    my $self = {
         vrf_peer_id => undef,
-        db => undef,
-        just_display => 0,
-        link_status => undef,
+        db          => undef,
+        model       => undef,
+        logger      => Log::Log4perl->get_logger("OESS.Peer"),
         @_
-        );
-
-    my $self = \%args;
+    };
 
     bless $self, $class;
 
-    $self->{'logger'} = $logger;
+    if (defined $self->{db} && defined $self->{vrf_ep_peer_id} && $self->{vrf_ep_peer_id} != -1) {
+        $self->{model} = OESS::DB::VRF::fetch_peer(
+            db => $self->{db},
+            vrf_ep_peer_id => $self->{vrf_ep_peer_id}
+        );
+    }
 
-    if(!defined($self->{'db'})){
-        $self->{'logger'}->error("No Database Object specified");
+    if (!defined $self->{model}) {
+        $self->logger->error("Couldn't load peer from model or database.");
         return;
     }
 
-    if(!defined($self->{'vrf_ep_peer_id'}) || $self->{'vrf_ep_peer_id'} == -1){
-        $self->_build_from_model();
-    }else{
-        $self->_fetch_from_db();
-    }
-
+    $self->from_hash($self->{model});
     return $self;
-}
-
-=head2 _build_from_model
-
-=cut
-sub _build_from_model{
-    my $self = shift;
-
-    $self->{'peer_ip'} = $self->{'model'}->{'peer_ip'};
-    $self->{'peer_asn'} = $self->{'model'}->{'asn'};
-    $self->{'md5_key'} = $self->{'model'}->{'key'};
-    $self->{'local_ip'} = $self->{'model'}->{'local_ip'};
 }
 
 =head2 from_hash
@@ -94,7 +78,6 @@ sub from_hash{
     $self->{'peer_asn'} = $hash->{'peer_asn'};
     $self->{'vrf_ep_id'} = $hash->{'vrf_ep_id'};
     $self->{'md5_key'} = $hash->{'md5_key'};
-    $self->{'state'} = $hash->{'state'};
     $self->{'local_ip'} = $hash->{'local_ip'};
 
     if ($self->{'local_ip'} =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
@@ -119,7 +102,6 @@ sub to_hash{
     $obj->{'peer_asn'} = $self->{'peer_asn'};
     $obj->{'vrf_ep_id'} = $self->{'vrf_ep_id'};
     $obj->{'md5_key'} = $self->{'md5_key'};
-    $obj->{'state'} = $self->{'state'};
     $obj->{'local_ip'} = $self->{'local_ip'};
     $obj->{'ip_version'} = $self->{'ip_version'};
     $obj->{'operational_state'} = $self->operational_state();
@@ -196,19 +178,6 @@ sub operational_state{
     }else{
         return "down"
     }
-}
-
-=head2 _fetch_from_db
-
-=cut
-sub _fetch_from_db{
-    my $self = shift;
-   
-    my $db = $self->{'db'};
-    my $vrf_ep_peer_id = $self->{'vrf_ep_peer_id'};
-
-    my $hash = OESS::DB::VRF::fetch_peer(db => $db, vrf_ep_peer_id => $vrf_ep_peer_id);
-    $self->from_hash($hash);
 }
 
 =head2 decom
