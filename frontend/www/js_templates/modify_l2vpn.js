@@ -54,7 +54,6 @@ class GlobalState extends Component {
       session.data.workgroup_id,
       this.circuit.description,
       this.circuit.endpoints,
-      this.circuit.static_mac,
       this.circuit.provision_time,
       this.circuit.remove_time,
       this.circuit.circuit_id
@@ -78,38 +77,47 @@ class GlobalState extends Component {
         window.location.href = 'index.cgi';
       }
     });
+    return 1;
   }
 }
 
 let state = new GlobalState();
 
+let modal = new EndpointSelectionModal2('#add-endpoint-modal');
+
+document.querySelector('.l2vpn-new-endpoint-button').addEventListener('click', function(e) {
+  modal.display();
+});
 
 let circuitHeader = null;
-let endpointList = null;
 let details = null;
 let history = null;
 let events = null;
 let raw = null;
-let endpointModal = null;
 
 async function update(props) {
   let headerElem = document.querySelector('#circuit-header');
-  let epointListElem = document.querySelector('#endpoints');
   let detailsElem = document.querySelector('#circuit-details');
   let historyElem = document.querySelector('#profile2');
   let eventsElem = document.querySelector('#messages2');
   let rawElem = document.querySelector('#settings2');
-  let endpointModalElem = document.querySelector('#add-endpoint-modal');
 
-  [detailsElem.innerHTML, historyElem.innerHTML, eventsElem.innerHTML, rawElem.innerHTML, headerElem.innerHTML, epointListElem.innerHTML, endpointModalElem.innerHTML] = await Promise.all([
+  [detailsElem.innerHTML, historyElem.innerHTML, eventsElem.innerHTML, rawElem.innerHTML, headerElem.innerHTML] = await Promise.all([
     details.render(state.circuit),
     history.render(state),
     events.render(state),
     raw.render(state),
-    circuitHeader.render(state.circuit),
-    endpointList.render(state.circuit),
-    endpointModal.render(state.circuit.endpoints[state.selectedEndpoint] || {})
+    circuitHeader.render(state.circuit)
   ]);
+
+  let list = document.getElementById('endpoints');
+  list.innerHTML = '';
+  state.circuit.endpoints.map(function(e, i) {
+    e.index = i;
+
+    let elem = NewEndpoint(e);
+    list.appendChild(elem);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -131,20 +139,6 @@ document.addEventListener('DOMContentLoaded', function() {
   circuitHeader = new CircuitHeader({
     workgroupID: session.data.workgroiup_id,
     editable: editable
-  });
-  endpointList = new EndpointList({
-    workgroupID: session.data.workgroiup_id,
-    editable: editable,
-    onCreate: state.selectEndpoint.bind(state),
-    onDelete: state.deleteEndpoint.bind(state),
-    onModify: state.selectEndpoint.bind(state)
-  });
-
-  endpointModal = new EndpointSelectionModal({
-    workgroupID: session.data.workgroiup_id,
-    interface: -1,
-    vlan: 1,
-    onEndpointSubmit: state.updateEndpoint.bind(state)
   });
 
   state.selectCircuit(id);

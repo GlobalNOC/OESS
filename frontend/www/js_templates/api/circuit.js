@@ -27,19 +27,17 @@ async function deleteCircuit(workgroupID, circuitID, end=-1) {
  * @param {integer} end - When the circuit should be deactivated
  * @param {integer} [circuitID=-1] - Identifier of VRF to modify
  */
-async function provisionCircuit(workgroupID, description, endpoints, staticMAC, start=-1, end=-1, circuitID=-1) {
-  let url = '[% path %]services/provisioning.cgi';
+async function provisionCircuit(workgroupID, description, endpoints, start=-1, end=-1, circuitID=-1) {
+  let url = '[% path %]services/circuit.cgi';
 
   let form = new FormData();
-  form.append('method', 'provision_circuit');
+  form.append('method', 'provision');
   form.append('workgroup_id', workgroupID);
   form.append('description', description);
-  form.append('static_mac', staticMAC);
-  form.append('provision_time', start);
-  form.append('remove_time', end);
+  form.append('static_mac', 0);
+  form.append('provision_time', start     || -1);
+  form.append('remove_time',    end       || -1);
   form.append('restore_to_primary', 0);
-  form.append('type', 'mpls');
-  form.append('state', 'active');
   form.append('circuit_id', circuitID);
 
   let bandwidth = 0;
@@ -49,7 +47,8 @@ async function provisionCircuit(workgroupID, description, endpoints, staticMAC, 
     let e = {
       bandwidth: endpoint.bandwidth,
       tag:       endpoint.tag,
-      cloud_account_id: endpoint.cloud_account_id
+      cloud_account_id: endpoint.cloud_account_id,
+      circuit_ep_id:    endpoint.circuit_ep_id
     };
 
     if ('entity_id' in endpoint && endpoint.name === 'TBD' && endpoint.interface === 'TBD') {
@@ -61,19 +60,12 @@ async function provisionCircuit(workgroupID, description, endpoints, staticMAC, 
 
     form.append('endpoint', JSON.stringify(e));
   });
-  form.append('bandwidth', bandwidth);
 
   try {
     const resp = await fetch(url, {method: 'post', credentials: 'include', body: form});
     const data = await resp.json();
-
     if ('error_text' in data) throw(data.error_text);
-    if (typeof data.results.success === 'undefined' || typeof data.results.circuit_id === 'undefined') {
-      throw("Unexpected response format received from server:", data);
-    }
-
-    console.log(data.results);
-    return data.results;
+    return data;
   } catch(error) {
     console.log('Failure occurred in updateCircuit:', error);
     return null;

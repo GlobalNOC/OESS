@@ -229,7 +229,18 @@ sub to_hash{
     $obj->{'unit'} = $self->unit();
 
     if (defined $self->entity()) {
-        $obj->{'entity'} = $self->entity->to_hash();
+        # TODO There's no reason for this Endpoint object to track the
+        # Entity used to select its Interface. Removing this would
+        # probably simplify a few things, but will require a bit of
+        # testing to ensure this relationship isn't used elsewhere.
+        #
+        # $obj->{'entity'} = $self->entity->to_hash();
+
+        $obj->{'entity'} = $self->entity->name;
+        $obj->{'entity_id'} = $self->entity->entity_id;
+    } else {
+        $obj->{'entity'} = undef;
+        $obj->{'entity_id'} = undef;
     }
 
     if (defined $self->{'vrf_endpoint_id'}) {
@@ -285,7 +296,7 @@ sub from_hash{
         $self->{start_epoch} = $hash->{start_epoch};
     }
 
-    $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
+    $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface_id'}, vlan => $self->{'tag'});
 }
 
 =head2 _fetch_from_db
@@ -757,20 +768,20 @@ sub create {
 
     return (undef, 'Required argument `workgroup_id` is missing.') if !defined $args->{workgroup_id};
 
-    my $ok = $self->interface()->vlan_valid(
-        workgroup_id => $args->{workgroup_id},
-        vlan => $self->tag
-    );
-    if (!$ok) {
-        my $name = $self->interface()->name;
-        my $tag = $self->tag;
-        $self->{'logger'}->error("Couldn't create Endpoint: Outer tag $tag cannot be used by $args->{workgroup_id} on $name.");
-        return (undef, "Couldn't create Endpoint: Outer tag $tag cannot be used by $args->{workgroup_id} on $name.");
-    }
+    # my $ok = $self->interface()->vlan_valid(
+    #     workgroup_id => $args->{workgroup_id},
+    #     vlan => $self->tag
+    # );
+    # if (!$ok) {
+    #     my $name = $self->interface()->name;
+    #     my $tag = $self->tag;
+    #     $self->{'logger'}->error("Couldn't create Endpoint: Outer tag $tag cannot be used by $args->{workgroup_id} on $name.");
+    #     return (undef, "Couldn't create Endpoint: Outer tag $tag cannot be used by $args->{workgroup_id} on $name.");
+    # }
 
     my $unit = OESS::DB::Endpoint::find_available_unit(
         db => $self->{db},
-        interface_id => $self->interface->{'interface_id'},
+        interface_id => $self->{'interface_id'},
         tag => $self->tag,
         inner_tag => $self->inner_tag
     );

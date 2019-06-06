@@ -286,7 +286,7 @@ sub add_circuit_edge_membership{
             "inner_tag, ".
             "unit".
             ") VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?)",
-            [$endpoint->{interface}->{interface_id},
+            [$endpoint->{interface_id},
              $endpoint->{circuit_id},
              -1,
              $endpoint->{tag},
@@ -314,7 +314,7 @@ sub update_circuit_edge_membership{
             "circuit_edge_id, ".
             "unit".
             ") VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
-            [$endpoint->{interface}->{interface_id},
+            [$endpoint->{interface_id},
              $endpoint->{circuit_id},
              -1,
              $endpoint->{tag},

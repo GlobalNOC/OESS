@@ -5,27 +5,9 @@
   <!-- Latest compiled and minified JavaScript -->
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
-  <script>
-    [% INCLUDE js_templates/component.js %]
-
-    [% INCLUDE js_templates/api/vlan.js %]
-    [% INCLUDE js_templates/api/interfaces.js %]
-    [% INCLUDE js_templates/api/entity.js %]
-    [% INCLUDE js_templates/api/circuit.js %]
-    [% INCLUDE js_templates/l3/interface.js %]
-    [% INCLUDE js_templates/l3/entity.js %]
-    [% INCLUDE js_templates/l2/endpoint_selection_modal.js %]
-
-    [% INCLUDE js_templates/l2/endpoint.js %]
-    [% INCLUDE js_templates/l2/circuit.js %]
-
-    [% INCLUDE js_templates/modify_l2vpn.js %]
-  </script>
-
   <div id="circuit-header" class="row"></div>
   <br/>
 
-  <!-- circuit tabs -->
   <div class="row">
     <div id="circuit2" class="col-sm-12">
 
@@ -47,12 +29,27 @@
       <div class="tab-content">
         <br/>
         <div role="tabpanel" class="tab-pane active" id="home2">
+
           <div class="row">
             <div id="circuit-details" class="col-sm-6"></div>
             <div class="col-sm-6" ><div id="map" class="openlayers"></div></div>
           </div>
 
-          <div id="endpoints"></div>
+          <div class="row">
+            <br/>
+            <div id="actions" class="col-sm-12" style="display: ${displayEdits};">
+              <button class="btn-sm btn-primary l2vpn-new-endpoint-button" type="button">
+                <span class="glyphicon glyphicon-plus"></span> New Endpoint
+              </button>
+            </div>
+          </div>
+
+          <div class="row">
+            <br/>
+            <div id="actions" class="col-sm-12">
+              <div id="endpoints"></div>
+            </div>
+          </div>
         </div>
         <div role="tabpanel" class="tab-pane" id="profile2"></div>
         <div role="tabpanel" class="tab-pane" id="messages2"></div>
@@ -63,6 +60,31 @@
   </div>
 
   <!-- endpoint modal -->
-  <div class="modal fade" role="dialog" tabindex="-1" id="add-endpoint-modal">
-  </div>
+  <div id="add-endpoint-modal"></div>
+
+  <!-- endpoint-selection-modal2 -->
+  [% INCLUDE html_templates/l2/endpoint_selection_modal2.html %]
+
+  [% INCLUDE html_templates/l2/endpoint.html %]
+  [% INCLUDE html_templates/l2/schedule.html %]
+
+  <script>
+    [% INCLUDE js_templates/component.js %]
+
+    [% INCLUDE js_templates/api/vlan.js %]
+    [% INCLUDE js_templates/api/interfaces.js %]
+    [% INCLUDE js_templates/api/entity.js %]
+    [% INCLUDE js_templates/api/circuit.js %]
+
+    [% INCLUDE js_templates/l2/endpoint.js %]
+    [% INCLUDE js_templates/l2/schedule.js %]
+    [% INCLUDE js_templates/l2/endpoint_selection_modal.js %]
+
+    [% INCLUDE js_templates/l2/demo.js %]
+
+    [% INCLUDE js_templates/l2/circuit.js %]
+
+    [% INCLUDE js_templates/modify_l2vpn.js %]
+  </script>
+
 </div>

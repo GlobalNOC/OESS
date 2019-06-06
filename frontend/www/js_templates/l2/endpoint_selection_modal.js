@@ -10,7 +10,7 @@ class EndpointSelectionModal2 {
   }
 
   display(endpoint) {
-    if (endpoint !== null && endpoint.interface === 'TBD') {
+    if (endpoint !== undefined && endpoint !== null && endpoint.interface === 'TBD') {
       this.populateEntityForm(endpoint);
     } else {
       this.populateEntityForm(endpoint);
@@ -25,7 +25,7 @@ class EndpointSelectionModal2 {
 
     let index = -1;
 
-    if (endpoint !== null) {
+    if (endpoint !== undefined && endpoint !== null) {
       interface_id = endpoint.interface_id;
       index = endpoint.index;
     }
@@ -60,7 +60,7 @@ class EndpointSelectionModal2 {
       let vlans = await getAvailableVLANs(session.data.workgroup_id, interface_id);
       let vlan = (vlans.length === 0) ? -1 : vlans[0];
 
-      if (endpoint !== null) {
+      if (endpoint !== undefined && endpoint !== null) {
         vlan = endpoint.tag;
 
         if (!vlans.includes(endpoint.tag)) {
@@ -92,7 +92,7 @@ class EndpointSelectionModal2 {
         bandwidth:        this.parent.querySelector('.endpoint-bandwidth').value,
         interface:        interfaceSelector.options[interfaceSelector.selectedIndex].dataset.name,
         interface_id:     interfaceSelector.options[interfaceSelector.selectedIndex].value,
-        interface_description: interfaceSelector.options[interfaceSelector.selectedIndex].dataset.description,
+        description:      interfaceSelector.options[interfaceSelector.selectedIndex].dataset.description,
         node:             interfaceSelector.options[interfaceSelector.selectedIndex].dataset.node,
         entity:           null, // entity,
         entity_id:        null, // entity_id,
@@ -117,7 +117,7 @@ class EndpointSelectionModal2 {
     let entity_id = 1;
     let index = -1;
 
-    if (endpoint !== null) {
+    if (endpoint !== undefined && endpoint !== null) {
       entity_id = endpoint.entity_id;
       index = endpoint.index;
     }
@@ -247,7 +247,7 @@ class EndpointSelectionModal2 {
     if (vlans.length > 0) {
       vlan = vlans[0];
     }
-    if (endpoint !== null && 'tag' in endpoint) {
+    if (endpoint !== undefined && endpoint !== null && 'tag' in endpoint) {
       vlan = endpoint.tag;
     }
     if (vlan !== -1 && !vlans.includes(vlan)) {

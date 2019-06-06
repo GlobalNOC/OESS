@@ -461,23 +461,28 @@ sub update {
 
     # Hash to track which links have been updated and which shall be
     # removed from the primary / strict path.
-    my $path  = $circuit->get_path(path => 'primary');
     my $links = {};
-    foreach my $link (@{$path->links}) {
-        $links->{$link->name} = $link;
-    }
 
-    foreach my $value (@{$args->{link}->{value}}) {
-        if (!defined $links->{$value}) {
-            # New
-        } else {
-            # Update / Ignore
-            delete $links->{$value};
+    # TODO handle case when static path is added to an existing
+    # circuit
+    my $path  = $circuit->get_path(path => 'primary');
+    if (defined $path) {
+        foreach my $link (@{$path->links}) {
+            $links->{$link->name} = $link;
         }
-    }
 
-    foreach my $key (keys %$links) {
-        $path->remove_link(name => $key);
+        foreach my $value (@{$args->{link}->{value}}) {
+            if (!defined $links->{$value}) {
+                # New
+            } else {
+                # Update / Ignore
+                delete $links->{$value};
+            }
+        }
+
+        foreach my $key (keys %$links) {
+            $path->remove_link(name => $key);
+        }
     }
 
     # Put rollback in place for quick tests
@@ -485,7 +490,7 @@ sub update {
     $db->commit;
 
     warn Dumper($circuit->to_hash);
-    return $circuit->to_hash;
+    return { success => 1, circuit_id => $circuit->circuit_id };
 }
 
 
