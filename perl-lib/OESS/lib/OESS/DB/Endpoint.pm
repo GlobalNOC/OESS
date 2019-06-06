@@ -123,6 +123,7 @@ sub fetch_all {
             SELECT circuit_ep.circuit_edge_id AS circuit_ep_id, circuit_ep.circuit_id,
                    entity.entity_id, entity.name AS entity,
                    interface.interface_id, interface.name AS interface, interface.operational_state, interface.description,
+                   interface.cloud_interconnect_id, interface.cloud_interconnect_type,
                    node.node_id, node.name AS node,
                    unit, extern_vlan_id AS tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
@@ -170,6 +171,7 @@ sub fetch_all {
             SELECT vrf_ep.vrf_ep_id, vrf_ep.vrf_id,
                    entity.entity_id, entity.name AS entity,
                    interface.interface_id, interface.name AS interface, interface.operational_state, interface.description,
+                   interface.cloud_interconnect_id, interface.cloud_interconnect_type,
                    node.node_id, node.name AS node,
                    unit, tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id

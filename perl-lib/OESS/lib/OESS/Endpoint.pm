@@ -132,6 +132,8 @@ sub _build_from_model{
     $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
     $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
     $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
+    $self->{cloud_interconnect_id} = $self->{model}->{cloud_interconnect_id};
+    $self->{cloud_interconnect_type} = $self->{model}->{cloud_interconnect_type};
     $self->{mtu} = $self->{model}->{mtu};
 
     if (defined $self->{'model'}->{'interface'}) {
@@ -225,6 +227,9 @@ sub to_hash{
     $obj->{'bandwidth'} = $self->bandwidth();
     $obj->{cloud_account_id} = $self->cloud_account_id();
     $obj->{cloud_connection_id} = $self->cloud_connection_id();
+    # cloud_interconnect_id omitted from hash to ensure hidden
+    $obj->{cloud_interconnect_type} = $self->cloud_interconnect_type;
+
     $obj->{'mtu'} = $self->mtu();
     $obj->{'unit'} = $self->unit();
 
@@ -281,6 +286,8 @@ sub from_hash{
     $self->{'bandwidth'} = $hash->{'bandwidth'};
     $self->{cloud_account_id} = $hash->{cloud_account_id};
     $self->{cloud_connection_id} = $hash->{cloud_connection_id};
+    $self->{cloud_interconnect_id} = $hash->{cloud_interconnect_id};
+    $self->{cloud_interconnect_type} = $hash->{cloud_interconnect_type};
     $self->{'mtu'} = $hash->{'mtu'};
     $self->{'unit'} = $hash->{'unit'};
 
@@ -385,6 +392,22 @@ sub cloud_connection_id {
         $self->{cloud_connection_id} = $value;
     }
     return $self->{cloud_connection_id};
+}
+
+=head2 cloud_interconnect_id
+
+=cut
+sub cloud_interconnect_id {
+    my $self = shift;
+    return $self->{cloud_interconnect_id};
+}
+
+=head2 cloud_interconnect_type
+
+=cut
+sub cloud_interconnect_type {
+    my $self = shift;
+    return $self->{cloud_interconnect_type};
 }
 
 =head2 interface

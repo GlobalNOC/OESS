@@ -190,7 +190,7 @@ sub provision {
         return;
     }
 
-    if (defined $args->{circuit_id}->{value}) {
+    if (defined $args->{circuit_id}->{value} && $args->{circuit_id}->{value} != -1) {
         return update($method, $args);
     }
 
@@ -254,6 +254,8 @@ sub provision {
         $ep->{interface_id} = $interface->{interface_id};
         $ep->{node}         = $interface->{node}->{name};
         $ep->{node_id}      = $interface->{node}->{node_id};
+        $ep->{cloud_interconnect_id}   = $interface->cloud_interconnect_id;
+        $ep->{cloud_interconnect_type} = $interface->cloud_interconnect_type;
 
         my $endpoint = new OESS::Endpoint(db => $db, model => $ep);
         $circuit->add_endpoint($endpoint);
@@ -276,6 +278,8 @@ sub provision {
             $ep->{interface_id} = $interface2->{interface_id};
             $ep->{node}         = $interface2->{node}->{name};
             $ep->{node_id}      = $interface2->{node}->{node_id};
+            $ep->{cloud_interconnect_id}   = $interface2->cloud_interconnect_id;
+            $ep->{cloud_interconnect_type} = $interface2->cloud_interconnect_type;
 
             my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
             $circuit->add_endpoint($endpoint2);
@@ -357,7 +361,7 @@ sub provision {
     $db->commit;
 
     warn Dumper($circuit->to_hash);
-    return {status => 1, circuit_id => $circuit_id};
+    return {success => 1, circuit_id => $circuit_id};
 }
 
 
