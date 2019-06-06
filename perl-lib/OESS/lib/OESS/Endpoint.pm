@@ -7,6 +7,7 @@ package OESS::Endpoint;
 
 use OESS::DB;
 use OESS::DB::Endpoint;
+use OESS::DB::Peer;
 use OESS::Interface;
 use OESS::Entity;
 use OESS::Node;
@@ -136,6 +137,9 @@ sub _build_from_model{
     $self->{cloud_interconnect_type} = $self->{model}->{cloud_interconnect_type};
     $self->{mtu} = $self->{model}->{mtu};
 
+    $self->{circuit_ep_id} = $self->{model}->{circuit_edge_id} || $self->{model}->{circuit_ep_id};
+    $self->{vrf_endpoint_id} = $self->{model}->{vrf_endpoint_id} || $self->{model}->{vrf_ep_id};
+
     if (defined $self->{'model'}->{'interface'}) {
         my $intf = OESS::Interface->new(db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
         $self->{'interface'} = $intf->{'name'};
@@ -196,14 +200,14 @@ sub _build_from_model{
     }
 
     if ($self->{type} eq 'vrf' || defined $self->{'vrf_endpoint_id'}) {
-        $self->{'peers'} = [];
+        $self->{vrf_id} = $self->{model}->{vrf_id};
 
+        $self->{'peers'} = [];
         foreach my $peer (@{$self->{'model'}->{'peerings'}}) {
             push @{$self->{'peers'}}, OESS::Peer->new(db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1);
         }
     } else {
         $self->{circuit_id} = $self->{model}->{circuit_id};
-        $self->{circuit_ep_id} = $self->{model}->{circuit_edge_id} || $self->{model}->{circuit_ep_id};
         $self->{start_epoch} = $self->{model}->{start_epoch};
     }
 
@@ -328,6 +332,35 @@ sub _fetch_from_db{
     }
 
     $self->from_hash($hash);
+}
+
+=head2 load_peers
+
+=cut
+sub load_peers {
+    my $self = shift;
+
+    if (!defined $self->{vrf_endpoint_id}) {
+        warn 'Currently no support for Peers on a Circuit.';
+        return 1;
+    }
+
+    my ($peer_datas, $error) = OESS::DB::Peer::fetch_all(
+        db => $self->{db},
+        vrf_ep_id => $self->{vrf_endpoint_id}
+    );
+    if (defined $error) {
+        $self->{logger}->error($error);
+        return;
+    }
+
+    $self->{peers} = [];
+    foreach my $data (@$peer_datas) {
+        my $peer = new OESS::Peer(db => $self->{db}, model => $data);
+        push @{$self->{peers}}, $peer;
+    }
+
+    return 1;
 }
 
 =head2 get_endpoints_on_interface

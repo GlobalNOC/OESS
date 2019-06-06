@@ -20,10 +20,8 @@ use Data::Dumper;
 =cut
 sub fetch{
     my %params = @_;
-    my $db = $params{'db'};
-    
+    my $db     = $params{'db'};
     my $status = $params{'status'} || 'active';
-
     my $vrf_id = $params{'vrf_id'};
 
     my $details;
@@ -34,7 +32,7 @@ sub fetch{
     }
 
     $details = $res->[0];
-    
+
     my $created_by = OESS::User->new( db => $db, user_id => $details->{'created_by'});
     my $last_modified_by = OESS::User->new(db => $db, user_id => $details->{'last_modified_by'});
     my $workgroup = OESS::Workgroup->new( db => $db, workgroup_id => $details->{'workgroup_id'});
@@ -42,14 +40,25 @@ sub fetch{
     $details->{'last_modified_by'} = $last_modified_by;
     $details->{'created_by'} = $created_by;
     $details->{'workgroup'} = $workgroup;
-   
 
-    my $ep_ids = OESS::DB::VRF::fetch_endpoints(db => $db, vrf_id => $vrf_id);
-    
-    foreach my $ep (@$ep_ids){
-        push(@{$details->{'endpoints'}}, OESS::Endpoint->new(db => $db, type => 'vrf', vrf_endpoint_id => $ep->{'vrf_ep_id'}));
+    # my $ep_ids = OESS::DB::VRF::fetch_endpoints(db => $db, vrf_id => $vrf_id);
+
+    # foreach my $ep (@$ep_ids){
+    #     push(@{$details->{'endpoints'}}, OESS::Endpoint->new(db => $db, type => 'vrf', vrf_endpoint_id => $ep->{'vrf_ep_id'}));
+    # }
+
+    my ($endpoints, $error) = OESS::DB::Endpoint::fetch_all(db => $db, vrf_id => $vrf_id);
+    if (defined $error) {
+        warn $error;
+        $endpoints = [];
     }
-    
+
+    foreach my $endpoint (@$endpoints) {
+        my $ep = new OESS::Endpoint(db => $db, type => 'vrf', model => $endpoint);
+        $ep->load_peers;
+        push @{$details->{endpoints}}, $ep;
+    }
+
     return $details;
 }
 

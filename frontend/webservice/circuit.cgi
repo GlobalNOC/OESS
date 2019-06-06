@@ -85,6 +85,7 @@ sub get {
         )->strftime('%m/%d/%Y %H:%M:%S');
 
         my $obj = new OESS::L2Circuit(db => $db, model => $data);
+        $obj->load_workgroup;
         $obj->load_users;
         $obj->load_paths;
         $obj->load_endpoints;

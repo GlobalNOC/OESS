@@ -12,6 +12,7 @@ use Log::Log4perl;
 
 use OESS::DB;
 use OESS::DB::Circuit;
+use OESS::DB::Workgroup;
 use OESS::Path;
 use OESS::User;
 
@@ -311,6 +312,10 @@ sub paths {
 =cut
 sub load_workgroup {
     my $self = shift;
+    $self->{workgroup} = OESS::DB::Workgroup::fetch(
+        db => $self->{db},
+        workgroup_id => $self->{workgroup_id}
+    );
 }
 
 =head2 to_hash
@@ -343,6 +348,10 @@ sub to_hash {
     }
     if (defined $self->{last_modified_by}) {
         $hash->{last_modified_by} = $self->{last_modified_by}->to_hash;
+    }
+
+    if (defined $self->{workgroup}) {
+        $hash->{workgroup} = $self->{workgroup};
     }
 
     if (defined $self->{paths}) {

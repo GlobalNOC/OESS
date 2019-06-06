@@ -167,8 +167,9 @@ sub to_hash{
     $obj->{'description'} = $self->description();
     my @endpoints;
     foreach my $endpoint (@{$self->endpoints()}){
-        push(@endpoints, $endpoint->to_hash());
+        push(@endpoints, $endpoint->to_hash);
     }
+
     $obj->{'state'} = $self->{'state'};
     $obj->{'endpoints'} = \@endpoints;
     $obj->{'prefix_limit'} = $self->prefix_limit();

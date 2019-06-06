@@ -185,6 +185,7 @@ sub fetch_all {
             AND (vrf_ep.tag >= interface_acl.vlan_start)
             AND (vrf_ep.tag <= interface_acl.vlan_end)
         ";
+
         my $vrf_endpoints = $args->{db}->execute_query($q, $values);
         if (!defined $vrf_endpoints) {
             return (undef, "Couldn't find VRF Endpoints: " . $args->{db}->get_error);

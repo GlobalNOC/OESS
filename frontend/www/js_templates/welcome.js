@@ -58,7 +58,7 @@ async function loadEntityList() {
         entity.endpoints.forEach(function(endpoint) {
             let endpointOK = true;
             endpoint.peers.forEach(function(peer) {
-                    if (peer.state !== 'active') {
+                    if (peer.operational_state !== 'up') {
                         ok = false;
                         endpointOK = false;
                     }
@@ -66,11 +66,11 @@ async function loadEntityList() {
 
             if (endpointOK) {
                 endpointHTML += `
-                <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.interface.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface.name} - ${endpoint.tag}</p>
+                <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}</p>
 `;
             } else {
                 endpointHTML += `
-                <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.interface.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface.name} - ${endpoint.tag}</p>
+                <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}</p>
 `;
             }
         });
