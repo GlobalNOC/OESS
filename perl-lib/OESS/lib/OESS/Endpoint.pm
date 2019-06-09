@@ -140,64 +140,27 @@ sub _build_from_model{
     $self->{circuit_ep_id} = $self->{model}->{circuit_edge_id} || $self->{model}->{circuit_ep_id};
     $self->{vrf_endpoint_id} = $self->{model}->{vrf_endpoint_id} || $self->{model}->{vrf_ep_id};
 
-    if (defined $self->{'model'}->{'interface'}) {
-        my $intf = OESS::Interface->new(db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
-        $self->{'interface'} = $intf->{'name'};
-        $self->{'interface_id'} = $intf->{'interface_id'};
-        $self->{'node'} = $intf->node->name;
-        $self->{'node_id'} = $intf->node->node_id;
-        $self->{'description'} = $intf->{'description'};
-        $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, interface_id => $intf->{'interface_id'}, vlan => $self->{'tag'});
-    } else {
-        $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, name => $self->{'model'}->{'entity'});
+    $self->{'node'} = $self->{'model'}->{'node'};
+    $self->{'node_id'} = $self->{'model'}->{'node_id'};
+    $self->{'interface'} = $self->{'model'}->{'interface'};
+    $self->{'interface_id'} = $self->{'model'}->{'interface_id'};
+    $self->{'entity'} = $self->{'model'}->{'entity'};
+    $self->{'entity_id'} = $self->{'model'}->{'entity_id'};
+    $self->{'description'} = $self->{'model'}->{'description'};
 
-        # There are a few ways to select an Entity's interface.
+    # The default selection method is to find the first interface that
+    # has supports C<bandwidth> and has C<tag> available.
 
-        # The default selection method is to find the first interface
-        # that has supports C<bandwidth> and has C<tag> available.
+    # As there is only one interface per AWS Entity there is no
+    # special selection method.
 
-        # As there is only one interface per AWS Entity there is no
-        # special selection method.
+    # Interface selection for a GCP Entity is based purely on the user
+    # provided GCP pairing key.
 
-        # Interface selection for a GCP Entity is based purely on the
-        # user provided GCP pairing key.
-
-        # Interface selection for an Azure Entity is somewhat
-        # irrelevent. Each interface of the Azure port pair is
-        # configured similarly with the only difference between the
-        # two being the peer addresses assigned to each.
-
-        my $err = undef;
-        foreach my $intf (@{$self->{entity}->interfaces()}) {
-            my $valid_bandwidth = $intf->is_bandwidth_valid(bandwidth => $self->{model}->{bandwidth});
-            if (!$valid_bandwidth) {
-                $err = "The choosen bandwidth for this Endpoint is invalid.";
-            }
-
-            my $valid_vlan = 0;
-            if (defined $self->{model}->{workgroup_id}) {
-                $valid_vlan = $intf->vlan_valid(
-                    vlan         => $self->{model}->{tag},
-                    workgroup_id => $self->{model}->{workgroup_id}
-                );
-                if (!$valid_vlan) {
-                    $err = "The selected workgroup cannot use vlan $self->{model}->{tag} on $self->{model}->{entity}.";
-                }
-            } else {
-                warn "Endpoint model is missing workgroup_id. Skipping vlan validation.";
-                $valid_vlan = 1;
-            }
-
-            if ($valid_vlan && $valid_bandwidth) {
-                $self->{interface} = $intf;
-                last;
-            }
-        }
-
-        if (!defined $self->{interface}) {
-            return $err;
-        }
-    }
+    # Interface selection for an Azure Entity is somewhat
+    # irrelevent. Each interface of the Azure port pair is configured
+    # similarly with the only difference between the two being the
+    # peer addresses assigned to each.
 
     if ($self->{type} eq 'vrf' || defined $self->{'vrf_endpoint_id'}) {
         $self->{vrf_id} = $self->{model}->{vrf_id};
@@ -237,20 +200,13 @@ sub to_hash{
     $obj->{'mtu'} = $self->mtu();
     $obj->{'unit'} = $self->unit();
 
-    if (defined $self->entity()) {
-        # TODO There's no reason for this Endpoint object to track the
-        # Entity used to select its Interface. Removing this would
-        # probably simplify a few things, but will require a bit of
-        # testing to ensure this relationship isn't used elsewhere.
-        #
-        # $obj->{'entity'} = $self->entity->to_hash();
+    # TODO There's no reason for this Endpoint object to track the
+    # Entity used to select its Interface. Removing this would
+    # probably simplify a few things, but will require a bit of
+    # testing to ensure this relationship isn't used elsewhere.
 
-        $obj->{'entity'} = $self->entity->name;
-        $obj->{'entity_id'} = $self->entity->entity_id;
-    } else {
-        $obj->{'entity'} = undef;
-        $obj->{'entity_id'} = undef;
-    }
+    $obj->{'entity'} = $self->entity;
+    $obj->{'entity_id'} = $self->entity_id;
 
     if (defined $self->{'vrf_endpoint_id'}) {
         if (defined $self->{'peers'}) {
@@ -307,7 +263,8 @@ sub from_hash{
         $self->{start_epoch} = $hash->{start_epoch};
     }
 
-    $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface_id'}, vlan => $self->{'tag'});
+    $self->{'entity'} = $hash->{'entity'};
+    $self->{'entity_id'} = $hash->{'entity_id'};
 }
 
 =head2 _fetch_from_db
@@ -609,6 +566,14 @@ sub circuit_ep_id{
 sub entity{
     my $self = shift;
     return $self->{'entity'};
+}
+
+=head2 entity_id
+
+=cut
+sub entity_id{
+    my $self = shift;
+    return $self->{'entity_id'};
 }
 
 =head2 unit

@@ -100,6 +100,12 @@ sub fetch_all {
     my $q;
     my $endpoints = [];
 
+    # Because of the way our Entities are stored in the database. We
+    # are unable to select the one and only Entity we desire. To
+    # compensate, we sort our query results in assending order
+    # (first/lowest eval position) and save the first occurance of
+    # each circuit_ep using the $lookup hash.
+
     if (!defined $type || $type eq 'circuit') {
         #       circuit_ep_id: 36
         #          circuit_id: 30
@@ -122,8 +128,9 @@ sub fetch_all {
         $q = "
             SELECT circuit_ep.circuit_edge_id AS circuit_ep_id, circuit_ep.circuit_id,
                    entity.entity_id, entity.name AS entity,
-                   interface.interface_id, interface.name AS interface, interface.operational_state, interface.description,
-                   interface.cloud_interconnect_id, interface.cloud_interconnect_type,
+                   interface.interface_id, interface.name AS interface, interface.operational_state,
+                   interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
+                   interface_acl.eval_position,
                    node.node_id, node.name AS node,
                    unit, extern_vlan_id AS tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
@@ -137,14 +144,19 @@ sub fetch_all {
             AND circuit_ep.end_epoch = -1
             AND (circuit_ep.extern_vlan_id >= interface_acl.vlan_start)
             AND (circuit_ep.extern_vlan_id <= interface_acl.vlan_end)
+            ORDER BY interface_acl.eval_position ASC
         ";
         my $circuit_endpoints = $args->{db}->execute_query($q, $values);
         if (!defined $circuit_endpoints) {
             return (undef, "Couldn't find Circuit Endpoints: " . $args->{db}->get_error);
         }
 
+        my $lookup = {};
         foreach my $e (@$circuit_endpoints) {
-            push @$endpoints, $e;
+            if (!defined $lookup->{$e->{circuit_ep_id}}) {
+                $lookup->{$e->{circuit_ep_id}} = 1;
+                push @$endpoints, $e;
+            }
         }
     }
 
@@ -170,8 +182,9 @@ sub fetch_all {
         $q = "
             SELECT vrf_ep.vrf_ep_id, vrf_ep.vrf_id,
                    entity.entity_id, entity.name AS entity,
-                   interface.interface_id, interface.name AS interface, interface.operational_state, interface.description,
-                   interface.cloud_interconnect_id, interface.cloud_interconnect_type,
+                   interface.interface_id, interface.name AS interface, interface.operational_state,
+                   interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
+                   interface_acl.eval_position,
                    node.node_id, node.name AS node,
                    unit, tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
@@ -184,6 +197,7 @@ sub fetch_all {
             $where
             AND (vrf_ep.tag >= interface_acl.vlan_start)
             AND (vrf_ep.tag <= interface_acl.vlan_end)
+            ORDER BY interface_acl.eval_position ASC
         ";
 
         my $vrf_endpoints = $args->{db}->execute_query($q, $values);
@@ -191,8 +205,12 @@ sub fetch_all {
             return (undef, "Couldn't find VRF Endpoints: " . $args->{db}->get_error);
         }
 
+        my $lookup = {};
         foreach my $e (@$vrf_endpoints) {
-            push @$endpoints, $e;
+            if (!defined $lookup->{$e->{vrf_ep_id}}) {
+                $lookup->{$e->{vrf_ep_id}} = 1;
+                push @$endpoints, $e;
+            }
         }
     }
 

@@ -249,6 +249,13 @@ sub provision {
             return;
         }
 
+        my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
+        if (!$valid_bandwidth) {
+            $method->set_error("Couldn't create Circuit: The specified bandwidth is invalid for $ep->{entity}.");
+            $db->rollback;
+            return;
+        }
+
         # Populate Endpoint modal with selected Interface details.
         $ep->{entity_id}    = $entity->{entity_id};
         $ep->{interface}    = $interface->{name};
