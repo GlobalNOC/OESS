@@ -78,8 +78,18 @@ async function deleteConnection(id) {
 
     let ok = confirm(`Are you sure you want to delete this connection?`);
     if (ok) {
-        await deleteVRF(session.data.workgroup_id, vrfID);
-        window.location = '?action=welcome';
+        let deleteModal = $('#delete-l3vpn-loading');
+        deleteModal.modal('show');
+
+        let result = await deleteVRF(session.data.workgroup_id, vrfID);
+
+        if (result != null) {
+            window.location = '?action=welcome';
+        }
+        else {
+            deleteModal.modal('hide');
+            alert('There was an error deleting this connection.');
+        }
     }
 }
 
@@ -127,6 +137,7 @@ async function loadVRF() {
   document.getElementById('created-by').innerHTML = vrf.created_by.email;
   document.getElementById('owned-by').innerHTML = vrf.workgroup.name;
   document.getElementById('state').innerHTML = vrf.state;
+  document.getElementById('local_asn').innerHTML = vrf.local_asn;
 
   let peerSelections = document.getElementById('peering-selection');
 

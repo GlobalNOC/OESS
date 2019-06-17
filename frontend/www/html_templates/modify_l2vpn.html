@@ -59,6 +59,17 @@
     </div>
   </div>
 
+  <!-- waiting for modification/deletion modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" id="modify-loading">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content" style="text-align: center;">
+        <img src="[% path %]media/loading.gif" width="200px;"/>
+        <p>&nbsp;</p>
+        <br/>
+      </div>
+    </div>
+  </div>
+
   <!-- endpoint modal -->
   <div id="add-endpoint-modal"></div>
 
@@ -86,5 +97,4 @@
 
     [% INCLUDE js_templates/modify_l2vpn.js %]
   </script>
-
 </div>

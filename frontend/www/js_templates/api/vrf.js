@@ -114,7 +114,7 @@ async function deleteVRF(workgroupID, vrfID) {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();
     console.log(data);
-    return data.results[0];
+    return data.results;
   } catch(error) {
     console.log('Failure occurred in deleteVRF.');
     console.log(error);
