@@ -830,8 +830,6 @@ sub get_mpls_path_type{
         return;
     }
 
-    $self->{'logger'}->debug("MPLS Path Type: " . Data::Dumper::Dumper($self->{model}{'paths'}));
-
     if(!defined($self->{model}{'paths'}{$params{'path'}})){
         return;
     }
@@ -875,9 +873,6 @@ sub get_mpls_hops{
 
     #fetch the path
     my $p = $self->get_path(path => $path);
-
-    $self->{'logger'}->debug("Path is: " . Dumper($p));
-
     if(!defined($p)){
         return \@ips;
     }
@@ -916,8 +911,6 @@ sub get_mpls_hops{
         $self->{'logger'}->debug("      Address: " . $ip);
         push(@ips, $ip);
     }
-
-    $self->{'logger'}->debug("IP addresses: " . Dumper(@ips));
 
     return \@ips;
 }
@@ -988,7 +981,7 @@ sub get_endpoint {
     }
 
     foreach my $ep (@{$self->{endpoints}}) {
-        if ($args->{circuit_ep_id} eq $ep->{circuit_ep_id}) {
+        if ($args->{circuit_ep_id} == $ep->{circuit_ep_id}) {
             return $ep;
         }
     }
@@ -998,9 +991,7 @@ sub get_endpoint {
 
 =head2 remove_endpoint
 
-    my $ok = $l2vpn->remove_endpoint(
-        circuit_ep_id => 100
-    );
+    my $ok = $l2vpn->remove_endpoint($circuit_ep_id);
 
 remove_endpoint removes the endpoint identified by C<circuit_ep_id>
 from this L2Circuit.

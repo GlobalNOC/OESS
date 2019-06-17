@@ -2,7 +2,7 @@
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
-      <name>[% interface.name %]</name>
+      <name>[% interface.interface %]</name>
       <unit operation='delete'>
         <name>[% interface.unit %]</name>
       </unit>

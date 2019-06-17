@@ -155,6 +155,7 @@ sub fetch_all {
         foreach my $e (@$circuit_endpoints) {
             if (!defined $lookup->{$e->{circuit_ep_id}}) {
                 $lookup->{$e->{circuit_ep_id}} = 1;
+                $e->{type} = 'circuit';
                 push @$endpoints, $e;
             }
         }
@@ -209,6 +210,7 @@ sub fetch_all {
         foreach my $e (@$vrf_endpoints) {
             if (!defined $lookup->{$e->{vrf_ep_id}}) {
                 $lookup->{$e->{vrf_ep_id}} = 1;
+                $e->{type} = 'vrf';
                 push @$endpoints, $e;
             }
         }

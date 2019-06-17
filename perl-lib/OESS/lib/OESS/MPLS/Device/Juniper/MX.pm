@@ -925,12 +925,12 @@ sub add_vrf{
         }
 
 
-        if ($self->unit_name_available($i->{'name'}, $i->{'unit'}) == 0) {
-            $self->{'logger'}->error("Unit " . $i->{'unit'}  . " is not available on $i->{'name'}");
+        if ($self->unit_name_available($i->{'interface'}, $i->{'unit'}) == 0) {
+            $self->{'logger'}->error("Unit " . $i->{'unit'}  . " is not available on $i->{'interface'}");
             return FWDCTL_FAILURE;
         }
 
-        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           type => $i->{'type'},
                                           mtu  => $i->{'mtu'},
                                           inner_tag => $i->{'inner_tag'},
@@ -979,7 +979,7 @@ sub remove_vrf{
     $vars->{'vrf_name'} = $vrf->{'vrf_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$vrf->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'}
@@ -1020,7 +1020,7 @@ sub xml_configuration {
         $vars->{'circuit_name'} = $ckt->{'circuit_name'};
         $vars->{'interfaces'} = [];
         foreach my $i (@{$ckt->{'interfaces'}}) {
-            push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                               inner_tag => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               unit => $i->{'unit'}
@@ -1098,9 +1098,9 @@ sub xml_configuration {
                 
             }
 
-            push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                               unit => $i->{'unit'},
-                                              type => $i->{'type'},
+                                              cloud_interconnect_type => $i->{'cloud_interconnect_type'},
                                               mtu  => $i->{'mtu'},
                                               inner_tag  => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
@@ -1477,7 +1477,7 @@ sub _check_for_shaper{
     my $vrf = $vrfs->{$vrf_id};
     foreach my $int (@{$vrf->{'interfaces'}}){
 
-	if($int->{'name'} eq $port && $int->{'unit'} eq $unit){
+	if($int->{'interface'} eq $port && $int->{'unit'} eq $unit){
 	    if($int->{'bandwidth'} > 0){
 
 		#will be changed by the template
@@ -1553,8 +1553,8 @@ sub _is_vrf_on_port{
         # check to see if the port matches the port
         # check to see if the vlan matches the vlan
 
-        if($int->{'name'} eq $port && $int->{'unit'} eq $unit){
-            $self->{'logger'}->error("Interface $int->{'name'}.$int->{'unit'} is in vrf $vrf_id.");
+        if($int->{'interface'} eq $port && $int->{'unit'} eq $unit){
+            $self->{'logger'}->error("Interface $int->{'interface'}.$int->{'unit'} is in vrf $vrf_id.");
             return 1;
         }
     }
@@ -1583,7 +1583,7 @@ sub _is_peer_address {
     }
 
     foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}) {
-        if ($int->{name} ne $int_name) {
+        if ($int->{interface} ne $int_name) {
             next;
         }
 

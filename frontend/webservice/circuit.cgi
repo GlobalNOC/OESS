@@ -248,15 +248,15 @@ sub provision {
             $db->rollback;
             return;
         }
-
         my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
         if (!$valid_bandwidth) {
-            $method->set_error("Couldn't create Circuit: The specified bandwidth is invalid for $ep->{entity}.");
+            $method->set_error("Couldn't create Circuit: Specified bandwidth is invalid for $ep->{entity}.");
             $db->rollback;
             return;
         }
 
         # Populate Endpoint modal with selected Interface details.
+        $ep->{type}         = 'circuit';
         $ep->{entity_id}    = $entity->{entity_id};
         $ep->{interface}    = $interface->{name};
         $ep->{interface_id} = $interface->{interface_id};
@@ -281,6 +281,7 @@ sub provision {
             }
 
             # Populate Endpoint modal with selected Interface details.
+            $ep->{type}         = 'circuit';
             $ep->{entity_id}    = $entity->{entity_id};
             $ep->{interface}    = $interface2->{name};
             $ep->{interface_id} = $interface2->{interface_id};
@@ -433,6 +434,7 @@ sub update {
                 return;
             }
 
+            $ep->{type}         = 'circuit';
             $ep->{entity_id}    = $entity->{entity_id};
             $ep->{interface}    = $interface->{name};
             $ep->{interface_id} = $interface->{interface_id};
@@ -562,7 +564,7 @@ sub remove {
 
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
-            $circuit->{endpoints} = OESS::Cloud::cleanup_endpoints($circuit->name, $circuit->endpoints);
+            OESS::Cloud::cleanup_endpoints($circuit->endpoints);
         };
         if ($@) {
             $method->set_error("Couldn't remove Circuit: $@");

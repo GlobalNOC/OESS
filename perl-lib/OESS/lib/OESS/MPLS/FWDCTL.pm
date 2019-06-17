@@ -266,22 +266,7 @@ sub _write_cache{
 
         my @ints;
         foreach my $ep (@$eps){
-            my @bgp;
-
-            foreach my $bgp (@{$ep->peers()}){
-                push(@bgp, $bgp->to_hash());
-            }
-
-            my $int_obj = {
-                name => $ep->interface(),
-                mtu  => $ep->mtu(),
-                type => $ep->interface()->cloud_interconnect_type,
-                tag => $ep->tag(),
-                unit => $ep->unit(),
-                inner_tag => $ep->inner_tag(),
-                bandwidth => $ep->bandwidth(),
-                peers => \@bgp
-            };
+            my $int_obj = $ep->to_hash;
 
             if (defined $switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}) {
                 push(@{$switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}{'interfaces'}}, $int_obj);
@@ -839,11 +824,13 @@ sub addVrf{
         $self->{'logger'}->error($err);
         return &$error($err);
     }
+$self->{'logger'}->info("called get_vrf_obj");
 
     # The VRF may be cached. If so we must reload from DB. This causes
     # a single load for cached VRFs and a double load for VRFs not
     # cached.
     $vrf->update_vrf_details();
+$self->{'logger'}->info("called update_vrf_details");
 
     if($vrf->state() eq 'decom'){
         my $err = "addVrf: Adding a decom'd vrf is not allowed";
@@ -852,6 +839,7 @@ sub addVrf{
     }
 
     $self->_write_cache();
+$self->{'logger'}->info("called _write_cache");
 
     #get all the DPIDs involved and remove the flows
 
@@ -859,8 +847,8 @@ sub addVrf{
     my %nodes;
     foreach my $ep (@$endpoints){
         $self->{'logger'}->debug("EP: " . Dumper($ep));
-        $self->{'logger'}->debug("addVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
-        $nodes{$ep->node()->name()}= 1;
+        $self->{'logger'}->info("addVrf: Node: " . $ep->node() . " is involved in the vrf");
+        $nodes{$ep->node()}= 1;
     }
 
     my $result = FWDCTL_SUCCESS;

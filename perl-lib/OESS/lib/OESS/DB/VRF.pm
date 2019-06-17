@@ -15,6 +15,8 @@ use OESS::DB::Endpoint;
 
 use Data::Dumper;
 
+my $logger = Log::Log4perl->get_logger("OESS.DB.VRF");
+
 =head2 fetch
 
 =cut
@@ -108,29 +110,26 @@ sub create{
     my %params = @_;
     my $db = $params{'db'};
     my $model = $params{'model'};
-    
-    $db->start_transaction();
- 
-   
+
     my $vrf_id = $db->execute_query("insert into vrf (name, description, workgroup_id, local_asn, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$model->{'name'}, $model->{'description'},$model->{'workgroup'}->{'workgroup_id'}, $model->{'local_asn'}, $model->{'created_by'}->{'user_id'}, $model->{'last_modified_by'}->{'user_id'}]);
     if(!defined($vrf_id)){
         my $error = $db->get_error();
         $db->rollback();
         return;
     }
-    
+
     foreach my $ep (@{$model->{'endpoints'}}){
         my $res = OESS::DB::VRF::add_endpoint(db => $db, model => $ep, vrf_id => $vrf_id);
         if(!defined($res)){
+            my $error = $db->get_error();
+            warn $error;
             $db->rollback();
             return;
         }
     }
-    
-    $db->commit();
 
     return $vrf_id;
-}        
+}
 
 =head2 delete_endpoints
 
@@ -171,20 +170,25 @@ sub add_endpoint{
     my $model = $params{'model'};
     my $vrf_id = $params{'vrf_id'};
 
+    $logger->error('add_endpoint:' . Dumper($model));
+
     my $unit = OESS::DB::Endpoint::find_available_unit(
         db => $db,
-        interface_id => $model->{'interface'}->{'interface_id'},
+        interface_id => $model->{'interface_id'},
         tag => $model->{'tag'},
         inner_tag => $model->{'inner_tag'}
     );
     if(!defined($unit)){
+        my $error = $db->get_error();
+        warn $error;
         $db->rollback();
         return;
     }
 
-    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state, unit, mtu) VALUES (?,?,?,?,?,?,?,?)",[$model->{'interface'}->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active', $unit, $model->{'mtu'}]);
+    my $vrf_ep_id = $db->execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state, unit, mtu) VALUES (?,?,?,?,?,?,?,?)",[$model->{'interface_id'}, $model->{'tag'}, $model->{'inner_tag'}, $model->{'bandwidth'}, $vrf_id, 'active', $unit, $model->{'mtu'} || 9000]);
     if(!defined($vrf_ep_id)){
         my $error = $db->get_error();
+        warn $error;
         $db->rollback();
         return;
     }
@@ -197,13 +201,16 @@ sub add_endpoint{
         );
     }
 
+    $logger->error('adding peers:' . Dumper($model->{'peers'}));
+
     foreach my $peer (@{$model->{'peers'}}){
         my $res = add_peer(db => $db, model => $peer, vrf_ep_id => $vrf_ep_id);
-        if(!defined($res)){
-            my $error = $db->get_error();
+        if (!defined $res) {
+            $logger->error('add_peer error: ' . $db->get_error);
             $db->rollback();
             return;
         }
+        $logger->error('add_peer success: ' . Dumper($res));
     }
 
     return $vrf_ep_id;
@@ -219,14 +226,14 @@ sub add_peer{
     my $model = $params{'model'};
     my $vrf_ep_id = $params{'vrf_ep_id'};
 
-    my $res = $db->execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $model->{'peer_ip'}, $model->{'local_ip'}, $model->{'peer_asn'}, $model->{'md5_key'}, 'active']);
+    $logger->error('add_peer model: ' . Dumper($model));
 
-    if(!defined($res)){
-        my $error = $db->get_error();
-        return;
+    eval {
+        return $db->execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state, operational_state) VALUES (?,?,?,?,?,?,?)",[$vrf_ep_id, $model->{'peer_ip'}, $model->{'local_ip'}, $model->{'peer_asn'}, $model->{'md5_key'}, 'active', 0]);
+    };
+    if ($@) {
+        $logger->error("add_peer error: $@");
     }
-
-    return $res;
 }
 
 =head2 fetch_endpoints

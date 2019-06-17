@@ -44,7 +44,7 @@ sub create {
 
     $args->{model}->{circuit_ep_id} = (exists $args->{model}->{circuit_ep_id}) ? $args->{model}->{circuit_ep_id} : undef;
     $args->{model}->{vrf_ep_id} = (exists $args->{model}->{vrf_ep_id}) ? $args->{model}->{vrf_ep_id} : undef;
-    $args->{model}->{operational_state} = ($args->{model}->{operational_state} eq 'up') ? 1 : 0;
+    $args->{model}->{operational_state} = (defined $args->{model}->{operational_state} && $args->{model}->{operational_state} eq 'up') ? 1 : 0;
 
     my $peer_id = $args->{db}->execute_query($q1, [
         $args->{model}->{circuit_ep_id},

@@ -173,11 +173,7 @@ sub vrf_ep_peer_id{
 =cut
 sub operational_state{
     my $self = shift;
-    if($self->{'operational_state'} == 1){
-        return "up";
-    }else{
-        return "down"
-    }
+    return $self->{'operational_state'};
 }
 
 =head2 decom

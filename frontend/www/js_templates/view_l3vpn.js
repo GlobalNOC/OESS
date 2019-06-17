@@ -142,15 +142,15 @@ async function loadVRF() {
     select.setAttribute('onchange', 'updateStatisticsIFrame()');
 
     let peeringHTML = '';
-    endpoint.peers.forEach(function(peering, peeringIndex) {
-	  peering.operational_label = 'success';
-	  if(peering.operational_state != 'up'){
-		peering.operational_label = 'danger';
-	  }
+    if ('peers' in endpoint) {
+      endpoint.peers.forEach(function(peering, peeringIndex) {
+	    peering.operational_label = 'success';
+	    if(peering.operational_state != 'up'){
+		  peering.operational_label = 'danger';
+	    }
+        peering.md5_key = (peering.md5_key) ? peering.md5_key : '(unauthenticated)';
 
-      peering.md5_key = (peering.md5_key) ? peering.md5_key : '(unauthenticated)';
-
-      peeringHTML += `
+        peeringHTML += `
 <tr>
   <td>${peering.peer_asn}</td>
   <td>${peering.peer_ip}</td>
@@ -159,8 +159,9 @@ async function loadVRF() {
   <td><span id="state" class="label label-${peering.operational_label}">${peering.operational_state}</span></td>
 </tr>`;
 
-      select.innerHTML += `<option value=${peering.peer_ip}>${peering.peer_ip}</option>`;
-    });
+        select.innerHTML += `<option value=${peering.peer_ip}>${peering.peer_ip}</option>`;
+      });
+    }
 
     peerSelections.appendChild(select);
 

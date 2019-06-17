@@ -130,6 +130,7 @@ sub _build_from_model{
 
     $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
     $self->{'tag'} = $self->{'model'}->{'tag'};
+    $self->{'unit'} = $self->{'model'}->{'unit'};
     $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
     $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
     $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
@@ -140,6 +141,7 @@ sub _build_from_model{
     $self->{circuit_ep_id} = $self->{model}->{circuit_edge_id} || $self->{model}->{circuit_ep_id};
     $self->{vrf_endpoint_id} = $self->{model}->{vrf_endpoint_id} || $self->{model}->{vrf_ep_id};
 
+    $self->{'type'} = $self->{'model'}->{'type'};
     $self->{'node'} = $self->{'model'}->{'node'};
     $self->{'node_id'} = $self->{'model'}->{'node_id'};
     $self->{'interface'} = $self->{'model'}->{'interface'};
@@ -162,19 +164,16 @@ sub _build_from_model{
     # similarly with the only difference between the two being the
     # peer addresses assigned to each.
 
-    if ($self->{type} eq 'vrf' || defined $self->{'vrf_endpoint_id'}) {
-        $self->{vrf_id} = $self->{model}->{vrf_id};
+    $self->{circuit_id} = $self->{model}->{circuit_id};
+    $self->{vrf_id} = $self->{model}->{vrf_id};
+    $self->{start_epoch} = $self->{model}->{start_epoch};
 
-        $self->{'peers'} = [];
-        foreach my $peer (@{$self->{'model'}->{'peerings'}}) {
-            push @{$self->{'peers'}}, OESS::Peer->new(db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1);
+    if ($self->{type} eq 'vrf') {
+        $self->{peers} = [];
+        foreach my $peer (@{$self->{model}->{peers}}) {
+            push @{$self->{peers}}, OESS::Peer->new(db => $self->{'db'}, model => $peer);
         }
-    } else {
-        $self->{circuit_id} = $self->{model}->{circuit_id};
-        $self->{start_epoch} = $self->{model}->{start_epoch};
     }
-
-    $self->{'unit'} = $self->{'model'}->{'unit'};
 }
 
 =head2 to_hash
@@ -184,6 +183,7 @@ sub to_hash{
     my $self = shift;
     my $obj;
 
+    $obj->{'type'} = $self->{'type'};
     $obj->{'interface'} = $self->{'interface'};
     $obj->{'interface_id'} = $self->{'interface_id'};
     $obj->{'node'} = $self->{'node'};
@@ -208,22 +208,17 @@ sub to_hash{
     $obj->{'entity'} = $self->entity;
     $obj->{'entity_id'} = $self->entity_id;
 
-    if (defined $self->{'vrf_endpoint_id'}) {
-        if (defined $self->{'peers'}) {
-            $obj->{'peers'} = [];
-            foreach my $peer (@{$self->{'peers'}}){
-                push(@{$obj->{'peers'}}, $peer->to_hash());
-            }
+    if ($self->{'type'} eq 'vrf') {
+        $obj->{'peers'} = [];
+        foreach my $peer (@{$self->{'peers'}}){
+            push(@{$obj->{'peers'}}, $peer->to_hash());
         }
-
         $obj->{'vrf_id'} = $self->vrf_id();
         $obj->{'vrf_endpoint_id'} = $self->vrf_endpoint_id();
-        $obj->{'type'} = 'vrf';
-    }else{
+    } else {
         $obj->{'circuit_id'} = $self->circuit_id();
         $obj->{'circuit_ep_id'} = $self->circuit_ep_id();
         $obj->{'start_epoch'} = $self->start_epoch();
-        $obj->{'type'} = 'circuit';
     }
 
     return $obj;
@@ -236,6 +231,7 @@ sub from_hash{
     my $self = shift;
     my $hash = shift;
 
+    $self->{'type'} = $hash->{'type'};
     $self->{'interface'} = $hash->{'interface'};
     $self->{'interface_id'} = $hash->{'interface_id'};
     $self->{'node'} = $hash->{'node'};
@@ -250,8 +246,6 @@ sub from_hash{
     $self->{cloud_interconnect_type} = $hash->{cloud_interconnect_type};
     $self->{'mtu'} = $hash->{'mtu'};
     $self->{'unit'} = $hash->{'unit'};
-
-    $self->{'type'} = $hash->{'type'};
 
     if ($self->{'type'} eq 'vrf' || !defined $hash->{'circuit_ep_id'}) {
         $self->{'peers'} = $hash->{'peers'};
@@ -316,6 +310,77 @@ sub load_peers {
         my $peer = new OESS::Peer(db => $self->{db}, model => $data);
         push @{$self->{peers}}, $peer;
     }
+
+    return 1;
+}
+
+=head2 add_peer
+
+    $endpoint->add_peer(new OESS::Peer(...));
+
+=cut
+sub add_peer {
+    my $self = shift;
+    my $peer = shift;
+
+    push @{$self->{peers}}, $peer;
+}
+
+=head2 get_peer
+
+    my $ep = $endpoint->get_peer(
+        vrf_ep_peer_id => 100
+    );
+
+get_peer returns the Peer identified by C<vrf_ep_peer_id>.
+
+=cut
+sub get_peer {
+    my $self = shift;
+    my $args = {
+        vrf_ep_peer_id => undef,
+        @_
+    };
+
+    if (!defined $args->{vrf_ep_peer_id}) {
+        return;
+    }
+
+    foreach my $peer (@{$self->{peers}}) {
+        if ($args->{vrf_ep_peer_id} eq $peer->{vrf_ep_peer_id}) {
+            return $peer;
+        }
+    }
+
+    return;
+}
+
+=head2 remove_peer
+
+    my $ok = $endpoint->remove_peer(
+        vrf_ep_peer_id => 100
+    );
+
+remove_peer removes the peer identified by C<vrf_ep_peer_id> from this
+Endpoint.
+
+=cut
+sub remove_peer {
+    my $self = shift;
+    my $vrf_ep_peer_id = shift;
+
+    if (!defined $vrf_ep_peer_id) {
+        return;
+    }
+
+    my $new_peers = [];
+    foreach my $ep (@{$self->{peers}}) {
+        if ($vrf_ep_peer_id == $ep->{vrf_ep_peer_id}) {
+            next;
+        }
+        push @$new_peers, $ep;
+    }
+    $self->{peers} = $new_peers;
 
     return 1;
 }

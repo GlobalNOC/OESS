@@ -1,7 +1,6 @@
 async function deleteCircuit(workgroupID, circuitID, end=-1) {
-  let url = '[% path %]services/provisioning.cgi?method=remove_circuit';
+  let url = '[% path %]services/circuit.cgi?method=remove';
   url += `&circuit_id=${circuitID}`;
-  url += `&remove_time=${end}`;
   url += `&workgroup_id=${workgroupID}`;
 
   try {
