@@ -186,4 +186,65 @@ sub decom{
     return $res;
 }
 
+=head2 create
+
+    $db->start_transaction;
+    my ($id, $err) = $peer->create(
+        circuit_ep_id => 100, # Optional
+        vrf_ep_id     => 100  # Optional
+    );
+    if (defined $err) {
+        $db->rollback;
+        warn $err;
+    }
+
+create saves this Peer to the database. This method B<must> be wrapped
+in a transaction and B<shall> only be used to create a new Peer.
+
+=cut
+sub create {
+    my $self = shift;
+    my $args = {
+        circuit_ep_id  => undef,
+        vrf_ep_id      => undef,
+        @_
+    };
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error("Couldn't create Peer: DB handle is missing.");
+        return (undef, "Couldn't create Peer: DB handle is missing.");
+    }
+
+    my $model = $self->to_hash;
+    $model->{vrf_ep_id} = $args->{vrf_ep_id};
+    my ($id, $err) = OESS::DB::Peer::create(
+        db => $self->{db},
+        model => $model
+    );
+    $self->{vrf_ep_peer_id} = $id;
+
+    return ($id, $err);
+}
+
+=head2 update
+
+    my $err = $peer->update;
+    $db->rollback if defined $err;
+
+update saves any changes made to this Peer.
+
+=cut
+sub update {
+    my $self = shift;
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error('Unable to write db; Handle is missing.');
+    }
+
+    return OESS::DB::Peer::update(
+        db => $self->{db},
+        peer => $self->to_hash
+    );
+}
+
 1;

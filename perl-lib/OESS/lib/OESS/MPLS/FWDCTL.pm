@@ -258,9 +258,12 @@ sub _write_cache{
 
     my %switches;
 
-    foreach my $vrf (keys (%{$self->{'vrfs'}})){
-        $self->{'logger'}->error("Writing cache for VRF: " . $vrf);
-        $vrf = $self->get_vrf_object($vrf);
+    foreach my $vrf_id (keys (%{$self->{'vrfs'}})){
+        $self->{'logger'}->debug("Writing VRF $vrf_id to cache.");
+        my $vrf = $self->get_vrf_object($vrf_id);
+        if (!defined $vrf) {
+            $self->{'logger'}->error("VRF $vrf_id could't be loaded or written to cache.");
+        }
 
         my $eps = $vrf->endpoints();
 
@@ -287,11 +290,10 @@ sub _write_cache{
         my $found = 0;
         next if $self->{'circuit'}->{$ckt_id}->{'type'} ne 'mpls';
 
-        $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
-        
+        $self->{'logger'}->debug("Writing Circuit $ckt_id to cache.");
         my $ckt = $self->get_ckt_object($ckt_id);
-        if(!defined($ckt)){
-            $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $ckt_id);
+        if (!defined $ckt) {
+            $self->{'logger'}->error("Circuit $ckt_id couldn't be loaded or written to cache.");
             next;
         }
         my $details = $ckt->get_details();
@@ -719,13 +721,10 @@ sub update_cache {
         $self->{'fwdctl_events'}->update_cache(
             async_callback => sub {
                 my $result = shift;
-
                 $condvar->end();
-                $self->{'logger'}->info("Switch $addr updated its cache.");
             }
         );
     }
-    
     $condvar->end();
 }
 
@@ -921,14 +920,13 @@ $self->{'logger'}->info("called _write_cache");
 =head2 delVrf
 
 =cut
-
 sub delVrf{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
     my $state_ref = shift;
 
-    $self->{'logger'}->error("delVrf: Removing VRF!");
+
 
     my $success = $m_ref->{'success_callback'};
     my $error = $m_ref->{'error_callback'};
@@ -936,7 +934,7 @@ sub delVrf{
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
 
     $self->{'logger'}->error("delVrf: VRF ID required") && $self->{'logger'}->logconfess() if(!defined($vrf_id));
-    $self->{'logger'}->info("delVrf: MPLS delVrf: $vrf_id");
+    $self->{'logger'}->info("Removing VRF $vrf_id.");
 
     my $vrf = $self->get_vrf_object( $vrf_id );
     if(!defined($vrf)){
@@ -960,8 +958,8 @@ sub delVrf{
     my %nodes;
     foreach my $ep (@$endpoints){
         $self->{'logger'}->debug("EP: " . Dumper($ep));
-        $self->{'logger'}->debug("delVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
-        $nodes{$ep->node()->name()}= 1;
+        $self->{'logger'}->debug("delVrf: Node: " . $ep->node . " is involved in the vrf");
+        $nodes{$ep->node}= 1;
 
     }
 
@@ -1149,6 +1147,7 @@ sub deleteVlan{
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
+    $self->{'logger'}->info("Removing Circuit $circuit_id.");
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();

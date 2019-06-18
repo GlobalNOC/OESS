@@ -78,6 +78,7 @@ async function loadVRF() {
     }
 
     let endpoint = {
+        vrf_endpoint_id: e.vrf_endpoint_id,
         cloud_account_id: e.cloud_account_id,
         cloud_account_type: e.cloud_interconnect_type,
         bandwidth: e.bandwidth,
@@ -95,6 +96,7 @@ async function loadVRF() {
 
     e.peers.forEach(function(p) {
       let peering = {
+          vrfEpPeerId: p.vrf_ep_peer_id,
           ipVersion: p.ip_version,
           asn: p.peer_asn,
           key: p.md5_key || '',

@@ -13,7 +13,7 @@ use Data::Dumper;
 
 =head2 create
 
-    my $id = OESS::DB::Peer::create(
+    my ($id, $err) = OESS::DB::Peer::create(
         db => $db,
         model => {
             circuit_ep_id     => 7,                # Optional
@@ -38,7 +38,7 @@ sub create {
     return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
 
     my $q1 = "
-        INSERT INTO vrf_ep_peer (circuit_ep_id, vrf_ep_id, local_ip, peer_asn, peer_ip, md5_key, operational_status, state)
+        INSERT INTO vrf_ep_peer (circuit_ep_id, vrf_ep_id, local_ip, peer_asn, peer_ip, md5_key, operational_state, state)
         VALUES (?,?,?,?,?,?,?,?)
     ";
 
@@ -129,4 +129,67 @@ sub fetch_all {
     return ($peers, undef);
 }
 
-1
+=head2 update
+
+    my $err = OESS::DB::Peer::update(
+        db => $db,
+        peer => {
+            vrf_ep_peer_id => 1,
+            interface_a_id => 100,
+            ip_a           => undef,
+            interface_z_id => 21,
+            ip_z           => undef,
+            name           => 'Peer', # Optional
+            status         => 'up',   # Optional
+            remote_urn     => undef,  # Optional
+            metric         => 553     # Optional
+        }
+    );
+
+=cut
+sub update {
+    my $args = {
+        db  => undef,
+        peer => {},
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `peer->vrf_ep_peer_id` is missing.' if !defined $args->{peer}->{vrf_ep_peer_id};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{peer}->{peer_ip}) {
+        push @$params, 'peer_ip=?';
+        push @$values, $args->{peer}->{peer_ip};
+    }
+    if (defined $args->{peer}->{peer_asn}) {
+        push @$params, 'peer_asn=?';
+        push @$values, $args->{peer}->{peer_asn};
+    }
+    if (defined $args->{peer}->{local_ip}) {
+        push @$params, 'local_ip=?';
+        push @$values, $args->{peer}->{local_ip};
+    }
+    if (defined $args->{peer}->{operational_state}) {
+        push @$params, 'operational_state=?';
+        push @$values, $args->{peer}->{operational_state};
+    }
+
+    my $fields = join(', ', @$params);
+    push @$values, $args->{peer}->{vrf_ep_peer_id};
+
+    my $ok = $args->{db}->execute_query(
+        "UPDATE vrf_ep_peer SET $fields WHERE vrf_ep_peer_id=?",
+        $values
+    );
+    if (!defined $ok) {
+        return $args->{db}->get_error;
+    }
+
+    return;
+}
+
+
+1;

@@ -56,6 +56,7 @@ sub fetch_all {
         db => undef,
         circuit_id => undef,
         vrf_id => undef,
+        vrf_ep_id => undef,
         entity_id => undef,
         interface_id => undef,
         node_id => undef,
@@ -81,6 +82,11 @@ sub fetch_all {
         $type = 'vrf';
         push @$params, 'vrf_ep.vrf_id=?';
         push @$values, $args->{vrf_id};
+    }
+    if (defined $args->{vrf_ep_id}) {
+        $type = 'vrf';
+        push @$params, 'vrf_ep.vrf_ep_id=?';
+        push @$values, $args->{vrf_ep_id};
     }
     if (defined $args->{entity_id}) {
         push @$params, 'entity.entity_id=?';
@@ -251,10 +257,9 @@ sub update_vrf {
         push @$args, $endpoint->{bandwidth};
     }
 
-    if(defined($endpoint->{interface}) &&
-       defined($endpoint->{interface}->{interface_id})) {
+    if(defined($endpoint->{interface_id})){
         push @$reqs, 'interface_id=?';
-        push @$args, $endpoint->{interface}->{interface_id};
+        push @$args, $endpoint->{interface_id};
     }
 
     if(defined($endpoint->{state})) {
@@ -373,6 +378,54 @@ sub remove_vrf_ep {
     return;
 }
 
+=head2 add_vrf_ep
+
+    my ($vrf_ep_id, $err) = OESS::DB::Endpoint::add_vrf_ep(
+        db => $db,
+        endpoint => { ... }
+    );
+
+=cut
+sub add_vrf_ep {
+    my %params = @_;
+    my $db = $params{db};
+    my $endpoint = $params{endpoint};
+
+    my $vrf_ep_id = $db->execute_query(
+        "
+        INSERT INTO vrf_ep
+        (interface_id, tag, inner_tag, bandwidth, vrf_id, state, unit, mtu)
+        VALUES (?,?,?,?,?,?,?,?)
+        ",
+        [ $endpoint->{'interface_id'},
+          $endpoint->{'tag'},
+          $endpoint->{'inner_tag'},
+          $endpoint->{'bandwidth'},
+          $endpoint->{vrf_id},
+          'active',
+          $endpoint->{unit},
+          $endpoint->{'mtu'} || 9000
+      ]
+    );
+    if (!defined $vrf_ep_id) {
+        return (undef, $db->get_error);
+    }
+
+    if (defined $endpoint->{cloud_account_id} && $endpoint->{cloud_account_id} ne '') {
+        my $cloud_connection_vrf_ep_id = $db->execute_query(
+            "insert into cloud_connection_vrf_ep (vrf_ep_id, cloud_account_id, cloud_connection_id)
+             values (?, ?, ?)",
+            [$vrf_ep_id, $endpoint->{cloud_account_id}, $endpoint->{cloud_connection_id}]
+        );
+        if (!defined $cloud_connection_vrf_ep_id) {
+            return (undef, $db->get_error);
+        }
+    }
+
+    return ($vrf_ep_id, undef);
+}
+
+
 =head2 remove_vrf_peers
 
 =cut
@@ -382,7 +435,7 @@ sub remove_vrf_peers{
     my $endpoint = $params{endpoint};
 
     my $result = $db->execute_query(
-        "DELETE FROM vrf_ep_peer WHERE vrf_ep_peer_id=?",
+        "DELETE FROM vrf_ep_peer WHERE vrf_ep_id=?",
         [$endpoint->{vrf_endpoint_id}]);
     return $result;
 }

@@ -250,7 +250,7 @@ sub from_hash{
     if ($self->{'type'} eq 'vrf' || !defined $hash->{'circuit_ep_id'}) {
         $self->{'peers'} = $hash->{'peers'};
         $self->{'vrf_id'} = $hash->{'vrf_id'};
-        $self->{'vrf_endpoint_id'} = $hash->{'vrf_endpoint_id'};
+        $self->{'vrf_endpoint_id'} = $hash->{'vrf_endpoint_id'} || $hash->{'vrf_ep_id'};
     } else {
         $self->{'circuit_id'} = $hash->{'circuit_id'};
         $self->{'circuit_ep_id'} = $hash->{'circuit_ep_id'};
@@ -279,7 +279,16 @@ sub _fetch_from_db{
             $hash = $data->[0];
         }
     } else {
-        $hash = OESS::DB::VRF::fetch_endpoint(db => $db, vrf_endpoint_id => $self->{'vrf_endpoint_id'});
+        my ($data, $err) = OESS::DB::Endpoint::fetch_all(
+            db => $db,
+            vrf_ep_id => $self->{vrf_endpoint_id}
+        );
+        if (defined $err) {
+            $self->{logger}->error($err);
+            return;
+        } else {
+            $hash = $data->[0];
+        }
     }
 
     $self->from_hash($hash);
@@ -843,7 +852,6 @@ sub create {
     my $args = {
         circuit_id   => undef,
         vrf_id       => undef,
-        workgroup_id => undef,
         @_
     };
 
@@ -851,19 +859,6 @@ sub create {
         $self->{'logger'}->error("Couldn't create Endpoint: DB handle is missing.");
         return (undef, "Couldn't create Endpoint: DB handle is missing.");
     }
-
-    return (undef, 'Required argument `workgroup_id` is missing.') if !defined $args->{workgroup_id};
-
-    # my $ok = $self->interface()->vlan_valid(
-    #     workgroup_id => $args->{workgroup_id},
-    #     vlan => $self->tag
-    # );
-    # if (!$ok) {
-    #     my $name = $self->interface()->name;
-    #     my $tag = $self->tag;
-    #     $self->{'logger'}->error("Couldn't create Endpoint: Outer tag $tag cannot be used by $args->{workgroup_id} on $name.");
-    #     return (undef, "Couldn't create Endpoint: Outer tag $tag cannot be used by $args->{workgroup_id} on $name.");
-    # }
 
     my $unit = OESS::DB::Endpoint::find_available_unit(
         db => $self->{db},
@@ -894,9 +889,21 @@ sub create {
         return ($circuit_ep_id, undef);
 
     } elsif (defined $args->{vrf_id}) {
-        # TODO add vrf endpoint
-        $self->{'logger'}->error("Couldn't create Endpoint: VRF Endpoint creation not supported here.");
-        return (undef, "Couldn't create Endpoint: VRF Endpoint creation not supported here.");
+        my $ep_data = $self->to_hash;
+        $ep_data->{vrf_id} = $args->{vrf_id};
+        $ep_data->{unit} = $unit;
+
+        my ($vrf_ep_id, $vrf_ep_err) = OESS::DB::Endpoint::add_vrf_ep(
+            db => $self->{db},
+            endpoint => $ep_data
+        );
+        if (defined $vrf_ep_err) {
+            $self->{'logger'}->error("Couldn't create Endpoint: $vrf_ep_err");
+            return (undef, "Couldn't create Endpoint: $vrf_ep_err");
+        }
+
+        $self->{vrf_endpoint_id} = $vrf_ep_id;
+        return ($vrf_ep_id, undef);
 
     } else {
         $self->{'logger'}->error("Couldn't create Endpoint: No associated Circuit or VRF identifier specified.");
