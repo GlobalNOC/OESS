@@ -110,6 +110,9 @@ sub fetch_all {
         push @$values, $args->{vrf_ep_id};
     }
 
+    push @$params, 'state=?';
+    push @$values, 'active';
+
     my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : '';
 
     my $q = "

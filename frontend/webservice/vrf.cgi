@@ -512,7 +512,7 @@ sub provision_vrf{
             # shall be removed.
             my $peers = {};
             foreach my $peer (@{$endpoint->peers}) {
-                $peers->{$peer->vrf_ep_peer_id} = $ep;
+                $peers->{$peer->vrf_ep_peer_id} = $peer;
             }
 
             foreach my $peering (@{$ep->{peerings}}) {
