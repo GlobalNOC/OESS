@@ -97,9 +97,11 @@ sub from_hash {
     $self->{status} = $hash->{status};
     $self->{metric} = $hash->{metric};
     $self->{node_a_id} = $hash->{node_a_id};
+    $self->{node_a_loopback} = $hash->{node_a_loopback};
     $self->{interface_a_id} = $hash->{interface_a_id};
     $self->{ip_a} = $hash->{ip_a};
     $self->{node_z_id} = $hash->{node_z_id};
+    $self->{node_z_loopback} = $hash->{node_z_loopback};
     $self->{interface_z_id} = $hash->{interface_z_id};
     $self->{ip_z} = $hash->{ip_z};
     return 1;
@@ -118,9 +120,11 @@ sub to_hash {
         status => $self->status,
         metric => $self->metric,
         node_a_id => $self->node_a_id,
+        node_a_loopback => $self->node_a_loopback,
         interface_a_id => $self->interface_a_id,
         ip_a => $self->ip_a,
         node_z_id => $self->node_z_id,
+        node_z_loopback => $self->node_z_loopback,
         interface_z_id => $self->interface_z_id,
         ip_z => $self->ip_z
     };
@@ -195,6 +199,18 @@ sub node_a_id {
     return $self->{node_a_id};
 }
 
+=head2 node_a_loopback
+
+=cut
+sub node_a_loopback {
+    my $self = shift;
+    my $node_a_loopback = shift;
+    if (defined $node_a_loopback) {
+        $self->{node_a_loopback} = $node_a_loopback;
+    }
+    return $self->{node_a_loopback};
+}
+
 =head2 interface_a_id
 
 =cut
@@ -229,6 +245,18 @@ sub node_z_id {
         $self->{node_z_id} = $node_z_id;
     }
     return $self->{node_z_id};
+}
+
+=head2 node_z_loopback
+
+=cut
+sub node_z_loopback {
+    my $self = shift;
+    my $node_z_loopback = shift;
+    if (defined $node_z_loopback) {
+        $self->{node_z_loopback} = $node_z_loopback;
+    }
+    return $self->{node_z_loopback};
 }
 
 =head2 interface_z_id

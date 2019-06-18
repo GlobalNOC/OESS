@@ -369,6 +369,9 @@ sub provision {
     # $db->rollback;
     $db->commit;
 
+    _send_update_cache($circuit->circuit_id);
+    _send_add_command($circuit->circuit_id);
+
     warn Dumper($circuit->to_hash);
     return {success => 1, circuit_id => $circuit_id};
 }
@@ -504,6 +507,11 @@ sub update {
     $db->commit;
 
     warn Dumper($circuit->to_hash);
+
+    _send_remove_command($circuit->circuit_id);
+    _send_update_cache($circuit->circuit_id);
+    _send_add_command($circuit->circuit_id);
+
     return { success => 1, circuit_id => $circuit->circuit_id };
 }
 
@@ -601,9 +609,99 @@ sub remove {
     # Put rollback in place for quick tests
     # $db->rollback;
     $db->commit;
+    _send_remove_command($args->{circuit_id}->{value});
 
     return {status => 1};
 }
 
+sub _send_add_command {
+    my $circuit_id = shift;
+
+    my $result = undef;
+    my $err    = undef;
+
+    if (!defined $mq) {
+        return (undef, "Couldn't create RabbitMQ Client.");
+    }
+    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+
+    my $cv = AnyEvent->condvar;
+    $mq->addVlan(
+        circuit_id        => int($circuit_id),
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+    $result = $cv->recv();
+
+    if (!defined $result) {
+        return ($result, "Error occurred while calling addVlan: Couldn't connect to RabbitMQ.");
+    }
+    if (defined $result->{error}) {
+        return ($result, "Error occured while calling addVlan: $result->{error}");
+    }
+    return ($result->{results}->{status}, $err);
+}
+
+sub _send_remove_command {
+    my $circuit_id = shift;
+
+    my $result = undef;
+    my $err    = undef;
+
+    if (!defined $mq) {
+        return (undef, "Couldn't create RabbitMQ Client.");
+    }
+    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+
+    my $cv = AnyEvent->condvar;
+    $mq->deleteVlan(
+        circuit_id     => int($circuit_id),
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+    $result = $cv->recv();
+
+    if (!defined $result) {
+        return ($result, "Error occurred while calling deleteVlan: Couldn't connect to RabbitMQ.");
+    }
+    if (defined $result->{error}) {
+        return ($result, "Error occured while calling deleteVlan: $result->{error}");
+    }
+    return ($result->{results}->{status}, $err);
+}
+
+sub _send_update_cache {
+    my $circuit_id = shift || -1;
+
+    my $result = undef;
+    my $err    = undef;
+
+    if (!defined $mq) {
+        return (undef, "Couldn't create RabbitMQ Client.");
+    }
+    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+
+    my $cv = AnyEvent->condvar;
+    $mq->update_cache(
+        circuit_id     => int($circuit_id),
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+    $result = $cv->recv();
+
+    if (!defined $result) {
+        return ($result, "Error occurred while calling update_cache: Couldn't connect to RabbitMQ.");
+    }
+    if (defined $result->{error}) {
+        return ($result, "Error occured while calling update_cache: $result->{error}");
+    }
+    return ($result->{results}->{status}, $err);
+}
 
 $ws->handle_request();

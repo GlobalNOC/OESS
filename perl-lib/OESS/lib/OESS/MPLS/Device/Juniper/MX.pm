@@ -830,11 +830,16 @@ sub add_vlan{
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+        if ($self->unit_name_available($i->{interface}, $i->{unit}) == 0) {
+            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
+            return FWDCTL_FAILURE;
+        }
+
+        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'}
-                                        });
+                                      });
     }
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
@@ -845,18 +850,13 @@ sub add_vlan{
     $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
-    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'interface'}->{'unit'}) == 0) {
-        $self->{'logger'}->error("Unit $vars->{'vlan_tag'} is not available on $vars->{'interface'}->{'name'}");
-        return FWDCTL_FAILURE;
-    }
-
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
         return FWDCTL_FAILURE;
     }
-    
+
     if (!defined $output) {
         return FWDCTL_FAILURE;
     }
@@ -926,7 +926,7 @@ sub add_vrf{
 
 
         if ($self->unit_name_available($i->{'interface'}, $i->{'unit'}) == 0) {
-            $self->{'logger'}->error("Unit " . $i->{'unit'}  . " is not available on $i->{'interface'}");
+            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
             return FWDCTL_FAILURE;
         }
 

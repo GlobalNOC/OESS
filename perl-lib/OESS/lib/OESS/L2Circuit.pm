@@ -98,6 +98,10 @@ sub new {
 
     $self->_process_circuit_details($self->{model});
 
+    # This is provided for a code path in MPLS::FWDCTL. Ideally this
+    # would be removed in the future.
+    $self->{type} = 'mpls';
+
     return $self;
 }
 
@@ -272,6 +276,32 @@ sub add_path {
     my $path = shift;
 
     push @{$self->{paths}}, $path;
+}
+
+=head2 path
+
+=cut
+sub path {
+    my $self = shift;
+    my $args = {
+        type => undef,
+        @_
+    };
+
+    return if (!defined $self->{paths});
+
+    foreach my $path (@{$self->{paths}}) {
+        if (defined $args->{type}) {
+            return $path if ($path->type eq $args->{type});
+        }
+        else {
+            if ($path->{state} eq 'active') {
+                return $path;
+            }
+        }
+    }
+
+    return;
 }
 
 =head2 load_paths

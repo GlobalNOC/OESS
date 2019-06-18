@@ -100,11 +100,14 @@ sub fetch {
                link_instantiation.interface_a_id, link_instantiation.ip_a,
                link_instantiation.interface_z_id, link_instantiation.ip_z,
                interface_a.node_id as node_a_id,
-               interface_z.node_id as node_z_id
+               interface_z.node_id as node_z_id,
+               node_a.loopback_address as node_a_loopback, node_z.loopback_address as node_z_loopback
         FROM link
         JOIN link_instantiation ON link.link_id=link_instantiation.link_id AND link_instantiation.end_epoch=-1
         JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
         JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
+        JOIN node_instantiation as node_a ON node_a.node_id=interface_a.node_id AND node_a.end_epoch=-1
+        JOIN node_instantiation as node_z ON node_z.node_id=interface_z.node_id AND node_z.end_epoch=-1
         WHERE link.link_id=? AND link_instantiation.end_epoch=-1
     ";
     my $link = $args->{db}->execute_query($q, [
@@ -144,11 +147,14 @@ sub fetch_history {
                link_instantiation.interface_a_id, link_instantiation.ip_a,
                link_instantiation.interface_z_id, link_instantiation.ip_z,
                interface_a.node_id as node_a_id,
-               interface_z.node_id as node_z_id
+               interface_z.node_id as node_z_id,
+               node_a.loopback_address as node_a_loopback, node_z.loopback_address as node_z_loopback
         FROM link
         JOIN link_instantiation ON link.link_id=link_instantiation.link_id
         JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
         JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
+        JOIN node_instantiation as node_a ON node_a.node_id=interface_a.node_id AND node_a.end_epoch=-1
+        JOIN node_instantiation as node_z ON node_z.node_id=interface_z.node_id AND node_z.end_epoch=-1
         WHERE link.link_id=?
     ";
     my $links = $args->{db}->execute_query($q, [
@@ -239,12 +245,15 @@ sub fetch_all {
                link_instantiation.interface_a_id, link_instantiation.ip_a,
                link_instantiation.interface_z_id, link_instantiation.ip_z,
                interface_a.node_id as node_a_id,
-               interface_z.node_id as node_z_id
+               interface_z.node_id as node_z_id,
+               node_a.loopback_address as node_a_loopback, node_z.loopback_address as node_z_loopback
         FROM link
         JOIN link_instantiation ON link.link_id=link_instantiation.link_id AND link_instantiation.end_epoch=-1
         JOIN link_path_membership ON link.link_id=link_path_membership.link_id AND link_path_membership.end_epoch=-1
         JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
         JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
+        JOIN node_instantiation as node_a ON node_a.node_id=interface_a.node_id AND node_a.end_epoch=-1
+        JOIN node_instantiation as node_z ON node_z.node_id=interface_z.node_id AND node_z.end_epoch=-1
         $where
     ";
 

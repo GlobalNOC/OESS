@@ -394,4 +394,26 @@ sub connects {
     return 1;
 }
 
+=head2 hops
+
+    my $ok = $self->hops($loopback_a, $loopback_z);
+
+hops returns a list of loopback addresses from C<$loopback_a> to
+C<$loopback_z>.
+
+=cut
+sub hops {
+    my $self = shift;
+    my $loopback_a = shift;
+    my $loopback_z = shift;
+
+    my $g = new Graph::Undirected;
+    foreach my $link (@{$self->{links}}) {
+        $g->add_edge($link->node_a_loopback, $link->node_z_loopback);
+    }
+
+    my @path = $g->SP_Dijkstra($loopback_a, $loopback_z);
+    return \@path;
+}
+
 1;
