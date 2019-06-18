@@ -598,7 +598,20 @@ sub provision_vrf{
                 $peer->decom;
                 $endpoint->remove_peer($peer->{vrf_ep_peer_id});
             }
+
+            delete $endpoints->{$endpoint->vrf_endpoint_id};
         }
+    }
+
+    foreach my $key (keys %$endpoints) {
+        my $endpoint = $endpoints->{$key};
+        my $rm_err = $endpoint->remove;
+        if (defined $rm_err) {
+            $method->set_error($rm_err);
+            $db->rollback;
+            return;
+        }
+        $vrf->remove_endpoint($endpoint->vrf_endpoint_id);
     }
 
     if (!$params->{skip_cloud_provisioning}{value}) {
@@ -615,7 +628,6 @@ sub provision_vrf{
             return;
         }
     }
-
 
     # warn Dumper($vrf->to_hash);
     # $db->rollback;

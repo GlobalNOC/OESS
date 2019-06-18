@@ -947,7 +947,7 @@ sub remove {
 
         my $error = OESS::DB::Endpoint::remove_vrf_ep(
             db => $self->{db},
-            vrf_ep_id => $endpoint->{vrf_ep_id}
+            vrf_ep_id => $endpoint->{vrf_endpoint_id}
         );
         return $error if (defined $error);
     }
