@@ -281,6 +281,55 @@ sub update_vrf {
     return $result;
 }
 
+=head update_cloud
+
+=cut
+sub update_cloud {
+    my $args = {
+        db       => undef,
+        endpoint => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `endpoint` is missing.') if !defined $args->{endpoint};
+
+    if (!defined $args->{endpoint}->{circuit_ep_id} && !defined $args->{endpoint}->{vrf_endpoint_id}) {
+      return (undef, 'Argument `endpoint->circuit_ep_id` or `endpoint->vrf_endpoint_id` is required but both are missing.');
+    }
+
+    my $dq = "
+        DELETE FROM cloud_connection_vrf_ep
+        WHERE vrf_ep_id=? OR circuit_ep_id=?
+    ";
+    my $result = $args->{db}->execute_query($dq, [
+        $args->{endpoint}->{vrf_endpoint_id},
+        $args->{endpoint}->{circuit_ep_id}
+    ]);
+    if (!defined $result) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $cloud_connection_vrf_ep_id = -1;
+    if (defined $args->{endpoint}->{cloud_account_id} && defined $args->{endpoint}->{cloud_connection_id}) {
+        my $iq = "
+            insert into cloud_connection_vrf_ep
+            (vrf_ep_id, circuit_ep_id, cloud_account_id, cloud_connection_id)
+            values (?, ?, ?, ?)
+        ";
+        $cloud_connection_vrf_ep_id = $args->{db}->execute_query($iq, [
+            $args->{endpoint}->{vrf_endpoint_id},
+            $args->{endpoint}->{circuit_ep_id},
+            $args->{endpoint}->{cloud_account_id},
+            $args->{endpoint}->{cloud_connection_id}
+        ]);
+        if (!defined $cloud_connection_vrf_ep_id) {
+            return (undef, $args->{db}->get_error);
+        }
+    }
+    return ($cloud_connection_vrf_ep_id, undef);
+}
+
 =head2 remove_circuit_edge_membership
 
 =cut
@@ -411,7 +460,7 @@ sub add_vrf_ep {
         return (undef, $db->get_error);
     }
 
-    if (defined $endpoint->{cloud_account_id} && $endpoint->{cloud_account_id} ne '') {
+    if (defined $endpoint->{cloud_account_id} && defined $endpoint->{cloud_connection_id}) {
         my $cloud_connection_vrf_ep_id = $db->execute_query(
             "insert into cloud_connection_vrf_ep (vrf_ep_id, cloud_account_id, cloud_connection_id)
              values (?, ?, ?)",

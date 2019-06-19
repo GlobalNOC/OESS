@@ -705,15 +705,15 @@ sub decom{
 =cut
 sub update_db_vrf{
     my $self = shift;
-    my $endpoint = $self->to_hash();
-    
+    my $endpoint = shift;
+
     my $result = OESS::DB::Endpoint::remove_vrf_peers(db => $self->{db},
                         endpoint => $endpoint);
     if(!defined($result)){
         $self->{db}->rollback();
         return $self->{db}->{error};
     }
-    
+
     $result = OESS::DB::Endpoint::add_vrf_peers(db => $self->{db},
                         endpoint => $endpoint);
     if(!defined($result)){
@@ -722,7 +722,7 @@ sub update_db_vrf{
     }
 
     $result = OESS::DB::Endpoint::update_vrf(db => $self->{db},
-                        endpoint => $endpoint);    
+                        endpoint => $endpoint);
     if(!defined($result)){
         $self->{db}->rollback();
         return $self->{db}->{error};
@@ -735,7 +735,7 @@ sub update_db_vrf{
 =cut
 sub update_db_circuit{
     my $self = shift;
-    my $endpoint = $self->to_hash();
+    my $endpoint = shift;
 
     my $result = OESS::DB::Endpoint::remove_circuit_edge_membership(
                         db       => $self->{db},
@@ -760,12 +760,22 @@ sub update_db {
     my $self = shift;
     my $error = undef;
 
+    my $hash = $self->to_hash;
+
     if ($self->type() eq 'vrf' || defined $self->{vrf_endpoint_id}) {
-        $error = $self->update_db_vrf();
+        $error = $self->update_db_vrf($hash);
     } elsif ($self->type() eq 'circuit' || defined $self->{circuit_ep_id}) {
-        $error = $self->update_db_circuit();
+        $error = $self->update_db_circuit($hash);
     } else {
         $error = 'Unknown Endpoint type specified.';
+    }
+
+    my ($cloud_conn_ep_id, $err) = OESS::DB::Endpoint::update_cloud(
+        db => $self->{db},
+        endpoint => $hash
+    );
+    if (defined $err) {
+        return $err;
     }
 
     return $error;

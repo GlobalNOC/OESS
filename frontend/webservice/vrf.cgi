@@ -270,7 +270,6 @@ sub provision_vrf{
         $vrf->endpoints([]);
     }
 
-
     # Use $peerings to validate a local address isn't specified twice
     # on the same interface. Cloud peerings are provided/overwritten
     # with sane defaults.
@@ -284,7 +283,6 @@ sub provision_vrf{
     foreach my $ep (@{$vrf->endpoints}) {
         $endpoints->{$ep->vrf_endpoint_id} = $ep;
     }
-
 
     foreach my $value (@{$params->{endpoint}{value}}) {
         my $ep;
@@ -622,9 +620,14 @@ sub provision_vrf{
 
             my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
             $vrf->endpoints($setup_endpoints);
+            foreach my $ep (@{$vrf->endpoints}) {
+                my $update_err = $ep->update_db;
+                die $update_err if (defined $update_err);
+            }
         };
         if ($@) {
             $method->set_error("$@");
+            $db->rollback;
             return;
         }
     }
