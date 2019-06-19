@@ -284,6 +284,9 @@ sub provision_vrf{
         $endpoints->{$ep->vrf_endpoint_id} = $ep;
     }
 
+    my $add_endpoints = [];
+    my $del_endpoints = [];
+
     foreach my $value (@{$params->{endpoint}{value}}) {
         my $ep;
         eval{
@@ -342,6 +345,7 @@ sub provision_vrf{
                 return;
             }
             $vrf->add_endpoint($endpoint);
+            push @$add_endpoints, $endpoint;
 
             if ($interface->cloud_interconnect_type eq 'azure-express-route') {
                 my $interface2 = $entity->select_interface(
@@ -382,6 +386,7 @@ sub provision_vrf{
                     return;
                 }
                 $vrf->add_endpoint($endpoint2);
+                push @$add_endpoints, $endpoint2;
 
                 # pri_prefix: '192.168.100.248/30';
                 my $pri = new OESS::Peer(
@@ -610,16 +615,14 @@ sub provision_vrf{
             return;
         }
         $vrf->remove_endpoint($endpoint->vrf_endpoint_id);
+        push @$del_endpoints, $endpoint;
     }
 
     if (!$params->{skip_cloud_provisioning}{value}) {
         eval {
-            if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
-                OESS::Cloud::cleanup_endpoints($vrf->endpoints);
-            }
+            OESS::Cloud::cleanup_endpoints($del_endpoints);
+            OESS::Cloud::setup_endpoints($vrf->name, $add_endpoints);
 
-            my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
-            $vrf->endpoints($setup_endpoints);
             foreach my $ep (@{$vrf->endpoints}) {
                 my $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
