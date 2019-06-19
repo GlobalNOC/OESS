@@ -707,21 +707,7 @@ sub update_db_vrf{
     my $self = shift;
     my $endpoint = shift;
 
-    my $result = OESS::DB::Endpoint::remove_vrf_peers(db => $self->{db},
-                        endpoint => $endpoint);
-    if(!defined($result)){
-        $self->{db}->rollback();
-        return $self->{db}->{error};
-    }
-
-    $result = OESS::DB::Endpoint::add_vrf_peers(db => $self->{db},
-                        endpoint => $endpoint);
-    if(!defined($result)){
-        $self->{db}->rollback();
-        return $self->{db}->{error};
-    }
-
-    $result = OESS::DB::Endpoint::update_vrf(db => $self->{db},
+    my $result = OESS::DB::Endpoint::update_vrf(db => $self->{db},
                         endpoint => $endpoint);
     if(!defined($result)){
         $self->{db}->rollback();
