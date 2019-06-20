@@ -297,7 +297,7 @@ sub provision {
 
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
-            $circuit->{endpoints} = OESS::Cloud::setup_endpoints($circuit->name, $circuit->endpoints);
+            $circuit->{endpoints} = OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints);
         };
         if ($@) {
             $method->set_error("Couldn't create Circuit: $@");
@@ -412,6 +412,9 @@ sub update {
         $endpoints->{$ep->circuit_ep_id} = $ep;
     }
 
+    my $add_endpoints = [];
+    my $del_endpoints = [];
+
     foreach my $value (@{$args->{endpoint}->{value}}) {
         my $ep;
         eval{
@@ -443,6 +446,16 @@ sub update {
             $ep->{interface_id} = $interface->{interface_id};
             $ep->{node}         = $interface->{node}->{name};
             $ep->{node_id}      = $interface->{node}->{node_id};
+            $ep->{cloud_interconnect_id}   = $interface->cloud_interconnect_id;
+            $ep->{cloud_interconnect_type} = $interface->cloud_interconnect_type;
+            $ep->{mtu} = 9000;
+            if ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
+                if (!defined $ep->{jumbo} || $ep->{jumbo} == 1) {
+                    $ep->{mtu} = 9001;
+                } else {
+                    $ep->{mtu} = 1500;
+                }
+            }
 
             my $endpoint = new OESS::Endpoint(db => $db, model => $ep);
             $endpoint->create(
@@ -450,6 +463,49 @@ sub update {
                 workgroup_id => $args->{workgroup_id}->{value}
             );
             $circuit->add_endpoint($endpoint);
+            push @$add_endpoints, $endpoint;
+
+            if ($interface->cloud_interconnect_type eq 'azure-express-route') {
+                my $interface2 = $entity->select_interface(
+                    inner_tag    => $endpoint->{inner_tag},
+                    tag          => $endpoint->{tag},
+                    workgroup_id => $args->{workgroup_id}->{value}
+                );
+                if (!defined $interface2) {
+                    $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
+                    $db->rollback;
+                    return;
+                }
+                my $valid_bandwidth = $interface2->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
+                if (!$valid_bandwidth) {
+                    $method->set_error("Couldn't create VRF: Specified bandwidth is invalid for $ep->{entity}.");
+                    $db->rollback;
+                    return;
+                }
+
+                # Populate Endpoint modal with selected Interface details.
+                $ep->{type}         = 'circuit';
+                $ep->{entity_id}    = $entity->{entity_id};
+                $ep->{interface}    = $interface2->{name};
+                $ep->{interface_id} = $interface2->{interface_id};
+                $ep->{node}         = $interface2->{node}->{name};
+                $ep->{node_id}      = $interface2->{node}->{node_id};
+                $ep->{cloud_interconnect_id}   = $interface2->cloud_interconnect_id;
+                $ep->{cloud_interconnect_type} = $interface2->cloud_interconnect_type;
+
+                my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
+                my ($ep2_id, $ep2_err) = $endpoint2->create(
+                    circuit_id => $circuit->circuit_id,
+                    workgroup_id => $args->{workgroup_id}->{value}
+                );
+                if (defined $ep2_err) {
+                    $method->set_error("Couldn't create Circuit: $ep2_err");
+                    $db->rollback;
+                    return;
+                }
+                $circuit->add_endpoint($endpoint2);
+                push @$add_endpoints, $endpoint2;
+            }
 
         } else {
             my $endpoint = $circuit->get_endpoint(
@@ -460,9 +516,11 @@ sub update {
             $endpoint->inner_tag($ep->{inner_tag});
             $endpoint->tag($ep->{tag});
             $endpoint->mtu($ep->{mtu});
+
             my $err = $endpoint->update_db;
             if (defined $err) {
                 $method->set_error("Couldn't update Endpoint: $err");
+                $db->rollback;
                 return;
             }
 
@@ -472,8 +530,14 @@ sub update {
 
     foreach my $key (keys %$endpoints) {
         my $endpoint = $endpoints->{$key};
-        $endpoint->remove;
-        $circuit->remove_endpoint($endpoint->{circuit_ep_id});
+        my $rm_err = $endpoint->remove;
+        if (defined $rm_err) {
+            $method->set_error($rm_err);
+            $db->rollback;
+            return;
+        }
+        $circuit->remove_endpoint($endpoint->circuit_ep_id);
+        push @$del_endpoints, $endpoint;
     }
 
     # Hash to track which links have been updated and which shall be
@@ -499,6 +563,23 @@ sub update {
 
         foreach my $key (keys %$links) {
             $path->remove_link(name => $key);
+        }
+    }
+
+    if (!$args->{skip_cloud_provisioning}{value}) {
+        eval {
+            OESS::Cloud::cleanup_endpoints($del_endpoints);
+            OESS::Cloud::setup_endpoints($circuit->description, $add_endpoints);
+
+            foreach my $ep (@{$circuit->endpoints}) {
+                my $update_err = $ep->update_db;
+                die $update_err if (defined $update_err);
+            }
+        };
+        if ($@) {
+            $method->set_error("$@");
+            $db->rollback;
+            return;
         }
     }
 
@@ -575,9 +656,7 @@ sub remove {
             OESS::Cloud::cleanup_endpoints($circuit->endpoints);
         };
         if ($@) {
-            $method->set_error("Couldn't remove Circuit: $@");
-            $db->rollback;
-            return;
+            warn "Couldn't cleanup Circuit's Cloud Endpoints: $@";
         }
     }
 

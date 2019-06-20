@@ -882,6 +882,8 @@ sub create {
         }
 
         $self->{circuit_ep_id} = $circuit_ep_id;
+        $self->{circuit_id} = $args->{circuit_id};
+        $self->{unit} = $unit;
         return ($circuit_ep_id, undef);
 
     } elsif (defined $args->{vrf_id}) {
@@ -899,6 +901,8 @@ sub create {
         }
 
         $self->{vrf_endpoint_id} = $vrf_ep_id;
+        $self->{vrf_id} = $args->{vrf_id};
+        $self->{unit} = $unit;
         return ($vrf_ep_id, undef);
 
     } else {
