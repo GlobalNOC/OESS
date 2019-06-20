@@ -97,7 +97,9 @@ sub setup_endpoints {
             );
             $ep->cloud_account_id($ep->cloud_account_id);
             $ep->cloud_connection_id($res->{VirtualInterfaceId});
-            $peer->peer_asn($res->{AmazonSideAsn});
+            if (defined $peer) {
+                $peer->peer_asn($res->{AmazonSideAsn});
+            }
             push @$result, $ep;
 
         } elsif ($ep->cloud_interconnect_type eq 'gcp-partner-interconnect') {

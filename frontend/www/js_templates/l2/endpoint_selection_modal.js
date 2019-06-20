@@ -273,38 +273,35 @@ class EndpointSelectionModal2 {
     }
 
     // Cloud Connection Input
-    // for (let i = 0; i < entity.interfaces.length; i++) {
-    //   if (typeof entity.interfaces[i].cloud_interconnect_id === 'undefined') {
-    //     continue;
-    //   }
-    //   entity.cloud_interconnect_id = entity.interfaces[i].cloud_interconnect_id;
-    //   entity.cloud_interconnect_type = entity.interfaces[i].cloud_interconnect_type;
-    // }
+    entity.cloud_interconnect_type = null;
 
-    // let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
-    // cloudAccountLabel.innerText = 'AWS Account Owner';
-    // let cloudAccountInput = this.parent.querySelector('.entity-cloud-account');
+    for (let i = 0; i < entity.interfaces.length; i++) {
+      if (typeof entity.interfaces[i].cloud_interconnect_id === 'undefined') {
+        continue;
+      }
+      entity.cloud_interconnect_type = entity.interfaces[i].cloud_interconnect_type;
+    }
 
-    // TODO Set cloudAccountInput placeholder to something resembling
-    // the expected input.
+    let cloudAccountFormGroup = this.parent.querySelector('.entity-cloud-account');
+    let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
+    let cloudAccountInput = this.parent.querySelector('.entity-cloud-account-id');
 
-    // if (!('cloud_interconnect_id' in entity) || entity.cloud_interconnect_id === null || entity.cloud_interconnect_id === 'null' || entity.cloud_interconnect_id === '') {
-    //   entity.cloud_interconnect_id = null;
-    //   entity.cloud_interconnect_type = '';
-    // } else {
-    //   if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
-    //     cloudAccountLabel.innerText = 'GCP Pairing Key';
-    //   } else if (entity.cloud_interconnect_type === 'azure-express-route') {
-    //     cloudAccountLabel.innerText = 'ExpressRoute Service Key';
-    //   }
-    // }
+    cloudAccountFormGroup.style.display = 'none';
 
-    // let cloudAccount = this.parent.querySelector('.entity-cloud-account');
-    // if (entity.cloud_interconnect_id === null) {
-    //   cloudAccount.style.display = 'none';
-    // } else {
-    //   cloudAccount.style.display = 'block';
-    // }
+    if (entity.cloud_interconnect_type !== null) {
+      cloudAccountFormGroup.style.display = 'block';
+
+      if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
+        cloudAccountLabel.innerText = 'GCP Pairing Key';
+        cloudAccountInput.setAttribute('placeholder', '...');
+      } else if (entity.cloud_interconnect_type === 'azure-express-route') {
+        cloudAccountLabel.innerText = 'ExpressRoute Service Key';
+        cloudAccountInput.setAttribute('placeholder', '...');
+      } else {
+        cloudAccountLabel.innerText = 'AWS Account Owner';
+        cloudAccountInput.setAttribute('placeholder', '012301230123');
+      }
+    }
 
     // Max Bandwidth
     let bandwidthSelector = this.parent.querySelector('.entity-bandwidth');
@@ -353,13 +350,6 @@ class EndpointSelectionModal2 {
       bandwidthSelector.removeAttribute('disabled');
     }
 
-    // TODO Buttons
-    // if no interfaces no request access
-    //    disabled add endpoint
-    // else
-    //   if no vlans request access
-    //      disabled add endpoint
-
     let addButton = this.parent.querySelector('.add-entity-submit');
     addButton.onclick = function(e) {
       console.log('endpoint:', endpoint);
@@ -367,8 +357,7 @@ class EndpointSelectionModal2 {
 
       endpoint.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;
       endpoint.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
-      // endpoint.cloud_account_id = cloudAccountInput.value;
-      endpoint.cloud_account_id = '';
+      endpoint.cloud_account_id = cloudAccountInput.value;
       endpoint.entity = entity.name;
       endpoint.name = 'TBD';
       endpoint.node = 'TBD';
