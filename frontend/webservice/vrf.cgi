@@ -410,7 +410,7 @@ sub provision_vrf{
                         version  => 4
                     }
                 );
-                if ($ep->{cloud_interconnect_id} =~ /PRI/) {
+                if ($endpoint->cloud_interconnect_id =~ /PRI/) {
                     my ($peer_id, $peer_err) = $pri->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
                     if (defined $peer_err) {
                         $method->set_error($peer_err);
@@ -447,6 +447,11 @@ sub provision_vrf{
             }
 
             foreach my $peering (@{$ep->{peerings}}) {
+                if ($interface->cloud_interconnect_type eq 'azure-express-route') {
+                    # Peering configured when endpoints created above.
+                    next;
+                }
+
                 if (defined $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"}) {
                     $method->set_error("Cannot have duplicate local addresses on an interface.");
                     $db->rollback;

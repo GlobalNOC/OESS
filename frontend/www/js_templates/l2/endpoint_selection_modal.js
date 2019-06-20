@@ -293,10 +293,10 @@ class EndpointSelectionModal2 {
 
       if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
         cloudAccountLabel.innerText = 'GCP Pairing Key';
-        cloudAccountInput.setAttribute('placeholder', '...');
+        cloudAccountInput.setAttribute('placeholder', '00000000-0000-0000-0000-000000000000/us-east1/1');
       } else if (entity.cloud_interconnect_type === 'azure-express-route') {
         cloudAccountLabel.innerText = 'ExpressRoute Service Key';
-        cloudAccountInput.setAttribute('placeholder', '...');
+        cloudAccountInput.setAttribute('placeholder', '00000000-0000-0000-0000-000000000000');
       } else {
         cloudAccountLabel.innerText = 'AWS Account Owner';
         cloudAccountInput.setAttribute('placeholder', '012301230123');
