@@ -264,8 +264,22 @@ sub provision {
         $ep->{node_id}      = $interface->{node}->{node_id};
         $ep->{cloud_interconnect_id}   = $interface->cloud_interconnect_id;
         $ep->{cloud_interconnect_type} = $interface->cloud_interconnect_type;
+        $ep->{mtu} = 9000;
+
+        if ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
+            $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+        }
 
         my $endpoint = new OESS::Endpoint(db => $db, model => $ep);
+        my ($ep_id, $ep_err) = $endpoint->create(
+            circuit_id => $circuit->circuit_id,
+            workgroup_id => $args->{workgroup_id}->{value}
+        );
+        if (defined $ep_err) {
+            $method->set_error("Couldn't create Circuit: $ep_err");
+            $db->rollback;
+            return;
+        }
         $circuit->add_endpoint($endpoint);
 
         if ($interface->cloud_interconnect_type eq 'azure-express-route') {
@@ -291,30 +305,16 @@ sub provision {
             $ep->{cloud_interconnect_type} = $interface2->cloud_interconnect_type;
 
             my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
+            my ($ep2_id, $ep2_err) = $endpoint2->create(
+                circuit_id => $circuit->circuit_id,
+                workgroup_id => $args->{workgroup_id}->{value}
+            );
+            if (defined $ep2_err) {
+                $method->set_error("Couldn't create Circuit: $ep2_err");
+                $db->rollback;
+                return;
+            }
             $circuit->add_endpoint($endpoint2);
-        }
-    }
-
-    if (!$args->{skip_cloud_provisioning}->{value}) {
-        eval {
-            $circuit->{endpoints} = OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints);
-        };
-        if ($@) {
-            $method->set_error("Couldn't create Circuit: $@");
-            $db->rollback;
-            return;
-        }
-    }
-
-    foreach my $ep (@{$circuit->endpoints}) {
-        my ($ep_id, $ep_err) = $ep->create(
-            circuit_id => $circuit_id,
-            workgroup_id => $args->{workgroup_id}->{value}
-        );
-        if (defined $ep_err) {
-            $method->set_error("Couldn't create Circuit: $ep_err");
-            $db->rollback;
-            return;
         }
     }
 
@@ -365,8 +365,25 @@ sub provision {
         $circuit->add_path($path);
     }
 
+    if (!$args->{skip_cloud_provisioning}->{value}) {
+        eval {
+            OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints);
+
+            foreach my $ep (@{$circuit->endpoints}) {
+                my $update_err = $ep->update_db;
+                die $update_err if (defined $update_err);
+            }
+        };
+        if ($@) {
+            $method->set_error("Couldn't create Circuit: $@");
+            $db->rollback;
+            return;
+        }
+    }
+
     # Put rollback in place for quick tests
-    # $db->rollback;
+    #$db->rollback;
+    #return {error => 1, error_text => 'lulz'};
     $db->commit;
 
     _send_update_cache($circuit->circuit_id);

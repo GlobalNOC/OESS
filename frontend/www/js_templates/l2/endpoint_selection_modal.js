@@ -287,6 +287,7 @@ class EndpointSelectionModal2 {
     let cloudAccountInput = this.parent.querySelector('.entity-cloud-account-id');
 
     cloudAccountFormGroup.style.display = 'none';
+    cloudAccountInput.value = null;
 
     if (entity.cloud_interconnect_type !== null) {
       cloudAccountFormGroup.style.display = 'block';

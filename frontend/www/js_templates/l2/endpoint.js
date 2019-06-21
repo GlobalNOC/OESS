@@ -7,7 +7,16 @@ function NewEndpoint(endpoint) {
   e.querySelector('.l2vpn-interface').innerHTML = endpoint.interface;
   e.querySelector('.l2vpn-interface-description').innerHTML = endpoint.description;
   e.querySelector('.l2vpn-tag').innerHTML = endpoint.tag;
+  e.querySelector('.l2vpn-inner-tag').innerHTML = endpoint.inner_tag;
   e.querySelector('.l2vpn-graph').setAttribute('src', `https://io3.bldc.grnoc.iu.edu/grafana/d-solo/te5oS11mk/oess-l2-interface?panelId=2&amp;orgId=1&amp;from=now-1h&amp;to=now&amp;var-node=${endpoint.node}&amp;var-interface=${endpoint.interface}&amp;refresh=30s`);
+
+  if (endpoint.inner_tag === null || endpoint.inner_tag === '') {
+    Array.from(e.querySelectorAll('.d1q')).map(e => e.style.display = 'block');
+    Array.from(e.querySelectorAll('.qnq')).map(e => e.style.display = 'none');
+  } else {
+    Array.from(e.querySelectorAll('.d1q')).map(e => e.style.display = 'none');
+    Array.from(e.querySelectorAll('.qnq')).map(e => e.style.display = 'block');
+  }
 
   e.querySelector('.l2vpn-modify-button').addEventListener('click', function(e) {
     modal.display(endpoint);

@@ -340,7 +340,7 @@ sub _write_cache{
                     # Because we are only creating a single circuit
                     # object per node, we should include any other
                     # interface we see on $ep_a->{'node'}.
-                    push(@ints, $ep_z);
+                    push(@ints, $ep_z->to_hash);
                     next;
                 }
 

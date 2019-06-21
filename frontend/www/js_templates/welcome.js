@@ -167,7 +167,7 @@ async function loadL2VPNs() {
   let ok = true;
 
   if (circuits.length === 0) {
-    html = '<p>There are no Layer2 VPNs currently provisioned. Click <a href="[% path %]index.cgi?action=endpoints">here</a> to create one.</p>';
+    html = '<p>There are no Layer2 VPNs currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_l2vpn">here</a> to create one.</p>';
   }
 
   circuits.forEach(function(circuit, index) {
