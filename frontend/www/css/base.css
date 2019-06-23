@@ -2,7 +2,7 @@ body {
     display: grid;
     height: 100vh;
 
-    grid-template-columns: 6vw auto 6vw;
+    grid-template-columns: 5% 1fr 5%;
     grid-template-rows: min-content min-content auto min-content min-content;
 
     text-align: left;
@@ -29,7 +29,7 @@ body {
     grid-row-start: 1;
     grid-row-end: 3;
 
-    background-color: #3a3a3a;
+    /* background-color: #3a3a3a; */
 }
 
 .header .btn {
@@ -146,6 +146,7 @@ body {
 .footer-links {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
 
     grid-column-start: 2;
     grid-column-end: 3;
@@ -177,6 +178,7 @@ body {
     flex: 1;
 
     display: flex;
+flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
 }
