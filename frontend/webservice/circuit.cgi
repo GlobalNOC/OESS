@@ -241,7 +241,8 @@ sub provision {
         my $interface = $entity->select_interface(
             inner_tag    => $ep->{inner_tag},
             tag          => $ep->{tag},
-            workgroup_id => $args->{workgroup_id}->{value}
+            workgroup_id => $args->{workgroup_id}->{value},
+            cloud_account_id => $ep->{cloud_account_id}
         );
         if (!defined $interface) {
             $method->set_error("Couldn't create Circuit: Cannot find a valid Interface for $ep->{entity}.");
@@ -286,7 +287,8 @@ sub provision {
             my $interface2 = $entity->select_interface(
                 inner_tag    => $endpoint->{inner_tag},
                 tag          => $endpoint->{tag},
-                workgroup_id => $args->{workgroup_id}->{value}
+                workgroup_id => $args->{workgroup_id}->{value},
+                cloud_account_id => $ep->{cloud_account_id}
             );
             if (!defined $interface2) {
                 $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
@@ -450,7 +452,8 @@ sub update {
             my $interface = $entity->select_interface(
                 inner_tag    => $ep->{inner_tag},
                 tag          => $ep->{tag},
-                workgroup_id => $args->{workgroup_id}->{value}
+                workgroup_id => $args->{workgroup_id}->{value},
+                cloud_account_id => $ep->{cloud_account_id}
             );
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
@@ -486,7 +489,8 @@ sub update {
                 my $interface2 = $entity->select_interface(
                     inner_tag    => $endpoint->{inner_tag},
                     tag          => $endpoint->{tag},
-                    workgroup_id => $args->{workgroup_id}->{value}
+                    workgroup_id => $args->{workgroup_id}->{value},
+                    cloud_account_id => $ep->{cloud_account_id}
                 );
                 if (!defined $interface2) {
                     $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");

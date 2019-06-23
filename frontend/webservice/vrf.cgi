@@ -303,10 +303,12 @@ sub provision_vrf{
             my $interface = $entity->select_interface(
                 inner_tag    => $ep->{inner_tag},
                 tag          => $ep->{tag},
-                workgroup_id => $model->{workgroup_id}
+                workgroup_id => $model->{workgroup_id},
+                cloud_account_id => $ep->{cloud_account_id}
             );
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
+                $db->rollback;
                 return;
             }
             my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
@@ -351,7 +353,8 @@ sub provision_vrf{
                 my $interface2 = $entity->select_interface(
                     inner_tag    => $endpoint->{inner_tag},
                     tag          => $endpoint->{tag},
-                    workgroup_id => $model->{workgroup_id}
+                    workgroup_id => $model->{workgroup_id},
+                    cloud_account_id => $ep->{cloud_account_id}
                 );
                 if (!defined $interface2) {
                     $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
