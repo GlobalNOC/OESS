@@ -186,6 +186,26 @@ async function loadVRF() {
 
     endpoint.jumbo = (parseInt(endpoint.mtu) == 9000 || parseInt(endpoint.mtu) == 9001) ? true : false;
 
+    let vlanLabel = '';
+    let vlanValue = '';
+    if (endpoint.inner_tag === undefined || endpoint.inner_tag === null || endpoint.inner_tag === '') {
+      vlanLabel = `
+      <h5>VLAN:</h5>
+      `;
+      vlanValue = `
+      <h5>${endpoint.tag}</h5>
+      `;
+    } else {
+      vlanLabel = `
+      <h5>STag:</h5>
+      <h5>CTag:</h5>
+      `;
+      vlanValue = `
+      <h5>${endpoint.tag}</h5>
+      <h5>${endpoint.inner_tag}</h5>
+      `;
+    }
+
     let html = `
 <div class="panel panel-default" style="padding: 0 15 20 15;">
 
@@ -194,7 +214,7 @@ async function loadVRF() {
         <h3>Entity:&nbsp;</h3>
         <h4>Node:</h4>
         <h4>Port:</h4>
-        <h4>VLAN:</h4>
+        ${vlanLabel}
         <h5>Bandwidth:</h5>
         <h5>Frame:</h5>
       </div>
@@ -203,7 +223,7 @@ async function loadVRF() {
         <h3>${endpoint.entity}</h3>
         <h4>${endpoint.node}</h4>
         <h4>${endpoint.interface} <small>${endpoint.description}</small></h4>
-        <h4>${endpoint.tag}</h4>
+        ${vlanValue}
         <h5>${(endpoint.bandwidth == 0) ? 'Unlimited' : `${endpoint.bandwidth} Mb/s`}</h5>
         <h5>${(endpoint.jumbo) ? 'Jumbo' : 'Standard'}</h5>
       </div>
