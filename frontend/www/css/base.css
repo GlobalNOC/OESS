@@ -30,11 +30,16 @@ body {
     grid-row-end: 3;
 
     /* background-color: #3a3a3a; */
+    /* background-color: #212121; */
 }
 
 .header .btn {
     margin-right: 8px;
     margin-bottom: 13px;
+}
+
+.navbar {
+    border-radius: 0px !important;
 }
 
 .logo {
