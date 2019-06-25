@@ -688,35 +688,36 @@ sub update_cache {
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
     my $node_id =  $p_ref->{'node_id'}{'value'};
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
-    
+
     if ((!defined($circuit_id) || $circuit_id == -1 ) && (!defined($vrf_id) || $vrf_id == -1)) {
-        $self->{'logger'}->debug("Updating Cache for entire network");
-        
+        $self->{'logger'}->debug("Updating Cache for entire network.");
+
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'}, db2 => $self->{'db2'});
         $self->{'circuit'} = $res->{'ckts'};
-	$self->{'vrfs'} = $res->{'vrfs'};
+        $self->{'vrfs'} = $res->{'vrfs'};
         $self->{'link_status'} = $res->{'link_status'};
         $self->{'circuit_status'} = $res->{'circuit_status'};
         $self->{'node_info'} = $res->{'node_info'};
         $self->{'logger'}->debug("Cache update complete");
-	
-	#want to reference by name and by id
-	my %node_by_id;
-	foreach my $node (keys %{$self->{'node_info'}}){
-	    $node_by_id{$self->{'node_info'}->{$node}->{'id'}} = $self->{'node_info'}->{$node};
-	}
-	$self->{'node_by_id'} = \%node_by_id;
-        
-        $self->{'logger'}->info("Updated cache for entire network");
+
+        #want to reference by name and by id
+        my %node_by_id;
+        foreach my $node (keys %{$self->{'node_info'}}){
+            $node_by_id{$self->{'node_info'}->{$node}->{'id'}} = $self->{'node_info'}->{$node};
+        }
+        $self->{'node_by_id'} = \%node_by_id;
+
+        $self->{'logger'}->info("Updated cache for entire network.");
     } elsif(defined($circuit_id) && $circuit_id != -1) {
-        $self->{'logger'}->debug("Updating cache for circuit $circuit_id");
-        
+        $self->{'logger'}->debug("Updating cache for circuit $circuit_id.");
+
         my $ckt = $self->get_ckt_object($circuit_id);
         if (!defined $ckt) {
             return &$error("Couldn't create circuit object for circuit $circuit_id");
         }
+        $self->{'logger'}->info("Updated cache for circuit $circuit_id.");
     }else{
-        $self->{'logger'}->debug("Updating cache for vrf $vrf_id");
+        $self->{'logger'}->debug("Updating cache for vrf $vrf_id.");
 
         my $vrf = $self->get_vrf_object($vrf_id);
         if (!defined $vrf) {
@@ -724,9 +725,9 @@ sub update_cache {
         }
 
         $vrf->update_vrf_details();
-        $self->{'logger'}->debug("Updated cache for vrf $vrf_id");
+        $self->{'logger'}->info("Updated cache for vrf $vrf_id.");
     }
-    
+
     # Write the cache to file for our children, then signal children to
     # read updates from file.
     $self->_write_cache();

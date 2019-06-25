@@ -381,23 +381,21 @@ sub update_circuit_edge_membership{
     my $endpoint = $params{endpoint};
 
     my $result = $db->execute_query(
-        "INSERT INTO circuit_edge_interface_membership (".
-            "interface_id, ".
-            "circuit_id, ".
-            "end_epoch, ".
-            "start_epoch,".
-            "extern_vlan_id, ".
-            "inner_tag, ".
-            "circuit_edge_id, ".
-            "unit".
-            ") VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
+        "UPDATE circuit_edge_interface_membership SET ".
+            "interface_id=?, ".
+            "circuit_id=?, ".
+            "extern_vlan_id=?, ".
+            "inner_tag=?, ".
+            "unit=? ".
+            "WHERE circuit_edge_id=?",
             [$endpoint->{interface_id},
              $endpoint->{circuit_id},
-             -1,
              $endpoint->{tag},
              $endpoint->{inner_tag},
-             $endpoint->{circuit_ep_id},
-             $endpoint->{unit}]);
+             $endpoint->{unit},
+             $endpoint->{circuit_ep_id}
+         ]);
+
     return $result;
 }
 

@@ -723,14 +723,7 @@ sub update_db_circuit{
     my $self = shift;
     my $endpoint = shift;
 
-    my $result = OESS::DB::Endpoint::remove_circuit_edge_membership(
-                        db       => $self->{db},
-                        endpoint => $endpoint);
-    if(!defined($result)){
-        return $self->{db}->{error};
-    }
-
-    $result = OESS::DB::Endpoint::update_circuit_edge_membership(
+    my $result = OESS::DB::Endpoint::update_circuit_edge_membership(
                         db       => $self->{db},
                         endpoint => $endpoint);
     if(!defined($result)){

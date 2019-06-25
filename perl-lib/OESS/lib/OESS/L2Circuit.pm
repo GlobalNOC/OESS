@@ -405,7 +405,7 @@ sub _load_circuit_details{
     my $self = shift;
     $self->{'logger'}->debug("Loading Circuit data for circuit: " . $self->{'circuit_id'});
 
-    my $datas = OESS::DB::Circuit::fetch_circuits(
+    my $datas = OESS::DB::Circuit::fetch_circuit(
         db => $self->{db},
         circuit_id => $self->{circuit_id}
     );
@@ -415,7 +415,7 @@ sub _load_circuit_details{
     }
 
     my $data = $datas->[0];
-    my $first_data = OESS::DB::Circuit::fetch_circuits(
+    my $first_data = OESS::DB::Circuit::fetch_circuit(
         db => $self->{db},
         circuit_id => $self->{circuit_id},
         first => 1
