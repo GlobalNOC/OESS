@@ -265,10 +265,17 @@ sub provision {
         $ep->{node_id}      = $interface->{node}->{node_id};
         $ep->{cloud_interconnect_id}   = $interface->cloud_interconnect_id;
         $ep->{cloud_interconnect_type} = $interface->cloud_interconnect_type;
-        $ep->{mtu} = 9000;
 
-        if ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
+        if ($ep->{cloud_interconnect_type} eq 'aws-hosted-connection') {
             $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+        } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
+            $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+        } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
+            $ep->{mtu} = 1440;
+        } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+            $ep->{mtu} = 1500;
+        } else {
+            $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9000 : 1500;
         }
 
         my $endpoint = new OESS::Endpoint(db => $db, model => $ep);
@@ -468,13 +475,17 @@ sub update {
             $ep->{node_id}      = $interface->{node}->{node_id};
             $ep->{cloud_interconnect_id}   = $interface->cloud_interconnect_id;
             $ep->{cloud_interconnect_type} = $interface->cloud_interconnect_type;
-            $ep->{mtu} = 9000;
-            if ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
-                if (!defined $ep->{jumbo} || $ep->{jumbo} == 1) {
-                    $ep->{mtu} = 9001;
-                } else {
-                    $ep->{mtu} = 1500;
-                }
+
+            if ($ep->{cloud_interconnect_type} eq 'aws-hosted-connection') {
+                $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+            } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
+                $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+            } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
+                $ep->{mtu} = 1440;
+            } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                $ep->{mtu} = 1500;
+            } else {
+                $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9000 : 1500;
             }
 
             my $endpoint = new OESS::Endpoint(db => $db, model => $ep);

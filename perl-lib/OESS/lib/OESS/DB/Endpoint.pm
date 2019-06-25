@@ -272,6 +272,11 @@ sub update_vrf {
         push @$args, $endpoint->{unit};
     }
 
+    if(defined($endpoint->{mtu})){
+        push @$reqs, 'mtu=?';
+        push @$args, $endpoint->{mtu};
+    }
+
     $set .= join(', ', @$reqs);
     push @$args, $endpoint->{vrf_endpoint_id};
     my $result = $db->execute_query(
@@ -361,14 +366,16 @@ sub add_circuit_edge_membership{
             "start_epoch, ".
             "extern_vlan_id, ".
             "inner_tag, ".
-            "unit".
-            ") VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?)",
+            "unit, ".
+            "mtu ".
+            ") VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
             [$endpoint->{interface_id},
              $endpoint->{circuit_id},
              -1,
              $endpoint->{tag},
              $endpoint->{inner_tag},
-             $endpoint->{unit}]);
+             $endpoint->{unit},
+             $endpoint->{mtu}]);
     return $result;
 }
 
@@ -386,13 +393,15 @@ sub update_circuit_edge_membership{
             "circuit_id=?, ".
             "extern_vlan_id=?, ".
             "inner_tag=?, ".
-            "unit=? ".
+            "unit=?, ".
+            "mtu=? ".
             "WHERE circuit_edge_id=?",
             [$endpoint->{interface_id},
              $endpoint->{circuit_id},
              $endpoint->{tag},
              $endpoint->{inner_tag},
              $endpoint->{unit},
+             $endpoint->{mtu},
              $endpoint->{circuit_ep_id}
          ]);
 

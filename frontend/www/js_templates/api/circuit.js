@@ -44,10 +44,11 @@ async function provisionCircuit(workgroupID, description, endpoints, start=-1, e
     bandwidth = (endpoint.bandwidth > bandwidth) ? endpoint.bandwidth : bandwidth;
 
     let e = {
-      bandwidth: endpoint.bandwidth,
-      tag:       endpoint.tag,
+      bandwidth:        endpoint.bandwidth,
+      tag:              endpoint.tag,
       cloud_account_id: endpoint.cloud_account_id,
-      circuit_ep_id:    endpoint.circuit_ep_id
+      circuit_ep_id:    endpoint.circuit_ep_id,
+      jumbo:            (endpoint.jumbo) ? 1 : 0
     };
 
     if ('entity_id' in endpoint && endpoint.name === 'TBD' && endpoint.interface === 'TBD') {

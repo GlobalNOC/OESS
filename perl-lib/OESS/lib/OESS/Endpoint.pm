@@ -198,6 +198,7 @@ sub to_hash{
     $obj->{cloud_interconnect_type} = $self->cloud_interconnect_type;
 
     $obj->{'mtu'} = $self->mtu();
+    $obj->{'jumbo'} = ($self->mtu() > 1500) ? 1 : 0;
     $obj->{'unit'} = $self->unit();
 
     # TODO There's no reason for this Endpoint object to track the
