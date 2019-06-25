@@ -351,6 +351,34 @@ class EndpointSelectionModal2 {
       bandwidthSelector.removeAttribute('disabled');
     }
 
+    // Jumbo Frames
+    let jumboCheckbox = this.parent.querySelector('.entity-jumbo-frames');
+
+    if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
+      jumboCheckbox.checked = true;
+      jumboCheckbox.removeAttribute('disabled');
+    } else if (entity.cloud_interconnect_type === 'aws-hosted-vinterface') {
+      jumboCheckbox.checked = true;
+      jumboCheckbox.removeAttribute('disabled');
+    } else if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
+      jumboCheckbox.checked = false;
+      jumboCheckbox.setAttribute('disabled', '');
+    } else if (entity.cloud_interconnect_type === 'azure-express-route') {
+      jumboCheckbox.checked = false;
+      jumboCheckbox.setAttribute('disabled', '');
+    } else {
+      jumboCheckbox.checked = true;
+      jumboCheckbox.removeAttribute('disabled');
+    }
+
+    if (endpoint !== undefined && endpoint !== null && 'jumbo' in endpoint) {
+      if (endpoint.jumbo == 1) {
+        jumboCheckbox.checked = true;
+      } else {
+        jumboCheckbox.checked = false;
+      }
+    }
+
     let addButton = this.parent.querySelector('.add-entity-submit');
     addButton.onclick = function(e) {
       console.log('endpoint:', endpoint);
@@ -363,6 +391,7 @@ class EndpointSelectionModal2 {
       endpoint.name = 'TBD';
       endpoint.node = 'TBD';
       endpoint.interface = 'TBD';
+      endpoint.jumbo = jumboCheckbox.checked;
 
       state.updateEndpoint(endpoint);
       $('#add-endpoint-modal2').modal('hide');
