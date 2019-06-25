@@ -59,6 +59,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function addNetworkEndpointCallback(event) {
   m.setIndex(-1);
+  m.setEntity(null);
+  m.setJumbo(null);
   update();
 
   let endpointSelectionModal = $('#add-endpoint-modal');
@@ -73,6 +75,7 @@ async function modifyNetworkEndpointCallback(index) {
   m.setEntity(endpoints[index].entity_id);
   m.setInterface(endpoints[index].interface_id);
   m.setVLAN(endpoints[index].tag);
+  m.setJumbo(endpoints[index].jumbo);
   update();
 
   let endpointSelectionModal = $('#add-endpoint-modal');

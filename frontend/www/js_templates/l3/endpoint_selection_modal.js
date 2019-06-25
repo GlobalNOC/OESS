@@ -10,7 +10,7 @@ class EndpointSelectionModal extends Component {
     this.props.entity = null;
     this.props.entityName = 'TBD';
     this.props.entityNode = 'TBD';
-    this.props.jumbo = true;
+    this.props.jumbo = null;
 
     this.props.interface = (this.props.interface === null) ? -1 : this.props.interface.interface_id;
 
