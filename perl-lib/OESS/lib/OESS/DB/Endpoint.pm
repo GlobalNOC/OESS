@@ -286,7 +286,7 @@ sub update_vrf {
     return $result;
 }
 
-=head update_cloud
+=head2 update_cloud
 
 =cut
 sub update_cloud {
