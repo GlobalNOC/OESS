@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.3
+Version 2.0.4
 
 =cut
 
-our $VERSION = '2.0.3';
+our $VERSION = '2.0.4';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.3';
+use constant VERSION => '2.0.4';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -4218,7 +4218,9 @@ sub get_circuit_paths{
 
 =head2 get_circuit_details
 
-Returns a hash of information such as id, name, bandwidth, which path is active, and more about the requested circuit. This information also includes endpoints, links, and backup links.
+Returns a hash of information such as id, name, bandwidth, which path
+is active, and more about the requested circuit. This information also
+includes endpoints, links, and backup links.
 
 =over
 
@@ -4238,8 +4240,6 @@ sub get_circuit_details {
     if(!defined($circuit_id)){
 	return;
     }
-
-    
 
     my @bind_params = ($circuit_id);
 

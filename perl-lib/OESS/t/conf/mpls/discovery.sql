@@ -74,6 +74,8 @@ CREATE TABLE `circuit_edge_interface_membership` (
   `inner_tag` int(10) DEFAULT NULL,
   `circuit_edge_id` int(10) NOT NULL AUTO_INCREMENT,
   `unit` int(11) NOT NULL,
+  `bandwidth` int(10) DEFAULT NULL,
+  `mtu` int(11) NOT NULL DEFAULT '9000',
   PRIMARY KEY (`circuit_edge_id`),
   UNIQUE KEY `interface_id` (`interface_id`,`circuit_id`,`end_epoch`,`extern_vlan_id`),
   KEY `circuit_circuit_interface_membership_fk` (`circuit_id`),
@@ -160,8 +162,11 @@ CREATE TABLE `cloud_connection_vrf_ep` (
   `vrf_ep_id` int(11) DEFAULT NULL,
   `cloud_account_id` varchar(255) NOT NULL,
   `cloud_connection_id` varchar(255) NOT NULL,
+  `circuit_ep_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`cloud_connection_vrf_ep_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
+  KEY `cloud_connection_circuit_ep_ibfk_1` (`circuit_ep_id`),
+  CONSTRAINT `cloud_connection_circuit_ep_ibfk_1` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE,
   CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -270,7 +275,8 @@ CREATE TABLE `entity` (
   `description` text,
   `logo_url` varchar(255) DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`entity_id`)
+  PRIMARY KEY (`entity_id`),
+  UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1075,9 +1081,12 @@ CREATE TABLE `vrf_ep_peer` (
   `state` enum('active','decom') DEFAULT NULL,
   `local_ip` varchar(255) DEFAULT NULL,
   `md5_key` varchar(255) DEFAULT NULL,
+  `circuit_ep_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
-  CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`)
+  KEY `vrf_ep_peer_ibfk_2` (`circuit_ep_id`),
+  CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`),
+  CONSTRAINT `vrf_ep_peer_ibfk_2` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1156,4 +1165,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-03-18 15:30:17
+-- Dump completed on 2019-05-13 15:26:34

@@ -6,6 +6,8 @@ use warnings;
 package OESS::Endpoint;
 
 use OESS::DB;
+use OESS::DB::Endpoint;
+use OESS::DB::Peer;
 use OESS::Interface;
 use OESS::Entity;
 use OESS::Node;
@@ -22,6 +24,36 @@ An C<Endpoint> represents an edge connection of a circuit or vrf.
 
 =head2 new
 
+B<Example 0:>
+
+    my $ep = new OESS::Endpoint(
+        db => $db,
+        circuit_ep_id => 100,
+        vrf_ep_id     => 100
+    }
+
+    # or
+
+    my $ep = new OESS::Endpoint(
+        db => $db,
+        model => {
+            entity              => 'mx960-1',
+            entity_id           => 3,
+            node                => 'test.grnoc.iu.edu',
+            node_id             => 2,
+            interface           => 'xe-7/0/2',
+            interface_id        => 57,
+            unit                => 6,
+            tag                 => 6,
+            inner_tag           => undef,
+            bandwidth           => 0,
+            cloud_account_id    => undef,
+            cloud_connection_id => undef,
+            mtu                 => 9000,
+            operational_state   => 'up'
+        }
+    )
+
 B<Example 1:>
 
     my $json = {
@@ -32,6 +64,8 @@ B<Example 1:>
         entity              => 'us-east1', # Interfaces to select from
         bandwidth           => 100,        # Acts as an interface selector and validator
         workgroup_id        => 10,         # Acts as an interface selector and validator
+        mtu                 => 9000,
+        unit                => 345,
         peerings            => [ {...} ]
     };
     my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);
@@ -47,6 +81,8 @@ B<Example 2:>
         interface           => 'xe-7/0/1', # Name of interface to select
         bandwidth           => 100,        # Acts as an interface validator
         workgroup_id        => 10,         # Acts as an interface validator
+        mtu                 => 9000,
+        unit                => 345,
         peerings            => [ {...} ]
     };
     my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);
@@ -76,8 +112,8 @@ sub new{
         return;
     }
 
-    if (($self->type() eq 'circuit' && defined($self->circuit_id()) && $self->circuit_id() != -1) ||
-        ($self->type() eq 'vrf' && defined($self->vrf_endpoint_id()) && $self->vrf_endpoint_id() != -1)){
+    if ((defined($self->circuit_id()) && $self->circuit_id() != -1) ||
+        (defined($self->vrf_endpoint_id()) && $self->vrf_endpoint_id() != -1)){
         $self->_fetch_from_db();
     }else{
         $self->_build_from_model();
@@ -91,81 +127,53 @@ sub new{
 =cut
 sub _build_from_model{
     my $self = shift;
-    
+
     $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
     $self->{'tag'} = $self->{'model'}->{'tag'};
+    $self->{'unit'} = $self->{'model'}->{'unit'};
     $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
     $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
     $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
+    $self->{cloud_interconnect_id} = $self->{model}->{cloud_interconnect_id};
+    $self->{cloud_interconnect_type} = $self->{model}->{cloud_interconnect_type};
     $self->{mtu} = $self->{model}->{mtu};
 
-    if (defined $self->{'model'}->{'interface'}) {
-        $self->{'interface'} = OESS::Interface->new(db => $self->{'db'}, name => $self->{'model'}->{'interface'}, node => $self->{'model'}->{'node'});
-        $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
-    } else {
-        $self->{'entity'} = OESS::Entity->new(db => $self->{'db'}, name => $self->{'model'}->{'entity'});
+    $self->{circuit_ep_id} = $self->{model}->{circuit_edge_id} || $self->{model}->{circuit_ep_id};
+    $self->{vrf_endpoint_id} = $self->{model}->{vrf_endpoint_id} || $self->{model}->{vrf_ep_id};
 
-        # There are a few ways to select an Entity's interface.
+    $self->{'type'} = $self->{'model'}->{'type'};
+    $self->{'node'} = $self->{'model'}->{'node'};
+    $self->{'node_id'} = $self->{'model'}->{'node_id'};
+    $self->{'interface'} = $self->{'model'}->{'interface'};
+    $self->{'interface_id'} = $self->{'model'}->{'interface_id'};
+    $self->{'entity'} = $self->{'model'}->{'entity'};
+    $self->{'entity_id'} = $self->{'model'}->{'entity_id'};
+    $self->{'description'} = $self->{'model'}->{'description'};
 
-        # The default selection method is to find the first interface
-        # that has supports C<bandwidth> and has C<tag> available.
+    # The default selection method is to find the first interface that
+    # has supports C<bandwidth> and has C<tag> available.
 
-        # As there is only one interface per AWS Entity there is no
-        # special selection method.
+    # As there is only one interface per AWS Entity there is no
+    # special selection method.
 
-        # Interface selection for a GCP Entity is based purely on the
-        # user provided GCP pairing key.
+    # Interface selection for a GCP Entity is based purely on the user
+    # provided GCP pairing key.
 
-        # Interface selection for an Azure Entity is somewhat
-        # irrelevent. Each interface of the Azure port pair is
-        # configured similarly with the only difference between the
-        # two being the peer addresses assigned to each.
+    # Interface selection for an Azure Entity is somewhat
+    # irrelevent. Each interface of the Azure port pair is configured
+    # similarly with the only difference between the two being the
+    # peer addresses assigned to each.
 
-        my $err = undef;
-        foreach my $intf (@{$self->{entity}->interfaces()}) {
-            my $valid_bandwidth = $intf->is_bandwidth_valid(bandwidth => $self->{model}->{bandwidth});
-            if (!$valid_bandwidth) {
-                $err = "The choosen bandwidth for this Endpoint is invalid.";
-            }
+    $self->{circuit_id} = $self->{model}->{circuit_id};
+    $self->{vrf_id} = $self->{model}->{vrf_id};
+    $self->{start_epoch} = $self->{model}->{start_epoch};
 
-            my $valid_vlan = 0;
-            if (defined $self->{model}->{workgroup_id}) {
-                $valid_vlan = $intf->vlan_valid(
-                    vlan         => $self->{model}->{tag},
-                    workgroup_id => $self->{model}->{workgroup_id}
-                );
-                if (!$valid_vlan) {
-                    $err = "The selected workgroup cannot use vlan $self->{model}->{tag} on $self->{model}->{entity}.";
-                }
-            } else {
-                warn "Endpoint model is missing workgroup_id. Skipping vlan validation.";
-                $valid_vlan = 1;
-            }
-
-            if ($valid_vlan && $valid_bandwidth) {
-                $self->{interface} = $intf;
-                last;
-            }
-        }
-
-        if (!defined $self->{interface}) {
-            return $err;
+    if ($self->{type} eq 'vrf') {
+        $self->{peers} = [];
+        foreach my $peer (@{$self->{model}->{peers}}) {
+            push @{$self->{peers}}, OESS::Peer->new(db => $self->{'db'}, model => $peer);
         }
     }
-
-    if ($self->{'type'} eq 'vrf') {
-        $self->{'peers'} = [];
-
-        foreach my $peer (@{$self->{'model'}->{'peerings'}}) {
-            push @{$self->{'peers'}}, OESS::Peer->new(db => $self->{'db'}, model => $peer, vrf_ep_peer_id => -1);
-        }
-    }elsif($self->{type} eq 'circuit'){
-        $self->{circuit_id} = $self->{model}->{circuit_id};
-        $self->{circuit_endpoint_id} = $self->{model}->{circuit_edge_id};
-        $self->{start_epoch} = $self->{model}->{start_epoch};
-    }
-
-    $self->{'unit'} = $self->{'model'}->{'unit'};
 }
 
 =head2 to_hash
@@ -175,37 +183,46 @@ sub to_hash{
     my $self = shift;
     my $obj;
 
-    $obj->{'interface'} = $self->interface()->to_hash();
-    $obj->{'node'} = $self->interface()->node()->to_hash();
+    $obj->{'type'} = $self->{'type'};
+    $obj->{'interface'} = $self->{'interface'};
+    $obj->{'interface_id'} = $self->{'interface_id'};
+    $obj->{'node'} = $self->{'node'};
+    $obj->{'node_id'} = $self->{'node_id'};
+    $obj->{'description'} = $self->{'description'};
     $obj->{'inner_tag'} = $self->inner_tag();
     $obj->{'tag'} = $self->tag();
     $obj->{'bandwidth'} = $self->bandwidth();
     $obj->{cloud_account_id} = $self->cloud_account_id();
     $obj->{cloud_connection_id} = $self->cloud_connection_id();
-    if(defined($self->entity())){
-        $obj->{'entity'} = $self->entity->to_hash();
-    }
-    if($self->{'type'} eq 'vrf'){
+    # cloud_interconnect_id omitted from hash to ensure hidden
+    $obj->{cloud_interconnect_type} = $self->cloud_interconnect_type;
 
-        my @peers;
+    $obj->{'mtu'} = $self->mtu();
+    $obj->{'jumbo'} = ($self->mtu() > 1500) ? 1 : 0;
+    $obj->{'unit'} = $self->unit();
+
+    # TODO There's no reason for this Endpoint object to track the
+    # Entity used to select its Interface. Removing this would
+    # probably simplify a few things, but will require a bit of
+    # testing to ensure this relationship isn't used elsewhere.
+
+    $obj->{'entity'} = $self->entity;
+    $obj->{'entity_id'} = $self->entity_id;
+
+    if ($self->{'type'} eq 'vrf') {
+        $obj->{'peers'} = [];
         foreach my $peer (@{$self->{'peers'}}){
-            push(@peers, $peer->to_hash());
+            push(@{$obj->{'peers'}}, $peer->to_hash());
         }
-
-        $obj->{'peers'} = \@peers;
         $obj->{'vrf_id'} = $self->vrf_id();
         $obj->{'vrf_endpoint_id'} = $self->vrf_endpoint_id();
-        $obj->{'mtu'} = $self->mtu();
-    }else{
+    } else {
         $obj->{'circuit_id'} = $self->circuit_id();
-        $obj->{'circuit_endpoint_id'} = $self->circuit_endpoint_id();
+        $obj->{'circuit_ep_id'} = $self->circuit_ep_id();
         $obj->{'start_epoch'} = $self->start_epoch();
     }
-    
-    $obj->{'type'} = $self->{'type'};
-    $obj->{'unit'} = $self->{'unit'};
-    return $obj;
 
+    return $obj;
 }
 
 =head2 from_hash
@@ -215,28 +232,34 @@ sub from_hash{
     my $self = shift;
     my $hash = shift;
 
-    $self->{'bandwidth'} = $hash->{'bandwidth'};
+    $self->{'type'} = $hash->{'type'};
     $self->{'interface'} = $hash->{'interface'};
-
-    $self->{cloud_account_id} = $hash->{cloud_account_id};
-    $self->{cloud_connection_id} = $hash->{cloud_connection_id};
-
-    if($self->{'type'} eq 'vrf'){
-        $self->{'peers'} = $hash->{'peers'};
-        $self->{'vrf_id'} = $hash->{'vrf_id'};
-        $self->{'mtu'} = $hash->{'mtu'};
-    }else{
-        $self->{'circuit_id'} = $hash->{'circuit_id'};
-        $self->{start_epoch} = $hash->{start_epoch};
-    }
-
+    $self->{'interface_id'} = $hash->{'interface_id'};
+    $self->{'node'} = $hash->{'node'};
+    $self->{'node_id'} = $hash->{'node_id'};
+    $self->{'description'} = $hash->{'description'};
     $self->{'inner_tag'} = $hash->{'inner_tag'};
     $self->{'tag'} = $hash->{'tag'};
     $self->{'bandwidth'} = $hash->{'bandwidth'};
-
+    $self->{cloud_account_id} = $hash->{cloud_account_id};
+    $self->{cloud_connection_id} = $hash->{cloud_connection_id};
+    $self->{cloud_interconnect_id} = $hash->{cloud_interconnect_id};
+    $self->{cloud_interconnect_type} = $hash->{cloud_interconnect_type};
+    $self->{'mtu'} = $hash->{'mtu'};
     $self->{'unit'} = $hash->{'unit'};
 
-    $self->{'entity'} = OESS::Entity->new( db => $self->{'db'}, interface_id => $self->{'interface'}->{'interface_id'}, vlan => $self->{'tag'});
+    if ($self->{'type'} eq 'vrf' || !defined $hash->{'circuit_ep_id'}) {
+        $self->{'peers'} = $hash->{'peers'};
+        $self->{'vrf_id'} = $hash->{'vrf_id'};
+        $self->{'vrf_endpoint_id'} = $hash->{'vrf_endpoint_id'} || $hash->{'vrf_ep_id'};
+    } else {
+        $self->{'circuit_id'} = $hash->{'circuit_id'};
+        $self->{'circuit_ep_id'} = $hash->{'circuit_ep_id'};
+        $self->{start_epoch} = $hash->{start_epoch};
+    }
+
+    $self->{'entity'} = $hash->{'entity'};
+    $self->{'entity_id'} = $hash->{'entity_id'};
 }
 
 =head2 _fetch_from_db
@@ -244,24 +267,132 @@ sub from_hash{
 =cut
 sub _fetch_from_db{
     my $self = shift;
-    
+
     my $db = $self->{'db'};
     my $hash;
 
-    if($self->{'type'} eq 'circuit'){
-        $hash = OESS::DB::Circuit::fetch_circuit_endpoint( db => $db,
-                        circuit_id => $self->{'circuit_id'},
-                        interface_id => $self->{'interface_id'});
-
-        # Do a little moving around to make the hash compatible with from_hash
-        $hash->{'interface'} = {'interface_id' => $hash->{'interface_id'}}
-        
-    }else{
-        
-        $hash = OESS::DB::VRF::fetch_endpoint(db => $db, vrf_endpoint_id => $self->{'vrf_endpoint_id'});
+    if ($self->{'type'} eq 'circuit') {
+        my ($data, $err) = OESS::DB::Endpoint::fetch_all(
+            circuit_id => $self->{circuit_id},
+            interface_id => $self->{interface_id}
+        );
+        if (!defined $err) {
+            $hash = $data->[0];
+        }
+    } else {
+        my ($data, $err) = OESS::DB::Endpoint::fetch_all(
+            db => $db,
+            vrf_ep_id => $self->{vrf_endpoint_id}
+        );
+        if (defined $err) {
+            $self->{logger}->error($err);
+            return;
+        } else {
+            $hash = $data->[0];
+        }
     }
-    $self->from_hash($hash);
 
+    $self->from_hash($hash);
+}
+
+=head2 load_peers
+
+=cut
+sub load_peers {
+    my $self = shift;
+
+    if (!defined $self->{vrf_endpoint_id}) {
+        warn 'Currently no support for Peers on a Circuit.';
+        return 1;
+    }
+
+    my ($peer_datas, $error) = OESS::DB::Peer::fetch_all(
+        db => $self->{db},
+        vrf_ep_id => $self->{vrf_endpoint_id}
+    );
+    if (defined $error) {
+        $self->{logger}->error($error);
+        return;
+    }
+
+    $self->{peers} = [];
+    foreach my $data (@$peer_datas) {
+        my $peer = new OESS::Peer(db => $self->{db}, model => $data);
+        push @{$self->{peers}}, $peer;
+    }
+
+    return 1;
+}
+
+=head2 add_peer
+
+    $endpoint->add_peer(new OESS::Peer(...));
+
+=cut
+sub add_peer {
+    my $self = shift;
+    my $peer = shift;
+
+    push @{$self->{peers}}, $peer;
+}
+
+=head2 get_peer
+
+    my $ep = $endpoint->get_peer(
+        vrf_ep_peer_id => 100
+    );
+
+get_peer returns the Peer identified by C<vrf_ep_peer_id>.
+
+=cut
+sub get_peer {
+    my $self = shift;
+    my $args = {
+        vrf_ep_peer_id => undef,
+        @_
+    };
+
+    if (!defined $args->{vrf_ep_peer_id}) {
+        return;
+    }
+
+    foreach my $peer (@{$self->{peers}}) {
+        if ($args->{vrf_ep_peer_id} eq $peer->{vrf_ep_peer_id}) {
+            return $peer;
+        }
+    }
+
+    return;
+}
+
+=head2 remove_peer
+
+    my $ok = $endpoint->remove_peer(
+        vrf_ep_peer_id => 100
+    );
+
+remove_peer removes the peer identified by C<vrf_ep_peer_id> from this
+Endpoint.
+
+=cut
+sub remove_peer {
+    my $self = shift;
+    my $vrf_ep_peer_id = shift;
+
+    if (!defined $vrf_ep_peer_id) {
+        return;
+    }
+
+    my $new_peers = [];
+    foreach my $ep (@{$self->{peers}}) {
+        if ($vrf_ep_peer_id == $ep->{vrf_ep_peer_id}) {
+            next;
+        }
+        push @$new_peers, $ep;
+    }
+    $self->{peers} = $new_peers;
+
+    return 1;
 }
 
 =head2 get_endpoints_on_interface
@@ -328,6 +459,22 @@ sub cloud_connection_id {
     return $self->{cloud_connection_id};
 }
 
+=head2 cloud_interconnect_id
+
+=cut
+sub cloud_interconnect_id {
+    my $self = shift;
+    return $self->{cloud_interconnect_id};
+}
+
+=head2 cloud_interconnect_type
+
+=cut
+sub cloud_interconnect_type {
+    my $self = shift;
+    return $self->{cloud_interconnect_type};
+}
+
 =head2 interface
 
 =cut
@@ -342,12 +489,33 @@ sub interface{
     return $self->{'interface'};
 }
 
+=head2 description
+
+=cut
+sub description{
+    my $self = shift;
+    my $description = shift;
+
+    if(defined($description)){
+        $self->{'description'} = $description;
+    }
+    return $self->{'description'};
+}
+
 =head2 node
 
 =cut
 sub node{
     my $self = shift;
-    return $self->{'interface'}->node();
+    return $self->{'node'};
+}
+
+=head2 node_id
+
+=cut
+sub node_id {
+    my $self = shift;
+    return $self->{'node_id'};
 }
 
 =head2 type
@@ -459,12 +627,12 @@ sub start_epoch{
     return $self->{start_epoch};
 }
 
-=head2 circuit_endpoint_id
+=head2 circuit_ep_id
 
 =cut
-sub circuit_endpoint_id{
+sub circuit_ep_id{
     my $self = shift;
-    return $self->{'circuit_endpoint_id'};
+    return $self->{'circuit_ep_id'};
 }
 
 =head2 entity
@@ -473,6 +641,14 @@ sub circuit_endpoint_id{
 sub entity{
     my $self = shift;
     return $self->{'entity'};
+}
+
+=head2 entity_id
+
+=cut
+sub entity_id{
+    my $self = shift;
+    return $self->{'entity_id'};
 }
 
 =head2 unit
@@ -489,24 +665,35 @@ sub unit{
     return $self->{'unit'};
 }
 
+=head2 workgroup_id
+
+=cut
+sub workgroup_id {
+    my $self = shift;
+    my $workgroup_id = shift;
+    if (defined $workgroup_id) {
+        $self->{'workgroup_id'} = $workgroup_id;
+    }
+    return $self->{'workgroup_id'};
+}
+
 =head2 decom
 
 =cut
 sub decom{
     my $self = shift;
-    
+
     my $res;
     if($self->type() eq 'vrf'){
-
         foreach my $peer (@{$self->peers()}){
             $peer->decom();
         }
-        
+
         $res = OESS::DB::VRF::decom_endpoint(db => $self->{'db'}, vrf_endpoint_id => $self->vrf_endpoint_id());
-        
+
     }else{
 
-        $res = OESS::DB::Circuit::decom_endpoint(db => $self->{'db'}, circuit_endpoint_id => $self->circuit_endpoint_id());
+        $res = OESS::DB::Circuit::decom_endpoint(db => $self->{'db'}, circuit_endpoint_id => $self->circuit_ep_id());
 
     }
 
@@ -519,24 +706,10 @@ sub decom{
 =cut
 sub update_db_vrf{
     my $self = shift;
-    my $endpoint = $self->to_hash();
-    
-    my $result = OESS::DB::Endpoint::remove_vrf_peers(db => $self->{db},
-                        endpoint => $endpoint);
-    if(!defined($result)){
-        $self->{db}->rollback();
-        return $self->{db}->{error};
-    }
-    
-    $result = OESS::DB::Endpoint::add_vrf_peers(db => $self->{db},
-                        endpoint => $endpoint);
-    if(!defined($result)){
-        $self->{db}->rollback();
-        return $self->{db}->{error};
-    }
+    my $endpoint = shift;
 
-    $result = OESS::DB::Endpoint::update_vrf(db => $self->{db},
-                        endpoint => $endpoint);    
+    my $result = OESS::DB::Endpoint::update_vrf(db => $self->{db},
+                        endpoint => $endpoint);
     if(!defined($result)){
         $self->{db}->rollback();
         return $self->{db}->{error};
@@ -549,23 +722,15 @@ sub update_db_vrf{
 =cut
 sub update_db_circuit{
     my $self = shift;
-    my $endpoint = $self->to_hash();
+    my $endpoint = shift;
 
-    my $result = OESS::DB::Endpoint::remove_circuit_edge_membership(
+    my $result = OESS::DB::Endpoint::update_circuit_edge_membership(
                         db       => $self->{db},
                         endpoint => $endpoint);
     if(!defined($result)){
-        $self->{db}->rollback();
         return $self->{db}->{error};
     }
-    $result = OESS::DB::Endpoint::add_circuit_edge_membership(
-                        db       => $self->{db},
-                        endpoint => $endpoint);
-    if(!defined($result)){
-        $self->{db}->rollback();
-        return $self->{db}->{error};
-    }
-    return undef;
+    return;
 }
 
 =head2 update_db
@@ -575,21 +740,25 @@ sub update_db {
     my $self = shift;
     my $error = undef;
 
-    $self->{db}->start_transaction();
+    my $hash = $self->to_hash;
 
-    if($self->type() eq 'vrf'){
-        $error = $self->update_db_vrf();
-    }elsif($self->type() eq 'circuit') {
-        $error = $self->update_db_circuit();
-    }
-    
-    if(defined($error)){
-        $self->{db}->rollback();
-        return $error;
+    if ($self->type() eq 'vrf' || defined $self->{vrf_endpoint_id}) {
+        $error = $self->update_db_vrf($hash);
+    } elsif ($self->type() eq 'circuit' || defined $self->{circuit_ep_id}) {
+        $error = $self->update_db_circuit($hash);
+    } else {
+        $error = 'Unknown Endpoint type specified.';
     }
 
-    $self->{db}->commit();
-    return;
+    my ($cloud_conn_ep_id, $err) = OESS::DB::Endpoint::update_cloud(
+        db => $self->{db},
+        endpoint => $hash
+    );
+    if (defined $err) {
+        return $err;
+    }
+
+    return $error;
 }
 
 =head2 move_endpoints
@@ -648,6 +817,148 @@ sub move_endpoints{
         $endpoint->update_db();
     }
     return 1;
+}
+
+=head2 create
+
+    $db->start_transaction;
+    my ($id, $err) = $ep->create(
+        circuit_id   => 100, # Optional
+        vrf_id       => 100  # Optional
+        workgroup_id => 100
+    );
+    if (defined $err) {
+        $db->rollback;
+        warn $err;
+    }
+
+create saves this Endpoint along with its Peers to the database. This
+method B<must> be wrapped in a transaction and B<shall> only be used
+to create a new Endpoint.
+
+=cut
+sub create {
+    my $self = shift;
+    my $args = {
+        circuit_id   => undef,
+        vrf_id       => undef,
+        @_
+    };
+
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error("Couldn't create Endpoint: DB handle is missing.");
+        return (undef, "Couldn't create Endpoint: DB handle is missing.");
+    }
+
+    my $unit = OESS::DB::Endpoint::find_available_unit(
+        db => $self->{db},
+        interface_id => $self->{'interface_id'},
+        tag => $self->tag,
+        inner_tag => $self->inner_tag
+    );
+    if (!defined $unit) {
+        $self->{'logger'}->error("Couldn't create Endpoint: Couldn't find an available Unit.");
+        return (undef, "Couldn't create Endpoint: Couldn't find an available Unit.");
+    }
+
+    if (defined $args->{circuit_id}) {
+        my $ep_data = $self->to_hash;
+        $ep_data->{circuit_id} = $args->{circuit_id};
+        $ep_data->{unit} = $unit;
+
+        my $circuit_ep_id = OESS::DB::Endpoint::add_circuit_edge_membership(
+            db => $self->{db},
+            endpoint => $ep_data
+        );
+        if (!defined $circuit_ep_id) {
+            $self->{'logger'}->error("Couldn't create Endpoint: " . $self->{db}->get_error);
+            return (undef, "Couldn't create Endpoint: " . $self->{db}->get_error);
+        }
+
+        $self->{circuit_ep_id} = $circuit_ep_id;
+        $self->{circuit_id} = $args->{circuit_id};
+        $self->{unit} = $unit;
+        return ($circuit_ep_id, undef);
+
+    } elsif (defined $args->{vrf_id}) {
+        my $ep_data = $self->to_hash;
+        $ep_data->{vrf_id} = $args->{vrf_id};
+        $ep_data->{unit} = $unit;
+
+        my ($vrf_ep_id, $vrf_ep_err) = OESS::DB::Endpoint::add_vrf_ep(
+            db => $self->{db},
+            endpoint => $ep_data
+        );
+        if (defined $vrf_ep_err) {
+            $self->{'logger'}->error("Couldn't create Endpoint: $vrf_ep_err");
+            return (undef, "Couldn't create Endpoint: $vrf_ep_err");
+        }
+
+        $self->{vrf_endpoint_id} = $vrf_ep_id;
+        $self->{vrf_id} = $args->{vrf_id};
+        $self->{unit} = $unit;
+        return ($vrf_ep_id, undef);
+
+    } else {
+        $self->{'logger'}->error("Couldn't create Endpoint: No associated Circuit or VRF identifier specified.");
+        return (undef, "Couldn't create Endpoint: No associated Circuit or VRF identifier specified.");
+    }
+
+}
+
+=head2 remove
+
+    my $error = $endpoint->remove;
+    if (defined $error) {
+        warn $error;
+    }
+
+remove deletes this endpoint from the
+circuit_edge_interface_membership or vrf_ep table depending on if it's
+a Circuit or VRF Endpoint. This method should be wrapped in a
+transaction.
+
+=cut
+sub remove {
+    my $self = shift;
+    my $args = { @_ };
+
+    if (!defined $self->{db}) {
+        $self->{logger}->error("Couldn't remove Endpoint: DB handle is missing.");
+        return "Couldn't remove Endpoint: DB handle is missing.";
+    }
+
+    my $endpoint = $self->to_hash;
+
+    if ($self->type eq 'vrf' || defined $self->{vrf_endpoint_id}) {
+        my $result = OESS::DB::Endpoint::remove_vrf_peers(
+            db => $self->{db},
+            endpoint => $endpoint
+        );
+        if (!defined $result) {
+            return $self->{db}->{error};
+        }
+
+        my $error = OESS::DB::Endpoint::remove_vrf_ep(
+            db => $self->{db},
+            vrf_ep_id => $endpoint->{vrf_endpoint_id}
+        );
+        return $error if (defined $error);
+    }
+    elsif ($self->type eq 'circuit' || defined $self->{circuit_ep_id}) {
+        my $result = OESS::DB::Endpoint::remove_circuit_edge_membership(
+            db       => $self->{db},
+            endpoint => $endpoint
+        );
+        if (!defined $result) {
+            return $self->{db}->{error};
+        }
+    }
+    else {
+        return 'Unknown Endpoint type specified.';
+    }
+
+    return;
 }
 
 1;

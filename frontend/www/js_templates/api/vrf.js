@@ -49,6 +49,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
 
   endpoints.forEach(function(endpoint) {
     let e = {
+      vrf_endpoint_id: endpoint.vrf_endpoint_id,
       bandwidth: endpoint.bandwidth,
       tag:       endpoint.tag,
       jumbo:     (endpoint.jumbo) ? 1 : 0,
@@ -69,7 +70,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
 
     endpoint.peerings.forEach(function(p) {
       e.peerings.push({
-        asn: p.asn,
+        vrf_ep_peer_id: p.vrfEpPeerId,
+        peer_asn: p.asn,
         key: p.key,
         local_ip: p.oessPeerIP,
         peer_ip:  p.yourPeerIP,

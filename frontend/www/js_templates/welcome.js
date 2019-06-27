@@ -63,20 +63,22 @@ async function loadEntityList() {
 
         entity.endpoints.forEach(function(endpoint) {
             let endpointOK = true;
-            endpoint.peers.forEach(function(peer) {
-                    if (peer.state !== 'active') {
+            if ('peers' in endpoint) {
+                endpoint.peers.forEach(function(peer) {
+                    if (peer.operational_state !== 'up') {
                         ok = false;
                         endpointOK = false;
                     }
-            });
+                });
+            }
 
             if (endpointOK) {
                 endpointHTML += `
-                <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.interface.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface.name} - ${endpoint.tag}</p>
+                <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}</p>
 `;
             } else {
                 endpointHTML += `
-                <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.interface.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface.name} - ${endpoint.tag}</p>
+                <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}</p>
 `;
             }
         });
@@ -165,7 +167,7 @@ async function loadL2VPNs() {
   let ok = true;
 
   if (circuits.length === 0) {
-    html = '<p>There are no Layer2 VPNs currently provisioned. Click <a href="[% path %]index.cgi?action=endpoints">here</a> to create one.</p>';
+    html = '<p>There are no Layer2 VPNs currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_l2vpn">here</a> to create one.</p>';
   }
 
   circuits.forEach(function(circuit, index) {

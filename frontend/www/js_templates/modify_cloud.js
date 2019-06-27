@@ -73,28 +73,30 @@ async function loadVRF() {
     let entity_id = null;
     let entity_name = null;
     if (e.hasOwnProperty('entity')) {
-      entity_id = e.entity.entity_id;
-      entity_name = e.entity.name;
+      entity_id = e.entity_id;
+      entity_name = e.entity;
     }
 
     let endpoint = {
+        vrf_endpoint_id: e.vrf_endpoint_id,
         cloud_account_id: e.cloud_account_id,
-        cloud_account_type: e.interface.cloud_interconnect_type,
+        cloud_account_type: e.cloud_interconnect_type,
         bandwidth: e.bandwidth,
         entity_id: entity_id,
         entity: entity_name,
-        interface_id: e.interface.interface_id,
+        interface_id: e.interface_id,
         mtu: e.mtu,
         jumbo: (parseInt(e.mtu) == 9000 || parseInt(e.mtu) == 9001) ? true : false,
-        name: e.interface.name,
-        node: e.node.name,
+        name: e.interface,
+        node: e.node,
         peerings: [],
         tag: e.tag,
-        interface: e.interface.name
+        interface: e.interface
     };
 
     e.peers.forEach(function(p) {
       let peering = {
+          vrfEpPeerId: p.vrf_ep_peer_id,
           ipVersion: p.ip_version,
           asn: p.peer_asn,
           key: p.md5_key || '',

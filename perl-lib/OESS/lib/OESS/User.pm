@@ -56,16 +56,16 @@ sub to_hash{
     $obj->{'last_name'} = $self->last_name();
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
-    
+
     my @wgs;
     foreach my $wg (@{$self->workgroups()}){
         push(@wgs, $wg->to_hash());
     }
-    
+
     $obj->{'is_admin'} = $self->is_admin();
     $obj->{'type'} = $self->type();
     $obj->{'workgroups'} = \@wgs;
-    
+
     return $obj;
 }
 

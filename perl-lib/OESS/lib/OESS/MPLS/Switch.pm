@@ -138,7 +138,7 @@ sub create_device_object{
         case "Juniper" {
             my $dev;
             if($host_info->{'model'} =~ /mx/i){
-                $self->{'logger'}->info("create_device_object: " . Dumper($host_info));
+                $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
                 $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
             }else{
                 $self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
@@ -325,7 +325,7 @@ sub _update_cache {
     my $m_ref = shift;
     my $p_ref = shift;
 
-    $self->{'logger'}->debug("Loading circuits from cache file $self->{'share_file'}");
+    $self->{'logger'}->debug("Loading cache from $self->{'share_file'}");
 
     if (!-e $self->{'share_file'}) {
         $self->{'logger'}->error("Cache file $self->{'share_file'} doesn't exists!");
@@ -369,7 +369,7 @@ sub _update_cache {
     }
 
     foreach my $vrf (keys %{$self->{'vrfs'}}){
-	delete $self->{'vrfs'}->{$vrf};
+        delete $self->{'vrfs'}->{$vrf};
     }
 
     foreach my $vrf (keys %{$data->{'vrfs'}}) {
@@ -378,7 +378,6 @@ sub _update_cache {
         $data->{'vrfs'}->{$vrf}->{'vrf_id'} = $vrf;
         $self->{'vrfs'}->{$vrf} = $data->{'vrfs'}->{$vrf};
     }
-    
 
     if ($self->{'node'}->{'name'}) {
         $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.Switch.'.$self->{'node'}->{'name'});
@@ -389,7 +388,7 @@ sub _update_cache {
         $self->{'device'}->{'name'} = $self->{'node'}->{'name'};
     }
 
-    $self->{'logger'}->info("Loaded circuits / VRFs from cache file $self->{'share_file'}");
+    $self->{'logger'}->info("Loaded cache from $self->{'share_file'}");
     return 1;
 }
 

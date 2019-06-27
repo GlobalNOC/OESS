@@ -24,8 +24,12 @@ class Endpoint extends Component {
 
     console.log('endpoint:', this.props);
 
-    let requiresRoutingInfo = this.props.cloud_account_type ? 'disabled' : 'required';
-    let acceptsBGPKey = this.props.cloud_account_type ? 'disabled' : '';
+    let requiresRoutingInfo = 'required';
+    let acceptsBGPKey = '';
+    if (this.props.cloud_account_type && this.props.cloud_account_type != 'aws-hosted-connection') {
+      requiresRoutingInfo = 'disabled';
+      acceptsBGPKey = 'disabled';
+    }
 
     return `
     <div id="entity-${this.props.index}" class="panel panel-default">

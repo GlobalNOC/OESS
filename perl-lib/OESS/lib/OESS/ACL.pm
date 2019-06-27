@@ -43,15 +43,15 @@ sub new {
         logger       => Log::Log4perl->get_logger('OESS.ACL'),
         @_
     };
+    my $self = bless $args, $class;
 
     if (!defined $args->{db}) {
-        die 'Required argument `db` is missing.';
+        $self->{logger}->warn('Optional argument `db` is missing.');
+    } else {
+        if (!defined $args->{interface_acl_id} && !defined $args->{model}) {
+            die 'Required argument `interface_acl_id` or `model` is missing.';
+        }
     }
-    if (!defined $args->{interface_acl_id} && !defined $args->{model}) {
-        die 'Required argument `interface_acl_id` or `model` is missing.';
-    }
-
-    my $self = bless $args, $class;
 
     if (defined $self->{interface_acl_id}) {
         $self->_fetch_from_db();

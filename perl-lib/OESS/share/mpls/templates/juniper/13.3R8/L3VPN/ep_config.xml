@@ -2,7 +2,7 @@
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
-      <name>[% interface.name %]</name>
+      <name>[% interface.interface %]</name>
       <unit>
         <name>[% interface.unit %]</name>
         <description>OESS-L3VPN-[% vrf_id %]</description>
@@ -48,7 +48,7 @@
   <class-of-service>
     <interfaces>
       <interface>
-        <name>[% interface.name %]</name>
+        <name>[% interface.interface %]</name>
         <unit>
           <name>[% interface.unit %]</name>
           <shaping-rate>
@@ -67,7 +67,7 @@
       <instance-type>vrf</instance-type>
       [% FOREACH interface IN interfaces %]
       <interface>
-	<name>[% interface.name %].[% interface.unit %]</name>
+	<name>[% interface.interface %].[% interface.unit %]</name>
       </interface>
       [% END %]
       <route-distinguisher>
@@ -118,7 +118,7 @@
               <authentication-key>[% peer.key %]</authentication-key>
               [% END %]
 
-              [% IF interface.type == 'gcp-partner-interconnect' %]
+              [% IF interface.cloud_interconnect_type == 'gcp-partner-interconnect' %]
               <multihop>
                 <ttl>4</ttl>
               </multihop>

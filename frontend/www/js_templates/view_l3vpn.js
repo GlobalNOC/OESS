@@ -1,4 +1,3 @@
-
   async function loadEndpointSelectionInterfaces(nodeName) {
     const interfaces = await getInterfaces(session.data.workgroup_id, nodeName);
 
@@ -154,15 +153,15 @@ async function loadVRF() {
     select.setAttribute('onchange', 'updateStatisticsIFrame()');
 
     let peeringHTML = '';
-    endpoint.peers.forEach(function(peering, peeringIndex) {
-	  peering.operational_label = 'success';
-	  if(peering.operational_state != 'up'){
-		peering.operational_label = 'danger';
-	  }
+    if ('peers' in endpoint) {
+      endpoint.peers.forEach(function(peering, peeringIndex) {
+	    peering.operational_label = 'success';
+	    if(peering.operational_state != 'up'){
+		  peering.operational_label = 'danger';
+	    }
+        peering.md5_key = (peering.md5_key) ? peering.md5_key : '(unauthenticated)';
 
-      peering.md5_key = (peering.md5_key) ? peering.md5_key : '(unauthenticated)';
-
-      peeringHTML += `
+        peeringHTML += `
 <tr>
   <td>${peering.peer_asn}</td>
   <td>${peering.peer_ip}</td>
@@ -171,20 +170,41 @@ async function loadVRF() {
   <td><span id="state" class="label label-${peering.operational_label}">${peering.operational_state}</span></td>
 </tr>`;
 
-      select.innerHTML += `<option value=${peering.peer_ip}>${peering.peer_ip}</option>`;
-    });
+        select.innerHTML += `<option value=${peering.peer_ip}>${peering.peer_ip}</option>`;
+      });
+    }
 
     peerSelections.appendChild(select);
 
     // Ignore display of entity if not assigned to an interface.
     let ename = ``;
     if (endpoint.hasOwnProperty('entity')) {
-      ename = `${endpoint.entity.name} - <small>${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}`;
+      ename = `${endpoint.entity} - <small>${endpoint.node} - ${endpoint.interface} - ${endpoint.tag}`;
     } else {
-      ename = `${endpoint.node.name} - <small>${endpoint.interface.name} - ${endpoint.tag}`;
+      ename = `${endpoint.node} - <small>${endpoint.interface} - ${endpoint.tag}`;
     }
 
     endpoint.jumbo = (parseInt(endpoint.mtu) == 9000 || parseInt(endpoint.mtu) == 9001) ? true : false;
+
+    let vlanLabel = '';
+    let vlanValue = '';
+    if (endpoint.inner_tag === undefined || endpoint.inner_tag === null || endpoint.inner_tag === '') {
+      vlanLabel = `
+      <h5>VLAN:</h5>
+      `;
+      vlanValue = `
+      <h5>${endpoint.tag}</h5>
+      `;
+    } else {
+      vlanLabel = `
+      <h5>STag:</h5>
+      <h5>CTag:</h5>
+      `;
+      vlanValue = `
+      <h5>${endpoint.tag}</h5>
+      <h5>${endpoint.inner_tag}</h5>
+      `;
+    }
 
     let html = `
 <div class="panel panel-default" style="padding: 0 15 20 15;">
@@ -194,16 +214,16 @@ async function loadVRF() {
         <h3>Entity:&nbsp;</h3>
         <h4>Node:</h4>
         <h4>Port:</h4>
-        <h4>VLAN:</h4>
+        ${vlanLabel}
         <h5>Bandwidth:</h5>
         <h5>Frame:</h5>
       </div>
 
       <div>
-        <h3>${endpoint.entity.name}</h3>
-        <h4>${endpoint.node.name}</h4>
-        <h4>${endpoint.interface.name} <small>${endpoint.interface.description}</small></h4>
-        <h4>${endpoint.tag}</h4>
+        <h3>${endpoint.entity}</h3>
+        <h4>${endpoint.node}</h4>
+        <h4>${endpoint.interface} <small>${endpoint.description}</small></h4>
+        ${vlanValue}
         <h5>${(endpoint.bandwidth == 0) ? 'Unlimited' : `${endpoint.bandwidth} Mb/s`}</h5>
         <h5>${(endpoint.jumbo) ? 'Jumbo' : 'Standard'}</h5>
       </div>
@@ -231,20 +251,20 @@ async function loadVRF() {
 <div id="endpoints-statistics-${eIndex}" class="panel panel-default endpoints-statistics" style="display: none;">
   <div class="panel-heading" style="height: 40px;">
     <h4 style="margin: 0px; float: left;">
-    ${endpoint.node.name} <small>${endpoint.interface.name} - ${endpoint.tag}</small>
+    ${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>
     </h4>
   </div>
 
   <div style="padding-left: 15px; padding-right: 15px">
-    <iframe id="endpoints-statistics-iframe-${eIndex}" data-url="[% g_port %]" data-node="${endpoint.node.name}" data-interface="${endpoint.interface.name}" data-unit="${endpoint.unit}" width="100%" height="300" frameborder="0"></iframe>
-    <iframe id="endpoints-statistics-iframe-peer-${eIndex}" data-url="[% g_peer %]" data-node="${endpoint.node.name}" data-vrf="${vrf.vrf_id}" width="100%" height="300" frameborder="0"></iframe>
+    <iframe id="endpoints-statistics-iframe-${eIndex}" data-url="[% g_port %]" data-node="${endpoint.node}" data-interface="${endpoint.interface}" data-unit="${endpoint.unit}" width="100%" height="300" frameborder="0"></iframe>
+    <iframe id="endpoints-statistics-iframe-peer-${eIndex}" data-url="[% g_peer %]" data-node="${endpoint.node}" data-vrf="${vrf.vrf_id}" width="100%" height="300" frameborder="0"></iframe>
   </div>
 </div>`;
 
     let stats = document.getElementById('endpoints-statistics');
     stats.innerHTML += statGraph;
 
-    let statOption = `<option value="${eIndex}">${endpoint.node.name} - ${endpoint.interface.name} - ${endpoint.tag}</option>`;
+    let statOption = `<option value="${eIndex}">${endpoint.node} - ${endpoint.interface} - ${endpoint.tag}</option>`;
 
     let dropdown = document.getElementById('endpoints-statistics-selection');
     dropdown.innerHTML += statOption;

@@ -47,13 +47,40 @@
   </div>
 
   <div class="row">
-    <div class="col-md-6">
-      <h1>New L3VPN</h1>
-      <div class="form-group">
-        <label class="control-label">Description</label><input id="description" class="form-control" type="text" required>
+    <div class="col-sm-6">
+      <h2>New Layer 3 Connection</h2>
+    </div>
+    <div class="col-sm-6" style="text-align: right; padding-top: 23px;">
+      <button id="add-network-submit" class="btn-sm btn-success" type="submit">
+        <span class="glyphicon glyphicon-floppy-disk"></span> Save
+      </button>
+      <button id="add-network-cancel" class="btn-sm btn-danger" type="button">
+        <span class="glyphicon glyphicon-ban-circle"></span> Cancel
+      </button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-sm-12">
+      <hr/>
+
+      <div class="row">
+        <div class="col-sm-6">
+          <div class="row">
+            <div class="col-sm-12">
+              <div class="form-group">
+                <label class="control-label">Name</label>
+                <input id="description" class="form-control" type="text" placeholder="Short description of this connection" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="row"></div>
+        </div>
       </div>
     </div>
   </div>
+
 
   <div class="row">
     <div class="col-md-3" style="padding-bottom: 15px;">
@@ -72,17 +99,11 @@
 
   <div class="row">
     <div class="col-md-12">
-      <p><b>Endpoints</b></p>
-      <button id="add-network-endpoint" class="btn btn-success" type="submit">Add Endpoint</button>
+      <button id="add-network-endpoint" class="btn-sm btn-primary" type="submit">
+        <span class="glyphicon glyphicon-plus"></span> New Endpoint
+      </button>
 
       <div id="selected-endpoint-list" style="margin-top: 15px;"></div>      
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="col-md-12">
-      <button id="add-network-submit" class="btn btn-success" type="submit">Add L3VPN</button>
-      <button id="add-network-cancel" class="btn btn-danger" type="button">Cancel</button>
     </div>
   </div>
 

@@ -113,7 +113,7 @@ cmp_deeply(
 
 
 $raw = OESS::DB::ACL::fetch_all(db => $db, interface_id => undef);
-ok( (scalar @$raw) == 20, 'OESS::DB::ACL::fetch_all returns all acls when no filter is specified');
+ok( (scalar @$raw) == 22, 'OESS::DB::ACL::fetch_all returns all acls when no filter is specified');
 
 
 $acl = [];

@@ -128,8 +128,7 @@ sub register_webservice_methods {
 	 pattern         => $GRNOC::WebService::Regex::TEXT,
 	 required        => 0,
 	 description     => "External Identifier of the circuit"
-	 ); 
-
+	 );
 
     #add the optional input parameter circuit_id
      $method->add_input_parameter(
@@ -137,8 +136,8 @@ sub register_webservice_methods {
 	 pattern         => $GRNOC::WebService::Regex::INTEGER,
 	 required        => 0,
 	 description     => "-1 or undefined indicate circuit is to be added."
-	 ); 
-    
+	 );
+
     #add the required input parameter description
      $method->add_input_parameter(
 	 name            => 'description',
@@ -222,15 +221,6 @@ sub register_webservice_methods {
         multiple        => 1,
         description     => 'Array of interfaces to be used. Note that interface[0] is on node[0].'
 	);
-
-        #add the required input parameter node
-    $method->add_input_parameter(
-        name            => 'node',
-        pattern         => $GRNOC::WebService::Regex::TEXT,
-        required        => 0,
-        multiple        => 1,
-        description     => "Array of nodes to be used."
-        );
 
     #add the required input parameter interface
     $method->add_input_parameter(
@@ -803,7 +793,6 @@ sub remove_vrf {
 =head2 provision_circuit
 
 =cut
-
 sub provision_circuit {
     my ($method, $args) = @_;
     my $results;
@@ -889,49 +878,45 @@ sub provision_circuit {
     my $new_db = OESS::DB->new();
 
     foreach my $endpoint (@$endpoints){
-	my $obj;
-	eval{
-	    $obj = decode_json($endpoint);
-	};
-	if ($@) {
-	    $method->set_error("Cannot decode endpoint: $@");
-	    return;
-	}
-	
-	$obj->{'workgroup_id'} = $workgroup_id;
+        my $obj;
+        eval{
+            $obj = decode_json($endpoint);
+        };
+        if ($@) {
+            $method->set_error("Cannot decode endpoint: $@");
+            return;
+        }
+        $obj->{'workgroup_id'} = $workgroup_id;
 
-
-
-	my $ep = OESS::Endpoint->new( db => $new_db, model => $obj );
-	if(defined($ep)){
-	    push(@$interfaces, $ep->interface->name());
-	    push(@$nodes, $ep->node->name());
-	    push(@$tags, $ep->tag());
-	    push(@$inner_tags, $ep->inner_tag());
-	}
+        my $ep = OESS::Endpoint->new( db => $new_db, model => $obj );
+        if(defined($ep)){
+            push(@$interfaces, $ep->interface->name());
+            push(@$nodes, $ep->node->name());
+            push(@$tags, $ep->tag());
+            push(@$inner_tags, $ep->inner_tag());
+        }
     }
-    
 
 
     my ($status,$err) = $db->validate_circuit(
-	links => $links,
-	backup_links => $backup_links,
-	nodes => $nodes,
-	interfaces => $interfaces,
+        links => $links,
+        backup_links => $backup_links,
+        nodes => $nodes,
+        interfaces => $interfaces,
         vlans => $tags,
         inner_vlans => $inner_tags
     );
     if (!$status){
-	warn "Couldn't validate circuit: " . $err;
-	$method->set_error("Couldn't validate circuit: " . $err);
-	return;
+        warn "Couldn't validate circuit: " . $err;
+        $method->set_error("Couldn't validate circuit: " . $err);
+        return;
     }
 
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
-	warn 'provision_circuit: adding new circuit to the database';
+        warn 'provision_circuit: adding new circuit to the database';
 
-	my $before_provision = [gettimeofday];
+        my $before_provision = [gettimeofday];
 
         $output = $db->provision_circuit(
             description    => $description,

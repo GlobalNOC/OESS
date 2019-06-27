@@ -2,7 +2,7 @@
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
-      <name>[% interface.name %]</name>
+      <name>[% interface.interface %]</name>
       <unit>
         <name>[% interface.unit %]</name>
         <description>OESS-L2VPLS-[% circuit_id %]</description>
@@ -28,7 +28,7 @@
       <instance-type>vpls</instance-type>
       [% FOREACH interface IN interfaces %]
       <interface>
-        <name>[% interface.name %].[% interface.unit %]</name>
+        <name>[% interface.interface %].[% interface.unit %]</name>
       </interface>
       [% END %]
       <route-distinguisher>

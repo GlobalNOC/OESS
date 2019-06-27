@@ -24,7 +24,7 @@ async function loadUserMenu() {
       }
 
       if (session.data.workgroup_id == group.workgroup_id) {
-          userMenuActiveWorkgroup.innerHTML = user.username + ' / ' + group.name;
+          userMenuActiveWorkgroup.innerHTML = user.username + ' / ' + group.name + ' <span class="caret"></span>';
       }
       html += `<li><a onclick="selectWorkgroup(${group.workgroup_id})" href="#">${group.name}</a></li>`;
   });

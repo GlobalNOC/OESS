@@ -18,11 +18,20 @@ sub getConfigFilePath {
     return $database_config;
 }
 
-sub getConfig { 
-    my $cwd = $FindBin::Bin;
-    $cwd =~ /(.*)/;
-    $cwd = $1;
-    my $cfg                 = GRNOC::Config->new(config_file => "$cwd/conf/database.xml");
+sub getConfig {
+    my $args = {
+        config => undef,
+        @_
+    };
+
+    if (!defined $args->{config}) {
+        my $cwd = $FindBin::Bin;
+        $cwd =~ /(.*)/;
+        $cwd = $1;
+        $args->{config} = "$cwd/conf/database.xml";
+    }
+
+    my $cfg                 = GRNOC::Config->new(config_file => $args->{config});
     my $user                = $cfg->get('/config/credentials[1]/@username')->[0];
     my $pass                = $cfg->get('/config/credentials[1]/@password')->[0];
     my $db                  = $cfg->get('/config/credentials[1]/@database')->[0];
@@ -95,18 +104,30 @@ sub load_database {
 }
 
 sub resetOESSDB {
-    my $creds = &getConfig();
-    #drop the oess-test DB if it exists, and then create it
+    my $args = {
+        config => undef,
+        dbdump => undef,
+        @_
+    };
+
+    my $creds = &getConfig(config => $args->{config});
+
     my %attr = (PrintError => 0, RaiseError => 0);
     my $dbh = DBI->connect("DBI:mysql:dbname=;host=localhost;port=6633",$creds->{'user'},$creds->{'pass'},\%attr);
-    $dbh->do("create database " . $creds->{'db'});
+
+    # Drop the oess-test DB if it exists and then create it.
+    $dbh->do("drop database $creds->{db} if exists");
+    $dbh->do("create database $creds->{db}");
     $dbh->do("set foreign_key_checks = 0");
 
-   
-    my $cwd = $FindBin::Bin;
-    $cwd =~ /(.*)/;
-    $cwd = $1;
-    my $command = "/usr/bin/mysql -u $creds->{'user'} --password=$creds->{'pass'} $creds->{'db'} < $cwd/conf/oess_known_state.sql";
+    if (!defined $args->{dbdump}) {
+        my $cwd = $FindBin::Bin;
+        $cwd =~ /(.*)/;
+        $cwd = $1;
+        $args->{dbdump} = "$cwd/conf/oess_known_state.sql";
+    }
+
+    my $command = "/usr/bin/mysql -u $creds->{'user'} --password=$creds->{'pass'} $creds->{'db'} < $args->{dbdump}";
     if (system($command)){
         return 0;
     }
