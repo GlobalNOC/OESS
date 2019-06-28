@@ -8,7 +8,6 @@ use warnings;
 use Data::Dumper;
 use JSON;
 use Log::Log4perl;
-use Paws;
 use XML::Simple;
 use GRNOC::WebService::Client;
 use OESS::Config;
