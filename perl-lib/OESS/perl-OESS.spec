@@ -158,6 +158,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::DB::Link.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Node.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Path.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Peer.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::User.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::VRF.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Workgroup.3pm.gz
@@ -229,6 +230,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/DB/Link.pm
 %{perl_vendorlib}/OESS/DB/Node.pm
 %{perl_vendorlib}/OESS/DB/Path.pm
+%{perl_vendorlib}/OESS/DB/Peer.pm
 %{perl_vendorlib}/OESS/DB/User.pm
 %{perl_vendorlib}/OESS/DB/VRF.pm
 %{perl_vendorlib}/OESS/DB/Workgroup.pm
