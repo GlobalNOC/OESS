@@ -20,6 +20,7 @@ use OESS::DB::User;
 use OESS::Entity;
 use OESS::L2Circuit;
 use OESS::RabbitMQ::Client;
+use OESS::User;
 use OESS::VRF;
 
 
@@ -62,6 +63,16 @@ $ws->register_method($get_circuits);
 
 sub get {
     my ($method, $args) = @_;
+
+    my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
+    if (!defined $user) {
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+        return;
+    }
+    if (!$user->in_workgroup($args->{workgroup_id}->{value})) {
+        $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
+        return;
+    }
 
     my $circuits = [];
     my $circuit_datas = OESS::DB::Circuit::fetch_circuits(
@@ -181,17 +192,31 @@ $ws->register_method($provision);
 sub provision {
     my ($method, $args) = @_;
 
-    my $user = OESS::DB::User::fetch(db => $db, username => $ENV{REMOTE_USER});
+    my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if ($user->{type} eq 'read-only') {
+    if ($user->type eq 'read-only') {
         $method->set_error("User '$user->{username}' is read-only.");
         return;
     }
 
     if (defined $args->{circuit_id}->{value} && $args->{circuit_id}->{value} != -1) {
+        my $circuit = new OESS::L2Circuit(
+            db => $db,
+            circuit_id => $args->{circuit_id}->{value}
+        );
+        if (!defined $circuit) {
+            $method->set_error("Couldn't load Circuit from database.");
+            return;
+        }
+
+        if (!$user->in_workgroup($circuit->workgroup_id)) {
+            $method->set_error("User '$user->{username}' isn't a member of this Circuit's workgroup.");
+            return;
+        }
+
         return update($method, $args);
     }
 
@@ -671,12 +696,12 @@ $ws->register_method($remove);
 sub remove {
     my ($method, $args) = @_;
 
-    my $user = OESS::DB::User::fetch(db => $db, username => $ENV{REMOTE_USER});
+    my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if ($user->{type} eq 'read-only') {
+    if ($user->type eq 'read-only') {
         $method->set_error("User '$user->{username}' is read-only.");
         return;
     }
@@ -690,6 +715,10 @@ sub remove {
     if (!defined $circuit) {
         $method->set_error("Couldn't load Circuit from database.");
         $db->rollback;
+        return;
+    }
+    if (!$user->in_workgroup($circuit->workgroup_id)) {
+        $method->set_error("User '$user->{username}' isn't a member of this Circuit's workgroup.");
         return;
     }
 
