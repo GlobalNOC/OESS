@@ -397,6 +397,12 @@ sub provision {
 
     _send_update_cache($circuit->circuit_id);
     _send_add_command($circuit->circuit_id);
+    _send_event(
+        status  => 'up',
+        reason  => 'provisioned',
+        type    => 'provisioned',
+        circuit => $circuit->to_hash
+    );
 
     warn Dumper($circuit->to_hash);
     return {success => 1, circuit_id => $circuit_id};
@@ -625,6 +631,13 @@ sub update {
     _send_update_cache($circuit->circuit_id);
     _send_add_command($circuit->circuit_id);
 
+    _send_event(
+        status  => 'up',
+        reason  => 'edited',
+        type    => 'modified',
+        circuit => $circuit->to_hash
+    );
+
     return { success => 1, circuit_id => $circuit->circuit_id };
 }
 
@@ -724,6 +737,13 @@ sub remove {
     $db->commit;
     _send_update_cache($args->{circuit_id}->{value});
 
+    _send_event(
+        status  => 'removed',
+        reason  => "removed by $ENV{REMOTE_USER}",
+        type    => 'removed',
+        circuit => $circuit->to_hash
+    );
+
     return {status => 1};
 }
 
@@ -815,6 +835,39 @@ sub _send_update_cache {
         return ($result, "Error occured while calling update_cache: $result->{error}");
     }
     return ($result->{results}->{status}, $err);
+}
+
+sub _send_event {
+    my $args = {
+        status  => undef,
+        reason  => undef,
+        type    => undef,
+        circuit => undef,
+        @_
+    };
+
+    if (!defined $mq) {
+        warn "Failed to send circuit notification: Couldn't create RabbitMQ Client.";
+        return;
+    }
+    $mq->{'topic'} = 'OF.FWDCTL.event';
+
+    $args->{circuit}->{status} = $args->{status};
+    $args->{circuit}->{reason} = $args->{reason};
+    $args->{circuit}->{type}   = $args->{type};
+
+    eval {
+        $mq->circuit_notification(
+            type => $args->{circuit}->{type},
+            link_name => 'n/a',
+            affected_circuits => [ $args->{circuit} ],
+            no_reply => 1
+        );
+    };
+    if ($@) {
+        warn "Failed to send circuit notification: $@";
+    }
+    return;
 }
 
 $ws->handle_request();
