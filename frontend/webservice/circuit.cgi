@@ -183,11 +183,11 @@ sub provision {
 
     my $user = OESS::DB::User::fetch(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
-        $method->set_error("User '$user->{auth_name}' is invalid.");
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
     if ($user->{type} eq 'read-only') {
-        $method->set_error("User '$user->{auth_name}' is read-only.");
+        $method->set_error("User '$user->{username}' is read-only.");
         return;
     }
 
@@ -673,11 +673,11 @@ sub remove {
 
     my $user = OESS::DB::User::fetch(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
-        $method->set_error("User '$user->{auth_name}' is invalid.");
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
     if ($user->{type} eq 'read-only') {
-        $method->set_error("User '$user->{auth_name}' is read-only.");
+        $method->set_error("User '$user->{username}' is read-only.");
         return;
     }
 
