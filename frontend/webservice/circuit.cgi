@@ -69,7 +69,7 @@ sub get {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if (!$user->in_workgroup($args->{workgroup_id}->{value})) {
+    if (!$user->is_admin && !$user->in_workgroup($args->{workgroup_id}->{value})) {
         $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
         return;
     }
@@ -212,7 +212,7 @@ sub provision {
             return;
         }
 
-        if (!$user->in_workgroup($circuit->workgroup_id)) {
+        if (!$user->is_admin && !$user->in_workgroup($circuit->workgroup_id)) {
             $method->set_error("User '$user->{username}' isn't a member of this Circuit's workgroup.");
             return;
         }
@@ -717,7 +717,7 @@ sub remove {
         $db->rollback;
         return;
     }
-    if (!$user->in_workgroup($circuit->workgroup_id)) {
+    if (!$user->is_admin && !$user->in_workgroup($circuit->workgroup_id)) {
         $method->set_error("User '$user->{username}' isn't a member of this Circuit's workgroup.");
         return;
     }
