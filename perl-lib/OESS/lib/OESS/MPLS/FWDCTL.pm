@@ -162,7 +162,7 @@ sub build_cache{
 
     $logger->debug("Fetching State from the DB");
     # my $circuits = $db->get_current_circuits( type => 'mpls');
-    my $circuits = OESS::DB::Circuit::fetch_circuits(db => $db2);
+    my $circuits = OESS::DB::Circuit::fetch_circuits(db => $db2, state => 'active');
     warn Dumper($circuits);
 
     #init our objects
