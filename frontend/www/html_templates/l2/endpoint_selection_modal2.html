@@ -40,11 +40,14 @@
                     <label class="control-label">Max Bandwidth (Mb/s)</label>
                     <select class="form-control entity-bandwidth"></select>
                   </div>
-                  <!-- style="display: ${entity.cloud_interconnect_id ? 'block' : 'none'};" -->
-                  <!-- <div class="form-group entity-cloud-account"> -->
-                  <!--   <label class="control-label entity-cloud-account-label">Cloud Label</label> -->
-                  <!--   <input class="form-control entity-cloud-account-id" type="text" placeholder="123456789"> -->
-                  <!-- </div> -->
+                  <div class="form-group entity-cloud-account">
+                    <label class="control-label entity-cloud-account-label">Cloud Label</label>
+                    <input class="form-control entity-cloud-account-id" type="text" placeholder="123456789">
+                  </div>
+                  <div class="form-group">
+                    <label class="control-label">Jumbo Frames</label><br/>
+                    <input class="entity-jumbo-frames" type="checkbox"> Enable</input>
+                  </div>
 
                   <!-- style="display: ${vlanSelectable ? 'inline-block' : 'none'}" -->
                   <button class="btn btn-success add-entity-submit" type="submit">

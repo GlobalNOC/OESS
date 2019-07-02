@@ -123,7 +123,9 @@ class EntityForm extends Component {
     let accessRequestable = false;
     let vlanSelectable = true;
     let vlanOptions = '';
-    let jumboToggleable = false;
+
+    let jumboDisabled = false;
+    let jumboChecked = true;
 
     for (let i = 0; i < vlans.length; i++) {
       let selected = vlans[i] == props.vlan ? 'selected' : '';
@@ -148,14 +150,30 @@ class EntityForm extends Component {
     if (entity.cloud_interconnect_id === null || entity.cloud_interconnect_id === 'null' || entity.cloud_interconnect_id === '') {
       entity.cloud_interconnect_id = null;
       entity.cloud_interconnect_type = '';
+
+      jumboChecked = true;
+      jumboDisabled = false;
     } else {
       if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
         cloudAccountLabel = 'GCP Pairing Key';
+
+        jumboChecked = false;
+        jumboDisabled = true;
       } else if (entity.cloud_interconnect_type === 'azure-express-route') {
         cloudAccountLabel = 'ExpressRoute Service Key';
+
+        jumboChecked = false;
+        jumboDisabled = true;
       } else if (entity.cloud_interconnect_type === 'aws-hosted-vinterface') {
-        jumboToggleable = true;
+
+        jumboChecked = true;
+        jumboDisabled = false;
       }
+    }
+
+    // Set jumbo checkbox if passed via props
+    if (props.jumbo !== null) {
+      jumboChecked = props.jumbo;
     }
 
     let bandwidthOptions = `<option value="0" selected>Unlimited</option>`;
@@ -206,7 +224,7 @@ class EntityForm extends Component {
     </div>
     <div class="form-group">
       <label class="control-label">Jumbo Frames</label><br/>
-      <input id="entity-jumbo-frames" type="checkbox" ${props.jumbo ? 'checked' : ''} ${jumboToggleable ? '' : 'disabled'}> Enable</input>
+      <input id="entity-jumbo-frames" type="checkbox" ${jumboChecked ? 'checked' : ''} ${jumboDisabled ? 'disabled' : ''}> Enable</input>
     </div>
     <div class="form-group" id="entity-cloud-account" style="display: ${entity.cloud_interconnect_id ? 'block' : 'none'};">
       <label id="entity-cloud-account-label" class="control-label">${cloudAccountLabel}</label>

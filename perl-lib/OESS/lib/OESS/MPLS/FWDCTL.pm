@@ -11,6 +11,7 @@ use Socket;
 use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
+use OESS::L2Circuit;
 use OESS::VRF;
 
 #anyevent
@@ -24,6 +25,7 @@ use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Dispatcher;
 
 use OESS::DB;
+use OESS::DB::Circuit;
 use OESS::VRF;
 
 use constant FWDCTL_WAITING     => 2;
@@ -156,10 +158,11 @@ sub build_cache{
     #basic assertions
     $logger->error("DB was not defined") && $logger->logcluck() && exit 1 if !defined($db);
     $logger->error("DB Version does not match expected version") && $logger->logcluck() && exit 1 if !$db->compare_versions();
-    
-    
+
+
     $logger->debug("Fetching State from the DB");
-    my $circuits = $db->get_current_circuits( type => 'mpls');
+    # my $circuits = $db->get_current_circuits( type => 'mpls');
+    my $circuits = OESS::DB::Circuit::fetch_circuits(db => $db2, state => 'active');
     warn Dumper($circuits);
 
     #init our objects
@@ -171,9 +174,11 @@ sub build_cache{
     foreach my $circuit (@$circuits) {
 	$logger->error("Updating Cache for circuit: " . $circuit->{'circuit_id'});
         my $id = $circuit->{'circuit_id'};
-        my $ckt = OESS::Circuit->new( db => $db,
-                                      circuit_id => $id );
-        $ckts{ $ckt->get_id() } = $ckt;
+        my $ckt = OESS::L2Circuit->new(
+            db => $db2,
+            circuit_id => $id
+        );
+        $ckts{ $ckt->circuit_id() } = $ckt;
         
         my $operational_state = $circuit->{'details'}->{'operational_state'};
         if ($operational_state eq 'up') {
@@ -258,73 +263,62 @@ sub _write_cache{
 
     my %switches;
 
-    foreach my $vrf (keys (%{$self->{'vrfs'}})){
-        $self->{'logger'}->error("Writing cache for VRF: " . $vrf);
-	$vrf = $self->get_vrf_object($vrf);
+    foreach my $vrf_id (keys (%{$self->{'vrfs'}})){
+        $self->{'logger'}->debug("Writing VRF $vrf_id to cache.");
+        my $vrf = $self->get_vrf_object($vrf_id);
+        if (!defined $vrf) {
+            $self->{'logger'}->error("VRF $vrf_id could't be loaded or written to cache.");
+        }
 
-	my $eps = $vrf->endpoints();
-	
-	my @ints;
-	foreach my $ep (@$eps){
-	    my @bgp;
+        my $eps = $vrf->endpoints();
 
-	    foreach my $bgp (@{$ep->peers()}){
-		push(@bgp, $bgp->to_hash());
-	    }
-	    
-            my $int_obj = { name => $ep->interface()->name,
-                            mtu  => $ep->mtu(),
-                            type => $ep->interface()->cloud_interconnect_type,
-                            tag => $ep->tag(),
-                            unit => $ep->unit(),
-                            inner_tag => $ep->inner_tag(),
-                            bandwidth => $ep->bandwidth(),
-                            peers => \@bgp };
-	    
-	    
-	    if(defined($switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()})){
-		push(@{$switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()}{'interfaces'}}, $int_obj); 
-            }else{
-                $switches{$ep->node()->name()}->{'vrfs'}{$vrf->vrf_id()} = { name => $vrf->name(),
-                                                                             vrf_id => $vrf->vrf_id(),
-                                                                             interfaces => [$int_obj],
-                                                                             prefix_limit => $vrf->prefix_limit(),
-                                                                             state => $vrf->state(),
-                                                                             local_asn => $vrf->local_asn(),
+        my @ints;
+        foreach my $ep (@$eps){
+            my $int_obj = $ep->to_hash;
 
-		}	
-	    }
-	}
+            if (defined $switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}) {
+                push(@{$switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}{'interfaces'}}, $int_obj);
+            } else {
+                $switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()} = {
+                    name => $vrf->name(),
+                    vrf_id => $vrf->vrf_id(),
+                    interfaces => [$int_obj],
+                    prefix_limit => $vrf->prefix_limit(),
+                    state => $vrf->state(),
+                    local_asn => $vrf->local_asn(),
+                };
+            }
+        }
     }
 
     foreach my $ckt_id (keys (%{$self->{'circuit'}})){
         my $found = 0;
         next if $self->{'circuit'}->{$ckt_id}->{'type'} ne 'mpls';
 
-        $self->{'logger'}->debug("writing circuit: " . $ckt_id . " to cache");
-        
+        $self->{'logger'}->debug("Writing Circuit $ckt_id to cache.");
         my $ckt = $self->get_ckt_object($ckt_id);
-        if(!defined($ckt)){
-            $self->{'logger'}->error("No Circuit could be created or found for circuit: " . $ckt_id);
+        if (!defined $ckt) {
+            $self->{'logger'}->error("Circuit $ckt_id couldn't be loaded or written to cache.");
             next;
         }
-        my $details = $ckt->get_details();
-        my $eps = $ckt->get_endpoints();
+        my $details = $ckt->to_hash();
+        my $eps = $ckt->endpoints();
 
         my $ckt_type = "L2VPN";
 
-        if(defined $ckt->get_mpls_path_type(path => 'primary') && scalar(@{$ckt->get_path(path => 'primary')}) > 0){
+        my $primary_path = $ckt->path(type => 'primary');
+        if (defined $primary_path && @{$primary_path->links} > 0) {
             $ckt_type = "L2CCC";
         }
 
-	if(scalar(@$eps) > 2){
-	    $ckt_type = "L2VPLS";
-	}
+        if(scalar(@$eps) > 2){
+            $ckt_type = "L2VPLS";
+        }
 
 	my $site_id = 0;
 	foreach my $ep_a (@$eps){
             my @ints;
-            push(@ints, $ep_a);
+            push(@ints, $ep_a->to_hash);
 
 	    $site_id++;
 	    my $paths = [];
@@ -346,7 +340,7 @@ sub _write_cache{
                     # Because we are only creating a single circuit
                     # object per node, we should include any other
                     # interface we see on $ep_a->{'node'}.
-                    push(@ints, $ep_z);
+                    push(@ints, $ep_z->to_hash);
                     next;
                 }
 
@@ -360,77 +354,104 @@ sub _write_cache{
                 }
                 $touch->{$ep_z->{'node'}} = 1;
 
-                
-		# Because the path hops are specific to the direction
-		my $primary = $ckt->get_mpls_path_type( path => 'primary');
-		
-		if(!defined($primary) || $primary eq 'none' || $primary eq 'loose'){
-		    #either we have a none or a loose type for mpls type... or its not defined... in any case... use a loose path
-		    push(@$paths,{ name => 'PRIMARY',  
-				   mpls_path_type => 'loose',
-				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
-		}else{
-		    #ok so they specified a strict path... get the LSPs
-		    push(@$paths,{ name => 'PRIMARY', mpls_path_type => 'strict',
-				   path => $ckt->get_mpls_hops( path => 'primary',
-								 start => $ep_a->{'node'},
-								 end => $ep_z->{'node'}),
-				   dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				   dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
-			 });
-		    
-		    my $backup = $ckt->get_mpls_path_type( path => 'backup');
-		    
-		    if(!defined($backup) || $backup eq 'none' || $backup eq 'loose'){
-			push(@$paths,{ name => 'SECONDARY', 
-				       mpls_path_type => 'loose',
-				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
-		    }else{
-			push(@$paths,{ name => 'SECONDARY',
-				       mpls_path_type => 'strict',
-				       path => $ckt->get_mpls_hops( path => 'backup',
-								     start => $ep_a->{'node'},
-								     end => $ep_z->{'node'}),
-				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
-			     });
-			#our tertiary path...
-			push(@$paths,{ name => 'TERTIARY',
-				       dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-				       mpls_path_type => 'loose',
-				       dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
-			     });
-		    }
-		}	
-	    }
 
-	    $self->{'logger'}->debug("Adding Circuit: " . $ckt->get_name() . " to cache for node: " . $ep_a->{'node'});
+                my $primary = $ckt->get_path(type => 'primary');
+                if (!defined $primary) {
+                    push @$paths, {
+                        name           => 'PRIMARY',
+                        mpls_path_type => 'loose',
+                        dest           => $self->{node_info}->{$ep_z->{node}}->{loopback_address},
+                        dest_node      => $self->{node_info}->{$ep_z->{node}}->{node_id}
+                    };
+                } else {
+                    my $loopback_a = $self->{node_info}->{$ep_a->{node}}->{loopback_address};
+                    my $loopback_z = $self->{node_info}->{$ep_z->{node}}->{loopback_address};
+                    push @$paths, {
+                        name           => 'PRIMARY',
+                        mpls_path_type => 'strict',
+                        path           => $primary->hops($loopback_a, $loopback_z),
+                        dest           => $self->{node_info}->{$ep_z->{node}}->{loopback_address},
+                        dest_node      => $self->{node_info}->{$ep_z->{node}}->{node_id}
+                    };
+
+                    push @$paths, {
+                        name           => 'TERTIARY',
+                        dest           => $self->{node_info}->{$ep_z->{node}}->{loopback_address},
+                        mpls_path_type => 'loose',
+                        dest_node      => $self->{node_info}->{$ep_z->{node}}->{node_id}
+                    };
+                }
+
+                # Because the path hops are specific to the direction
+                # my $primary = $ckt->get_mpls_path_type( path => 'primary');
+
+                # if(!defined($primary) || $primary eq 'none' || $primary eq 'loose'){
+                #     #either we have a none or a loose type for mpls type... or its not defined... in any case... use a loose path
+                #     push(@$paths,{ name => 'PRIMARY',  
+                #                    mpls_path_type => 'loose',
+                #                    dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+                #                    dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+                # }else{
+                #     #ok so they specified a strict path... get the LSPs
+                #     push(@$paths,{ name => 'PRIMARY', mpls_path_type => 'strict',
+                #                    path => $ckt->get_mpls_hops( path => 'primary',
+                #                                                 start => $ep_a->{'node'},
+                #                                                 end => $ep_z->{'node'}),
+                #                    dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+                #                    dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+                #                });
+
+                #     my $backup = $ckt->get_mpls_path_type( path => 'backup');
+
+                #     if(!defined($backup) || $backup eq 'none' || $backup eq 'loose'){
+                #         push(@$paths,{ name => 'SECONDARY', 
+                #                        mpls_path_type => 'loose',
+                #                        dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+                #                        dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
+                #     }else{
+                #         push(@$paths,{ name => 'SECONDARY',
+                #                        mpls_path_type => 'strict',
+                #                        path => $ckt->get_mpls_hops( path => 'backup',
+                #                                                     start => $ep_a->{'node'},
+                #                                                     end => $ep_z->{'node'}),
+                #                        dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+                #                        dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+                #                    });
+                #         #our tertiary path...
+                #         push(@$paths,{ name => 'TERTIARY',
+                #                        dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
+                #                        mpls_path_type => 'loose',
+                #                        dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
+                #                    });
+                #     }
+                # }	
+            }
+
+            $self->{'logger'}->debug("Adding Circuit: " . $ckt->name() . " to cache for node: " . $ep_a->{'node'});
 
             if(scalar(@$paths) == 0){
                 # All observed endpoints are on the same node; Use VPLS.
                 $ckt_type = "L2VPLS";
             }
 
-	    my $obj = { circuit_name => $ckt->get_name(),
-			interfaces => \@ints,
-			paths => $paths,
-			ckt_type => $ckt_type,
-			site_id => $site_id,
-			a_side => $ep_a->{'node_id'},
-                        state  => $ckt->{'state'}
-                      };
+            my $obj = { circuit_name => $ckt->name(),
+                        interfaces => \@ints,
+                        paths => $paths,
+                        ckt_type => $ckt_type,
+                        site_id => $site_id,
+                        a_side => $ep_a->{'node_id'},
+                        state  => $ckt->state()
+                    };
 
-	    $switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}} = $obj;
-	}
+            $switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}} = $obj;
+        }
     }
 
     foreach my $node (keys %{$self->{'node_info'}}){
 	my $data;
 	$data->{'nodes'} = $self->{'node_by_id'};
 	$data->{'ckts'} = $switches{$node}->{'ckts'};
-        $data->{'vrfs'} = $switches{$node}->{'vrfs'};
+    $data->{'vrfs'} = $switches{$node}->{'vrfs'};
 	$self->{'logger'}->info("writing shared file for node_id: " . $self->{'node_info'}->{$node}->{'id'});
 
 	my $file = $self->{'share_file'} . "." . $self->{'node_info'}->{$node}->{'id'};
@@ -667,38 +688,36 @@ sub update_cache {
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
     my $node_id =  $p_ref->{'node_id'}{'value'};
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
-    
+
     if ((!defined($circuit_id) || $circuit_id == -1 ) && (!defined($vrf_id) || $vrf_id == -1)) {
-        $self->{'logger'}->debug("Updating Cache for entire network");
-        
+        $self->{'logger'}->debug("Updating Cache for entire network.");
+
         my $res = build_cache(db => $self->{'db'}, logger => $self->{'logger'}, db2 => $self->{'db2'});
         $self->{'circuit'} = $res->{'ckts'};
-	$self->{'vrfs'} = $res->{'vrfs'};
+        $self->{'vrfs'} = $res->{'vrfs'};
         $self->{'link_status'} = $res->{'link_status'};
         $self->{'circuit_status'} = $res->{'circuit_status'};
         $self->{'node_info'} = $res->{'node_info'};
         $self->{'logger'}->debug("Cache update complete");
-	
-	#want to reference by name and by id
-	my %node_by_id;
-	foreach my $node (keys %{$self->{'node_info'}}){
-	    $node_by_id{$self->{'node_info'}->{$node}->{'id'}} = $self->{'node_info'}->{$node};
-	}
-	$self->{'node_by_id'} = \%node_by_id;
-        
-        $self->{'logger'}->info("Updated cache for entire network");
+
+        #want to reference by name and by id
+        my %node_by_id;
+        foreach my $node (keys %{$self->{'node_info'}}){
+            $node_by_id{$self->{'node_info'}->{$node}->{'id'}} = $self->{'node_info'}->{$node};
+        }
+        $self->{'node_by_id'} = \%node_by_id;
+
+        $self->{'logger'}->info("Updated cache for entire network.");
     } elsif(defined($circuit_id) && $circuit_id != -1) {
-        $self->{'logger'}->debug("Updating cache for circuit $circuit_id");
-        
+        $self->{'logger'}->debug("Updating cache for circuit $circuit_id.");
+
         my $ckt = $self->get_ckt_object($circuit_id);
         if (!defined $ckt) {
             return &$error("Couldn't create circuit object for circuit $circuit_id");
         }
-        
-        $ckt->update_circuit_details();
-        $self->{'logger'}->debug("Updated cache for circuit $circuit_id");
+        $self->{'logger'}->info("Updated cache for circuit $circuit_id.");
     }else{
-        $self->{'logger'}->debug("Updating cache for vrf $vrf_id");
+        $self->{'logger'}->debug("Updating cache for vrf $vrf_id.");
 
         my $vrf = $self->get_vrf_object($vrf_id);
         if (!defined $vrf) {
@@ -706,9 +725,9 @@ sub update_cache {
         }
 
         $vrf->update_vrf_details();
-        $self->{'logger'}->debug("Updated cache for vrf $vrf_id");
+        $self->{'logger'}->info("Updated cache for vrf $vrf_id.");
     }
-    
+
     # Write the cache to file for our children, then signal children to
     # read updates from file.
     $self->_write_cache();
@@ -733,13 +752,10 @@ sub update_cache {
         $self->{'fwdctl_events'}->update_cache(
             async_callback => sub {
                 my $result = shift;
-
                 $condvar->end();
-                $self->{'logger'}->info("Switch $addr updated its cache.");
             }
         );
     }
-    
     $condvar->end();
 }
 
@@ -838,11 +854,13 @@ sub addVrf{
         $self->{'logger'}->error($err);
         return &$error($err);
     }
+$self->{'logger'}->info("called get_vrf_obj");
 
     # The VRF may be cached. If so we must reload from DB. This causes
     # a single load for cached VRFs and a double load for VRFs not
     # cached.
     $vrf->update_vrf_details();
+$self->{'logger'}->info("called update_vrf_details");
 
     if($vrf->state() eq 'decom'){
         my $err = "addVrf: Adding a decom'd vrf is not allowed";
@@ -851,6 +869,7 @@ sub addVrf{
     }
 
     $self->_write_cache();
+$self->{'logger'}->info("called _write_cache");
 
     #get all the DPIDs involved and remove the flows
 
@@ -858,8 +877,8 @@ sub addVrf{
     my %nodes;
     foreach my $ep (@$endpoints){
         $self->{'logger'}->debug("EP: " . Dumper($ep));
-        $self->{'logger'}->debug("addVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
-        $nodes{$ep->node()->name()}= 1;
+        $self->{'logger'}->info("addVrf: Node: " . $ep->node() . " is involved in the vrf");
+        $nodes{$ep->node()}= 1;
     }
 
     my $result = FWDCTL_SUCCESS;
@@ -932,14 +951,13 @@ sub addVrf{
 =head2 delVrf
 
 =cut
-
 sub delVrf{
     my $self = shift;
     my $m_ref = shift;
     my $p_ref = shift;
     my $state_ref = shift;
 
-    $self->{'logger'}->error("delVrf: Removing VRF!");
+
 
     my $success = $m_ref->{'success_callback'};
     my $error = $m_ref->{'error_callback'};
@@ -947,7 +965,7 @@ sub delVrf{
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
 
     $self->{'logger'}->error("delVrf: VRF ID required") && $self->{'logger'}->logconfess() if(!defined($vrf_id));
-    $self->{'logger'}->info("delVrf: MPLS delVrf: $vrf_id");
+    $self->{'logger'}->info("Removing VRF $vrf_id.");
 
     my $vrf = $self->get_vrf_object( $vrf_id );
     if(!defined($vrf)){
@@ -971,8 +989,8 @@ sub delVrf{
     my %nodes;
     foreach my $ep (@$endpoints){
         $self->{'logger'}->debug("EP: " . Dumper($ep));
-        $self->{'logger'}->debug("delVrf: Node: " . $ep->node()->name() . " is involved in the vrf");
-        $nodes{$ep->node()->name()}= 1;
+        $self->{'logger'}->debug("delVrf: Node: " . $ep->node . " is involved in the vrf");
+        $nodes{$ep->node}= 1;
 
     }
 
@@ -1054,15 +1072,14 @@ sub addVlan{
         $self->{'logger'}->error($err);
         return &$error($err);
     }
-    
-    $ckt->update_circuit_details();
+
     if($ckt->{'details'}->{'state'} eq 'decom'){
         my $err = "addVlan: Adding a decom'd circuit is not allowed";
         $self->{'logger'}->error($err);
         return &$error($err);
     }
 
-    if($ckt->get_type() ne 'mpls'){
+    if($ckt->{type} ne 'mpls'){
         my $err = "addVlan: Circuit type 'opeflow' cannot be used here";
         $self->{'logger'}->error($err);
         return &$error($err);
@@ -1071,7 +1088,7 @@ sub addVlan{
     $self->_write_cache();
 
     #get all the DPIDs involved and remove the flows
-    my $endpoints = $ckt->get_endpoints();
+    my $endpoints = $ckt->endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
 	$self->{'logger'}->debug("addVlan: Node: " . $ep->{'node'} . " is involved int he circuit");
@@ -1160,24 +1177,23 @@ sub deleteVlan{
     my $circuit_id = $p_ref->{'circuit_id'}{'value'};
 
     $self->{'logger'}->error("Circuit ID required") && $self->{'logger'}->logconfess() if(!defined($circuit_id));
+    $self->{'logger'}->info("Removing Circuit $circuit_id.");
 
     my $ckt = $self->get_ckt_object( $circuit_id );
     my $event_id = $self->_generate_unique_event_id();
     if(!defined($ckt)){
         return &$error({status => FWDCTL_FAILURE});
     }
-    
-    $ckt->update_circuit_details();
 
     if($ckt->{'details'}->{'state'} eq 'decom'){
-	return &$error("Circuit is already decom'd");
+        return &$error("Circuit is already decom'd");
     }
     
     #update the cache
     $self->_write_cache();
 
     #get all the DPIDs involved and remove the flows
-    my $endpoints = $ckt->get_endpoints();
+    my $endpoints = $ckt->endpoints();
     my %nodes;
     foreach my $ep (@$endpoints){
         $self->{'logger'}->debug("Node: " . $ep->{'node'} . " is involved in the circuit");
@@ -1372,24 +1388,21 @@ returns a ckt object for the requested circuit
 sub get_ckt_object{
     my $self =shift;
     my $ckt_id = shift;
-    
-    my $ckt = $self->{'circuit'}->{$ckt_id};
-    
-    if(!defined($ckt)){
-        $ckt = OESS::Circuit->new( circuit_id => $ckt_id, db => $self->{'db'});
-        if ($ckt->{'type'} ne 'mpls') {
-            $self->{'logger'}->error("Circuit $ckt_id is not of type MPLS.");
-            return undef;
-        }
-	if(!defined($ckt)){
-	    return;
-	}
-	$self->{'circuit'}->{$ckt->get_id()} = $ckt;
-    }
-    
-    if(!defined($ckt)){
+
+    my $ckt = OESS::L2Circuit->new(circuit_id => $ckt_id, db => $self->{'db2'});
+    if (!defined $ckt) {
         $self->{'logger'}->error("Error occured creating circuit: " . $ckt_id);
+        return;
     }
+
+    if ($ckt->{'type'} ne 'mpls') {
+        $self->{'logger'}->error("Circuit $ckt_id is not of type MPLS.");
+        return undef;
+    }
+
+    $ckt->load_endpoints;
+    $ckt->load_paths;
+    $self->{'circuit'}->{$ckt->circuit_id} = $ckt;
 
     return $ckt;
 }

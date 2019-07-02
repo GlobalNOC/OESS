@@ -17,10 +17,9 @@ sub new{
     my $logger = Log::Log4perl->get_logger("OESS.User");
 
     my %args = (
-        vrf_peer_id => undef,
+        user_id => undef,
+        username => undef,
         db => undef,
-        just_display => 0,
-        link_status => undef,
         @_
         );
 
@@ -30,7 +29,7 @@ sub new{
 
     $self->{'logger'} = $logger;
 
-    if(!defined($self->{'db'})){
+    if (!defined $self->{'db'}) {
         $self->{'logger'}->error("No Database Object specified");
         return;
     }
@@ -51,20 +50,21 @@ sub to_hash{
 
     my $obj = {};
 
+    $obj->{'username'} = $self->username();
     $obj->{'first_name'} = $self->first_name();
     $obj->{'last_name'} = $self->last_name();
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
-    
+
     my @wgs;
     foreach my $wg (@{$self->workgroups()}){
         push(@wgs, $wg->to_hash());
     }
-    
+
     $obj->{'is_admin'} = $self->is_admin();
     $obj->{'type'} = $self->type();
     $obj->{'workgroups'} = \@wgs;
-    
+
     return $obj;
 }
 
@@ -76,6 +76,7 @@ sub from_hash{
     my $hash = shift;
 
     $self->{'user_id'} = $hash->{'user_id'};
+    $self->{'username'} = $hash->{'username'};
     $self->{'first_name'} = $hash->{'given_names'};
     $self->{'last_name'} = $hash->{'family_name'};
     $self->{'email'} = $hash->{'email'};
@@ -92,12 +93,24 @@ sub from_hash{
 sub _fetch_from_db{
     my $self = shift;
 
-    my $user = OESS::DB::User::fetch(db => $self->{'db'}, user_id => $self->{'user_id'});
+    my $user = OESS::DB::User::fetch(
+        db => $self->{'db'},
+        user_id => $self->{'user_id'},
+        username => $self->{'username'}
+    );
     if (!defined $user) {
         return;
     }
 
     return $self->from_hash($user);
+}
+
+=head2 username
+
+=cut
+sub username{
+    my $self = shift;
+    return $self->{'username'};
 }
 
 =head2 first_name

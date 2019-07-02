@@ -24,11 +24,10 @@ sub main{
 
     $client->set_url($config->base_url() . "/services/vrf.cgi");
     my $vrfs = $client->get_vrfs( workgroup_id => $workgroup_id);
-    
+
     my $aws_ints = get_aws_virtual_interface($config);
 
     compare_and_update_vrfs( vrfs => $vrfs, aws_ints => $aws_ints, client => $client);
-
 }
 
 sub find_aws_workgroup{
@@ -141,21 +140,22 @@ sub update_oess_vrf{
         my @peerings;
         foreach my $p (@{$ep->{'peers'}}){
             push(@peerings,{ peer_ip => $p->{'peer_ip'},
-                             asn => $p->{'peer_asn'},
+                             peer_asn => $p->{'peer_asn'},
                              key => $p->{'md5_key'},
-                             local_ip => $p->{'local_ip'}});
+                             local_ip => $p->{'local_ip'},
+                             vrf_ep_peer_id => $p->{'vrf_ep_peer_id'}});
         }
-        push(@{$params{'endpoint'}},encode_json({ interface => $ep->{'interface'}->{'name'}, 
-                                                  node => $ep->{'node'}->{'name'},
+        push(@{$params{'endpoint'}},encode_json({ interface => $ep->{'interface'},
+                                                  node => $ep->{'node'},
                                                   tag => $ep->{'tag'},
                                                   bandwidth => $ep->{'bandwidth'},
                                                   inner_tag => $ep->{'inner_tag'},
+                                                  vrf_endpoint_id => $ep->{'vrf_endpoint_id'},
+                                                  circuit_ep_id => $ep->{'circuit_ep_id'},
                                                   peerings => \@peerings}));
-    
-        
     }
-    
-    #warn Dumper(\%params);
+
+    # warn Dumper(\%params);
 
     my $res = $client->provision(%params);
     warn Dumper($res);

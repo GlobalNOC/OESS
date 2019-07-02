@@ -20,22 +20,21 @@ async function loadCommandParams(vrf) {
     let info = {};
 
     vrf.endpoints.forEach(function(e) {
-            console.log(e);
-            if (!(e.node.name in info)) {
-                info[e.node.name] = {};
+            if (!(e.node in info)) {
+                info[e.node] = {};
             }
 
-            if (!(e.interface.name in info[e.node.name])) {
-                info[e.node.name][e.interface.name] = {};
+            if (!(e.interface in info[e.node])) {
+                info[e.node][e.interface] = {};
             }
 
-            if (!(e.tag in info[e.node.name][e.interface.name])) {
-                info[e.node.name][e.interface.name][e.tag] = {};
+            if (!(e.tag in info[e.node][e.interface])) {
+                info[e.node][e.interface][e.tag] = {};
             }
 
             e.peers.forEach(function(p) {
-                    if (!(p.peer_ip in info[e.node.name][e.interface.name][e.tag])) {
-                        info[e.node.name][e.interface.name][e.tag][p.peer_ip] = 1;
+                    if (!(p.peer_ip in info[e.node][e.interface][e.tag])) {
+                        info[e.node][e.interface][e.tag][p.peer_ip] = 1;
                     }
             });
     });

@@ -9,18 +9,29 @@ use Data::Dumper;
 use Getopt::Long;
 use Log::Log4perl;
 use Proc::Daemon;
-
+use XML::Simple;
 
 my $pid_file = "/var/run/oess/mpls_fwdctl.pid";
+
+sub get_diff_interval{
+    eval {
+        my $xml = XMLin('/etc/oess/fwdctl.xml');
+        my $diff_interval = $xml->{diff}->{interval};
+        die unless defined $diff_interval;
+        return $diff_interval;
+    } or do {
+        return 900;
+    }
+}
 
 sub core{
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
     my $FWDCTL = OESS::MPLS::FWDCTL->new();
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
-    my $differ = AnyEvent->timer( after => 5, interval => 900, cb => sub { $FWDCTL->diff() } );
     my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
-
+    my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
+    
     Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.APP')->info("Starting OESS.MPLS.FWDCTL event loop.");
     AnyEvent->condvar->recv;
 }

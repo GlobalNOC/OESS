@@ -72,8 +72,10 @@ CREATE TABLE `circuit_edge_interface_membership` (
   `start_epoch` int(10) NOT NULL,
   `extern_vlan_id` int(10) NOT NULL,
   `inner_tag` int(10) DEFAULT NULL,
+  `bandwidth` int(10) DEFAULT NULL,
   `circuit_edge_id` int(10) NOT NULL AUTO_INCREMENT,
   `unit` int(11) NOT NULL,
+  `mtu` int(11) NOT NULL DEFAULT 9000,
   PRIMARY KEY (`circuit_edge_id`),
   UNIQUE KEY `interface_id` (`interface_id`,`circuit_id`,`end_epoch`,`extern_vlan_id`),
   KEY `circuit_circuit_interface_membership_fk` (`circuit_id`),
@@ -159,11 +161,14 @@ DROP TABLE IF EXISTS `cloud_connection_vrf_ep`;
 CREATE TABLE `cloud_connection_vrf_ep` (
   `cloud_connection_vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
   `vrf_ep_id` int(11) DEFAULT NULL,
+  `circuit_ep_id` int(11) DEFAULT NULL,
   `cloud_account_id` varchar(255) NOT NULL,
   `cloud_connection_id` varchar(255) NOT NULL,
   PRIMARY KEY (`cloud_connection_vrf_ep_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
-  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
+  KEY `cloud_connection_circuit_ep_ibfk_1` (`circuit_ep_id`),
+  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE,
+  CONSTRAINT `cloud_connection_circuit_ep_ibfk_1` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -223,7 +228,7 @@ DROP TABLE IF EXISTS `entity`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `entity` (
   `entity_id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
+  `name` varchar(255) UNIQUE,
   `description` text,
   `logo_url` varchar(255) DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
@@ -245,22 +250,6 @@ CREATE TABLE `entity_hierarchy` (
   KEY `entity_child` (`entity_child_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `entity_interface_membership`
---
-
-DROP TABLE IF EXISTS `entity_interface_membership`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `entity_interface_membership` (
-  `entity_id` int(11) NOT NULL,
-  `interface_id` int(11) NOT NULL,
-  UNIQUE KEY `unique_entity_interface` (`entity_id`,`interface_id`),
-  KEY `interface` (`interface_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
 
 --
 -- Table structure for table `edge_interface_move_maintenance_circuit_membership`
@@ -1013,9 +1002,12 @@ CREATE TABLE `vrf_ep_peer` (
   `state` enum('active','decom') DEFAULT NULL,
   `local_ip` varchar(255) DEFAULT NULL,
   `md5_key` varchar(255) DEFAULT NULL,
+  `circuit_ep_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
-  CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`)
+  KEY `vrf_ep_peer_ibfk_2` (`circuit_ep_id`),
+  CONSTRAINT `vrf_ep_peer_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`),
+  CONSTRAINT `vrf_ep_peer_ibfk_2` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

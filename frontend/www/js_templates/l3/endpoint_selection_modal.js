@@ -10,6 +10,7 @@ class EndpointSelectionModal extends Component {
     this.props.entity = null;
     this.props.entityName = 'TBD';
     this.props.entityNode = 'TBD';
+    this.props.jumbo = null;
 
     this.props.interface = (this.props.interface === null) ? -1 : this.props.interface.interface_id;
 
@@ -115,6 +116,9 @@ class EndpointSelectionModal extends Component {
     let entityAlertOK = document.querySelector('#entity-alert-ok');
     entityAlertOK.innerHTML = '';
     entityAlertOK.style.display = 'none';
+    
+    this.props.entityName = 'TBD';
+    this.props.entityNode = 'TBD';
 
     let addEndpointModal = $('#add-endpoint-modal');
     addEndpointModal.modal('hide');

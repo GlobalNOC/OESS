@@ -144,18 +144,19 @@ sub update_oess_vrf{
         my @peerings;
         foreach my $p (@{$ep->{'peers'}}){
             push(@peerings,{ peer_ip => $p->{'peer_ip'},
-                             asn => $p->{'peer_asn'},
+                             peer_asn => $p->{'peer_asn'},
                              key => $p->{'md5_key'},
-                             local_ip => $p->{'local_ip'}});
+                             local_ip => $p->{'local_ip'},
+                             vrf_ep_peer_id => $p->{'vrf_ep_peer_id'}});
         }
-        push(@{$params{'endpoint'}},encode_json({ interface => $ep->{'interface'}->{'name'}, 
-                                                  node => $ep->{'node'}->{'name'},
+        push(@{$params{'endpoint'}},encode_json({ interface => $ep->{'interface'},
+                                                  node => $ep->{'node'},
                                                   tag => $ep->{'tag'},
                                                   bandwidth => $ep->{'bandwidth'},
                                                   inner_tag => $ep->{'inner_tag'},
+                                                  vrf_endpoint_id => $ep->{'vrf_endpoint_id'},
+                                                  circuit_ep_id => $ep->{'circuit_ep_id'},
                                                   peerings => \@peerings}));
-    
-        
     }
 
     my $res = $client->provision(%params);

@@ -2,7 +2,7 @@
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
-      <name>[% interface.name %]</name>
+      <name>[% interface.interface %]</name>
       <unit>
         <name>[% interface.unit %]</name>
         <description>OESS-L2CCC-[% circuit_id %]</description>
@@ -59,7 +59,7 @@
       <remote-interface-switch>
         <name>OESS-L2CCC-[% circuit_id %]</name>
         [% FOREACH interface IN interfaces %]
-        <interface>[% interface.name %].[% interface.unit %]</interface>
+        <interface>[% interface.interface %].[% interface.unit %]</interface>
         [% END %]
         <transmit-lsp>OESS-L2CCC-[% a_side %]-[% path.dest_node %]-LSP-[% circuit_id %]</transmit-lsp>
         <receive-lsp>OESS-L2CCC-[% path.dest_node %]-[% a_side %]-LSP-[% circuit_id %]</receive-lsp>

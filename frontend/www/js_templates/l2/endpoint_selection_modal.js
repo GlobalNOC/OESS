@@ -10,7 +10,7 @@ class EndpointSelectionModal2 {
   }
 
   display(endpoint) {
-    if (endpoint !== null && endpoint.interface === 'TBD') {
+    if (endpoint !== undefined && endpoint !== null && endpoint.interface === 'TBD') {
       this.populateEntityForm(endpoint);
     } else {
       this.populateEntityForm(endpoint);
@@ -25,7 +25,7 @@ class EndpointSelectionModal2 {
 
     let index = -1;
 
-    if (endpoint !== null) {
+    if (endpoint !== undefined && endpoint !== null) {
       interface_id = endpoint.interface_id;
       index = endpoint.index;
     }
@@ -60,7 +60,7 @@ class EndpointSelectionModal2 {
       let vlans = await getAvailableVLANs(session.data.workgroup_id, interface_id);
       let vlan = (vlans.length === 0) ? -1 : vlans[0];
 
-      if (endpoint !== null) {
+      if (endpoint !== undefined && endpoint !== null) {
         vlan = endpoint.tag;
 
         if (!vlans.includes(endpoint.tag)) {
@@ -92,7 +92,7 @@ class EndpointSelectionModal2 {
         bandwidth:        this.parent.querySelector('.endpoint-bandwidth').value,
         interface:        interfaceSelector.options[interfaceSelector.selectedIndex].dataset.name,
         interface_id:     interfaceSelector.options[interfaceSelector.selectedIndex].value,
-        interface_description: interfaceSelector.options[interfaceSelector.selectedIndex].dataset.description,
+        description:      interfaceSelector.options[interfaceSelector.selectedIndex].dataset.description,
         node:             interfaceSelector.options[interfaceSelector.selectedIndex].dataset.node,
         entity:           null, // entity,
         entity_id:        null, // entity_id,
@@ -117,7 +117,7 @@ class EndpointSelectionModal2 {
     let entity_id = 1;
     let index = -1;
 
-    if (endpoint !== null) {
+    if (endpoint !== undefined && endpoint !== null) {
       entity_id = endpoint.entity_id;
       index = endpoint.index;
     }
@@ -247,7 +247,7 @@ class EndpointSelectionModal2 {
     if (vlans.length > 0) {
       vlan = vlans[0];
     }
-    if (endpoint !== null && 'tag' in endpoint) {
+    if (endpoint !== undefined && endpoint !== null && 'tag' in endpoint) {
       vlan = endpoint.tag;
     }
     if (vlan !== -1 && !vlans.includes(vlan)) {
@@ -273,38 +273,36 @@ class EndpointSelectionModal2 {
     }
 
     // Cloud Connection Input
-    // for (let i = 0; i < entity.interfaces.length; i++) {
-    //   if (typeof entity.interfaces[i].cloud_interconnect_id === 'undefined') {
-    //     continue;
-    //   }
-    //   entity.cloud_interconnect_id = entity.interfaces[i].cloud_interconnect_id;
-    //   entity.cloud_interconnect_type = entity.interfaces[i].cloud_interconnect_type;
-    // }
+    entity.cloud_interconnect_type = null;
 
-    // let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
-    // cloudAccountLabel.innerText = 'AWS Account Owner';
-    // let cloudAccountInput = this.parent.querySelector('.entity-cloud-account');
+    for (let i = 0; i < entity.interfaces.length; i++) {
+      if (typeof entity.interfaces[i].cloud_interconnect_id === 'undefined') {
+        continue;
+      }
+      entity.cloud_interconnect_type = entity.interfaces[i].cloud_interconnect_type;
+    }
 
-    // TODO Set cloudAccountInput placeholder to something resembling
-    // the expected input.
+    let cloudAccountFormGroup = this.parent.querySelector('.entity-cloud-account');
+    let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
+    let cloudAccountInput = this.parent.querySelector('.entity-cloud-account-id');
 
-    // if (!('cloud_interconnect_id' in entity) || entity.cloud_interconnect_id === null || entity.cloud_interconnect_id === 'null' || entity.cloud_interconnect_id === '') {
-    //   entity.cloud_interconnect_id = null;
-    //   entity.cloud_interconnect_type = '';
-    // } else {
-    //   if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
-    //     cloudAccountLabel.innerText = 'GCP Pairing Key';
-    //   } else if (entity.cloud_interconnect_type === 'azure-express-route') {
-    //     cloudAccountLabel.innerText = 'ExpressRoute Service Key';
-    //   }
-    // }
+    cloudAccountFormGroup.style.display = 'none';
+    cloudAccountInput.value = null;
 
-    // let cloudAccount = this.parent.querySelector('.entity-cloud-account');
-    // if (entity.cloud_interconnect_id === null) {
-    //   cloudAccount.style.display = 'none';
-    // } else {
-    //   cloudAccount.style.display = 'block';
-    // }
+    if (entity.cloud_interconnect_type !== null) {
+      cloudAccountFormGroup.style.display = 'block';
+
+      if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
+        cloudAccountLabel.innerText = 'GCP Pairing Key';
+        cloudAccountInput.setAttribute('placeholder', '00000000-0000-0000-0000-000000000000/us-east1/1');
+      } else if (entity.cloud_interconnect_type === 'azure-express-route') {
+        cloudAccountLabel.innerText = 'ExpressRoute Service Key';
+        cloudAccountInput.setAttribute('placeholder', '00000000-0000-0000-0000-000000000000');
+      } else {
+        cloudAccountLabel.innerText = 'AWS Account Owner';
+        cloudAccountInput.setAttribute('placeholder', '012301230123');
+      }
+    }
 
     // Max Bandwidth
     let bandwidthSelector = this.parent.querySelector('.entity-bandwidth');
@@ -353,12 +351,33 @@ class EndpointSelectionModal2 {
       bandwidthSelector.removeAttribute('disabled');
     }
 
-    // TODO Buttons
-    // if no interfaces no request access
-    //    disabled add endpoint
-    // else
-    //   if no vlans request access
-    //      disabled add endpoint
+    // Jumbo Frames
+    let jumboCheckbox = this.parent.querySelector('.entity-jumbo-frames');
+
+    if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
+      jumboCheckbox.checked = true;
+      jumboCheckbox.removeAttribute('disabled');
+    } else if (entity.cloud_interconnect_type === 'aws-hosted-vinterface') {
+      jumboCheckbox.checked = true;
+      jumboCheckbox.removeAttribute('disabled');
+    } else if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
+      jumboCheckbox.checked = false;
+      jumboCheckbox.setAttribute('disabled', '');
+    } else if (entity.cloud_interconnect_type === 'azure-express-route') {
+      jumboCheckbox.checked = false;
+      jumboCheckbox.setAttribute('disabled', '');
+    } else {
+      jumboCheckbox.checked = true;
+      jumboCheckbox.removeAttribute('disabled');
+    }
+
+    if (endpoint !== undefined && endpoint !== null && 'jumbo' in endpoint) {
+      if (endpoint.jumbo == 1) {
+        jumboCheckbox.checked = true;
+      } else {
+        jumboCheckbox.checked = false;
+      }
+    }
 
     let addButton = this.parent.querySelector('.add-entity-submit');
     addButton.onclick = function(e) {
@@ -367,12 +386,12 @@ class EndpointSelectionModal2 {
 
       endpoint.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;
       endpoint.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
-      // endpoint.cloud_account_id = cloudAccountInput.value;
-      endpoint.cloud_account_id = '';
+      endpoint.cloud_account_id = cloudAccountInput.value;
       endpoint.entity = entity.name;
       endpoint.name = 'TBD';
       endpoint.node = 'TBD';
       endpoint.interface = 'TBD';
+      endpoint.jumbo = jumboCheckbox.checked;
 
       state.updateEndpoint(endpoint);
       $('#add-endpoint-modal2').modal('hide');
@@ -425,6 +444,8 @@ class EndpointSelectionModal extends Component {
     this.props.entity = null;
     this.props.entityName = 'TBD';
     this.props.entityNode = 'TBD';
+
+    this.props.interface = props.interface;
 
     this.entityForm = new EntityForm({
       onSubmit: this.onSubmitEntity.bind(this),
@@ -551,8 +572,8 @@ class EndpointSelectionModal extends Component {
     return 1;
   }
 
-  onInterfaceChange(intf) {
-    this.props.interface = intf;
+  onInterfaceChange(interface_id) {
+    this.props.interface = interface_id;
     this.props.vlan = null;
     this.props.entity = null;
     update();
@@ -622,7 +643,7 @@ class EndpointSelectionModal extends Component {
         vlan:   props.tag
       }),
       this.interfaceForm.render({
-        interface: props.interface_id,
+        interface: this.props.interface,
         vlan:      props.tag
       })
     ]);
