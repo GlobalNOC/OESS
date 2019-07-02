@@ -317,14 +317,12 @@ sub send_vrf_notification {
     $clr .= "Last Modified By: " . $vrf->{'last_modified_by'}->{'first_name'} . " " . $vrf->{'last_modified_by'}->{'family_name'} . " at " . $str_modified . " UTC\n";
     $clr .= "Endpoints: \n";
     foreach my $ep (@{$vrf->{'endpoints'}}){
-        $clr .= "  " . $ep->{'node'}->{'name'} . " - " . $ep->{'interface'}->{'name'} . " VLAN " . $ep->{'tag'} . "\n";
+        $clr .= "  " . $ep->{'node'} . " - " . $ep->{'interface'} . " VLAN " . $ep->{'tag'} . "\n";
         foreach my $peer (@{$ep->{'peers'}}){
             $clr .= "    Peer: OESS IP" . $peer->{'local_ip'} . " OESS AS " . $vrf->{'local_asn'} . " Remote AS " . $peer->{'peer_asn'} . " Remote IP " . $peer->{'peer_ip'} . "\n"; 
         }
     }
 
-
-    
 
     my %vars = (
         SUBJECT             => $subject,
@@ -385,7 +383,7 @@ sub send_vrf_notification {
 
     my @workgroups_to_notify;
     foreach my $ep (@{$vrf->{'endpoints'}}){
-        push(@workgroups_to_notify, $ep->{'interface'}->{'workgroup'}->{'workgroup_id'}) if $ep->{'interface'}->{'workgroup'}->{'workgroup_id'} ne $vrf->{'workgroup'}->{'workgroup_id'};
+        push(@workgroups_to_notify, $ep->{'workgroup_id'}) if $ep->{'workgroup_id'} ne $vrf->{'workgroup'}->{'workgroup_id'};
     }
 
     my @full_list;
