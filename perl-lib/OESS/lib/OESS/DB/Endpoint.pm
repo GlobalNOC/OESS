@@ -7,6 +7,7 @@ package OESS::DB::Endpoint;
 
 use Data::Dumper;
 
+use OESS::Entity;
 
 =head1 OESS::DB::Endpoint
 
@@ -133,37 +134,36 @@ sub fetch_all {
 
         $q = "
             SELECT circuit_ep.circuit_edge_id AS circuit_ep_id, circuit_ep.circuit_id,
-                   entity.entity_id, entity.name AS entity,
                    interface.interface_id, interface.name AS interface, interface.operational_state,
                    interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
-                   interface_acl.eval_position,
                    node.node_id, node.name AS node,
                    unit, extern_vlan_id AS tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
             FROM circuit_edge_interface_membership AS circuit_ep
             JOIN interface ON interface.interface_id=circuit_ep.interface_id
             JOIN node ON node.node_id=interface.node_id
-            JOIN interface_acl ON interface_acl.interface_id=interface.interface_id
-            LEFT JOIN entity ON entity.entity_id=interface_acl.entity_id
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.circuit_ep_id=circuit_ep.circuit_edge_id
             $where
             AND circuit_ep.end_epoch = -1
-            AND (circuit_ep.extern_vlan_id >= interface_acl.vlan_start)
-            AND (circuit_ep.extern_vlan_id <= interface_acl.vlan_end)
-            ORDER BY interface_acl.eval_position ASC
         ";
         my $circuit_endpoints = $args->{db}->execute_query($q, $values);
         if (!defined $circuit_endpoints) {
             return (undef, "Couldn't find Circuit Endpoints: " . $args->{db}->get_error);
         }
 
-        my $lookup = {};
         foreach my $e (@$circuit_endpoints) {
-            if (!defined $lookup->{$e->{circuit_ep_id}}) {
-                $lookup->{$e->{circuit_ep_id}} = 1;
-                $e->{type} = 'circuit';
-                push @$endpoints, $e;
+            my $entity = new OESS::Entity(
+                db           => $args->{db},
+                interface_id => $e->{interface_id},
+                vlan         => $e->{tag}
+            );
+            if (defined $entity) {
+                $e->{entity_id} = $entity->entity_id;
+                $e->{entity} = $entity->name;
             }
+            $e->{type} = 'circuit';
+
+            push @$endpoints, $e;
         }
     }
 

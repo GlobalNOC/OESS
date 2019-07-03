@@ -613,7 +613,6 @@ sub get_path{
     my $path = $params{'path'};
 
     if (!defined $path) {
-        $self->{'logger'}->error("Path was not defined.");
         return;
     }
 
