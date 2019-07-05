@@ -399,7 +399,7 @@ sub provision_vrf{
                     db => $db,
                     model => {
                         peer_asn => 12076,
-                        key => '',
+                        md5_key => '',
                         local_ip => '192.168.100.249/30',
                         peer_ip  => '192.168.100.250/30',
                         version  => 4
@@ -410,7 +410,7 @@ sub provision_vrf{
                     db => $db,
                     model => {
                         peer_asn => 12076,
-                        key => '',
+                        md5_key => '',
                         local_ip => '192.168.100.253/30',
                         peer_ip  => '192.168.100.254/30',
                         version  => 4
@@ -488,7 +488,7 @@ sub provision_vrf{
                 }
 
                 $peering->{peer_asn} = (!defined $peering->{peer_asn} || $peering->{peer_asn} eq '') ? 64512 : $peering->{peering_asn};
-                $peering->{md5_key} = (!defined $peering->{key} || $peering->{key} eq '') ? md5_hex(rand) : $peering->{key};
+                $peering->{md5_key} = (!defined $peering->{md5_key} || $peering->{md5_key} eq '') ? md5_hex(rand) : $peering->{md5_key};
                 if ($peering->{version} == 4) {
                     $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
                     $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
@@ -561,7 +561,7 @@ sub provision_vrf{
                     }
 
                     $peering->{peer_asn} = (!defined $peering->{peer_asn} || $peering->{peer_asn} eq '') ? 64512 : $peering->{peering_asn};
-                    $peering->{md5_key} = (!defined $peering->{key} || $peering->{key} eq '') ? md5_hex(rand) : $peering->{key};
+                    $peering->{md5_key} = (!defined $peering->{md5_key} || $peering->{md5_key} eq '') ? md5_hex(rand) : $peering->{md5_key};
                     if ($peering->{version} == 4) {
                         $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
                         $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
@@ -593,7 +593,7 @@ sub provision_vrf{
 
                     $obj->peer_ip($peering->{peer_ip});
                     $obj->peer_asn($peering->{peer_asn});
-                    $obj->md5_key($peering->{key});
+                    $obj->md5_key($peering->{md5_key});
                     $obj->local_ip($peering->{local_ip});
 
                     my $obj_err = $obj->update;
