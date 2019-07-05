@@ -72,7 +72,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       e.peerings.push({
         vrf_ep_peer_id: p.vrfEpPeerId,
         peer_asn: p.asn,
-        key: p.key,
+        md5_key: p.key,
         local_ip: p.oessPeerIP,
         peer_ip:  p.yourPeerIP,
         version: p.ipVersion
