@@ -141,7 +141,7 @@ sub update_oess_vrf{
         foreach my $p (@{$ep->{'peers'}}){
             push(@peerings,{ peer_ip => $p->{'peer_ip'},
                              peer_asn => $p->{'peer_asn'},
-                             key => $p->{'md5_key'},
+                             md5_key => $p->{'md5_key'},
                              local_ip => $p->{'local_ip'},
                              vrf_ep_peer_id => $p->{'vrf_ep_peer_id'}});
         }
