@@ -69,7 +69,7 @@ sub update_oess_vrf {
         foreach my $p (@{$ep->{'peers'}}){
             push(@peerings,{ peer_ip => $p->{'peer_ip'},
                              asn => $p->{'peer_asn'},
-                             key => $p->{'md5_key'},
+                             md5_key => $p->{'md5_key'},
                              local_ip => $p->{'local_ip'}});
         }
         push(@{$params{'endpoint'}},encode_json({ interface => $ep->{'interface'}->{'name'}, 
