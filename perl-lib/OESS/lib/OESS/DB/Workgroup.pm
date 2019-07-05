@@ -9,6 +9,7 @@ use OESS::Interface;
 package OESS::DB::Workgroup;
 
 =head2 fetch
+
 =cut
 sub fetch{
     my %params = @_;
@@ -28,6 +29,7 @@ sub fetch{
 }
 
 =head2 get_users_in_workgroup
+
 =cut
 sub get_users_in_workgroup{
     my %params = @_;
@@ -51,6 +53,40 @@ sub get_users_in_workgroup{
         push(@users, $user);
     }
     return \@users;
+}
+
+=head2 create
+
+=cut
+sub create {
+    my $args = {
+        db    => undef,
+        model => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
+    return (undef, 'Required argument `model->name` is missing.') if !defined $args->{model}->{name};
+    return (undef, 'Required argument `model->description` is missing.') if !exists $args->{model}->{description};
+
+    $args->{model}->{type} = $args->{model}->{type} || 'normal';
+
+    my $q = "
+        INSERT INTO workgroup (name, description, external_id, type)
+        VALUES (?, ?, ?, ?)
+    ";
+    my $workgroup_id = $args->{db}->execute_query($q, [
+        $args->{model}->{name},
+        $args->{model}->{description},
+        $args->{model}->{external_id},
+        $args->{model}->{type}
+    ]);
+    if (!defined $workgroup_id) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    return ($workgroup_id, undef);
 }
 
 1;
