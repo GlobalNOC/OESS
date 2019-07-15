@@ -10,7 +10,7 @@ function NewEndpoint(endpoint) {
   e.querySelector('.l2vpn-inner-tag').innerHTML = endpoint.inner_tag || null;
   e.querySelector('.l2vpn-bandwidth').innerHTML = (endpoint.bandwidth == null || endpoint.bandwidth == 0) ? 'Unlimited' : `${endpoint.bandwidth} Mb/s`;
   e.querySelector('.l2vpn-mtu').innerHTML = endpoint.mtu;
-  e.querySelector('.l2vpn-graph').setAttribute('src', `https://io3.bldc.grnoc.iu.edu/grafana/d-solo/te5oS11mk/oess-l2-interface?panelId=2&amp;orgId=1&amp;from=now-1h&amp;to=now&amp;var-node=${endpoint.node}&amp;var-interface=${endpoint.interface}&amp;refresh=30s`);
+  e.querySelector('.l2vpn-graph').setAttribute('src', `[% g_l2_port %]&from=now-1h&to=now&var-node=${endpoint.node}&var-interface=${endpoint.interface}.${endpoint.tag}&refresh=30s`);
 
   if (endpoint.inner_tag === undefined || endpoint.inner_tag === null || endpoint.inner_tag === '') {
     Array.from(e.querySelectorAll('.d1q')).map(e => e.style.display = 'block');
