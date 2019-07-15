@@ -32,13 +32,18 @@ async function update(props) {
   render(m, document.querySelector('#add-endpoint-modal'), props);
 }
 
+
+let schedule = new Schedule('#schedule-picker');
+
+
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
   load();
 
   loadUserMenu().then(function() {
-      setDateTimeVisibility();
+    // TODO remove?
+    // setDateTimeVisibility();
   });
 
   let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
@@ -98,31 +103,19 @@ async function addNetworkSubmitCallback(event) {
         return null;
     }
 
-    let provisionTime = -1;
-    if (document.querySelector('input[name=provision-time]:checked').value === 'later') {
-        let date = new Date(document.querySelector('#provision-time-picker').value);
-        provisionTime = date.getTime();
-    }
-
-    let removeTime = -1;
-    if (document.querySelector('input[name=remove-time]:checked').value === 'later') {
-        let date = new Date(document.querySelector('#remove-time-picker').value);
-        removeTime = date.getTime();
-    }
-
     let addNetworkLoadingModal = $('#add-network-loading');
     addNetworkLoadingModal.modal('show');
 
     try{
         let vrfID = await provisionVRF(
-                                       session.data.workgroup_id,
-                                       document.querySelector('#description').value,
-                                       document.querySelector('#description').value,
-                                       JSON.parse(sessionStorage.getItem('endpoints')),
-                                       provisionTime,
-                                       removeTime,
-                                       -1
-                                       );
+          session.data.workgroup_id,
+          document.querySelector('#description').value,
+          document.querySelector('#description').value,
+          JSON.parse(sessionStorage.getItem('endpoints')),
+          schedule.createTime(),
+          schedule.removeTime(),
+          -1
+        );
 
         if (vrfID === null) {
             addNetworkLoadingModal.modal('hide');
@@ -138,28 +131,6 @@ async function addNetworkSubmitCallback(event) {
 
 async function addNetworkCancelCallback(event) {
     window.location.href = 'index.cgi?action=welcome';
-}
-
-//--- Main - Schedule ---
-
-function setDateTimeVisibility() {
-  let type = document.querySelector('input[name=provision-time]:checked').value;
-  let pick = document.getElementById('provision-time-picker');
-
-  if (type === 'later') {
-    pick.style.display = 'block';
-  } else {
-    pick.style.display = 'none';
-  }
-
-  type = document.querySelector('input[name=remove-time]:checked').value;
-  pick = document.getElementById('remove-time-picker');
-
-  if (type === 'later') {
-    pick.style.display = 'block';
-  } else {
-    pick.style.display = 'none';
-  }
 }
 
 //--- Main - Endpoint ---
