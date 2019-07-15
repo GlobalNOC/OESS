@@ -41,6 +41,7 @@ sub get_current {
         $method->set_error("Couldn't find user $ENV{'REMOTE_USER'}.");
         return;
     }
+    $result->load_workgroups;
 
     my $hash = $result->to_hash();
     $hash->{username} = $ENV{REMOTE_USER};

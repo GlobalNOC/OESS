@@ -111,9 +111,69 @@ sub create {
         return (undef, $err);
     }
 
+    if (defined $self->{users}) {
+        foreach my $user (@{$self->{users}}) {
+            my ($ok, $user_wg_err) = OESS::DB::Workgroup::add_user(
+                db           => $self->{db},
+                workgroup_id => $workgroup_id,
+                user_id      => $user->user_id
+            );
+            if (defined $user_wg_err) {
+                return (undef, $user_wg_err);
+            }
+        }
+    }
+
     $self->{workgroup_id} = $workgroup_id;
     return ($workgroup_id, undef);
 }
+
+=head2 update
+
+    my $err = $workgroup->update;
+    $db->rollback if (defined $err);
+
+update saves any changes made to this Workgroup and maintains user
+relationships based on calls to C<add_user> and C<remove_user>.
+
+Note that any changes to the underlying User objects will not be
+propagated to the database by this method call. We maintain the object
+structure, Workgroup details, and User-to-Workgroup
+relationships. B<Nothing else.>
+
+=cut
+sub update {
+    my $self = shift;
+    my $args = {
+        @_
+    };
+
+    if (!defined $self->{db}) {
+        $self->{logger}->error("Couldn't update Workgroup: DB handle is missing.");
+        return "Couldn't update Workgroup: DB handle is missing.";
+    }
+
+    foreach my $user_id (@{$self->{users_to_remove}}) {
+        my ($rm_ok, $rm_err) = OESS::DB::Workgroup::remove_user(
+            db => $self->{db},
+            user_id => $user_id,
+            workgroup_id => $self->workgroup_id
+        );
+        return $rm_err if (defined $rm_err);
+    }
+
+    foreach my $user_id (@{$self->{users_to_add}}) {
+        my ($create_ok, $create_err) = OESS::DB::Workgroup::add_user(
+            db => $self->{db},
+            user_id => $user_id,
+            workgroup_id => $self->workgroup_id
+        );
+        return $create_err if (defined $create_err);
+    }
+
+    return;
+}
+
 
 =head2 max_circuits
 
@@ -121,6 +181,46 @@ sub create {
 sub max_circuits{
     my $self = shift;
     return $self->{'max_circuits'};
+}
+
+=head2 add_user
+
+    $path->add_user($user);
+
+add_user adds an C<OESS::User> to this Workgroup. If
+C<$user->{user_id}> isn't defined, C<$this->update> will not save your
+data.
+
+=cut
+sub add_user {
+    my $self = shift;
+    my $user = shift;
+
+    push @{$self->{users_to_add}}, $user->user_id;
+    push @{$self->{users}}, $user;
+}
+
+=head2 remove_user
+
+    $path->remove_user($user_id);
+
+remove_user removes the user identified by C<$user_id> from this
+Workgroup.
+
+=cut
+sub remove_user {
+    my $self = shift;
+    my $user_id = shift;
+
+    my $new_users = [];
+    foreach my $user (@{$self->{users}}) {
+        if ($user->user_id == $user_id) {
+            push @{$self->{users_to_remove}}, $user_id;
+        } else {
+            push @$new_users, $user;
+        }
+    }
+    $self->{users} = $new_users;
 }
 
 =head2 workgroup_id
@@ -156,7 +256,7 @@ sub name{
 =head2 users
 
 =cut
-sub users{
+sub users {
     my $self = shift;
     return $self->{users};
 }
