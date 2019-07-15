@@ -151,18 +151,27 @@ sub fetch_all {
             return (undef, "Couldn't find Circuit Endpoints: " . $args->{db}->get_error);
         }
 
+        my $entity_q = "
+          SELECT entity_id, name
+          FROM entity
+          WHERE entity_id IN (
+              SELECT entity_id
+              FROM interface_acl
+              WHERE interface_id=? AND (vlan_start <= ? AND vlan_end >= ?)
+          )
+        ";
         foreach my $e (@$circuit_endpoints) {
-            my $entity = new OESS::Entity(
-                db           => $args->{db},
-                interface_id => $e->{interface_id},
-                vlan         => $e->{tag}
-            );
-            if (defined $entity) {
-                $e->{entity_id} = $entity->entity_id;
-                $e->{entity} = $entity->name;
+            my $entity = $args->{db}->execute_query($entity_q, [
+                $e->{interface_id},
+                $e->{tag},
+                $e->{tag}
+            ]);
+            if (defined $entity && defined $entity->[0]) {
+                $e->{entity_id} = $entity->[0]->{entity_id};
+                $e->{entity} = $entity->[0]->{name};
             }
-            $e->{type} = 'circuit';
 
+            $e->{type} = 'circuit';
             push @$endpoints, $e;
         }
     }
