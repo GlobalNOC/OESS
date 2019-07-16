@@ -21,6 +21,7 @@ class GlobalState extends Component {
       this.connection.endpoints[e.index] = e;
     }
     update();
+    loadSelectedEndpointList();
   }
 
   deleteEndpoint(i) {
@@ -74,6 +75,7 @@ class GlobalState extends Component {
 let state = new GlobalState();
 
 let schedule = new Schedule('#schedule-picker');
+let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
 
 
 /**
@@ -119,19 +121,11 @@ document.addEventListener('DOMContentLoaded', function() {
   loadUserMenu();
 
   let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
-  // addNetworkEndpoint.addEventListener('click', addNetworkEndpointCallback);
   addNetworkEndpoint.addEventListener('click', function(event) {
-    m.setIndex(-1);
-    m.setEntity(null);
-    m.setJumbo(null);
-    update();
-
-    let endpointSelectionModal = $('#add-endpoint-modal');
-    endpointSelectionModal.modal('show');
+    modal.display(null);
   });
 
   let addNetworkSubmit = document.querySelector('#save-button');
-  // addNetworkSubmit.addEventListener('click', addNetworkSubmitCallback);
   addNetworkSubmit.addEventListener('click', async function(event) {
     if (!document.querySelector('#description').validity.valid) {
       document.querySelector('#description').reportValidity();
@@ -272,15 +266,11 @@ function deletePeering(endpointIndex, peeringIndex) {
 //--- Main ---
 
 function loadSelectedEndpointList() {
-  let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-  let selectedEndpointList = '';
 
-  let e = new EndpointList({endpoints: endpoints});
+  console.log(state.connection);
+  let e = new EndpointList({endpoints: state.connection.endpoints});
   render(e, document.querySelector('#selected-endpoint-list'));
 
-  endpoints.forEach(function(endpoint, index) {
-    //loadPeerFormValidator(index);
-  });
 }
 
 function loadPeerFormValidator(index) {

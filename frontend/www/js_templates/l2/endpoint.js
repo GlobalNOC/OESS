@@ -32,19 +32,6 @@ function NewEndpoint(endpoint) {
   return e;
 }
 
-class EndpointModal extends Component {
-  constructor(state) {
-    super();
-    this.state = state;
-  }
-
-  async render(props) {
-    return `
-EndpointModal
-`;
-  }
-}
-
 class Endpoint extends Component {
   constructor(state) {
     super();
