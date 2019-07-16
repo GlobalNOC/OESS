@@ -1,3 +1,81 @@
+class GlobalState extends Component {
+  constructor(state) {
+    super();
+    this.connection = {
+      id:        -1,
+      endpoints: []
+    };
+  }
+
+  async selectConnection(id) {
+    if (id != -1) {
+      // this.connection = await getCircuit(id);
+    }
+    update();
+  }
+
+  updateEndpoint(e) {
+    if (e.index < 0) {
+      this.connection.endpoints.push(e);
+    } else {
+      this.connection.endpoints[e.index] = e;
+    }
+    update();
+  }
+
+  deleteEndpoint(i) {
+    this.connection.endpoints.splice(i, 1);
+    update();
+  }
+
+  async save() {
+    console.log('Connection:', this.connection);
+
+    if (!document.querySelector('#description').validity.valid) {
+      document.querySelector('#description').reportValidity();
+      return;
+    }
+
+    let addNetworkLoadingModal = $('#add-network-loading');
+    addNetworkLoadingModal.modal('show');
+
+    try {
+      let vrfID = await provisionVRF(
+        session.data.workgroup_id,
+        document.querySelector('#description').value,
+        document.querySelector('#description').value,
+        JSON.parse(sessionStorage.getItem('endpoints')),
+        schedule.createTime(),
+        schedule.removeTime(),
+        -1
+      );
+
+      if (vrfID === null) {
+        addNetworkLoadingModal.modal('hide');
+      } else {
+        window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
+      }
+    } catch (error){
+      addNetworkLoadingModal.modal('hide');
+      alert('Failed to provision L3VPN: ' + error);
+      return;
+    }
+  }
+
+  cancel() {
+    if (!window.confirm('Are you sure you wish to cancel? All your changes will be lost.')) {
+      return;
+    }
+    window.location.href = 'index.cgi';
+  }
+}
+
+
+let state = new GlobalState();
+
+let schedule = new Schedule('#schedule-picker');
+
+
 /**
  * render calls obj.render(props) to generate an HTML string. Once
  * generated, the HTML string is assigned to elem.innerHTML.
@@ -33,27 +111,63 @@ async function update(props) {
 }
 
 
-let schedule = new Schedule('#schedule-picker');
-
-
 document.addEventListener('DOMContentLoaded', function() {
   sessionStorage.setItem('endpoints', '[]');
 
   load();
 
-  loadUserMenu().then(function() {
-    // TODO remove?
-    // setDateTimeVisibility();
+  loadUserMenu();
+
+  let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
+  // addNetworkEndpoint.addEventListener('click', addNetworkEndpointCallback);
+  addNetworkEndpoint.addEventListener('click', function(event) {
+    m.setIndex(-1);
+    m.setEntity(null);
+    m.setJumbo(null);
+    update();
+
+    let endpointSelectionModal = $('#add-endpoint-modal');
+    endpointSelectionModal.modal('show');
   });
 
-  let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
-  addNetworkEndpoint.addEventListener('click', addNetworkEndpointCallback);
+  let addNetworkSubmit = document.querySelector('#save-button');
+  // addNetworkSubmit.addEventListener('click', addNetworkSubmitCallback);
+  addNetworkSubmit.addEventListener('click', async function(event) {
+    if (!document.querySelector('#description').validity.valid) {
+      document.querySelector('#description').reportValidity();
+      return;
+    }
 
-  let addNetworkSubmit = document.querySelector('#add-network-submit');
-  addNetworkSubmit.addEventListener('click', addNetworkSubmitCallback);
+    let addNetworkLoadingModal = $('#add-network-loading');
+    addNetworkLoadingModal.modal('show');
 
-  let addNetworkCancel = document.querySelector('#add-network-cancel');
-  addNetworkCancel.addEventListener('click', addNetworkCancelCallback);
+    try {
+      let vrfID = await provisionVRF(
+        session.data.workgroup_id,
+        document.querySelector('#description').value,
+        document.querySelector('#description').value,
+        JSON.parse(sessionStorage.getItem('endpoints')),
+        schedule.createTime(),
+        schedule.removeTime(),
+        -1
+      );
+
+      if (vrfID === null) {
+        addNetworkLoadingModal.modal('hide');
+      } else {
+        window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
+      }
+    } catch (error){
+      addNetworkLoadingModal.modal('hide');
+      alert('Failed to provision L3VPN: ' + error);
+      return;
+    }
+  });
+
+  let addNetworkCancel = document.querySelector('#cancel-button');
+  addNetworkCancel.addEventListener('click', function(event) {
+    window.location.href = 'index.cgi?action=welcome';
+  });
 
   let url = new URL(window.location.href);
   let id = url.searchParams.get('prepop_vrf_id');
@@ -61,16 +175,6 @@ document.addEventListener('DOMContentLoaded', function() {
       showAndPrePopulateEndpointSelectionModal(id);
   }
 });
-
-async function addNetworkEndpointCallback(event) {
-  m.setIndex(-1);
-  m.setEntity(null);
-  m.setJumbo(null);
-  update();
-
-  let endpointSelectionModal = $('#add-endpoint-modal');
-  endpointSelectionModal.modal('show');
-}
 
 async function modifyNetworkEndpointCallback(index) {
   let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
@@ -95,42 +199,6 @@ async function deleteNetworkEndpointCallback(index) {
     sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
 
     loadSelectedEndpointList();
-}
-
-async function addNetworkSubmitCallback(event) {
-    if (!document.querySelector('#description').validity.valid) {
-        document.querySelector('#description').reportValidity();
-        return null;
-    }
-
-    let addNetworkLoadingModal = $('#add-network-loading');
-    addNetworkLoadingModal.modal('show');
-
-    try{
-        let vrfID = await provisionVRF(
-          session.data.workgroup_id,
-          document.querySelector('#description').value,
-          document.querySelector('#description').value,
-          JSON.parse(sessionStorage.getItem('endpoints')),
-          schedule.createTime(),
-          schedule.removeTime(),
-          -1
-        );
-
-        if (vrfID === null) {
-            addNetworkLoadingModal.modal('hide');
-        } else {
-            window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
-        }
-    } catch (error){
-        addNetworkLoadingModal.modal('hide');
-        alert('Failed to provision L3VPN: ' + error);
-        return;
-    }
-}
-
-async function addNetworkCancelCallback(event) {
-    window.location.href = 'index.cgi?action=welcome';
 }
 
 //--- Main - Endpoint ---

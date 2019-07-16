@@ -21,7 +21,11 @@
 
   [% INCLUDE html_templates/l2/schedule.html %]
 
-  [% INCLUDE html_templates/provision_cloud/EndpointSelectionModal.html %]
+  <!-- legacy endpoint selection modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" id="add-endpoint-modal"></div>
+
+  <!-- new endpoint selection modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" id="endpoint-selection-modal"></div>
 
   <div class="modal fade" role="dialog" tabindex="-1" id="add-network-loading">
     <div class="modal-dialog" role="document">
@@ -38,10 +42,10 @@
       <h2>New Layer 3 Connection</h2>
     </div>
     <div class="col-sm-6" style="text-align: right; padding-top: 23px;">
-      <button id="add-network-submit" class="btn-sm btn-success" type="submit">
+      <button id="save-button" class="btn-sm btn-success" type="submit">
         <span class="glyphicon glyphicon-floppy-disk"></span> Save
       </button>
-      <button id="add-network-cancel" class="btn-sm btn-danger" type="button">
+      <button id="cancel-button" class="btn-sm btn-danger" type="button">
         <span class="glyphicon glyphicon-ban-circle"></span> Cancel
       </button>
     </div>
@@ -75,11 +79,11 @@
 
   <div class="row">
     <div class="col-md-12">
-      <button id="add-network-endpoint" class="btn-sm btn-primary" type="submit">
+      <button id="new-endpoint-button" class="btn-sm btn-primary" type="submit">
         <span class="glyphicon glyphicon-plus"></span> New Endpoint
       </button>
 
-      <div id="selected-endpoint-list" style="margin-top: 15px;"></div>      
+      <div id="selected-endpoint-list" style="margin-top: 15px;"></div>
     </div>
   </div>
 
