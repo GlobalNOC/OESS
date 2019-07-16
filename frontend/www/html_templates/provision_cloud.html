@@ -22,11 +22,8 @@
   <!-- Custom Element Templates -->
   [% INCLUDE html_templates/l2/endpoint_selection_modal2.html %]
   [% INCLUDE html_templates/l2/schedule.html %]
+  [% INCLUDE html_templates/l3/endpoint.html %]
 
-  <!-- legacy endpoint selection modal -->
-  <div class="modal fade" role="dialog" tabindex="-1" id="add-endpoint-modal"></div>
-
-  <!-- new endpoint selection modal -->
   <div id="endpoint-selection-modal"></div>
 
   <div class="modal fade" role="dialog" tabindex="-1" id="add-network-loading">
@@ -85,7 +82,7 @@
         <span class="glyphicon glyphicon-plus"></span> New Endpoint
       </button>
 
-      <div id="selected-endpoint-list" style="margin-top: 15px;"></div>
+      <div id="endpoints2-list" style="margin-top: 15px;"></div>
     </div>
   </div>
 

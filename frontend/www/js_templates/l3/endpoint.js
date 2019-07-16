@@ -96,3 +96,92 @@ class EndpointList {
     return `<div>${endpoints}</div>`;
   }
 }
+
+class Endpoint2 {
+  constructor(query, endpoint) {
+    let template = document.querySelector('#template-layer3-endpoint');
+    this.element = document.importNode(template.content, true);
+
+    this.index = endpoint.index;
+
+    let entity = this.element.querySelector('.entity');
+
+    this.element.querySelector('.entity').innerHTML = endpoint.entity || 'NA';
+    this.element.querySelector('.node').innerHTML = endpoint.node;
+    this.element.querySelector('.interface').innerHTML = endpoint.interface;
+    this.element.querySelector('.interface-description').innerHTML = endpoint.description;
+    this.element.querySelector('.tag').innerHTML = endpoint.tag;
+    this.element.querySelector('.inner-tag').innerHTML = endpoint.inner_tag || null;
+    this.element.querySelector('.bandwidth').innerHTML = (endpoint.bandwidth == null || endpoint.bandwidth == 0) ? 'Unlimited' : `${endpoint.bandwidth} Mb/s`;
+    this.element.querySelector('.mtu').innerHTML = endpoint.mtu;
+
+    if (endpoint.inner_tag === undefined || endpoint.inner_tag === null || endpoint.inner_tag === '') {
+      Array.from(this.element.querySelectorAll('.d1q')).map(e => e.style.display = 'block');
+      Array.from(this.element.querySelectorAll('.qnq')).map(e => e.style.display = 'none');
+    } else {
+      Array.from(this.element.querySelectorAll('.d1q')).map(e => e.style.display = 'none');
+      Array.from(this.element.querySelectorAll('.qnq')).map(e => e.style.display = 'block');
+    }
+
+    this.element.querySelector('.modify-endpoint-button').addEventListener('click', function(e) {
+      modal.display(endpoint);
+    });
+
+    this.element.querySelector('.delete-endpoint-button').addEventListener('click', function(e) {
+      state.deleteEndpoint(endpoint.index);
+      update();
+    });
+
+    this.element.querySelector('.add-peering-button').addEventListener('click', function(e) {
+      let ipVersion = this.parent.querySelector(`.ip-version`);
+      if (!ipVersion.validity.valid) {
+        ipVersion.reportValidity();
+        return;
+      }
+      let asn = this.parent.querySelectorAll(`.bgp-asn`)[this.index];
+      if (!asn.validity.valid) {
+        asn.reportValidity();
+        return;
+      }
+      let yourPeerIP = this.parent.querySelectorAll(`.your-peer-ip`)[this.index];
+      if (!yourPeerIP.validity.valid) {
+        yourPeerIP.reportValidity();
+        return;
+      }
+      let key = this.parent.querySelectorAll(`.bgp-key`)[this.index];
+      if (!key.validity.valid) {
+        key.reportValidity();
+        return;
+      }
+      let oessPeerIP = this.parent.querySelectorAll(`.oess-peer-ip`)[this.index];
+      if (!oessPeerIP.validity.valid) {
+        oessPeerIP.reportValidity();
+        return;
+      }
+
+      let ipVersionNo = ipVersion.checked ? 6 : 4;
+
+      let peering = {
+        ipVersion: ipVersionNo,
+        asn: asn.value,
+        key: key.value,
+        oessPeerIP: oessPeerIP.value,
+        yourPeerIP: yourPeerIP.value
+      };
+
+      endpoint.peerings.push(peering);
+      state.updateEndpoint(endpoint);
+
+      update();
+    }.bind(this));
+
+    this.peerings = this.peerings.bind(this);
+
+    this.parent = document.querySelector(query);
+    this.parent.appendChild(this.element);
+  }
+
+  peerings() {
+    return this.parent.querySelectorAll('.peerings')[this.index];
+  }
+}

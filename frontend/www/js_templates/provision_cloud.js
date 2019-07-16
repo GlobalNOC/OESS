@@ -21,7 +21,6 @@ class GlobalState extends Component {
       this.connection.endpoints[e.index] = e;
     }
     update();
-    loadSelectedEndpointList();
   }
 
   deleteEndpoint(i) {
@@ -45,7 +44,7 @@ class GlobalState extends Component {
         session.data.workgroup_id,
         document.querySelector('#description').value,
         document.querySelector('#description').value,
-        JSON.parse(sessionStorage.getItem('endpoints')),
+        this.connection.endpoints,
         schedule.createTime(),
         schedule.removeTime(),
         -1
@@ -78,46 +77,31 @@ let schedule = new Schedule('#schedule-picker');
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
 
 
-/**
- * render calls obj.render(props) to generate an HTML string. Once
- * generated, the HTML string is assigned to elem.innerHTML.
- */
-async function render(obj, elem, props) {
-  elem.innerHTML = await obj.render(props);
-}
-
-
-let m = undefined;
-
-
-async function load() {
-  let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
-  let interface = null;
-
-  let vlans = [];
-  if (interfaces.length > 0) {
-    interface = interfaces[0];
-    vlans = await getAvailableVLANs(session.data.workgroup_id, interface.interface_id);
-  }
-  let vlan = (vlans.length > 0) ? vlans[0] : null;
-
-  m = new EndpointSelectionModal({
-    interface: interface,
-    vlan: vlan
-  });
-  update();
-}
-
 async function update(props) {
-  render(m, document.querySelector('#add-endpoint-modal'), props);
+  console.log(state);
+
+  let list = document.getElementById('endpoints2-list');
+  list.innerHTML = '';
+
+  state.connection.endpoints.map(function(e, i) {
+    e.index = i;
+    e.peerings = ('peerings' in e) ? e.peerings : [];
+    let endpoint = new Endpoint2('#endpoints2-list', e);
+
+    let peeringHTML = '';
+    e.peerings.map(function(p, i) {
+      peeringHTML += `
+      <tr><td>IPv${p.ipVersion}</td><td>${p.asn}</td><td>${p.yourPeerIP}</td><td>${p.key}</td><td>${p.oessPeerIP}</td></tr>
+      `;
+    });
+
+    let elem = endpoint.peerings();
+    elem.innerHTML = peeringHTML;
+  });
 }
 
 
 document.addEventListener('DOMContentLoaded', function() {
-  sessionStorage.setItem('endpoints', '[]');
-
-  load();
-
   loadUserMenu();
 
   let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
@@ -127,35 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let addNetworkSubmit = document.querySelector('#save-button');
   addNetworkSubmit.addEventListener('click', async function(event) {
-    if (!document.querySelector('#description').validity.valid) {
-      document.querySelector('#description').reportValidity();
-      return;
-    }
-
-    let addNetworkLoadingModal = $('#add-network-loading');
-    addNetworkLoadingModal.modal('show');
-
-    try {
-      let vrfID = await provisionVRF(
-        session.data.workgroup_id,
-        document.querySelector('#description').value,
-        document.querySelector('#description').value,
-        JSON.parse(sessionStorage.getItem('endpoints')),
-        schedule.createTime(),
-        schedule.removeTime(),
-        -1
-      );
-
-      if (vrfID === null) {
-        addNetworkLoadingModal.modal('hide');
-      } else {
-        window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
-      }
-    } catch (error){
-      addNetworkLoadingModal.modal('hide');
-      alert('Failed to provision L3VPN: ' + error);
-      return;
-    }
+    state.save();
   });
 
   let addNetworkCancel = document.querySelector('#cancel-button');
@@ -170,32 +126,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-async function modifyNetworkEndpointCallback(index) {
-  let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-  endpoints[index].index = index;
-
-  m.setIndex(index);
-  m.setEntity(endpoints[index].entity_id);
-  m.setInterface(endpoints[index].interface_id);
-  m.setVLAN(endpoints[index].tag);
-  m.setJumbo(endpoints[index].jumbo);
-  update();
-
-  let endpointSelectionModal = $('#add-endpoint-modal');
-  endpointSelectionModal.modal('show');
-}
-
-async function deleteNetworkEndpointCallback(index) {
-    let entity = document.querySelector(`#enity-${index}`);
-
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints.splice(index, 1);
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-
-    loadSelectedEndpointList();
-}
-
-//--- Main - Endpoint ---
 
 function setIPv4ValidationMessage(input) {
     input.addEventListener('input', function(e) {
@@ -209,69 +139,6 @@ function setIPv4ValidationMessage(input) {
     }, false);
 }
 
-function newPeering(index) {
-    let ipVersion = document.querySelector(`#new-peering-form-${index} .ip-version`);
-    if (!ipVersion.validity.valid) {
-        ipVersion.reportValidity();
-        return null;
-    }
-    let asn = document.querySelector(`#new-peering-form-${index} .bgp-asn`);
-    if (!asn.validity.valid) {
-        asn.reportValidity();
-        return null;
-    }
-    let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
-    if (!yourPeerIP.validity.valid) {
-        yourPeerIP.reportValidity();
-        return null;
-    }
-    let key = document.querySelector(`#new-peering-form-${index} .bgp-key`);
-    if (!key.validity.valid) {
-        key.reportValidity();
-        return null;
-    }
-    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
-    if (!oessPeerIP.validity.valid) {
-        oessPeerIP.reportValidity();
-        return null;
-    }
-
-    let ipVersionNo = ipVersion.checked ? 6 : 4;
-
-    let peering = {
-        ipVersion: ipVersionNo,
-        asn: asn.value,
-        key: key.value,
-        oessPeerIP: oessPeerIP.value,
-        yourPeerIP: yourPeerIP.value
-    };
-
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints[index].peerings.push(peering);
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-
-    // Redraw endpoints
-    loadSelectedEndpointList();
-}
-
-function deletePeering(endpointIndex, peeringIndex) {
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints[endpointIndex].peerings.splice(peeringIndex, 1);
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-
-    // Redraw endpoints
-    loadSelectedEndpointList();
-}
-
-//--- Main ---
-
-function loadSelectedEndpointList() {
-
-  console.log(state.connection);
-  let e = new EndpointList({endpoints: state.connection.endpoints});
-  render(e, document.querySelector('#selected-endpoint-list'));
-
-}
 
 function loadPeerFormValidator(index) {
   let ipVersion =  document.querySelector(`#new-peering-form-${index} .ip-version`);

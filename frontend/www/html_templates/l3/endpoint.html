@@ -1,0 +1,61 @@
+<template id="template-layer3-endpoint">
+  <div class="panel panel-default" style="padding: 0 15 0 15;">
+
+    <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
+      <div>
+        <h3>Entity:&nbsp;</h3>
+        <h4>Node:&nbsp;</h3>
+        <h4>Port:&nbsp;</h4>
+        <h5 class="d1q">VLAN:&nbsp;</h5>
+        <h5 class="qnq">STag:</h5>
+        <h5 class="qnq">CTag:</h5>
+        <h6><b>Bandwidth:</b></h6>
+        <h6><b>MTU:</b></h6>
+      </div>
+
+      <div>
+        <h3 class="entity">NA</h3>
+        <h4 class="node"></h4>
+        <h4><span class="interface"></span> <small class="interface-description"></small></h4>
+        <h5 class="tag"></h5>
+        <h5 class="inner-tag"></h5>
+        <h6 class="bandwidth"></h6>
+        <h6 class="mtu"></h6>
+      </div>
+
+      <!-- <iframe class="graph" height="185" frameborder="0" style="flex: 1;"></iframe> -->
+      <div style="flex: 1; padding: 20px 16px 8px;">
+        <!-- <h3>&nbsp;</h3> -->
+        <button class="btn btn-sm btn-primary add-peering-button" type="button" onclick="">
+          <span class="glyphicon glyphicon-plus"></span> New Peer
+        </button>
+
+        <input class="ip-version" type="checkbox" onchange=""> IPv6</input>
+        <input class="form-control bgp-asn"      type="number" />
+        <input class="form-control your-peer-ip" type="text"   />
+        <input class="form-control bgp-key"      type="text"   />
+        <input class="form-control oess-peer-ip" type="text"   />
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr><th></th><th>Your ASN</th><th>Your IP</th><th>Your BGP Key</th><th>OESS IP</th><th></th></tr>
+            </thead>
+            <tbody class="peerings">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display: block;">
+        <button class="btn btn-link modify-endpoint-button" type="button" onclick="" style="padding: 12 6 12 6;">
+          <span class="glyphicon glyphicon-edit"></span>
+        </button>
+        <button class="btn btn-link delete-endpoint-button" type="button" onclick="" style="padding: 12 6 12 6;">
+          <span class="glyphicon glyphicon-trash"></span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</template>
