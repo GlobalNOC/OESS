@@ -1,0 +1,48 @@
+<template id="template-l3-peering-modal">
+  <div class="modal fade" role="dialog" tabindex="-1" id="add-endpoint-peering-modal">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="endpoint-select-header" class="modal-title">Configure a Peering</h4>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom: 15px;">
+            <!-- <div id="entity-alert" class="alert alert-danger" role="alert" style="display: none;"></div> -->
+            <!-- <div id="entity-alert-ok" class="alert alert-info" role="alert" style="display: none;"></div> -->
+
+            <div style="margin-bottom: 15px;"></div>
+
+            <div class="form-group">
+              <label class="control-label">IP Version</label>
+              <br/>
+              <input class="ip-version" type="checkbox"> IPv6</input>
+            </div>
+            <div class="form-group">
+              <label class="control-label">Your ASN</label>
+              <input class="form-control bgp-asn"      type="number" />
+            </div>
+            <div class="form-group">
+              <label class="control-label">Your IP</label>
+              <input class="form-control your-peer-ip" type="text"   />
+            </div>
+            <div class="form-group">
+              <label class="control-label">BGP Key</label>
+              <input class="form-control bgp-key"      type="text"   />
+            </div>
+            <div class="form-group">
+              <label class="control-label">OESS IP</label>
+              <input class="form-control oess-peer-ip" type="text"   />
+            </div>
+
+            <button class="btn btn-success add-peering-modal-button" type="submit">
+              Add Peering
+            </button>
+            <button class="btn btn-danger cancel-peering-modal-button" type="button">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

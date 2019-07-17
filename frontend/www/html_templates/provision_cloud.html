@@ -23,8 +23,10 @@
   [% INCLUDE html_templates/l2/endpoint_selection_modal2.html %]
   [% INCLUDE html_templates/l2/schedule.html %]
   [% INCLUDE html_templates/l3/endpoint.html %]
+  [% INCLUDE html_templates/l3/peering_modal.html %]
 
   <div id="endpoint-selection-modal"></div>
+  <div id="peering-modal"></div>
 
   <div class="modal fade" role="dialog" tabindex="-1" id="add-network-loading">
     <div class="modal-dialog" role="document">
@@ -93,6 +95,7 @@
     [% INCLUDE js_templates/l3/interface.js %]
     [% INCLUDE js_templates/l3/endpoint.js %]
     [% INCLUDE js_templates/l3/endpoint_selection_modal.js %]
+
     [% INCLUDE js_templates/api/vrf.js %]
     [% INCLUDE js_templates/api/vlan.js %]
     [% INCLUDE js_templates/api/interfaces.js  %]
@@ -101,6 +104,7 @@
 
     [% INCLUDE js_templates/l2/schedule.js %]
     [% INCLUDE js_templates/l2/endpoint_selection_modal.js %]
+    [% INCLUDE js_templates/l3/peering_modal.js %]
 
     [% INCLUDE js_templates/provision_cloud.js  %]
   </script>

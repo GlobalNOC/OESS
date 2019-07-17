@@ -24,22 +24,16 @@
       </div>
 
       <!-- <iframe class="graph" height="185" frameborder="0" style="flex: 1;"></iframe> -->
-      <div style="flex: 1; padding: 20px 16px 8px;">
+      <div style="flex: 1; padding: 0 16px 8px;">
         <!-- <h3>&nbsp;</h3> -->
-        <button class="btn btn-sm btn-primary add-peering-button" type="button" onclick="">
+        <button class="btn btn-sm btn-primary add-peering-button" type="button" onclick="" style="margin: 20px 0 6px">
           <span class="glyphicon glyphicon-plus"></span> New Peer
         </button>
-
-        <input class="ip-version" type="checkbox" onchange=""> IPv6</input>
-        <input class="form-control bgp-asn"      type="number" />
-        <input class="form-control your-peer-ip" type="text"   />
-        <input class="form-control bgp-key"      type="text"   />
-        <input class="form-control oess-peer-ip" type="text"   />
 
         <div class="table-responsive">
           <table class="table">
             <thead>
-              <tr><th></th><th>Your ASN</th><th>Your IP</th><th>Your BGP Key</th><th>OESS IP</th><th></th></tr>
+              <tr><th></th><th>Your ASN</th><th>Your IP</th><th>BGP Key</th><th>OESS IP</th><th></th></tr>
             </thead>
             <tbody class="peerings">
             </tbody>
