@@ -133,13 +133,21 @@ class Endpoint2 {
     });
 
     this.element.querySelector('.add-peering-button').addEventListener('click', function(e) {
+      document.querySelector('#peering-modal').innerHTML = '';
       let modal = new PeeringModal('#peering-modal');
-      modal.display();
+      modal.onSubmit((peering) => {
 
-      // endpoint.peerings.push(peering);
-      // state.updateEndpoint(endpoint);
+        if (!'peerings' in endpoint) {
+          endpoint.peerings = [];
+        }
+        endpoint.peerings.push(peering);
+        state.updateEndpoint(endpoint);
 
-      // update();
+        console.log(peering);
+        update();
+      });
+      modal.display(null);
+
     }.bind(this));
 
     this.peerings = this.peerings.bind(this);

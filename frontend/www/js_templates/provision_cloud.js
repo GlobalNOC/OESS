@@ -91,7 +91,14 @@ async function update(props) {
     let peeringHTML = '';
     e.peerings.map(function(p, i) {
       peeringHTML += `
-      <tr><td>IPv${p.ipVersion}</td><td>${p.asn}</td><td>${p.yourPeerIP}</td><td>${p.key}</td><td>${p.oessPeerIP}</td></tr>
+      <tr><td>IPv${p.ipVersion}</td><td>${p.asn}</td><td>${p.yourPeerIP}</td><td>${p.key}</td><td>${p.oessPeerIP}</td>
+<td>
+  <button class="btn btn-link delete-endpoint-button" type="button">
+    <span class="glyphicon glyphicon-trash"></span>
+  </button>
+</td>
+
+</tr>
       `;
     });
 

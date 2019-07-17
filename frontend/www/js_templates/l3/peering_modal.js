@@ -3,63 +3,80 @@ class PeeringModal {
     let template = document.querySelector('#template-l3-peering-modal');
     this.element = document.importNode(template.content, true);
 
-    // this.index = endpoint.index;
-    // TODO - Remove
-    this.index = 0;
 
-    this.element.querySelector('.add-peering-modal-button').addEventListener('click', function(e) {
-      let ipVersion = this.parent.querySelector(`.ip-version`);
-      if (!ipVersion.validity.valid) {
-        ipVersion.reportValidity();
-        return;
-      }
-      let asn = this.parent.querySelectorAll(`.bgp-asn`)[this.index];
+    this.element.querySelector('.cancel-peering-modal-button').addEventListener('click', function(e) {
+    }.bind(this));
+
+    this.display = this.display.bind(this);
+    this.hide = this.hide.bind(this);
+    this.onSubmit = this.onSubmit.bind(this);
+    this.onCancel = this.onCancel.bind(this);
+
+    this.parent = document.querySelector(query);
+    this.parent.appendChild(this.element);
+  }
+
+  onSubmit(f) {
+    this.parent.querySelector('.add-peering-modal-button').addEventListener('click', function(e) {
+      let ipVersion = this.parent.querySelector(`.ip-version`).checked ? 6 : 4;
+      let asn = this.parent.querySelector(`.bgp-asn`);
       if (!asn.validity.valid) {
         asn.reportValidity();
         return;
       }
-      let yourPeerIP = this.parent.querySelectorAll(`.your-peer-ip`)[this.index];
+      let yourPeerIP = this.parent.querySelector(`.your-peer-ip`);
       if (!yourPeerIP.validity.valid) {
         yourPeerIP.reportValidity();
         return;
       }
-      let key = this.parent.querySelectorAll(`.bgp-key`)[this.index];
+      let key = this.parent.querySelector(`.bgp-key`);
       if (!key.validity.valid) {
         key.reportValidity();
         return;
       }
-      let oessPeerIP = this.parent.querySelectorAll(`.oess-peer-ip`)[this.index];
+      let oessPeerIP = this.parent.querySelector(`.oess-peer-ip`);
       if (!oessPeerIP.validity.valid) {
         oessPeerIP.reportValidity();
         return;
       }
 
-      let ipVersionNo = ipVersion.checked ? 6 : 4;
-
       let peering = {
-        ipVersion: ipVersionNo,
+        ipVersion: ipVersion,
         asn: asn.value,
         key: key.value,
         oessPeerIP: oessPeerIP.value,
         yourPeerIP: yourPeerIP.value
       };
 
-      // endpoint.peerings.push(peering);
-      // state.updateEndpoint(endpoint);
-      console.log(peering);
-
-      update();
-    }.bind(this));
-
-    this.element.querySelector('.cancel-peering-modal-button').addEventListener('click', function(e) {
+      f(peering);
       this.hide();
     }.bind(this));
+  }
 
-    this.parent = document.querySelector(query);
-    this.parent.appendChild(this.element);
+  onCancel(f) {
+    this.parent.querySelector('.cancel-peering-modal-button').addEventListener('click', function(e) {
+      f(e);
+      this.hide();
+    }.bind(this));
   }
 
   display(peering) {
+    if (peering === null) {
+      this.parent.querySelector(`.ip-version`).checked = false;
+
+      this.parent.querySelector(`.bgp-asn`).value = null;
+      this.parent.querySelector(`.bgp-asn`).placeholder = 0;
+
+      this.parent.querySelector(`.bgp-key`).value = null;
+      this.parent.querySelector(`.bgp-key`).placeholder = '000000000000';
+
+      this.parent.querySelector(`.your-peer-ip`).value = null;
+      this.parent.querySelector(`.your-peer-ip`).placeholder = '192.168.1.2/31';
+
+      this.parent.querySelector(`.oess-peer-ip`).value = null;
+      this.parent.querySelector(`.oess-peer-ip`).placeholder = '192.168.1.3/31';
+    }
+
     $('#add-endpoint-peering-modal').modal('show');
   }
 
