@@ -113,8 +113,8 @@ async function loadEntityList() {
       </div>
     </div>
     <h4>
-      ${edit}
-      <a href="?action=view_l3vpn&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-eye-open" style="padding-right: 9px;"></span></a>
+      <!-- edit link has here -->
+      <a href="?action=modify_cloud&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-eye-open" style="padding-right: 9px;"></span></a>
       ${del}
       <a id="entity-body-${index}-opened" onclick="toggleEntityBody(${index})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
       <a id="entity-body-${index}-closed" onclick="toggleEntityBody(${index})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>

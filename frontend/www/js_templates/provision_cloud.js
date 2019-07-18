@@ -57,7 +57,7 @@ class GlobalState extends Component {
       if (vrfID === null) {
         addNetworkLoadingModal.modal('hide');
       } else {
-        window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
+        window.location.href = `index.cgi?action=modify_cloud&vrf_id=${vrfID}`;
       }
     } catch (error){
       addNetworkLoadingModal.modal('hide');
