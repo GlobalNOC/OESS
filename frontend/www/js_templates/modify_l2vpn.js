@@ -119,12 +119,16 @@ async function update(props) {
   let eventsElem = document.querySelector('#messages2');
   let rawElem = document.querySelector('#settings2');
 
+  let userMayEdit = session.data.workgroup_id == state.circuit.workgroup_id && !session.data.isReadOnly;
+  let connActive = state.circuit.state !== 'decom';
+  let editable = connActive && (session.data.isAdmin || userMayEdit);
+
   [detailsElem.innerHTML, historyElem.innerHTML, eventsElem.innerHTML, rawElem.innerHTML, headerElem.innerHTML] = await Promise.all([
     details.render(state.circuit),
     history.render(state),
     events.render(state),
     raw.render(state),
-    circuitHeader.render(state.circuit)
+    circuitHeader.render({connectionId: state.circuit.circuit_id, description: state.circuit.description, editable: editable})
   ]);
 
   let list = document.getElementById('endpoints');
@@ -146,6 +150,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let editable = (session.data.isAdmin || !session.data.isReadOnly);
 
   state = new GlobalState();
+  state.selectCircuit(id);
+
   console.log('GlobalState:', state);
 
   details = new CircuitDetails({workgroupID: session.data.workgroup_id});
@@ -153,12 +159,8 @@ document.addEventListener('DOMContentLoaded', function() {
   events = new CircuitEvents({workgroupID: session.data.workgroup_id});
   raw = new CircuitRaw({workgroupID: session.data.workgroup_id});
 
-  circuitHeader = new CircuitHeader({
-    workgroupID: session.data.workgroup_id,
-    editable: editable
-  });
+  circuitHeader = new CircuitHeader();
 
-  state.selectCircuit(id);
 
   let map = new NDDIMap('map');
   map.on("loaded", function(){
