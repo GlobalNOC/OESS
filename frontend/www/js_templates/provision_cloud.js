@@ -28,6 +28,10 @@ class GlobalState extends Component {
     update();
   }
 
+  deletePeering(endpointIndex, peeringIndex) {
+    this.connection.endpoints[endpointIndex].peerings.splice(peeringIndex, 1);
+  }
+
   async save() {
     console.log('Connection:', this.connection);
 
@@ -86,24 +90,19 @@ async function update(props) {
   state.connection.endpoints.map(function(e, i) {
     e.index = i;
     e.peerings = ('peerings' in e) ? e.peerings : [];
+
     let endpoint = new Endpoint2('#endpoints2-list', e);
+    e.peerings.map(function(p, j) {
+      p.index = j;
+      p.endpointIndex = i;
+      let peeringElem = endpoint.peerings();
 
-    let peeringHTML = '';
-    e.peerings.map(function(p, i) {
-      peeringHTML += `
-      <tr><td>IPv${p.ipVersion}</td><td>${p.asn}</td><td>${p.yourPeerIP}</td><td>${p.key}</td><td>${p.oessPeerIP}</td>
-<td>
-  <button class="btn btn-link delete-endpoint-button" type="button">
-    <span class="glyphicon glyphicon-trash"></span>
-  </button>
-</td>
-
-</tr>
-      `;
+      let peering = new Peering2(peeringElem, p);
+      peering.onDelete(function(peering) {
+        state.deletePeering(i, j);
+        update();
+      });
     });
-
-    let elem = endpoint.peerings();
-    elem.innerHTML = peeringHTML;
   });
 }
 

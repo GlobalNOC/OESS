@@ -133,13 +133,12 @@ class Endpoint2 {
     });
 
     this.element.querySelector('.add-peering-button').addEventListener('click', function(e) {
-      document.querySelector('#peering-modal').innerHTML = '';
       let modal = new PeeringModal('#peering-modal');
       modal.onSubmit((peering) => {
-
         if (!'peerings' in endpoint) {
           endpoint.peerings = [];
         }
+
         endpoint.peerings.push(peering);
         state.updateEndpoint(endpoint);
 

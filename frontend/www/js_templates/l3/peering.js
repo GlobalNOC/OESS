@@ -22,3 +22,28 @@ class Peering {
     `;
   }
 }
+
+class Peering2 {
+  constructor(parent, peering) {
+    let template = document.querySelector('#template-l3-peering2');
+    this.element = document.importNode(template.content, true);
+
+    this.index = peering.index;
+    this.endpointIndex = peering.endpointIndex;
+
+    this.element.querySelector('.ip-version').innerHTML = `IPv${peering.ipVersion}`;
+    this.element.querySelector('.peer-asn').innerHTML = peering.asn;
+    this.element.querySelector('.peer-ip').innerHTML = peering.yourPeerIP;
+    this.element.querySelector('.key').innerHTML = peering.key;
+    this.element.querySelector('.oess-ip').innerHTML = peering.oessPeerIP;
+
+    this.onDelete = this.onDelete.bind(this);
+
+    this.parent = parent;
+    this.parent.appendChild(this.element);
+  }
+
+  onDelete(f) {
+    this.parent.querySelectorAll('.delete-peering-button')[this.index].addEventListener('click', f);
+  }
+}

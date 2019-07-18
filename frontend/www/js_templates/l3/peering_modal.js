@@ -3,16 +3,17 @@ class PeeringModal {
     let template = document.querySelector('#template-l3-peering-modal');
     this.element = document.importNode(template.content, true);
 
-
-    this.element.querySelector('.cancel-peering-modal-button').addEventListener('click', function(e) {
-    }.bind(this));
-
     this.display = this.display.bind(this);
     this.hide = this.hide.bind(this);
     this.onSubmit = this.onSubmit.bind(this);
     this.onCancel = this.onCancel.bind(this);
 
+    this.element.querySelector('.cancel-peering-modal-button').addEventListener('click', function(e) {
+      this.hide();
+    }.bind(this));
+
     this.parent = document.querySelector(query);
+    this.parent.innerHTML = '';
     this.parent.appendChild(this.element);
   }
 
@@ -56,7 +57,6 @@ class PeeringModal {
   onCancel(f) {
     this.parent.querySelector('.cancel-peering-modal-button').addEventListener('click', function(e) {
       f(e);
-      this.hide();
     }.bind(this));
   }
 
