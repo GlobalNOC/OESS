@@ -463,7 +463,7 @@ sub provision_vrf{
                 }
             }
 
-            foreach my $peering (@{$ep->{peerings}}) {
+            foreach my $peering (@{$ep->{peers}}) {
                 if ($interface->cloud_interconnect_type eq 'azure-express-route') {
                     # Peering configured when endpoints created above.
                     next;
@@ -540,7 +540,7 @@ sub provision_vrf{
                 $peers->{$peer->vrf_ep_peer_id} = $peer;
             }
 
-            foreach my $peering (@{$ep->{peerings}}) {
+            foreach my $peering (@{$ep->{peers}}) {
                 if (!defined $peering->{vrf_ep_peer_id}) {
 
                     if (defined $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"}) {

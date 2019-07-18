@@ -29,7 +29,7 @@ class GlobalState extends Component {
   }
 
   deletePeering(endpointIndex, peeringIndex) {
-    this.connection.endpoints[endpointIndex].peerings.splice(peeringIndex, 1);
+    this.connection.endpoints[endpointIndex].peers.splice(peeringIndex, 1);
   }
 
   async save() {
@@ -89,10 +89,10 @@ async function update(props) {
 
   state.connection.endpoints.map(function(e, i) {
     e.index = i;
-    e.peerings = ('peerings' in e) ? e.peerings : [];
+    e.peers = ('peers' in e) ? e.peers : [];
 
     let endpoint = new Endpoint2('#endpoints2-list', e);
-    e.peerings.map(function(p, j) {
+    e.peers.map(function(p, j) {
       p.index = j;
       p.endpointIndex = i;
       let peeringElem = endpoint.peerings();

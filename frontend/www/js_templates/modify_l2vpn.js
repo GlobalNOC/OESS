@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
   raw = new CircuitRaw({workgroupID: session.data.workgroup_id});
 
   circuitHeader = new CircuitHeader({
-    workgroupID: session.data.workgroiup_id,
+    workgroupID: session.data.workgroup_id,
     editable: editable
   });
 

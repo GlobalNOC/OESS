@@ -136,10 +136,10 @@ class Endpoint2 {
       let modal = new PeeringModal('#peering-modal');
       modal.onSubmit((peering) => {
         if (!'peerings' in endpoint) {
-          endpoint.peerings = [];
+          endpoint.peers = [];
         }
 
-        endpoint.peerings.push(peering);
+        endpoint.peers.push(peering);
         state.updateEndpoint(endpoint);
 
         console.log(peering);

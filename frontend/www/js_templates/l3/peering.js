@@ -31,11 +31,12 @@ class Peering2 {
     this.index = peering.index;
     this.endpointIndex = peering.endpointIndex;
 
-    this.element.querySelector('.ip-version').innerHTML = `IPv${peering.ipVersion}`;
-    this.element.querySelector('.peer-asn').innerHTML = peering.asn;
-    this.element.querySelector('.peer-ip').innerHTML = peering.yourPeerIP;
-    this.element.querySelector('.key').innerHTML = peering.key;
-    this.element.querySelector('.oess-ip').innerHTML = peering.oessPeerIP;
+    this.element.querySelector('.operational-state').innerHTML = peering.operational_state;
+    this.element.querySelector('.ip-version').innerHTML = `IPv${peering.ip_version}`;
+    this.element.querySelector('.peer-asn').innerHTML = peering.peer_asn;
+    this.element.querySelector('.peer-ip').innerHTML = peering.peer_ip;
+    this.element.querySelector('.key').innerHTML = peering.md5_key;
+    this.element.querySelector('.oess-ip').innerHTML = peering.local_ip;
 
     this.onDelete = this.onDelete.bind(this);
 

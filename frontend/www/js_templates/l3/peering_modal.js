@@ -42,11 +42,12 @@ class PeeringModal {
       }
 
       let peering = {
-        ipVersion: ipVersion,
-        asn: asn.value,
-        key: key.value,
-        oessPeerIP: oessPeerIP.value,
-        yourPeerIP: yourPeerIP.value
+        ip_version: ipVersion,
+        peer_asn: asn.value,
+        md5_key: key.value,
+        local_ip: oessPeerIP.value,
+        peer_ip: yourPeerIP.value,
+        operational_state: 'unknown'
       };
 
       f(peering);

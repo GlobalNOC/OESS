@@ -19,24 +19,16 @@
    integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw=="
    crossorigin=""></script>
 
-  <script>
-    [% INCLUDE js_templates/component.js %]
-    [% INCLUDE js_templates/l3/peering.js %]
-    [% INCLUDE js_templates/l3/entity.js %]
-    [% INCLUDE js_templates/l3/interface.js %]
-    [% INCLUDE js_templates/l3/endpoint.js %]
-    [% INCLUDE js_templates/l3/endpoint_selection_modal.js %]
-    [% INCLUDE js_templates/api/vrf.js %]
-    [% INCLUDE js_templates/api/vlan.js %]
-    [% INCLUDE js_templates/api/interfaces.js  %]
-    [% INCLUDE js_templates/api/entity.js %]
-    [% INCLUDE js_templates/api/validateIP.js  %]
-    [% INCLUDE js_templates/modify_cloud.js  %]
-  </script>
+  [% INCLUDE html_templates/l2/endpoint_selection_modal2.html %]
+  [% INCLUDE html_templates/l2/schedule.html %]
+  [% INCLUDE html_templates/l3/endpoint.html %]
+  [% INCLUDE html_templates/l3/peering.html %]
+  [% INCLUDE html_templates/l3/peering_modal.html %]
 
-  [% INCLUDE html_templates/provision_cloud/EndpointSelectionModal.html %]
+  <div id="endpoint-selection-modal"></div>
+  <div id="peering-modal"></div>
 
-  <div class="modal fade" role="dialog" tabindex="-1" id="add-network-loading">
+  <div class="modal fade" role="dialog" tabindex="-1" id="add-connection-loading">
     <div class="modal-dialog" role="document">
       <div class="modal-content" style="text-align: center;">
         <img src="[% path %]media/loading.gif" width="200px;"/>
@@ -46,44 +38,82 @@
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-6">
-      <h1>Modify L3VPN</h1>
-      <div class="form-group">
-        <label class="control-label">Description</label><input id="description" class="form-control" type="text" required>
+  <div class="modal fade" role="dialog" tabindex="-1" id="delete-connection-loading">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content" style="text-align: center;">
+        <img src="[% path %]media/loading.gif" width="200px;" />
+        <p>Give us a few seconds. We're deleting your connection now.</p>
+        <br />
       </div>
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-3" style="padding-bottom: 15px;">
-      <p><b>Schedule</b></p>
-      <div class="radio"><label><input type="radio" name="provision-time" value="now" onchange="setDateTimeVisibility()" checked>Create now</label></div>
-      <div class="radio"><label><input type="radio" name="provision-time" value="later" onchange="setDateTimeVisibility()">Create later</label></div>
-      <input type="datetime-local" id="provision-time-picker">
-    </div>
-    <div class="col-md-3" style="padding-bottom: 15px;">
-      <p><b>&nbsp;</b></p>
-      <div class="radio"><label><input type="radio" name="remove-time" value="never" onchange="setDateTimeVisibility()" checked>Never remove</label></div>
-      <div class="radio"><label><input type="radio" name="remove-time" value="later" onchange="setDateTimeVisibility()">Remove later</label></div>
-      <input type="datetime-local" id="remove-time-picker">
-    </div>
-  </div>
+  <div class="row" id="circuit-header"></div>
+  <br/>
 
-  <div class="row">
+  <div class="row" style="margin-bottom: 15px">
     <div class="col-md-12">
-      <p><b>Endpoints</b></p>
-      <button id="add-network-endpoint" class="btn btn-success" type="submit">Add Endpoint</button>
+      <ul class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active">
+          <a href="#details" aria-controls="details" role="tab" data-toggle="tab" onclick="updateStatisticsIFrame()">Details</a>
+        </li>
+        <li role="presentation">
+          <a href="#statistics" aria-controls="statistics" role="tab" data-toggle="tab" onclick="updateStatisticsIFrame()">Statistics</a>
+        </li>
+        <li role="presentation">
+          <a href="#commands" aria-controls="commands" role="tab" data-toggle="tab" onclick="updateStatisticsIFrame()">Commands</a>
+        </li>
+      </ul>
 
-      <div id="selected-endpoint-list" style="margin-top: 15px;"></div>      
+      <div class="tab-content">
+        <div role="tabpanel" class="tab-pane active" id="details">
+          <br/>
+          [% INCLUDE html_templates/view_l3vpn/details.html %]
+
+          <div class="row">
+            <div class="col-md-12">
+              <button id="new-endpoint-button" class="btn-sm btn-primary" type="submit">
+                <span class="glyphicon glyphicon-plus"></span> New Endpoint
+              </button>
+
+              <div id="endpoints2-list" style="margin-top: 15px;"></div>
+            </div>
+          </div>
+        </div>
+        <div role="tabpanel" class="tab-pane" id="statistics">
+          <br/>
+          [% INCLUDE html_templates/view_l3vpn/statistics.html %]
+        </div>
+        <div role="tabpanel" class="tab-pane" id="commands">
+          <br/>
+          [% INCLUDE html_templates/view_l3vpn/commands.html %]
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-12">
-      <button id="add-network-submit" class="btn btn-success" type="submit">Modify L3VPN</button>
-      <button id="add-network-cancel" class="btn btn-danger" type="button">Cancel</button>
-    </div>
-  </div>
+
+  <script>
+    [% INCLUDE js_templates/component.js %]
+    [% INCLUDE js_templates/l3/peering.js %]
+    [% INCLUDE js_templates/l3/entity.js %]
+    [% INCLUDE js_templates/l3/interface.js %]
+    [% INCLUDE js_templates/l3/endpoint.js %]
+    [% INCLUDE js_templates/l3/endpoint_selection_modal.js %]
+
+    [% INCLUDE js_templates/api/vrf.js %]
+    [% INCLUDE js_templates/api/command.js %]
+    [% INCLUDE js_templates/api/vlan.js %]
+    [% INCLUDE js_templates/api/interfaces.js  %]
+    [% INCLUDE js_templates/api/entity.js %]
+    [% INCLUDE js_templates/api/validateIP.js  %]
+
+    [% INCLUDE js_templates/l2/circuit.js %]
+    [% INCLUDE js_templates/l2/schedule.js  %]
+    [% INCLUDE js_templates/l2/endpoint_selection_modal.js  %]
+    [% INCLUDE js_templates/l3/peering_modal.js  %]
+
+    [% INCLUDE js_templates/modify_cloud.js  %]
+  </script>
 
 </div>
