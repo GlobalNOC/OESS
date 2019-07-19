@@ -174,14 +174,16 @@ async function loadL2VPNs() {
     let color = ok ? '#E0F0D9' : '#F2DEDE';
     let createdOn = new Date(circuit.created_on);
     let modifiedOn = new Date(circuit.last_edited);
-
-    let del = `<a onclick="deleteL2VPN(${circuit.circuit_id}, '${circuit.description}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
-
     let bg_color = '#fff';
     let owner = 1;
     if(circuit.workgroup_id != session.data.workgroup_id){
       bg_color = '#e5e5e5';
       owner = 0;
+    }
+
+    let del = `<a onclick="deleteL2VPN(${circuit.circuit_id}, '${circuit.description}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
+    if(owner != 1){
+      del = "<span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span>";
     }
 
     let endpointHTML = '';

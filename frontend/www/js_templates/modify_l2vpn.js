@@ -148,8 +148,6 @@ document.addEventListener('DOMContentLoaded', function() {
   let url = new URL(window.location.href);
   let id = url.searchParams.get('circuit_id');
 
-  let editable = (session.data.isAdmin || !session.data.isReadOnly);
-
   state = new GlobalState();
   state.selectCircuit(id);
 

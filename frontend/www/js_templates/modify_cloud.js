@@ -171,14 +171,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let url = new URL(window.location.href);
   let id = url.searchParams.get('vrf_id');
-  state.selectConnection(id).then(async () => {
-    let editable = (session.data.isAdmin || !session.data.isReadOnly);
 
-    let header = new CircuitHeader({
-      workgroupID: session.data.workgroup_id,
+  state.selectConnection(id).then(async () => {
+    let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.connection.workgroup.workgroup_id && !session.data.isReadOnly);
+    let connActive = state.connection.state !== 'decom';
+    let editable = connActive && userMayEdit;
+
+    let header = new CircuitHeader();
+    document.querySelector('#circuit-header').innerHTML = await header.render({
+      connectionId: state.connection.vrf_id,
+      description: state.connection.description,
       editable: editable
     });
-    document.querySelector('#circuit-header').innerHTML = await header.render(state.connection);
+
   });
 
   let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
@@ -194,8 +199,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function update() {
-  console.log(state);
-
   let list = document.getElementById('endpoints2-list');
   list.innerHTML = '';
 
