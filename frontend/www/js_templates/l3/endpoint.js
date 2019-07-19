@@ -113,7 +113,12 @@ class Endpoint2 {
     this.element.querySelector('.tag').innerHTML = endpoint.tag;
     this.element.querySelector('.inner-tag').innerHTML = endpoint.inner_tag || null;
     this.element.querySelector('.bandwidth').innerHTML = (endpoint.bandwidth == null || endpoint.bandwidth == 0) ? 'Unlimited' : `${endpoint.bandwidth} Mb/s`;
-    this.element.querySelector('.mtu').innerHTML = endpoint.mtu;
+
+    if ('mtu' in endpoint) {
+      this.element.querySelector('.mtu').innerHTML = endpoint.mtu;
+    } else {
+      this.element.querySelector('.mtu').innerHTML = (endpoint.jumbo) ? 'Jumbo' : 'Standard';
+    }
 
     if (endpoint.inner_tag === undefined || endpoint.inner_tag === null || endpoint.inner_tag === '') {
       Array.from(this.element.querySelectorAll('.d1q')).map(e => e.style.display = 'block');

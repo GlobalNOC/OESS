@@ -9,8 +9,13 @@ function NewEndpoint(endpoint) {
   e.querySelector('.l2vpn-tag').innerHTML = endpoint.tag;
   e.querySelector('.l2vpn-inner-tag').innerHTML = endpoint.inner_tag || null;
   e.querySelector('.l2vpn-bandwidth').innerHTML = (endpoint.bandwidth == null || endpoint.bandwidth == 0) ? 'Unlimited' : `${endpoint.bandwidth} Mb/s`;
-  e.querySelector('.l2vpn-mtu').innerHTML = endpoint.mtu;
   e.querySelector('.l2vpn-graph').setAttribute('src', `[% g_l2_port %]&from=now-1h&to=now&var-node=${endpoint.node}&var-interface=${endpoint.interface}.${endpoint.tag}&refresh=30s`);
+
+  if ('mtu' in endpoint) {
+    e.querySelector('.l2vpn-mtu').innerHTML = endpoint.mtu;
+  } else {
+    e.querySelector('.l2vpn-mtu').innerHTML = (endpoint.jumbo) ? 'Jumbo' : 'Standard';
+  }
 
   if (endpoint.inner_tag === undefined || endpoint.inner_tag === null || endpoint.inner_tag === '') {
     Array.from(e.querySelectorAll('.d1q')).map(e => e.style.display = 'block');

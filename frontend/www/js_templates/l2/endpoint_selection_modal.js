@@ -33,6 +33,7 @@ class EndpointSelectionModal2 {
     let interfaceSelector = this.parent.querySelector('.endpoint-select-interface');
     let vlanSelector = this.parent.querySelector('.endpoint-select-vlan');
     let bandwidthSelector = this.parent.querySelector('.endpoint-bandwidth');
+    let jumboCheckbox = this.parent.querySelector('.endpoint-jumbo-frames');
 
     interfaceSelector.innerHTML = '';
     interfaces.forEach((i) => {
@@ -131,6 +132,31 @@ class EndpointSelectionModal2 {
         bandwidthSelector.removeAttribute('disabled');
       }
 
+      // Jumbo Frames
+      if (cloud_interconnect_type === 'aws-hosted-connection') {
+        jumboCheckbox.checked = true;
+        jumboCheckbox.removeAttribute('disabled');
+      } else if (cloud_interconnect_type === 'aws-hosted-vinterface') {
+        jumboCheckbox.checked = true;
+        jumboCheckbox.removeAttribute('disabled');
+      } else if (cloud_interconnect_type === 'gcp-partner-interconnect') {
+        jumboCheckbox.checked = false;
+        jumboCheckbox.setAttribute('disabled', '');
+      } else if (cloud_interconnect_type === 'azure-express-route') {
+        jumboCheckbox.checked = false;
+        jumboCheckbox.setAttribute('disabled', '');
+      } else {
+        jumboCheckbox.checked = true;
+        jumboCheckbox.removeAttribute('disabled');
+      }
+
+      if (endpoint !== undefined && endpoint !== null && 'jumbo' in endpoint) {
+        if (endpoint.jumbo == 1 || endpoint.jumbo == true) {
+          jumboCheckbox.checked = true;
+        } else {
+          jumboCheckbox.checked = false;
+        }
+      }
     };
 
     // If the interface is changed we need reload the vlan selection
@@ -149,7 +175,8 @@ class EndpointSelectionModal2 {
         entity_id:        null, // entity_id,
         peerings:         [],
         cloud_account_id: '',
-        tag:              vlanSelector.options[vlanSelector.selectedIndex].value
+        tag:              vlanSelector.options[vlanSelector.selectedIndex].value,
+        jumbo:            this.parent.querySelector('.endpoint-jumbo-frames').checked
       };
 
       state.updateEndpoint(endpoint);
@@ -423,7 +450,7 @@ class EndpointSelectionModal2 {
     }
 
     if (endpoint !== undefined && endpoint !== null && 'jumbo' in endpoint) {
-      if (endpoint.jumbo == 1) {
+      if (endpoint.jumbo == 1 || endpoint.jumbo == true) {
         jumboCheckbox.checked = true;
       } else {
         jumboCheckbox.checked = false;
