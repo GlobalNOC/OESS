@@ -95,7 +95,7 @@ async function loadEntityList() {
 
         let edit = `<a href='?action=modify_cloud&vrf_id=${entity.vrf_id}'><span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span></a>`;
         let del = `<a onclick="deleteConnection(${entity.vrf_id}, '${entity.name}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
-        if(owner != 1){
+        if(owner != 1 && !session.data.isAdmin) {
             edit = "<span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span>";
             del = "<span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span>";
         }
@@ -182,7 +182,7 @@ async function loadL2VPNs() {
     }
 
     let del = `<a onclick="deleteL2VPN(${circuit.circuit_id}, '${circuit.description}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
-    if(owner != 1){
+    if(owner != 1 && !session.data.isAdmin){
       del = "<span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span>";
     }
 
