@@ -90,11 +90,13 @@ async function update(props) {
   state.connection.endpoints.map(function(e, i) {
     e.index = i;
     e.peers = ('peers' in e) ? e.peers : [];
+    e.editable = true;
 
     let endpoint = new Endpoint2('#endpoints2-list', e);
     e.peers.map(function(p, j) {
       p.index = j;
       p.endpointIndex = i;
+      p.editable = true;
       let peeringElem = endpoint.peerings();
 
       let peering = new Peering2(peeringElem, p);
