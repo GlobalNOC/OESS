@@ -31,7 +31,16 @@ class Peering2 {
     this.index = peering.index;
     this.endpointIndex = peering.endpointIndex;
 
-    this.element.querySelector('.operational-state').innerHTML = peering.operational_state;
+    let stateDisplay = '';
+    if (peering.operational_state === 'up') {
+      stateDisplay = '<span class="glyphicon glyphicon-circle-arrow-up" aria-hidden="true" style="color: #5CB85C"></span>';
+    } else if (peering.operational_state === 'down') {
+      stateDisplay = '<span class="glyphicon glyphicon-circle-arrow-down" aria-hidden="true" style="color: #D9534E"></span>';
+    } else {
+      stateDisplay = '<span class="glyphicon glyphicon-question-sign" aria-hidden="true" style="color: #aaa"></span>';
+    }
+
+    this.element.querySelector('.operational-state').innerHTML = stateDisplay;
     this.element.querySelector('.ip-version').innerHTML = `IPv${peering.ip_version}`;
     this.element.querySelector('.peer-asn').innerHTML = peering.peer_asn;
     this.element.querySelector('.peer-ip').innerHTML = peering.peer_ip;
