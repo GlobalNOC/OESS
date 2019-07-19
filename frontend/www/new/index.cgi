@@ -97,15 +97,6 @@ sub main{
     }
     
     switch ($action) {
-        case "view_l3vpn" {
-            $title              = "Layer 3 Connection";
-            $filename           = "html_templates/view_l3vpn.html";
-            $current_breadcrumb = "Layer 3 Connection";
-            $breadcrumbs        = [
-                {title => "Welcome",            url => "?action=welcome"},
-                {title => "Layer 3 Connection", url => "#"}
-            ];
-        }
         case "modify_l2vpn" {
             $title              = "Layer 2 Connection";
             $filename           = "html_templates/modify_l2vpn.html";
@@ -122,6 +113,15 @@ sub main{
             $breadcrumbs        = [
                 {title => "Welcome",                url => "?action=welcome"},
                 {title => "New Layer 2 Connection", url => "#"}
+            ];
+        }
+        case "modify_cloud" {
+            $title              = "Layer 3 Connection";
+            $filename           = "html_templates/modify_cloud.html";
+            $current_breadcrumb = "Layer 3 Connection";
+            $breadcrumbs        = [
+                {title => "Welcome",            url => "?action=welcome"},
+                {title => "Layer 3 Connection", url => "#"}
             ];
         }
         case "provision_cloud" {
@@ -148,15 +148,6 @@ sub main{
             $current_breadcrumb = "Welcome";
             $breadcrumbs        = [
                 {title => "Welcome", url => "#"}
-            ];
-        }
-        case "modify_cloud" {
-            $title              = "Layer 3 Connection";
-            $filename           = "html_templates/modify_cloud.html";
-            $current_breadcrumb = "Layer 3 Connection";
-            $breadcrumbs        = [
-                {title => "Welcome",            url => "?action=welcome"},
-                {title => "Layer 3 Connection", url => "#"}
             ];
         }
         case "acl" {
