@@ -119,9 +119,9 @@ async function update(props) {
   let eventsElem = document.querySelector('#messages2');
   let rawElem = document.querySelector('#settings2');
 
-  let userMayEdit = session.data.workgroup_id == state.circuit.workgroup_id && !session.data.isReadOnly;
+  let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.circuit.workgroup_id && !session.data.isReadOnly);
   let connActive = state.circuit.state !== 'decom';
-  let editable = connActive && (session.data.isAdmin || userMayEdit);
+  let editable = connActive && userMayEdit;
 
   [detailsElem.innerHTML, historyElem.innerHTML, eventsElem.innerHTML, rawElem.innerHTML, headerElem.innerHTML] = await Promise.all([
     details.render(state.circuit),
@@ -135,6 +135,7 @@ async function update(props) {
   list.innerHTML = '';
   state.circuit.endpoints.map(function(e, i) {
     e.index = i;
+    e.editable = editable;
 
     let elem = NewEndpoint(e);
     list.appendChild(elem);

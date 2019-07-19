@@ -1,5 +1,5 @@
 function NewEndpoint(endpoint) {
-  let t = document.querySelector('#l2vpn-endpoint');
+  let t = document.querySelector('#template-l2-endpoint');
   let e = document.importNode(t.content, true);
 
   e.querySelector('.l2vpn-entity').innerHTML = endpoint.entity || 'NA';
@@ -19,6 +19,8 @@ function NewEndpoint(endpoint) {
     Array.from(e.querySelectorAll('.d1q')).map(e => e.style.display = 'none');
     Array.from(e.querySelectorAll('.qnq')).map(e => e.style.display = 'block');
   }
+
+  e.querySelector('.l2vpn-endpoint-buttons').style.display = (endpoint.editable) ? 'block' : 'none';
 
   e.querySelector('.l2vpn-modify-button').addEventListener('click', function(e) {
     modal.display(endpoint);
