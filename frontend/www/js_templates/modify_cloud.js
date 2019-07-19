@@ -177,6 +177,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let connActive = state.connection.state !== 'decom';
     let editable = connActive && userMayEdit;
 
+    let newEndpointButton = document.querySelector('#new-endpoint-button');
+    newEndpointButton.style.display = (editable) ? 'block' : 'none';
+
     let header = new CircuitHeader();
     document.querySelector('#circuit-header').innerHTML = await header.render({
       connectionId: state.connection.vrf_id,
@@ -199,17 +202,23 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function update() {
+  let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.connection.workgroup.workgroup_id && !session.data.isReadOnly);
+  let connActive = state.connection.state !== 'decom';
+  let editable = connActive && userMayEdit;
+
   let list = document.getElementById('endpoints2-list');
   list.innerHTML = '';
 
   state.connection.endpoints.map(function(e, i) {
     e.index = i;
     e.peers = ('peers' in e) ? e.peers : [];
+    e.editable = editable;
 
     let endpoint = new Endpoint2('#endpoints2-list', e);
     e.peers.map(function(p, j) {
       p.index = j;
       p.endpointIndex = i;
+      p.editable = editable;
       let peeringElem = endpoint.peerings();
 
       let peering = new Peering2(peeringElem, p);

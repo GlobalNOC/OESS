@@ -123,6 +123,9 @@ class Endpoint2 {
       Array.from(this.element.querySelectorAll('.qnq')).map(e => e.style.display = 'block');
     }
 
+    this.element.querySelector('.endpoint-buttons').style.display = (endpoint.editable) ? 'block' : 'none';
+    this.element.querySelector('.add-peering-button').style.display = (endpoint.editable) ? 'block' : 'none';
+
     this.element.querySelector('.modify-endpoint-button').addEventListener('click', function(e) {
       modal.display(endpoint);
     });

@@ -123,6 +123,9 @@ async function update(props) {
   let connActive = state.circuit.state !== 'decom';
   let editable = connActive && userMayEdit;
 
+  let newEndpointButton = document.querySelector('.l2vpn-new-endpoint-button-container');
+  newEndpointButton.style.display = (editable) ? 'block' : 'none';
+
   [detailsElem.innerHTML, historyElem.innerHTML, eventsElem.innerHTML, rawElem.innerHTML, headerElem.innerHTML] = await Promise.all([
     details.render(state.circuit),
     history.render(state),

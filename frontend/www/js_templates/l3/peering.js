@@ -38,6 +38,8 @@ class Peering2 {
     this.element.querySelector('.key').innerHTML = peering.md5_key;
     this.element.querySelector('.oess-ip').innerHTML = peering.local_ip;
 
+    this.element.querySelector('.delete-peering-button').style.display = (peering.editable) ? 'block' : 'none';
+
     this.onDelete = this.onDelete.bind(this);
 
     this.parent = parent;
