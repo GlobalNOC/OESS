@@ -3,6 +3,7 @@ class PeeringModal {
     let template = document.querySelector('#template-l3-peering-modal');
     this.element = document.importNode(template.content, true);
 
+    this.handleIpVersionChange = this.handleIpVersionChange.bind(this);
     this.display = this.display.bind(this);
     this.hide = this.hide.bind(this);
     this.onSubmit = this.onSubmit.bind(this);
@@ -61,9 +62,25 @@ class PeeringModal {
     }.bind(this));
   }
 
+  handleIpVersionChange(e) {
+    let ipv6 = this.parent.querySelector(`.ip-version`).checked;
+
+    if (ipv6) {
+      console.log('setting validators to ipv6');
+      asIPv6CIDR(this.parent.querySelector(`.oess-peer-ip`));
+      asIPv6CIDR(this.parent.querySelector(`.your-peer-ip`));
+    } else {
+      console.log('setting validators to ipv4');
+
+      asIPv4CIDR(this.parent.querySelector(`.oess-peer-ip`));
+      asIPv4CIDR(this.parent.querySelector(`.your-peer-ip`));
+    }
+  }
+
   display(peering) {
     if (peering === null) {
       this.parent.querySelector(`.ip-version`).checked = false;
+      this.parent.querySelector(`.ip-version`).onchange = this.handleIpVersionChange;
 
       this.parent.querySelector(`.bgp-asn`).value = null;
       this.parent.querySelector(`.bgp-asn`).placeholder = 0;
@@ -77,6 +94,7 @@ class PeeringModal {
       this.parent.querySelector(`.oess-peer-ip`).value = null;
       this.parent.querySelector(`.oess-peer-ip`).placeholder = '192.168.1.3/31';
     }
+    this.handleIpVersionChange();
 
     $('#add-endpoint-peering-modal').modal('show');
   }
