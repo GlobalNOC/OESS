@@ -42,7 +42,7 @@ class Endpoint2 {
     });
 
     this.element.querySelector('.add-peering-button').addEventListener('click', function(e) {
-      let modal = new PeeringModal('#peering-modal');
+      let modal = new PeeringModal('#peering-modal', endpoint);
       modal.onSubmit((peering) => {
         if (!'peerings' in endpoint) {
           endpoint.peers = [];
@@ -51,7 +51,6 @@ class Endpoint2 {
         endpoint.peers.push(peering);
         state.updateEndpoint(endpoint);
 
-        console.log(peering);
         update();
       });
       modal.display(null);

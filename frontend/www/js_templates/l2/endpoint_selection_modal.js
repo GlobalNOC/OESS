@@ -164,6 +164,11 @@ class EndpointSelectionModal2 {
 
     // Setup interface-add and interface-cancel callbacks
     this.parent.querySelector('.add-endpoint-submit').onclick = function(e) {
+      let interconnectType = interfaceSelector.options[interfaceSelector.selectedIndex].dataset.cloud_interconnect_type;
+      if (interconnectType === 'null') {
+        interconnectType = null;
+      }
+
       let endpoint = {
         index:            index,
         bandwidth:        this.parent.querySelector('.endpoint-bandwidth').value,
@@ -176,7 +181,8 @@ class EndpointSelectionModal2 {
         peerings:         [],
         cloud_account_id: '',
         tag:              vlanSelector.options[vlanSelector.selectedIndex].value,
-        jumbo:            this.parent.querySelector('.endpoint-jumbo-frames').checked
+        jumbo:            this.parent.querySelector('.endpoint-jumbo-frames').checked,
+        cloud_interconnect_type: interconnectType
       };
 
       state.updateEndpoint(endpoint);
@@ -470,6 +476,7 @@ class EndpointSelectionModal2 {
       endpoint.node = 'TBD';
       endpoint.interface = 'TBD';
       endpoint.jumbo = jumboCheckbox.checked;
+      endpoint.cloud_interconnect_type = entity.cloud_interconnect_type;
 
       state.updateEndpoint(endpoint);
       $('#add-endpoint-modal2').modal('hide');
