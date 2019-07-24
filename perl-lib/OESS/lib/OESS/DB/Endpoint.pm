@@ -564,6 +564,35 @@ sub find_available_unit{
         return;
     }
 
+    if (!defined $args->{inner_tag}) {
+        my $l3query = "
+            select unit
+            from vrf_ep
+            where unit=? and state='active' and interface_id=?
+        ";
+        my $l3units = $args->{db}->execute_query(
+            $l3query,
+            [$args->{tag}, $args->{interface_id}]
+        );
+        if (@$l3units > 0) {
+            return;
+        }
+
+        my $l2query = "
+            select unit
+            from circuit_edge_interface_membership
+            where unit=? and end_epoch=-1 and interface_id=?
+        ";
+        my $l2units = $args->{db}->execute_query(
+            $l2query,
+            [$args->{tag}, $args->{interface_id}]
+        );
+        if (@$l2units > 0) {
+            return;
+        }
+        return $args->{tag};
+    }
+
     # To preserve backwards compatibility with existing VLANs we find
     # an available unit >= 5000.
     my $used_vrf_units = $args->{db}->execute_query(
