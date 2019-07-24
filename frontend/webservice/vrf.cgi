@@ -298,14 +298,25 @@ sub provision_vrf{
         }
 
         if (!defined $ep->{vrf_endpoint_id}) {
-            my $entity = new OESS::Entity(db => $db, name => $ep->{entity});
+            my $entity;
+            my $interface;
 
-            my $interface = $entity->select_interface(
-                inner_tag    => $ep->{inner_tag},
-                tag          => $ep->{tag},
-                workgroup_id => $model->{workgroup_id},
-                cloud_account_id => $ep->{cloud_account_id}
-            );
+            if (defined $ep->{node} && defined $ep->{interface}) {
+                $interface = new OESS::Interface(
+                    db => $db,
+                    name => $ep->{interface},
+                    node => $ep->{node}
+                );
+            } else {
+                $entity = new OESS::Entity(db => $db, name => $ep->{entity});
+                $interface = $entity->select_interface(
+                    inner_tag    => $ep->{inner_tag},
+                    tag          => $ep->{tag},
+                    workgroup_id => $model->{workgroup_id},
+                    cloud_account_id => $ep->{cloud_account_id}
+                );
+            }
+
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
                 $db->rollback;
@@ -452,7 +463,7 @@ sub provision_vrf{
                 }
             }
 
-            foreach my $peering (@{$ep->{peerings}}) {
+            foreach my $peering (@{$ep->{peers}}) {
                 if ($interface->cloud_interconnect_type eq 'azure-express-route') {
                     # Peering configured when endpoints created above.
                     next;
@@ -529,7 +540,7 @@ sub provision_vrf{
                 $peers->{$peer->vrf_ep_peer_id} = $peer;
             }
 
-            foreach my $peering (@{$ep->{peerings}}) {
+            foreach my $peering (@{$ep->{peers}}) {
                 if (!defined $peering->{vrf_ep_peer_id}) {
 
                     if (defined $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"}) {
@@ -681,238 +692,6 @@ sub provision_vrf{
         );
     };
 
-    return {results => $res};
-}
-
-sub _edit_vrf{
-    my %params = @_;
-    my $method = $params{'method'};
-    my $model = $params{'model'};
-    my $db = $params{'db'};
-    my $skip_cloud_provisioning = $params{'skip_cloud_provisioning'};
-
-    my $vrf = OESS::VRF->new( db => $db, vrf_id => $model->{'vrf_id'} );
-    warn 'Modifying vrf';
-
-    my @new_endpoints;
-
-    my @cloud_adds;
-    my @cloud_dels;
-
-    # Hash to track which endpoints have been updated and which shall
-    # be removed.
-    my $endpoints = {};
-    foreach my $ep (@{$vrf->endpoints}) {
-        $endpoints->{$ep->vrf_endpoint_id} = $ep;
-    }
-
-    foreach my $ep (@{$model->{endpoints}}) {
-        warn '$model->{endpoint} ' . Dumper($ep);
-
-        if (!defined $ep->{vrf_endpoint_id}) {
-            my $entity = new OESS::Entity(db => $db, name => $ep->{entity});
-
-            my $interface = $entity->select_interface(
-                inner_tag    => $ep->{inner_tag},
-                tag          => $ep->{tag},
-                workgroup_id => $model->{workgroup_id}
-            );
-            if (!defined $interface) {
-                $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
-                return;
-            }
-
-            $ep->{type}         = 'vrf';
-            $ep->{entity_id}    = $entity->{entity_id};
-            $ep->{interface}    = $interface->{name};
-            $ep->{interface_id} = $interface->{interface_id};
-            $ep->{node}         = $interface->{node}->{name};
-            $ep->{node_id}      = $interface->{node}->{node_id};
-
-            my $endpoint = new OESS::Endpoint(db => $db, model => $ep);
-            foreach my $obj (@{$ep->{peers}}) {
-                my $peer = new OESS::Peer(db => $db, model => $obj);
-                $endpoint->add_peer($peer);
-            }
-
-            my ($ep_id, $err) = $endpoint->create(
-                vrf_id => $vrf->vrf_id,
-                workgroup_id => $model->{workgroup_id}
-            );
-            $vrf->add_endpoint($endpoint);
-        } else {
-            my $endpoint = $vrf->get_endpoint(
-                vrf_ep_id => $ep->{vrf_endpoint_id}
-            );
-            $endpoint->load_peers;
-
-            $endpoint->bandwidth($ep->{bandwidth});
-            $endpoint->inner_tag($ep->{inner_tag});
-            $endpoint->tag($ep->{tag});
-            $endpoint->mtu($ep->{mtu});
-
-            foreach my $obj (@{$ep->{peers}}) {
-                my $peer = new OESS::Peer(db => $db, model => $obj);
-                $endpoint->add_peer($peer);
-            }
-
-            my $err = $endpoint->update_db;
-            if (defined $err) {
-                $method->set_error("Couldn't update Endpoint: $err");
-                return;
-            }
-
-            delete $endpoints->{$endpoint->vrf_endpoint_id};
-        }
-    }
-
-    foreach my $key (keys %$endpoints) {
-        my $endpoint = $endpoints->{$key};
-        $endpoint->remove;
-        $vrf->remove_endpoint($endpoint->{vrf_endpoint_id});
-        push @cloud_dels, $endpoint;
-
-    }
-
-    # foreach my $ep (@{$vrf->endpoints()}){
-    #     $ep->load_peers;
-    #     warn Dumper($ep->to_hash);
-
-    #     my $found = 0;
-    #     for( my $i=0; $i<=$#{$model->{'endpoints'}}; $i++){
-    #         my $new_ep = $model->{'endpoints'}->[$i];
-    #         if ($new_ep->{'node'} eq $ep->node && $new_ep->{'interface'} eq $ep->interface && $new_ep->{'tag'} eq $ep->tag) {
-    #             #found the same endpoint..
-    #             $found = 1;
-    #             #remove the endpoint from the endpoint list
-    #             splice(@{$model->{'endpoints'}},$i,1);
-
-    #             my @new_peers;
-    #             #now compare the Peers
-    #             foreach my $peer (@{$ep->peers()}){
-    #                 my $peer_found = 0;
-    #                 for( my $j =0 ; $j<= $#{$new_ep->{'peerings'}}; $j++){
-    #                     my $new_peer = $new_ep->{'peerings'}->[$j];
-
-    #                     if ($new_peer->{vrf_ep_peer_id} eq $peer->vrf_ep_peer_id) {
-    #                         warn 'found matching vrf_ep_peer_ids';
-    #                     }
-
-    #                     next if($new_peer->{'peer_ip'} ne $peer->peer_ip());
-    #                     next if($new_peer->{'local_ip'} ne $peer->local_ip());
-    #                     next if($new_peer->{'peer_asn'} ne $peer->peer_asn());
-    #                     next if($new_peer->{'key'} ne $peer->md5_key());
-    #                     $peer_found = 1;
-
-    #                     #remove the peering from the new_ep
-    #                     splice(@{$new_ep->{'peerings'}},$j,1);
-    #                     last;
-    #                 }
-    #                 if($peer_found){
-    #                     push(@new_peers, $peer);
-    #                 }
-    #             }
-
-    #             foreach my $model_peer (@{$new_ep->{'peerings'}}){
-    #                 my $peer = OESS::Peer->new(model => $model_peer, db => $db);
-    #                 push(@new_peers, $peer);
-    #             }
-
-    #             $ep->peers(\@new_peers);
-    #         }
-    #     }
-
-    #     if($found){
-    #         #we found the endpoint and updated any peerings
-    #         push(@new_endpoints, $ep);
-    #         #there should be no need to do CLOUD stuff here! (unless we added a second peering)
-    #     }else{
-    #         #if it isn't found we don't add it to new_endpoints
-    #         #is this a cloud connection?
-    #         if($ep->{'cloud_account_id'}){
-    #             push(@cloud_dels, $ep);
-    #         }
-    #     }
-    # }
-
-    # if($#{$model->{'endpoints'}} >= 0){
-    #     foreach my $model_ep (@{$model->{'endpoints'}}){
-    #         #create an Endpoint object!
-    #         my $ep = OESS::Endpoint->new( db => $db, model => $model_ep, type => 'vrf');
-    #         push(@new_endpoints, $ep);
-    #         if(defined($ep->{'cloud_account_id'})){
-    #             push(@cloud_adds, $ep);
-    #         }
-    #     }
-    # }
-
-    #$vrf->endpoints(\@new_endpoints);
-
-    #our VRF object has the endpoints... now make any cloud changes (if necessary)
-    if (!$skip_cloud_provisioning) {
-        eval {
-            OESS::Cloud::cleanup_endpoints(\@cloud_dels);
-
-            my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, $vrf->endpoints);
-            $vrf->endpoints($setup_endpoints);
-
-            # my $setup_endpoints = OESS::Cloud::setup_endpoints($vrf->name, \@cloud_adds);
-
-            # foreach my $ep (@new_endpoints){
-            #     foreach my $new_ep (@{$setup_endpoints}){
-            #         if ($ep->node eq $new_ep->node && $ep->interface eq $new_ep->interface && $ep->tag eq $new_ep->tag) {
-            #             $ep->{'cloud_connection_id'} = $new_ep->{'cloud_connection_id'};
-            #         }
-            #     }
-            # }
-        };
-        if ($@) {
-            $method->set_error("$@");
-            return;
-        }
-    }
-
-    # $vrf->endpoints(\@new_endpoints);
-    foreach my $ep (@{$vrf->endpoints}) {
-        warn Dumper($ep->to_hash);
-    }
-
-    #ok now that we made it this far... 4 steps to complete...
-    #1. remove the existing VRF from the network
-    #2. update the model in the DB
-    #3. add the new model to the network
-    #4. handle any failures
-    my $vrf_id = $vrf->vrf_id();
-
-    my $res = vrf_del(method => $method, vrf_id => $vrf_id);
-
-    my $ok = $vrf->update_db();
-    if(!$ok){
-        #whoops... failed to update... re-add to network and signal to user
-        vrf_add(method => $method, vrf_id => $vrf_id);
-        $method->set_error("Failed to update database with VRF. Please try again later.");
-        return;
-    }
-
-    #ok we made it this far... and have updated our DB now to update the cache
-    _update_cache(vrf_id => $vrf_id);
-
-    #finally we get to adding it to the network again!
-    $res = vrf_add(method => $method, vrf_id => $vrf_id);
-
-    eval{
-        my $vrf_details = $vrf->to_hash();
-        $vrf_details->{'status'} = 'up';
-        $vrf_details->{'reason'} = 'edited';
-        $vrf_details->{'type'} = 'modified';
-        $log_client->vrf_notification(type => 'modified',
-                                      reason => 'Edited by ' . $ENV{'REMOTE_USER'},
-                                      vrf => $vrf->vrf_id(),
-                                      no_reply  => 1);
-    };
-
-
-    $db->commit;
     return {results => $res};
 }
 

@@ -35,10 +35,28 @@ sub fetch{
         ";
         $user = $db->execute_query($q, [$username]);
     }
-
-    if(!defined($user) || !defined($user->[0])){
+    if (!defined($user) || !defined($user->[0])){
         return;
     }
+
+    my $admin_query = "
+        select exists(
+            select type
+            from workgroup
+            join user_workgroup_membership on workgroup.workgroup_id=user_workgroup_membership.workgroup_id
+            where user_workgroup_membership.user_id=? and type='admin'
+        ) as is_admin;
+    ";
+    my $admin_result = $db->execute_query(
+        $admin_query,
+        [$user->[0]->{user_id}]
+    );
+    if (!defined($admin_result) || !defined($admin_result->[0])){
+        return;
+    }
+
+    # Replace is_admin field with scan for admin workgroups
+    $user->[0]->{is_admin} = $admin_result->[0]->{is_admin};
 
     return $user->[0];
 }

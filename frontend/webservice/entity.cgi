@@ -618,7 +618,7 @@ sub get_entity{
                     $vlans{$i} = 1;
                 }
                 
-                if($already_used_tag == $i){
+                if(defined $already_used_tag && $already_used_tag == $i){
                     push(@allowed_vlans, $i);
                     $vlans{$i} = 1;
                 }
