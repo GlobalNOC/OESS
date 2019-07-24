@@ -68,6 +68,7 @@
   <link type="text/css" rel="stylesheet" href="[% path %]css/entity.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+
   <script>
     [% INCLUDE js_templates/api/vrf.js %]
     [% INCLUDE js_templates/api/interfaces.js %]
@@ -75,6 +76,10 @@
     [% INCLUDE js_templates/api/validateIP.js %]
     [% INCLUDE js_templates/phonebook.js %]
   </script>
+
+
+  <div id="entity-search-container"></div>
+  [% INCLUDE html_templates/entity/search.html %]
 
   <div class="modal fade" role="dialog" tabindex="-1" id="add-to-connection-modal">
     <div class="modal-dialog" role="document">
