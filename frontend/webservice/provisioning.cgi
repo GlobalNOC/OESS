@@ -856,7 +856,7 @@ sub provision_circuit {
         warn "unable to find workgroup $workgroup_id";
 	$method->set_error("unable to find workgroup $workgroup_id");
 	return;
-    } elsif ($workgroup->{'name'} eq 'Demo') {
+    } elsif ($workgroup->{'type'} eq 'demo') {
         warn "Sorry this is a demo account, and can not actually provision.";
         $method->set_error("Sorry this is a demo account, and can not actually provision.");
 	return;
