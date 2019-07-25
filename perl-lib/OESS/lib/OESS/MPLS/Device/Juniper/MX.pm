@@ -135,11 +135,11 @@ sub get_response {
 
     if (defined $dom->{'commit-results'} && $dom->{'commit-results'}->{'routing-engine'}) {
         my $re0 = $dom->{'commit-results'}->{'routing-engine'}->{'re0'};
-        if (defined $re0->{'rpc-error'}) {
+        if (defined $re0 && defined $re0->{'rpc-error'}) {
             push @$errors, $re0->{'rpc-error'};
         }
         my $re1 = $dom->{'commit-results'}->{'routing-engine'}->{'re1'};
-        if (defined $re1->{'rpc-error'}) {
+        if (defined $re1 && defined $re1->{'rpc-error'}) {
             push @$errors, $re1->{'rpc-error'};
         }
     }
