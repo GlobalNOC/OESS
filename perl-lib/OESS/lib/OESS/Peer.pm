@@ -31,7 +31,8 @@ use OESS::DB::Peer;
             peer_asn      => 1200
             peer_ip       => '192.168.1.3/31',
             md5_key       => undef,
-            status        => 'up'              # Actually operational_state
+            status        => 'up',             # Actually operational_state
+            bfd           => 0
         }
     );
 
@@ -87,7 +88,7 @@ sub from_hash{
     }
 
     $self->{'operational_state'} = $hash->{'operational_state'};
-
+    $self->{'bfd'} = $hash->{'bfd'};
 }
 
 =head2 to_hash
@@ -104,7 +105,8 @@ sub to_hash{
     $obj->{'md5_key'} = $self->{'md5_key'};
     $obj->{'local_ip'} = $self->{'local_ip'};
     $obj->{'ip_version'} = $self->{'ip_version'};
-    $obj->{'operational_state'} = $self->operational_state();
+    $obj->{'operational_state'} = $self->{'operational_state'};
+    $obj->{'bfd'} = $self->{'bfd'};
     return $obj;
 }
 
@@ -174,6 +176,18 @@ sub vrf_ep_peer_id{
 sub operational_state{
     my $self = shift;
     return $self->{'operational_state'};
+}
+
+=head2 bfd
+
+=cut
+sub bfd{
+    my $self = shift;
+    my $value = shift;
+    if (defined $value) {
+        $self->{'bfd'} = $value;
+    }
+    return $self->{'bfd'};
 }
 
 =head2 decom
