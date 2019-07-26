@@ -24,6 +24,7 @@ class Peering2 {
     this.element.querySelector('.peer-ip').innerHTML = peering.peer_ip;
     this.element.querySelector('.key').innerHTML = key;
     this.element.querySelector('.oess-ip').innerHTML = peering.local_ip;
+    this.element.querySelector('.bfd').innerHTML = (peering.bfd) ? 'enabled' : 'disabled';
 
     this.element.querySelector('.delete-peering-button').style.display = (peering.editable) ? 'block' : 'none';
 
