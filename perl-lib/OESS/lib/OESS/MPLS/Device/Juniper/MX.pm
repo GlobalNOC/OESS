@@ -917,7 +917,7 @@ sub add_vrf{
                 $has_ipv4 = 1;
                 $vars->{'has_ipv4'} = 1;
                 push(@bgp_v4, { asn => $bgp->{'peer_asn'},
-                                
+                                bfd => $bgp->{'bfd'},
                                 local_ip => $bgp->{'local_ip'},
                                 peer_ip => $peer_ip,
                                 key => $bgp->{'md5_key'}
@@ -927,7 +927,7 @@ sub add_vrf{
                 $has_ipv6 = 1;
                 $vars->{'has_ipv6'} = 1;
                 push(@bgp_v6, { asn => $bgp->{'peer_asn'},
-                                
+                                bfd => $bgp->{'bfd'},
                                 local_ip => $bgp->{'local_ip'},
                                 peer_ip => $peer_ip,
                                 key => $bgp->{'md5_key'}
@@ -1081,7 +1081,8 @@ sub xml_configuration {
                     $self->{'logger'}->error("Processing IPv4 peer");
                     $has_ipv4 = 1;
                     $vars->{'has_ipv4'} = 1;
-                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},                                    
+                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},
+                                    bfd => $bgp->{'bfd'},
                                     local_ip => $bgp->{'local_ip'},
                                     peer_ip => $peer_ip,
                                     key => $bgp->{'md5_key'}
@@ -1091,7 +1092,8 @@ sub xml_configuration {
                     $self->{'logger'}->error("Processing IPv6 peer");
                     $has_ipv6 = 1;
                     $vars->{'has_ipv6'} = 1;
-                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},                                    
+                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},
+                                    bfd => $bgp->{'bfd'},
                                     local_ip => $bgp->{'local_ip'},
                                     peer_ip => $peer_ip,
                                     key => $bgp->{'md5_key'}
