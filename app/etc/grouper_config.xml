@@ -1,0 +1,4 @@
+<config>
+  <grouper user='foo' password='bar' url='someurl' />
+  <oess user='foo' password='bar' url='oess url' />
+</config>
