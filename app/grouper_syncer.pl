@@ -40,7 +40,7 @@ sub main{
 	$all_oess_users{$user->{'auth_name'}[0]} = $user;
     }
 
-    my $grouper_workgroups = make_group_request( url => $config->{'grouper'}->{'url'} . "/groups", user => $config->{'grouper'}->{'user'}, password => $config->{'grouper'}->{'password'} );
+    my $grouper_workgroups = make_group_request( url => $config->{'grouper'}->{'url'} . "/groups", user => $config->{'grouper'}->{'user'}, password => $config->{'grouper'}->{'password'}, $config->{'grouper'}->{'stem'} );
     log_debug("Grouper Workgroups: " . Dumper($grouper_workgroups));
 
     foreach my $wg (@$grouper_workgroups){
@@ -281,12 +281,12 @@ sub make_group_request{
     my $url = $params{'url'};
     my $user = $params{'user'};
     my $password = $params{'password'};
-
+    my $stem = $params{'stem'};
 
     my $ua = LWP::UserAgent->new;
 
     my $obj = {'WsRestFindGroupsRequest' => {'actAsSubjectLookup' => {'subjectId' => 'oess_provision'},
-	       'wsQueryFilter' => {'queryFilterType' => 'FIND_BY_STEM_NAME', 'stemName' => 'app:oess:service:workgroups'}}};
+	       'wsQueryFilter' => {'queryFilterType' => 'FIND_BY_STEM_NAME', 'stemName' => $stem}}};
     my $str = encode_json($obj);
     #log_debug("JSON STring: $str");
     #my $str = '{
