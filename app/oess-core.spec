@@ -90,6 +90,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess_topology_submitter.pl %{buildroot}/%{_bindir}
 %{__install} oess_pull_aws_interfaces.pl %{buildroot}/%{_bindir}
 %{__install} oess_pull_gcp_interfaces.pl %{buildroot}/%{_bindir}
+%{__install} grouper_syncer.pl {%buildroot}/%{_bindir}
 
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
@@ -110,6 +111,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} etc/vlan_stats-init $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-vlan_stats
 %{__install} etc/nsi-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-nsi
 %{__install} etc/oess-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess
+%{__install} etc/grouper_config.xml $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/nddi-scheduler.cron $RPM_BUILD_ROOT/etc/cron.d/
 %{__install} snapp.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
 %{__install} snapp_base.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
@@ -133,6 +135,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/vlan_stats_d.pl
 %{_bindir}/oess-nsi
 %{_bindir}/oess_setup.pl
+%{_bindir}/grouper_syncer.pl
 %{_bindir}/oess_scheduler.pl
 %{_bindir}/populate_remote_topologies.pl
 %{_bindir}/oess_topology_submitter.pl
@@ -159,6 +162,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) %{_sysconfdir}/oess/logging.conf
 %config(noreplace) %{_sysconfdir}/oess/firmware.xml
 %config(noreplace) %{_sysconfdir}/oess/watchdog.conf
+%config(noreplace) %{_sysconfdir}/oess/grouper_config.xml
 %doc
 
 %post
