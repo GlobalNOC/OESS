@@ -1012,7 +1012,7 @@ sub xml_configuration {
     my $vrf = shift;
     my $remove = shift;
 
-    my $configuration = '<configuration>';
+    my $configuration = '<configuration><groups><name>OESS</name>';
     $configuration .= $remove;
     foreach my $ckt (@{$ckts}) {
         # The argument $ckts is passed in a generic form. This should be
@@ -1047,8 +1047,8 @@ sub xml_configuration {
             # The remove case is now handled in get_config_to_remove
         }
 
-        $xml =~ s/<configuration>//g;
-        $xml =~ s/<\/configuration>//g;
+        $xml =~ s/<configuration><groups><name>OESS<\/name>//g;
+        $xml =~ s/<\/groups><\/configuration>//g;
         $configuration = $configuration . $xml;
     }
    
@@ -1123,12 +1123,12 @@ sub xml_configuration {
             $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$xml);
         }
         
-        $xml =~ s/<configuration>//g;
-        $xml =~ s/<\/configuration>//g;
+        $xml =~ s/<configuration><groups><name>OESS<\/name>//g;
+        $xml =~ s/<\/groups><\/configuration>//g;
         $configuration = $configuration . $xml;
     }
     
-    $configuration = $configuration . '</configuration>';
+    $configuration = $configuration . '</groups><apply-groups>OESS</apply-groups></configuration>';
 
     return $configuration;
 }
@@ -1768,7 +1768,7 @@ sub diff {
     }
 
     my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove);
-    if ($configuration eq '<configuration></configuration>') {
+    if ($configuration eq '<configuration><groups><name>OESS</name></groups><apply-groups>OESS</apply-groups></configuration>') {
         $self->{'logger'}->info('No diff required at this time.');
         return FWDCTL_SUCCESS;
     }

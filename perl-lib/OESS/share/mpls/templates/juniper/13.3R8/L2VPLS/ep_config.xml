@@ -1,4 +1,4 @@
-<configuration>
+<configuration><groups><name>OESS</name>
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
@@ -49,4 +49,4 @@
       </protocols>
     </instance>
   </routing-instances>
-</configuration>
+</groups></configuration>
