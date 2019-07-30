@@ -1012,8 +1012,10 @@ sub xml_configuration {
     my $vrf = shift;
     my $remove = shift;
 
-    my $configuration = '<configuration><groups><name>OESS</name>';
-    $configuration .= $remove;
+    # We first delete the group then pass the same group a second
+    # time. This results in a fully rebuilt config.
+    my $configuration = '<configuration><groups operation="delete"><name>OESS</name></groups><groups><name>OESS</name>';
+
     foreach my $ckt (@{$ckts}) {
         # The argument $ckts is passed in a generic form. This should be
         # converted to work with the template.
@@ -1129,7 +1131,6 @@ sub xml_configuration {
     }
     
     $configuration = $configuration . '</groups><apply-groups>OESS</apply-groups></configuration>';
-
     return $configuration;
 }
 
@@ -1768,7 +1769,7 @@ sub diff {
     }
 
     my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove);
-    if ($configuration eq '<configuration><groups><name>OESS</name></groups><apply-groups>OESS</apply-groups></configuration>') {
+    if ($configuration eq '<configuration><groups operation="delete"><name>OESS</name></groups><groups><name>OESS</name></groups><apply-groups>OESS</apply-groups></configuration>') {
         $self->{'logger'}->info('No diff required at this time.');
         return FWDCTL_SUCCESS;
     }
