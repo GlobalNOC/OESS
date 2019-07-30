@@ -110,7 +110,7 @@ my $conf = $device->xml_configuration(
         ckt_type => 'L2VPLS'
     }],
     [],
-    ''
+    '<groups operation="delete"><name>OESS</name></groups>'
 );
 
 warn "XML: " . $conf . "\n";
