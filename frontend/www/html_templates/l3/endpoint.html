@@ -1,0 +1,62 @@
+<template id="template-layer3-endpoint">
+  <div class="panel panel-default" style="padding: 0 15 0 15;">
+
+    <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
+      <div>
+        <h3>Entity:&nbsp;</h3>
+        <h4>Node:&nbsp;</h3>
+        <h4>Port:&nbsp;</h4>
+        <h5 class="d1q">VLAN:&nbsp;</h5>
+        <h5 class="qnq">STag:</h5>
+        <h5 class="qnq">CTag:</h5>
+        <h6><b>Bandwidth:</b></h6>
+        <h6><b>MTU:</b></h6>
+      </div>
+
+      <div>
+        <h3 class="entity">NA</h3>
+        <h4 class="node"></h4>
+        <h4><span class="interface"></span> <small class="interface-description"></small></h4>
+        <h5 class="tag"></h5>
+        <h5 class="inner-tag"></h5>
+        <h6 class="bandwidth"></h6>
+        <h6 class="mtu"></h6>
+      </div>
+
+      <div style="flex: 1; padding: 46px 16px 8px;">
+        <button class="btn btn-sm btn-primary add-peering-button" type="button" onclick="" style="margin: 0 0 6px">
+          <span class="glyphicon glyphicon-plus"></span> New Peering
+        </button>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th><b></b></th>
+                <th><b>Version</b></th>
+                <th><b>Peer ASN</b></th>
+                <th><b>Peer IP</b></th>
+                <th><b>BGP Key</b></th>
+                <th><b>OESS IP</b></th>
+                <th><b>BFD</b></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody class="peerings">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="endpoint-buttons" style="display: none;">
+        <button class="btn btn-link modify-endpoint-button" type="button" onclick="" style="padding: 12 6 12 6;">
+          <span class="glyphicon glyphicon-edit"></span>
+        </button>
+        <button class="btn btn-link delete-endpoint-button" type="button" onclick="" style="padding: 12 6 12 6;">
+          <span class="glyphicon glyphicon-trash"></span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</template>

@@ -2,22 +2,39 @@
   <!-- Latest compiled and minified CSS -->
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
 
-<script
-  src="https://code.jquery.com/jquery-3.3.1.min.js"
-  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-  crossorigin="anonymous"></script>
+  <script
+     src="https://code.jquery.com/jquery-3.3.1.min.js"
+     integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+     crossorigin="anonymous"></script>
 
   <!-- Latest compiled and minified JavaScript -->
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css"
-   integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ=="
-   crossorigin=""/>
-
- <!-- Make sure you put this AFTER Leaflet's CSS -->
- <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"
-   integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw=="
-   crossorigin=""></script>
+  <div class="row">
+    <div class="col-md-6">
+      <h1>Add Entity</h1>
+      <form>
+        <div class="form-group">
+          <label class="control-label">Entity Name</label>
+          <input id="entity-name" class="form-control" type="text" >
+        </div>
+        <div class="form-group">
+          <label class="control-label">Entity Description</label>
+          <textarea id="description" class="span6 form-control" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="control-label">Logo URL</label>
+          <input id="logo-url" class="form-control" type="text" />
+        </div>
+        <div class="form-group">
+          <label class="control-label">URL</label>
+          <input id="entity-url" class="form-control" type="text" />
+        </div>
+        <button id="add-entity-btn" class="btn btn-success" type="submit">Add Entity</button>
+        <button id="cancel" class="btn btn-danger" type="button">Cancel</button>
+      </form>
+    </div>
+  </div>
 
   <script>
     [% INCLUDE js_templates/api/vrf.js %]
@@ -27,24 +44,4 @@
     [% INCLUDE js_templates/api/entity.js %]
     [% INCLUDE js_templates/entity.js %]
   </script>
-  <div class="row">
-    <div class="col-md-6">
-      <h1>Add Entity</h1>
-      <form>
-        <div class="form-group">
-          <label class="control-label">Entity Name</label><input id="entity-name" class="form-control" type="text" >
-	  <label class="control-label">Entity Description</label><textarea  id="description" class="span6 form-control" rows="3"></textarea>
-          <label class="control-label">Logo URL</label><input id="logo-url" class="form-control" type="text" >
-          <label class="control-label">URL</label><input id="entity-url" class="form-control" type="text" >
-        </div>
-         <button id="add-entity-btn" class="btn btn-success" type="submit">Add Entity</button>
-         <button id="cancel" class="btn btn-danger" type="button">Cancel</button>
-      </form>
-    </div>
-  </div>
-
-  <div>
-     
-  </div>
 </div>
-

@@ -133,6 +133,17 @@ sub get_response {
         $errors = [$errors];
     }
 
+    if (defined $dom->{'commit-results'} && $dom->{'commit-results'}->{'routing-engine'}) {
+        my $re0 = $dom->{'commit-results'}->{'routing-engine'}->{'re0'};
+        if (defined $re0 && defined $re0->{'rpc-error'}) {
+            push @$errors, $re0->{'rpc-error'};
+        }
+        my $re1 = $dom->{'commit-results'}->{'routing-engine'}->{'re1'};
+        if (defined $re1 && defined $re1->{'rpc-error'}) {
+            push @$errors, $re1->{'rpc-error'};
+        }
+    }
+
     foreach my $error (@{$errors}) {
         my $lvl = $error->{'error-severity'};
         my $msg = $error->{'error-message'};
@@ -198,8 +209,8 @@ sub commit {
     my $self = shift;
 
     if (!$self->connected()) {
-	$self->{'logger'}->error("Not currently connected to device");
-	return 0;
+        $self->{'logger'}->error("Not currently connected to device");
+        return 0;
     }
 
     eval {
@@ -770,7 +781,7 @@ sub remove_vlan{
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag => $i->{'tag'},
                                           unit => $i->{'unit'}
@@ -830,11 +841,16 @@ sub add_vlan{
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+        if ($self->unit_name_available($i->{interface}, $i->{unit}) == 0) {
+            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
+            return FWDCTL_FAILURE;
+        }
+
+        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'}
-                                        });
+                                      });
     }
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
@@ -845,18 +861,13 @@ sub add_vlan{
     $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
-    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'interface'}->{'unit'}) == 0) {
-        $self->{'logger'}->error("Unit $vars->{'vlan_tag'} is not available on $vars->{'interface'}->{'name'}");
-        return FWDCTL_FAILURE;
-    }
-
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
         return FWDCTL_FAILURE;
     }
-    
+
     if (!defined $output) {
         return FWDCTL_FAILURE;
     }
@@ -906,7 +917,7 @@ sub add_vrf{
                 $has_ipv4 = 1;
                 $vars->{'has_ipv4'} = 1;
                 push(@bgp_v4, { asn => $bgp->{'peer_asn'},
-                                
+                                bfd => $bgp->{'bfd'},
                                 local_ip => $bgp->{'local_ip'},
                                 peer_ip => $peer_ip,
                                 key => $bgp->{'md5_key'}
@@ -916,7 +927,7 @@ sub add_vrf{
                 $has_ipv6 = 1;
                 $vars->{'has_ipv6'} = 1;
                 push(@bgp_v6, { asn => $bgp->{'peer_asn'},
-                                
+                                bfd => $bgp->{'bfd'},
                                 local_ip => $bgp->{'local_ip'},
                                 peer_ip => $peer_ip,
                                 key => $bgp->{'md5_key'}
@@ -925,18 +936,19 @@ sub add_vrf{
         }
 
 
-        if ($self->unit_name_available($i->{'name'}, $i->{'unit'}) == 0) {
-            $self->{'logger'}->error("Unit " . $i->{'unit'}  . " is not available on $i->{'name'}");
+        if ($self->unit_name_available($i->{'interface'}, $i->{'unit'}) == 0) {
+            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
             return FWDCTL_FAILURE;
         }
 
-        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           type => $i->{'type'},
+                                          mtu  => $i->{'mtu'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'},
                                           bandwidth => $i->{'bandwidth'},
-					  v4_peers => \@bgp_v4,
+                                          v4_peers => \@bgp_v4,
                                           has_ipv4 => $has_ipv4,
                                           has_ipv6 => $has_ipv6,
                                           v6_peers => \@bgp_v6 });
@@ -975,16 +987,7 @@ sub remove_vrf{
     }
 
     my $vars = {};
-    $vars->{'vrf_name'} = $vrf->{'vrf_name'};
-    $vars->{'interfaces'} = [];
-    foreach my $i (@{$vrf->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
-                                          inner_tag => $i->{'inner_tag'},
-                                          tag  => $i->{'tag'},
-                                          unit => $i->{'unit'}
-	      });
-    }
-
+    $vars->{'interfaces'} = $vrf->{'interfaces'};
     $vars->{'vrf_id'} = $vrf->{'vrf_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
 
@@ -1019,7 +1022,7 @@ sub xml_configuration {
         $vars->{'circuit_name'} = $ckt->{'circuit_name'};
         $vars->{'interfaces'} = [];
         foreach my $i (@{$ckt->{'interfaces'}}) {
-            push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                               inner_tag => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               unit => $i->{'unit'}
@@ -1078,7 +1081,8 @@ sub xml_configuration {
                     $self->{'logger'}->error("Processing IPv4 peer");
                     $has_ipv4 = 1;
                     $vars->{'has_ipv4'} = 1;
-                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},                                    
+                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},
+                                    bfd => $bgp->{'bfd'},
                                     local_ip => $bgp->{'local_ip'},
                                     peer_ip => $peer_ip,
                                     key => $bgp->{'md5_key'}
@@ -1088,7 +1092,8 @@ sub xml_configuration {
                     $self->{'logger'}->error("Processing IPv6 peer");
                     $has_ipv6 = 1;
                     $vars->{'has_ipv6'} = 1;
-                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},                                    
+                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},
+                                    bfd => $bgp->{'bfd'},
                                     local_ip => $bgp->{'local_ip'},
                                     peer_ip => $peer_ip,
                                     key => $bgp->{'md5_key'}
@@ -1097,9 +1102,10 @@ sub xml_configuration {
                 
             }
 
-            push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                               unit => $i->{'unit'},
-					      type => $i->{'type'},
+                                              cloud_interconnect_type => $i->{'cloud_interconnect_type'},
+                                              mtu  => $i->{'mtu'},
                                               inner_tag  => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               bandwidth => $i->{'bandwidth'},
@@ -1112,8 +1118,8 @@ sub xml_configuration {
         $vars->{'vrf_id'} = $vrf->{'vrf_id'};
         $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
         $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
-        
-        $self->{'logger'}->error("VARS: " . Dumper($vars));
+
+        $self->{'logger'}->debug("VARS: " . Dumper($vars));
         
         if($vrf->{'state'} eq 'active'){
             $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$xml);
@@ -1317,8 +1323,6 @@ sub get_config_to_remove{
                     }
 
                     $int_del .= "</unit>";
-                    $self->{logger}->error(Dumper($int_del));
-
                 }else{
                     if(!$self->_is_active_circuit($circuit_id, $circuits)){
                         $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
@@ -1475,7 +1479,7 @@ sub _check_for_shaper{
     my $vrf = $vrfs->{$vrf_id};
     foreach my $int (@{$vrf->{'interfaces'}}){
 
-	if($int->{'name'} eq $port && $int->{'unit'} eq $unit){
+	if($int->{'interface'} eq $port && $int->{'unit'} eq $unit){
 	    if($int->{'bandwidth'} > 0){
 
 		#will be changed by the template
@@ -1547,12 +1551,10 @@ sub _is_vrf_on_port{
         return 0;
     }
 
+    # check to see if the port matches the port
+    # check to see if the vlan matches the vlan
     foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}){
-        # check to see if the port matches the port
-        # check to see if the vlan matches the vlan
-
-        if($int->{'name'} eq $port && $int->{'unit'} eq $unit){
-            $self->{'logger'}->error("Interface $int->{'name'}.$int->{'unit'} is in vrf $vrf_id.");
+        if ($int->{'interface'} eq $port && $int->{'unit'} eq $unit) {
             return 1;
         }
     }
@@ -1581,7 +1583,7 @@ sub _is_peer_address {
     }
 
     foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}) {
-        if ($int->{name} ne $int_name) {
+        if ($int->{interface} ne $int_name) {
             next;
         }
 
@@ -1704,7 +1706,7 @@ sub get_device_diff {
 
     my $dom = $self->{'jnx'}->get_dom();
     my $text = $dom->getElementsByTagName('configuration-output')->string_value();
-    $self->{'logger'}->warn("Raw diff: " . $text);
+    $self->{'logger'}->debug("Raw diff: " . $text);
 
     $ok = $self->unlock();
 
@@ -2586,7 +2588,7 @@ sub _edit_config{
                 $self->{'logger'}->warn($msg);
             } else {
                 # error-severity of 'error' is considered fatal
-                $self->{'logger'}->error($msg);
+                $self->{'logger'}->debug(Dumper($error));
                 die $msg;
             }
         }

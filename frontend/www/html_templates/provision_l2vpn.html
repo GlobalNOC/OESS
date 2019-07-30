@@ -1,0 +1,92 @@
+<div>
+  <div id="circuit-header" class="row">
+    <div class="col-sm-6">
+      <h2>New Layer 2 Connection</h2>
+    </div>
+
+    <div class="col-sm-6" style="text-align: right; padding-top: 23px;">
+      <button class="btn-sm btn-success l2vpn-save-button" type="button">
+        <span class="glyphicon glyphicon-floppy-disk"></span> Save
+      </button>
+      <button class="btn-sm btn-danger l2vpn-cancel-button" type="button">
+        <span class="glyphicon glyphicon-ban-circle"></span> Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- circuit tabs -->
+  <div class="row">
+    <div id="circuit2" class="col-sm-12">
+      <hr/>
+
+      <div class="row">
+        <div class="col-sm-6">
+          <div class="row">
+            <div class="col-sm-12">
+              <div class="form-group">
+                <label>Name</label>
+                <input id="l2vpn-circuit-description" class="form-control" type="text" placeholder="Short description of this connection">
+              </div>
+            </div>
+          </div>
+
+          <div class="row" id="l2vpn-schedule-picker"></div>
+        </div>
+
+        <div class="col-sm-6"></div>
+      </div>
+
+      <div class="row">
+        <br/>
+        <div id="actions" class="col-sm-12" style="display: ${displayEdits};">
+          <button class="btn-sm btn-primary l2vpn-new-endpoint-button" type="button">
+            <span class="glyphicon glyphicon-plus"></span> New Endpoint
+          </button>
+        </div>
+      </div>
+
+      <div class="row">
+        <br/>
+        <div class="col-sm-12">
+          <div id="endpoints"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div id="endpoint-selection-modal2-div"></div>
+
+    [% INCLUDE html_templates/l2/endpoint_selection_modal2.html %]
+    [% INCLUDE html_templates/l2/endpoint.html %]
+    [% INCLUDE html_templates/l2/schedule.html %]
+
+    <script>
+      [% INCLUDE js_templates/component.js %]
+
+      [% INCLUDE js_templates/api/vlan.js %]
+      [% INCLUDE js_templates/api/interfaces.js %]
+      [% INCLUDE js_templates/api/entity.js %]
+      [% INCLUDE js_templates/api/circuit.js %]
+
+      [% INCLUDE js_templates/l2/endpoint_selection_modal.js %]
+      [% INCLUDE js_templates/l2/endpoint.js %]
+      [% INCLUDE js_templates/l2/schedule.js %]
+
+      [% INCLUDE js_templates/l2/circuit.js %]
+
+      [% INCLUDE js_templates/provision_l2vpn.js %]
+    </script>
+
+
+  <!-- waiting for provision modal -->
+  <div class="modal fade" role="dialog" tabindex="-1" id="add-l2vpn-loading">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content" style="text-align: center;">
+        <img src="[% path %]media/loading.gif" width="200px;"/>
+        <p>Give us just a few seconds. We're provisioning your connection now.</p>
+        <br/>
+      </div>
+    </div>
+  </div>
+
+</div>

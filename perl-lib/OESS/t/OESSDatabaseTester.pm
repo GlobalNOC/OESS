@@ -18,11 +18,20 @@ sub getConfigFilePath {
     return $database_config;
 }
 
-sub getConfig { 
-    my $cwd = $FindBin::Bin;
-    $cwd =~ /(.*)/;
-    $cwd = $1;
-    my $cfg                 = GRNOC::Config->new(config_file => "$cwd/conf/database.xml");
+sub getConfig {
+    my $args = {
+        config => undef,
+        @_
+    };
+
+    if (!defined $args->{config}) {
+        my $cwd = $FindBin::Bin;
+        $cwd =~ /(.*)/;
+        $cwd = $1;
+        $args->{config} = "$cwd/conf/database.xml";
+    }
+
+    my $cfg                 = GRNOC::Config->new(config_file => $args->{config});
     my $user                = $cfg->get('/config/credentials[1]/@username')->[0];
     my $pass                = $cfg->get('/config/credentials[1]/@password')->[0];
     my $db                  = $cfg->get('/config/credentials[1]/@database')->[0];
@@ -67,19 +76,58 @@ sub resetSNAPPDB {
     return 1;
 }
 
-sub resetOESSDB {
-    my $creds = &getConfig();
-    #drop the oess-test DB if it exists, and then create it
-    my %attr = (PrintError => 0, RaiseError => 0);
-    my $dbh = DBI->connect("DBI:mysql:dbname=;host=localhost;port=6633",$creds->{'user'},$creds->{'pass'},\%attr);
-    $dbh->do("create database " . $creds->{'db'});
+sub load_database {
+    my $config_file = shift;
+    my $dump_file = shift;
+
+    my $config = GRNOC::Config->new(config_file => $config_file);
+    my $user = $config->get('/config/credentials[1]/@username')->[0];
+    my $pass = $config->get('/config/credentials[1]/@password')->[0];
+    my $db = $config->get('/config/credentials[1]/@database')->[0];
+
+    my $dbh = DBI->connect(
+        "DBI:mysql:dbname=;host=localhost;port=6633",
+        $user,
+        $pass,
+        { PrintError => 0, RaiseError => 0 }
+    );
+    $dbh->do("create database $db");
     $dbh->do("set foreign_key_checks = 0");
 
-   
-    my $cwd = $FindBin::Bin;
-    $cwd =~ /(.*)/;
-    $cwd = $1;
-    my $command = "/usr/bin/mysql -u $creds->{'user'} --password=$creds->{'pass'} $creds->{'db'} < $cwd/conf/oess_known_state.sql";
+    my $command = "/usr/bin/mysql -u $user --password=$pass $db < $dump_file";
+    if (system $command) {
+        return 0;
+    }
+
+    $dbh->do("set foreign_key_checks = 1");
+    return 1;
+}
+
+sub resetOESSDB {
+    my $args = {
+        config => undef,
+        dbdump => undef,
+        @_
+    };
+
+    my $creds = &getConfig(config => $args->{config});
+
+    my %attr = (PrintError => 0, RaiseError => 0);
+    my $dbh = DBI->connect("DBI:mysql:dbname=;host=localhost;port=6633",$creds->{'user'},$creds->{'pass'},\%attr);
+
+    # Drop the oess-test DB if it exists and then create it.
+    $dbh->do("drop database $creds->{db} if exists");
+    $dbh->do("create database $creds->{db}");
+    $dbh->do("set foreign_key_checks = 0");
+
+    if (!defined $args->{dbdump}) {
+        my $cwd = $FindBin::Bin;
+        $cwd =~ /(.*)/;
+        $cwd = $1;
+        $args->{dbdump} = "$cwd/conf/oess_known_state.sql";
+    }
+
+    my $command = "/usr/bin/mysql -u $creds->{'user'} --password=$creds->{'pass'} $creds->{'db'} < $args->{dbdump}";
     if (system($command)){
         return 0;
     }

@@ -122,11 +122,12 @@ async function add_entity(entityID, entity_name, desctiption, logo_url, entity_u
     try {
       const resp = await fetch(url, {method: 'get', credentials: 'include'});
       const data = await resp.json();
-      console.log(data);
+      if ('error' in data) {
+        throw data.error_text;
+      }
       return data.results[0];
-    }catch(error) {
-      console.log('Failure occurred in deleteVRF.');
-      console.log(error);
+    } catch(error) {
+      console.log('Failure occurred in add_entity:', error);
       return null;
     }    
 }

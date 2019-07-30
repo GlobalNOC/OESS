@@ -14,7 +14,7 @@ async function loadUserMenu() {
 <li role="separator" class="divider"></li>
 `;
 
-  session.data.isAdmin = (user.is_admin === 1) ? true : false;
+  session.data.isAdmin = false;
   session.data.isReadOnly = (user.type === 'read-only') ? true : false;
   session.data.username = user.username;
 
@@ -23,8 +23,12 @@ async function loadUserMenu() {
           session.data.workgroup_id = group.workgroup_id;
       }
 
+      if (group.type === 'admin') {
+          session.data.isAdmin = true;
+      }
+
       if (session.data.workgroup_id == group.workgroup_id) {
-          userMenuActiveWorkgroup.innerHTML = user.username + ' / ' + group.name;
+          userMenuActiveWorkgroup.innerHTML = user.username + ' / ' + group.name + ' <span class="caret"></span>';
       }
       html += `<li><a onclick="selectWorkgroup(${group.workgroup_id})" href="#">${group.name}</a></li>`;
   });

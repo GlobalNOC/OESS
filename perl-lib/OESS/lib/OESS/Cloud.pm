@@ -36,18 +36,20 @@ sub setup_endpoints {
     my $config = OESS::Config->new();
     my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
+    my $azure_connections = {};
+
     foreach my $ep (@$endpoints) {
-        if (!$ep->interface()->cloud_interconnect_id) {
+        if (!$ep->cloud_interconnect_id) {
             push @$result, $ep;
             next;
         }
 
-        if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
+        if ($ep->cloud_interconnect_type eq 'aws-hosted-connection') {
             $logger->info("Adding cloud interconnect of type aws-hosted-connection.");
             my $aws = OESS::Cloud::AWS->new();
 
             my $res = $aws->allocate_connection(
-                $ep->interface()->cloud_interconnect_id,
+                $ep->cloud_interconnect_id,
                 $vrf_name,
                 $ep->cloud_account_id,
                 $ep->tag,
@@ -57,7 +59,7 @@ sub setup_endpoints {
             $ep->cloud_connection_id($res->{ConnectionId});
             push @$result, $ep;
 
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+        } elsif ($ep->cloud_interconnect_type eq 'aws-hosted-vinterface') {
             $logger->info("Adding cloud interconnect of type aws-hosted-vinterface.");
             my $aws = OESS::Cloud::AWS->new();
 
@@ -82,7 +84,7 @@ sub setup_endpoints {
             }
 
             my $res = $aws->allocate_vinterface(
-                $ep->interface()->cloud_interconnect_id,
+                $ep->cloud_interconnect_id,
                 $ep->cloud_account_id,
                 $ip_version,
                 $amazon_addr,
@@ -90,14 +92,17 @@ sub setup_endpoints {
                 $auth_key,
                 $customer_addr,
                 $vrf_name,
-                $ep->tag
+                $ep->tag,
+                $ep->mtu
             );
             $ep->cloud_account_id($ep->cloud_account_id);
             $ep->cloud_connection_id($res->{VirtualInterfaceId});
-            $peer->peer_asn($res->{AmazonSideAsn});
+            if (defined $peer) {
+                $peer->peer_asn($res->{AmazonSideAsn});
+            }
             push @$result, $ep;
 
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+        } elsif ($ep->cloud_interconnect_type eq 'gcp-partner-interconnect') {
             $logger->info("Adding cloud interconnect of type gcp-partner-interconnect.");
             my $gcp = OESS::Cloud::GCP->new();
 
@@ -114,13 +119,8 @@ sub setup_endpoints {
             my $interconnect_name = $vrf_name;
             my $connection_id     = 'a-' . lc($uuid);
 
-            my $interface = $gcp->select_interconnect_interface(
-                entity => $ep->entity,
-                pairing_key => $ep->cloud_account_id
-            );
-
             my $res = $gcp->insert_interconnect_attachment(
-                interconnect_id   => $interface->cloud_interconnect_id,
+                interconnect_id   => $ep->cloud_interconnect_id,
                 interconnect_name => $interconnect_name,
                 bandwidth         => 'BPS_' . $ep->bandwidth . 'M',
                 connection_id     => $connection_id,
@@ -131,17 +131,23 @@ sub setup_endpoints {
             $ep->cloud_connection_id($connection_id);
             push @$result, $ep;
 
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'azure-express-route') {
+        } elsif ($ep->cloud_interconnect_type eq 'azure-express-route') {
             $logger->info("Adding cloud interconnect of type azure-express-route.");
-            my $azure = OESS::Cloud::Azure->new();
-            my $peer1 = $ep->peers->[0];
-            $peer1->local_ip('192.168.100.249/30');
-            $peer1->peer_ip('192.168.100.250/30');
-            $peer1->peer_asn(12076);
 
-            my $conn = $azure->expressRouteCrossConnection($ep->interface()->cloud_interconnect_id, $ep->cloud_account_id);
+            if (defined $azure_connections->{$ep->cloud_account_id}) {
+                my $conf = $azure_connections->{$ep->cloud_account_id};
+                $ep->cloud_connection_id($conf->{id});
+                $ep->tag($conf->{tag});
+                $ep->inner_tag($conf->{inner_tag});
+                push @$result, $ep;
+                next;
+            }
+
+            my $azure = OESS::Cloud::Azure->new();
+
+            my $conn = $azure->expressRouteCrossConnection($ep->cloud_interconnect_id, $ep->cloud_account_id);
             my $res = $azure->set_cross_connection_state_to_provisioned(
-                interconnect_id  => $ep->interface()->cloud_interconnect_id,
+                interconnect_id  => $ep->cloud_interconnect_id,
                 service_key      => $ep->cloud_account_id,
                 circuit_id       => $conn->{properties}->{expressRouteCircuit}->{id},
                 region           => $conn->{location},
@@ -152,33 +158,18 @@ sub setup_endpoints {
                 primary_prefix   => '192.168.100.248/30',
                 secondary_prefix => '192.168.100.252/30'
             );
+
             $ep->cloud_connection_id($res->{id});
             $ep->inner_tag($ep->tag);
             $ep->tag($conn->{properties}->{sTag});
-            push @$result, $ep;
 
-            # Azure ExpressRoute Circuits expect two physical endpoints.
-            my $interconnect_id2 = $azure->get_port_sibling($ep->interface()->cloud_interconnect_id);
-
-            my $intfs = OESS::DB::Interface::get_interfaces(db => $ep->{db}, cloud_interconnect_id => $interconnect_id2);
-            my $intf_id = $intfs->[0];
-            my $intf2 = OESS::DB::Interface::fetch(db => $ep->{db}, interface_id => $intf_id);
-
-            my $ep2_model = {
-                inner_tag           => $ep->tag,
-                tag                 => $conn->{properties}->{sTag},
-                cloud_account_id    => $ep->cloud_account_id,
-                cloud_connection_id => $res->{id},
-                node                => $intf2->{node}->{name},
-                interface           => $intf2->{name},
-                bandwidth           => $ep->{bandwidth},
-                peerings            => [{ version => 4 }]
+            $azure_connections->{$ep->cloud_account_id} = {
+                id        => $ep->cloud_connection_id,
+                tag       => $ep->tag,
+                inner_tag => $ep->inner_tag
             };
-            my $ep2 = OESS::Endpoint->new(db => $ep->{db}, type => 'vrf', model => $ep2_model);
-            $ep2->peers->[0]->local_ip('192.168.100.253/30');
-            $ep2->peers->[0]->peer_ip('192.168.100.254/30');
-            $ep2->peers->[0]->peer_asn(12076);
-            push @$result, $ep2;
+
+            push @$result, $ep;
 
         } else {
             $logger->warn("Cloud interconnect type is not supported.");
@@ -204,33 +195,42 @@ sub cleanup_endpoints {
     my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
     foreach my $ep (@$endpoints) {
-        if (!$ep->interface()->cloud_interconnect_id) {
+        if (!$ep->cloud_interconnect_id) {
             next;
         }
 
-        if ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-connection') {
+        if ($ep->cloud_interconnect_type eq 'aws-hosted-connection') {
             my $aws = OESS::Cloud::AWS->new();
 
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
+            if (!defined $aws_connection || $aws_connection eq '') {
+                next;
+            }
 
             $logger->info("Removing aws-hosted-connection $aws_connection from $aws_account.");
-            $aws->delete_connection($ep->interface()->cloud_interconnect_id, $aws_connection);
+            $aws->delete_connection($ep->cloud_interconnect_id, $aws_connection);
 
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+        } elsif ($ep->cloud_interconnect_type eq 'aws-hosted-vinterface') {
             my $aws = OESS::Cloud::AWS->new();
 
             my $aws_account = $ep->cloud_account_id;
             my $aws_connection = $ep->cloud_connection_id;
+            if (!defined $aws_connection || $aws_connection eq '') {
+                next;
+            }
 
             $logger->info("Removing aws-hosted-vinterface $aws_connection from $aws_account.");
-            $aws->delete_vinterface($ep->interface()->cloud_interconnect_id, $aws_connection);
+            $aws->delete_vinterface($ep->cloud_interconnect_id, $aws_connection);
 
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+        } elsif ($ep->cloud_interconnect_type eq 'gcp-partner-interconnect') {
             my $gcp = OESS::Cloud::GCP->new();
 
-            my $interconnect_id = $ep->interface()->cloud_interconnect_id;
+            my $interconnect_id = $ep->cloud_interconnect_id;
             my $connection_id = $ep->cloud_connection_id;
+            if (!defined $connection_id || $connection_id eq '') {
+                next;
+            }
 
             $logger->info("Removing gcp-partner-interconnect $connection_id from $interconnect_id.");
             my $res = $gcp->delete_interconnect_attachment(
@@ -238,10 +238,10 @@ sub cleanup_endpoints {
                 connection_id => $connection_id
             );
 
-        } elsif ($ep->interface()->cloud_interconnect_type eq 'azure-express-route') {
+        } elsif ($ep->cloud_interconnect_type eq 'azure-express-route') {
             my $azure = OESS::Cloud::Azure->new();
 
-            my $interconnect_id = $ep->interface()->cloud_interconnect_id;
+            my $interconnect_id = $ep->cloud_interconnect_id;
             my $service_key = $ep->cloud_account_id;
 
             $logger->info("Removing azure-express-route $service_key from $interconnect_id.");

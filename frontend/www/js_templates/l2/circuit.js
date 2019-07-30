@@ -98,15 +98,14 @@ class CircuitDetails extends Component {
 class CircuitHeader extends Component {
   constructor(state) {
     super();
-    this.state = state;
   }
 
   async render(props) {
-    let displayEdits = (this.state.editable && props.state !== 'decom') ? 'block' : 'none';
+    let displayEdits = (props.editable) ? 'block' : 'none';
 
     return `
 <div class="col-sm-6">
-  <h2>${props.description} <small>${props.circuit_id}</small></h2>
+  <h2>${props.description} <small>${props.connectionId}</small></h2>
 </div>
 
 <div class="col-sm-6" style="text-align: right; padding-top: 23px; display: ${displayEdits};">

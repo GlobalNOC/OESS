@@ -115,7 +115,7 @@ sub compare_and_update_vrfs{
             my $connection_id = $endpoint->{cloud_connection_id};   
 
             warn "get_vrf_gcp_details";
-            my $peering = get_vrf_grp_details(gcp_ints => $gcp_ints, cloud_connection_id => $connection_id);
+            my $peering = get_vrf_gcp_details(gcp_ints => $gcp_ints, cloud_connection_id => $connection_id);
 	    next if(!defined($peering) || $peering eq '');
             my $update = update_endpoint_values($endpoint->{'peers'}->[0], $peering);
             if($update){
@@ -144,18 +144,19 @@ sub update_oess_vrf{
         my @peerings;
         foreach my $p (@{$ep->{'peers'}}){
             push(@peerings,{ peer_ip => $p->{'peer_ip'},
-                             asn => $p->{'peer_asn'},
-                             key => $p->{'md5_key'},
-                             local_ip => $p->{'local_ip'}});
+                             peer_asn => $p->{'peer_asn'},
+                             md5_key => $p->{'md5_key'},
+                             local_ip => $p->{'local_ip'},
+                             vrf_ep_peer_id => $p->{'vrf_ep_peer_id'}});
         }
-        push(@{$params{'endpoint'}},encode_json({ interface => $ep->{'interface'}->{'name'}, 
-                                                  node => $ep->{'node'}->{'name'},
+        push(@{$params{'endpoint'}},encode_json({ interface => $ep->{'interface'},
+                                                  node => $ep->{'node'},
                                                   tag => $ep->{'tag'},
                                                   bandwidth => $ep->{'bandwidth'},
                                                   inner_tag => $ep->{'inner_tag'},
+                                                  vrf_endpoint_id => $ep->{'vrf_endpoint_id'},
+                                                  circuit_ep_id => $ep->{'circuit_ep_id'},
                                                   peerings => \@peerings}));
-    
-        
     }
 
     my $res = $client->provision(%params);

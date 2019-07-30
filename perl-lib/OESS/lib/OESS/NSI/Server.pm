@@ -23,7 +23,7 @@ sub _send_to_daemon{
     my $log    = $logger->get_logger('OESS.NSI.WWW');
 
     
-    my $api    = OESS::RabbitMQ::Client->new( timeout => 60,
+    my $api    = OESS::RabbitMQ::Client->new( timeout => 200,
 					      topic    => 'OESS.NSI.Processor');
 
     $log->info("Calling $method");
@@ -242,7 +242,7 @@ sub reserve{
     }else{
 
         if(defined($res->{'error'})){
-            $result = SOAP::Data->name( connectionId => 999999 )->type("");
+            $result = SOAP::Data->name( connectionId => 9999999 )->type("");
         }else{
             $result = SOAP::Data->name( connectionId => $res )->type("");
         }

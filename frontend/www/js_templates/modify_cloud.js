@@ -1,310 +1,272 @@
-/**
- * render calls obj.render(props) to generate an HTML string. Once
- * generated, the HTML string is assigned to elem.innerHTML.
- */
-async function render(obj, elem, props) {
-  elem.innerHTML = await obj.render(props);
+function formatDate(seconds) {
+    let d = new Date(seconds * 1000);
+    return d.toLocaleString();
 }
 
-
-let m = undefined;
-
-
-async function load() {
-  let interfaces = await getInterfacesByWorkgroup(session.data.workgroup_id);
-  let vlans = await getAvailableVLANs(session.data.workgroup_id, interfaces[0].interface_id);
-
-  m = new EndpointSelectionModal({
-    interface: interfaces[0].interface_id,
-    vlan: vlans[0]
-  });
-  update();
-}
-
-async function update(props) {
-  render(m, document.querySelector('#add-endpoint-modal'), props);
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  sessionStorage.setItem('endpoints', '[]');
-
-  load();
-
-  loadUserMenu().then(function() {
-    loadVRF();
-    setDateTimeVisibility();
-  });
-
-  let addNetworkEndpoint = document.querySelector('#add-network-endpoint');
-  addNetworkEndpoint.addEventListener('click', addNetworkEndpointCallback);
-
-  let addNetworkSubmit = document.querySelector('#add-network-submit');
-  addNetworkSubmit.addEventListener('click', addNetworkSubmitCallback);
-
-  let addNetworkCancel = document.querySelector('#add-network-cancel');
-  addNetworkCancel.addEventListener('click', addNetworkCancelCallback);
-
-  let url = new URL(window.location.href);
-  let id = url.searchParams.get('prepop_vrf_id');
-  if (id) {
-      showAndPrePopulateEndpointSelectionModal(id);
-  }
-});
-
-async function loadVRF() {
-  let url = new URL(window.location.href);
-  let id = url.searchParams.get('vrf_id');
-  let vrf = await getVRF(id);
-  console.log(vrf);
-
-  let description = document.querySelector('#description');
-  description.value = vrf.description;
-
-  let endpoints = [];
-
-  vrf.endpoints.forEach(function(e) {
-    let entity_id = null;
-    let entity_name = null;
-    if (e.hasOwnProperty('entity')) {
-      entity_id = e.entity.entity_id;
-      entity_name = e.entity.name;
-    }
-
-    let endpoint = {
-        cloud_account_id: e.cloud_account_id,
-        cloud_account_type: e.interface.cloud_interconnect_type,
-        bandwidth: e.bandwidth,
-        entity_id: entity_id,
-        entity: entity_name,
-        interface_id: e.interface.interface_id,
-        name: e.interface.name,
-        node: e.node.name,
-        peerings: [],
-        tag: e.tag,
-        interface: e.interface.name
+class GlobalState extends Component {
+  constructor(state) {
+    super();
+    this.connection = {
+      id:        -1,
+      endpoints: []
     };
+  }
 
-    e.peers.forEach(function(p) {
-      let peering = {
-          ipVersion: p.ip_version,
-          asn: p.peer_asn,
-          key: p.md5_key || '',
-          oessPeerIP: p.local_ip,
-          yourPeerIP: p.peer_ip
-      };
-      endpoint.peerings.push(peering);
-    });
+  async selectConnection(id) {
+    if (id != -1) {
+      this.connection = await getVRF(id);
 
-    endpoints.push(endpoint);
-  });
+      // Hack to display vrf_id using Object build for Layer2 Conns
+      this.connection.circuit_id = this.connection.vrf_id;
 
-  sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
-  sessionStorage.setItem('vrf',JSON.stringify(vrf));
-  loadSelectedEndpointList();
-}
+      loadCommands(this.connection);
 
-async function addNetworkEndpointCallback(event) {
-  m.setIndex(-1);
-  update();
 
-  let endpointSelectionModal = $('#add-endpoint-modal');
-  endpointSelectionModal.modal('show');
-}
+      document.getElementById('provision-time').innerHTML = '';
+      document.getElementById('remove-time').innerHTML = '';
+      document.getElementById('last-modified').innerHTML = formatDate(this.connection.last_modified);
+      document.getElementById('last-modified-by').innerHTML = this.connection.last_modified_by.email;
+      document.getElementById('created-on').innerHTML = formatDate(this.connection.created);
+      document.getElementById('created-by').innerHTML = this.connection.created_by.email;
+      document.getElementById('owned-by').innerHTML = this.connection.workgroup.name;
+      document.getElementById('state').innerHTML = this.connection.state;
+      document.getElementById('local_asn').innerHTML = this.connection.local_asn;
+      
+      let iframe3 = document.getElementById(`endpoints-statistics-iframe-route`);
+      iframe3.dataset.vrf = this.connection.vrf_id;
+      iframe3.src = `${iframe3.dataset.url}&var-table=OESS-L3VPN-${this.connection.vrf_id}.inet.0&from=now-1h&to=now`;
 
-async function modifyNetworkEndpointCallback(index) {
-  let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-  endpoints[index].index = index;
+      this.connection.endpoints.forEach(function(endpoint, eIndex) {
 
-  m.setIndex(index);
-  m.setEntity(endpoints[index].entity_id);
-  m.setInterface(endpoints[index].interface_id);
-  m.setVLAN(endpoints[index].tag);
-  update();
+        let select = document.createElement('select');
+        select.setAttribute('class', 'form-control peer-selection');
+        select.setAttribute('id', `peering-selection-${eIndex}`);
+        select.setAttribute('onchange', 'updateStatisticsIFrame()');
 
-  let endpointSelectionModal = $('#add-endpoint-modal');
-  endpointSelectionModal.modal('show');
-}
+        let peeringHTML = '';
+        if (!'peers' in endpoint) {
+          endpoint.peers = [];
+        }
 
-async function deleteNetworkEndpointCallback(index) {
-    let entity = document.querySelector(`#enity-${index}`);
+        endpoint.peers.forEach(function(peering, peeringIndex) {
+          select.innerHTML += `<option value=${peering.peer_ip}>${peering.peer_ip}</option>`;
+        });
 
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints.splice(index, 1);
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+        let peerSelections = document.getElementById('peering-selection');
+        peerSelections.appendChild(select);
 
-    loadSelectedEndpointList();
-}
+        let statGraph = `
+<div id="endpoints-statistics-${eIndex}" class="panel panel-default endpoints-statistics" style="display: none;">
+  <div class="panel-heading" style="height: 40px;">
+    <h4 style="margin: 0px; float: left;">
+    ${endpoint.node} <small>${endpoint.interface} - ${endpoint.tag}</small>
+    </h4>
+  </div>
 
-async function addNetworkSubmitCallback(event) {
-    if (!document.querySelector('#description').validity.valid) {
-        document.querySelector('#description').reportValidity();
-        return null;
+  <div style="padding-left: 15px; padding-right: 15px">
+    <iframe id="endpoints-statistics-iframe-${eIndex}" data-url="[% g_port %]" data-node="${endpoint.node}" data-interface="${endpoint.interface}" data-unit="${endpoint.unit}" width="100%" height="300" frameborder="0"></iframe>
+    <iframe id="endpoints-statistics-iframe-peer-${eIndex}" data-url="[% g_peer %]" data-node="${endpoint.node}" data-vrf="${this.connection.vrf_id}" width="100%" height="300" frameborder="0"></iframe>
+  </div>
+</div>`;
+
+        let stats = document.getElementById('endpoints-statistics');
+        stats.innerHTML += statGraph;
+
+        let statOption = `<option value="${eIndex}">${endpoint.node} - ${endpoint.interface} - ${endpoint.tag}</option>`;
+
+        let dropdown = document.getElementById('endpoints-statistics-selection');
+        dropdown.innerHTML += statOption;
+        displayStatisticsIFrame();
+      }.bind(this));
+
+      document.getElementById('endpoints-statistics-0').style.display = 'block';
     }
 
-    let provisionTime = -1;
-    if (document.querySelector('input[name=provision-time]:checked').value === 'later') {
-        let date = new Date(document.querySelector('#provision-time-picker').value);
-        provisionTime = date.getTime();
-    }
+    update();
+  }
 
-    let removeTime = -1;
-    if (document.querySelector('input[name=remove-time]:checked').value === 'later') {
-        let date = new Date(document.querySelector('#remove-time-picker').value);
-        removeTime = date.getTime();
+  updateEndpoint(e) {
+    if (e.index < 0) {
+      this.connection.endpoints.push(e);
+    } else {
+      this.connection.endpoints[e.index] = e;
     }
+    update();
+  }
 
-    let addNetworkLoadingModal = $('#add-network-loading');
+  deleteEndpoint(i) {
+    this.connection.endpoints.splice(i, 1);
+    update();
+  }
+
+  deletePeering(endpointIndex, peeringIndex) {
+    this.connection.endpoints[endpointIndex].peers.splice(peeringIndex, 1);
+  }
+
+  // Named deleteCircuit to work with Object built from Layer2 Conns
+  async deleteCircuit() {
+    let vrfID = parseInt(this.connection.vrf_id);
+
+    let ok = confirm(`Are you sure you want to delete this connection?`);
+    if (ok) {
+        let deleteModal = $('#delete-connection-loading');
+        deleteModal.modal('show');
+
+        let result = await deleteVRF(session.data.workgroup_id, vrfID);
+
+        if (result != null) {
+            window.location = '?action=welcome';
+        }
+        else {
+            deleteModal.modal('hide');
+            alert('There was an error deleting this connection.');
+        }
+    }
+  }
+
+  // Named saveCircuit to work with Object built from Layer2 Conns
+  async saveCircuit() {
+    console.log('Connection:', this.connection);
+
+    let addNetworkLoadingModal = $('#add-connection-loading');
     addNetworkLoadingModal.modal('show');
 
-    let url = new URL(window.location.href);
-    let id = url.searchParams.get('vrf_id');
-
     try {
-        let vrfID = await provisionVRF(
-            session.data.workgroup_id,
-            document.querySelector('#description').value,
-            document.querySelector('#description').value,
-            JSON.parse(sessionStorage.getItem('endpoints')),
-            provisionTime,
-            removeTime,
-            id
-        );
+      let vrfID = await provisionVRF(
+        session.data.workgroup_id,
+        this.connection.name,
+        this.connection.description,
+        this.connection.endpoints,
+        -1,
+        -1,
+        this.connection.vrf_id
+      );
 
-        if (vrfID === null) {
-            addNetworkLoadingModal.modal('hide');
-        } else {
-            window.location.href = `index.cgi?action=view_l3vpn&vrf_id=${vrfID}`;
-        }
-    } catch (error){
+      if (vrfID === null) {
         addNetworkLoadingModal.modal('hide');
-        alert('Failed to modify L3VPN: ' + error);
-        return;
+      } else {
+        window.location.href = `index.cgi?action=modify_cloud&vrf_id=${vrfID}`;
+      }
+    } catch (error){
+      addNetworkLoadingModal.modal('hide');
+      alert('Failed to provision L3VPN: ' + error);
+      return;
     }
-}
-
-async function addNetworkCancelCallback(event) {
-    window.location.href = 'index.cgi?action=welcome';
-}
-
-
-//--- Main - Schedule ---
-
-
-function setDateTimeVisibility() {
-  let type = document.querySelector('input[name=provision-time]:checked').value;
-  let pick = document.getElementById('provision-time-picker');
-
-  if (type === 'later') {
-    pick.style.display = 'block';
-  } else {
-    pick.style.display = 'none';
   }
 
-  type = document.querySelector('input[name=remove-time]:checked').value;
-  pick = document.getElementById('remove-time-picker');
-
-  if (type === 'later') {
-    pick.style.display = 'block';
-  } else {
-    pick.style.display = 'none';
+  cancel() {
+    if (!window.confirm('Are you sure you wish to cancel? All your changes will be lost.')) {
+      return;
+    }
+    window.location.href = 'index.cgi';
   }
 }
 
-//--- Main - Endpoint ---
+let state = new GlobalState();
+let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
 
-function setIPv4ValidationMessage(input) {
-    input.addEventListener('input', function(e) {
-        if (input.validity.valueMissing) {
-            input.setCustomValidity('Please fill out this field.');
-        } else if (input.validity.patternMismatch) {
-            input.setCustomValidity('Please input a valid IPv4 subnet in CIDR notation.');
-        } else {
-            input.setCustomValidity('');
-        }
-    }, false);
-}
 
-function newPeering(index) {
-    let ipVersion = document.querySelector(`#new-peering-form-${index} .ip-version`);
-    if (!ipVersion.validity.valid) {
-        ipVersion.reportValidity();
-        return null;
-    }
-    let asn = document.querySelector(`#new-peering-form-${index} .bgp-asn`);
-    if (!asn.validity.valid) {
-        asn.reportValidity();
-        return null;
-    }
-    let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
-    if (!yourPeerIP.validity.valid) {
-        yourPeerIP.reportValidity();
-        return null;
-    }
-    let key = document.querySelector(`#new-peering-form-${index} .bgp-key`);
-    if (!key.validity.valid) {
-        key.reportValidity();
-        return null;
-    }
-    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
-    if (!oessPeerIP.validity.valid) {
-        oessPeerIP.reportValidity();
-        return null;
-    }
+document.addEventListener('DOMContentLoaded', function() {
+  loadUserMenu();
 
-    let ipVersionNo = ipVersion.checked ? 6 : 4;
+  let url = new URL(window.location.href);
+  let id = url.searchParams.get('vrf_id');
 
-    let peering = {
-        ipVersion: ipVersionNo,
-        asn: asn.value,
-        key: key.value,
-        oessPeerIP: oessPeerIP.value,
-        yourPeerIP: yourPeerIP.value
-    };
+  state.selectConnection(id).then(async () => {
+    let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.connection.workgroup.workgroup_id && !session.data.isReadOnly);
+    let connActive = state.connection.state !== 'decom';
+    let editable = connActive && userMayEdit;
 
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints[index].peerings.push(peering);
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+    let newEndpointButton = document.querySelector('#new-endpoint-button');
+    newEndpointButton.style.display = (editable) ? 'block' : 'none';
 
-    // Redraw endpoints
-    loadSelectedEndpointList();
-}
+    let header = new CircuitHeader();
+    document.querySelector('#circuit-header').innerHTML = await header.render({
+      connectionId: state.connection.vrf_id,
+      description: state.connection.description,
+      editable: editable
+    });
 
-function deletePeering(endpointIndex, peeringIndex) {
-    let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-    endpoints[endpointIndex].peerings.splice(peeringIndex, 1);
-    sessionStorage.setItem('endpoints', JSON.stringify(endpoints));
+  });
 
-    // Redraw endpoints
-    loadSelectedEndpointList();
-}
+  let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
+  addNetworkEndpoint.addEventListener('click', function(event) {
+    modal.display(null);
+  });
 
-//--- Main ---
+  let map = new NDDIMap('map');
+  map.on("loaded", function(){
+    this.updateMapFromSession(session);
+  });
 
-function loadSelectedEndpointList() {
-  let endpoints = JSON.parse(sessionStorage.getItem('endpoints'));
-  let selectedEndpointList = '';
+});
 
-  let e = new EndpointList({endpoints: endpoints});
-  render(e, document.querySelector('#selected-endpoint-list'));
+async function update() {
+  let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.connection.workgroup.workgroup_id && !session.data.isReadOnly);
+  let connActive = state.connection.state !== 'decom';
+  let editable = connActive && userMayEdit;
 
-  endpoints.forEach(function(endpoint, index) {
-    //loadPeerFormValidator(index);
+  let list = document.getElementById('endpoints2-list');
+  list.innerHTML = '';
+
+  state.connection.endpoints.map(function(e, i) {
+    e.index = i;
+    e.peers = ('peers' in e) ? e.peers : [];
+    e.editable = editable;
+    e.isPeeringAutoGenerated = (e.cloud_interconnect_type !== null && e.cloud_interconnect_type !== 'aws-hosted-connection');
+
+    let endpoint = new Endpoint2('#endpoints2-list', e);
+    e.peers.map(function(p, j) {
+      p.index = j;
+      p.endpointIndex = i;
+      p.editable = editable;
+      p.isPeeringAutoGenerated = (e.cloud_interconnect_type !== null && e.cloud_interconnect_type !== 'aws-hosted-connection');
+
+      let peeringElem = endpoint.peerings();
+      let peering = new Peering2(peeringElem, p);
+      peering.onDelete(function(peering) {
+        state.deletePeering(i, j);
+        update();
+      });
+    });
   });
 }
 
-function loadPeerFormValidator(index) {
-  let ipVersion =  document.querySelector(`#new-peering-form-${index} .ip-version`);
-  if (ipVersion.checked) {
-    let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
-    asIPv6CIDR(yourPeerIP);
+function displayStatisticsIFrame() {
+    let elements = document.getElementsByClassName('endpoints-statistics');
+    for (let i = 0; i < elements.length; i++) {
+        elements[i].style.display = 'none';
+    }
 
-    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
-    asIPv6CIDR(oessPeerIP);
-  } else {
-    let yourPeerIP = document.querySelector(`#new-peering-form-${index} .your-peer-ip`);
-    asIPv4CIDR(yourPeerIP);
+    let selections = document.getElementsByClassName('peer-selection');
+    for (let i = 0; i < selections.length; i++) {
+        selections[i].style.display = 'none';
+    }
 
-    let oessPeerIP = document.querySelector(`#new-peering-form-${index} .oess-peer-ip`);
-    asIPv4CIDR(oessPeerIP);
-  }
+    let container = document.getElementById(`endpoints-statistics-selection`);
+
+    let element = document.getElementById(`endpoints-statistics-${container.value}`);
+    element.style.display = 'block';
+
+    let peer = document.getElementById(`peering-selection-${container.value}`);
+    peer.style.display = 'block';
+
+    updateStatisticsIFrame();
+}
+
+function updateStatisticsIFrame() {
+    let container = document.getElementById(`endpoints-statistics-selection`);
+
+    let range = document.getElementById(`endpoints-statistics-range`);
+
+    let peer = document.getElementById(`peering-selection-${container.value}`);
+
+    let iframe = document.getElementById(`endpoints-statistics-iframe-${container.value}`);
+    iframe.src = `${iframe.dataset.url}&var-node=${iframe.dataset.node}&var-interface=${iframe.dataset.interface}.${iframe.dataset.unit}` + range.value;
+
+    let iframe2 = document.getElementById(`endpoints-statistics-iframe-peer-${container.value}`);
+    iframe2.src = `${iframe2.dataset.url}&var-node=${iframe2.dataset.node}&var-vrf=OESS-L3VPN-${iframe2.dataset.vrf}&var-peer=${peer.value}` + range.value;
+
+    let iframe3 = document.getElementById(`endpoints-statistics-iframe-route`);
+    iframe3.src = `${iframe3.dataset.url}&var-table=OESS-L3VPN-${iframe3.dataset.vrf}.inet.0` + range.value;
 }

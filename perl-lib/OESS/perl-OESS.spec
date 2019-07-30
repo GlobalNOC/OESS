@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.2
+Version: 2.0.5
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -145,22 +145,31 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::ACL.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::AWS.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::Azure.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::GCP.3pm.gz
 %doc %{_mandir}/man3/OESS::Config.3pm.gz
 %doc %{_mandir}/man3/OESS::DB.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::ACL.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Circuit.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Command.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Endpoint.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Entity.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Interface.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Link.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Node.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Path.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Peer.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::User.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::VRF.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Workgroup.3pm.gz
 %doc %{_mandir}/man3/OESS::Endpoint.3pm.gz
 %doc %{_mandir}/man3/OESS::Entity.3pm.gz
 %doc %{_mandir}/man3/OESS::Interface.3pm.gz
+%doc %{_mandir}/man3/OESS::L2Circuit.3pm.gz
+%doc %{_mandir}/man3/OESS::Link.3pm.gz
 %doc %{_mandir}/man3/OESS::Mock.3pm.gz
 %doc %{_mandir}/man3/OESS::Node.3pm.gz
+%doc %{_mandir}/man3/OESS::Path.3pm.gz
 %doc %{_mandir}/man3/OESS::Peer.3pm.gz
 %doc %{_mandir}/man3/OESS::User.3pm.gz
 %doc %{_mandir}/man3/OESS::VRF.3pm.gz
@@ -213,22 +222,31 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/FV.pm
 %{perl_vendorlib}/OESS/DB.pm
 %{perl_vendorlib}/OESS/DB/ACL.pm
+%{perl_vendorlib}/OESS/DB/Circuit.pm
 %{perl_vendorlib}/OESS/DB/Command.pm
+%{perl_vendorlib}/OESS/DB/Endpoint.pm
 %{perl_vendorlib}/OESS/DB/Entity.pm
 %{perl_vendorlib}/OESS/DB/Interface.pm
+%{perl_vendorlib}/OESS/DB/Link.pm
 %{perl_vendorlib}/OESS/DB/Node.pm
+%{perl_vendorlib}/OESS/DB/Path.pm
+%{perl_vendorlib}/OESS/DB/Peer.pm
 %{perl_vendorlib}/OESS/DB/User.pm
 %{perl_vendorlib}/OESS/DB/VRF.pm
 %{perl_vendorlib}/OESS/DB/Workgroup.pm
 %{perl_vendorlib}/OESS/Cloud.pm
 %{perl_vendorlib}/OESS/Cloud/AWS.pm
+%{perl_vendorlib}/OESS/Cloud/Azure.pm
 %{perl_vendorlib}/OESS/Cloud/GCP.pm
 %{perl_vendorlib}/OESS/Config.pm
 %{perl_vendorlib}/OESS/Endpoint.pm
 %{perl_vendorlib}/OESS/Entity.pm
 %{perl_vendorlib}/OESS/Interface.pm
+%{perl_vendorlib}/OESS/L2Circuit.pm
+%{perl_vendorlib}/OESS/Link.pm
 %{perl_vendorlib}/OESS/Mock.pm
 %{perl_vendorlib}/OESS/Node.pm
+%{perl_vendorlib}/OESS/Path.pm
 %{perl_vendorlib}/OESS/Peer.pm
 %{perl_vendorlib}/OESS/User.pm
 %{perl_vendorlib}/OESS/VRF.pm
