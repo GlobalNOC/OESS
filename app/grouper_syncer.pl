@@ -10,7 +10,6 @@ use Getopt::Long;
 use GRNOC::WebService::Client;
 use GRNOC::Config;
 use JSON::XS;
-my $log;
 
 $ENV{'PERL_LWP_SSL_VERIFY_HOSTNAME'} = 0;
 $ENV{HTTPS_DEBUG} = 0;
@@ -22,7 +21,7 @@ sub main{
 
     #init_log4perl();
 
-    $log = GRNOC::Log->new( level => 'INFO' );
+    GRNOC::Log->new( level => 'INFO' );
 
     my $config = fetch_config( $config_file );
     
