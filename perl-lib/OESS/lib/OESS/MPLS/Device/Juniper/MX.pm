@@ -1845,7 +1845,7 @@ sub get_diff_text {
     }
 
     my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove );
-    if ($configuration eq '<configuration></configuration>') {
+    if ($configuration eq '<configuration><groups operation="delete"><name>OESS</name></groups><groups><name>OESS</name></groups><apply-groups>OESS</apply-groups></configuration>') {
         return {value => '', error => undef};
     }
 
