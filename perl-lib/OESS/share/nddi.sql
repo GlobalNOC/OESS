@@ -1003,6 +1003,7 @@ CREATE TABLE `vrf_ep_peer` (
   `local_ip` varchar(255) DEFAULT NULL,
   `md5_key` varchar(255) DEFAULT NULL,
   `circuit_ep_id` int(11) DEFAULT NULL,
+  `bfd` int(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   KEY `vrf_ep_peer_ibfk_2` (`circuit_ep_id`),

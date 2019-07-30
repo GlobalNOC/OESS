@@ -53,6 +53,9 @@ sub upgrade{
     $sth = $dbh->prepare("ALTER TABLE workgroup MODIFY COLUMN type ENUM('demo','normal','admin') NOT NULL DEFAULT 'normal'") or die "Unable to prepare convert column type to enum\n";
     $sth->execute() or die "Unable to convert column type to enum\n";
 
+    $sth = $dbh->prepare("ALTER TABLE vrf_ep_peer ADD COLUMN bfd INT(1) NOT NULL DEFAULT 0") or die "Unable to prepare add column bfd to vrf_ep_peer\n";
+    $sth->execute() or die "Unable to add column bfd to vrf_ep_peer\n";
+
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";

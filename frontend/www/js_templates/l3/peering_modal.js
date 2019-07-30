@@ -40,7 +40,9 @@ class PeeringModal {
 
   onSubmit(f) {
     this.parent.querySelector('.add-peering-modal-button').addEventListener('click', function(e) {
-      let ipVersion = this.parent.querySelector(`.ip-version`).checked ? 6 : 4;
+      let ipSelect = this.parent.querySelector(`.ip-version`);
+      let ipVersion = parseInt(ipSelect.options[ipSelect.selectedIndex].value);
+
       let asn = this.parent.querySelector(`.bgp-asn`);
       if (!asn.validity.valid) {
         asn.reportValidity();
@@ -62,13 +64,16 @@ class PeeringModal {
         return;
       }
 
+      let bfd = this.parent.querySelector('.bfd').checked;
+
       let peering = {
         ip_version: ipVersion,
         peer_asn: asn.value,
         md5_key: (key.value === '') ? null : key.value,
         local_ip: (oessPeerIP.value === '') ? null : oessPeerIP.value,
         peer_ip: (yourPeerIP.value === '') ? null : yourPeerIP.value,
-        operational_state: 'unknown'
+        operational_state: 'unknown',
+        bfd: bfd
       };
 
       f(peering);
@@ -83,9 +88,10 @@ class PeeringModal {
   }
 
   handleIpVersionChange(e) {
-    let ipv6 = this.parent.querySelector(`.ip-version`).checked;
+    let select = this.parent.querySelector(`.ip-version`);
+    let ipVersion = parseInt(select.options[select.selectedIndex].value);
 
-    if (ipv6) {
+    if (ipVersion === 6) {
       asIPv6CIDR(this.parent.querySelector(`.oess-peer-ip`));
       asIPv6CIDR(this.parent.querySelector(`.your-peer-ip`));
     } else {
@@ -96,7 +102,7 @@ class PeeringModal {
 
   display(peering) {
     if (peering === null) {
-      this.parent.querySelector(`.ip-version`).checked = false;
+      this.parent.querySelector(`.ip-version`).selectedIndex = 0;
       this.parent.querySelector(`.ip-version`).onchange = this.handleIpVersionChange;
 
       this.parent.querySelector(`.bgp-asn`).value = null;
@@ -110,6 +116,8 @@ class PeeringModal {
 
       this.parent.querySelector(`.oess-peer-ip`).value = null;
       this.parent.querySelector(`.oess-peer-ip`).placeholder = '192.168.1.3/31';
+
+      this.parent.querySelector(`.bfd`).checked = false;
     }
     this.handleIpVersionChange();
 
