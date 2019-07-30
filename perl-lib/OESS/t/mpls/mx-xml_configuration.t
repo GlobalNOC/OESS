@@ -20,7 +20,7 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
 my $mock = OESS::Mock->new;
 $device->{jnx} = $mock;
 
-my $exp_xml = '<configuration><groups><name>OESS</name>
+my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></groups><groups><name>OESS</name>
   <interfaces>
     
     <interface>
