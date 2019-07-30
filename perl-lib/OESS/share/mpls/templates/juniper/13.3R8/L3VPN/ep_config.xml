@@ -2,7 +2,7 @@
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
-      <name>[% interface.name %]</name>
+      <name>[% interface.interface %]</name>
       <unit>
         <name>[% interface.unit %]</name>
         <description>OESS-L3VPN-[% vrf_id %]</description>
@@ -18,7 +18,7 @@
         <family>
           [% IF interface.has_ipv4 %]
           <inet>
-            <mtu>9000</mtu>
+            <mtu>[% interface.mtu %]</mtu>
             [% FOREACH peer IN interface.v4_peers %]
             <address>
               <name>[% peer.local_ip %]</name>
@@ -28,7 +28,7 @@
           [% END %]
           [% IF interface.has_ipv6 %]
           <inet6>
-            <mtu>9000</mtu>
+            <mtu>[% interface.mtu %]</mtu>
             [% FOREACH peer IN interface.v6_peers %]
             <address>
               <name>[% peer.local_ip %]</name>
@@ -48,7 +48,7 @@
   <class-of-service>
     <interfaces>
       <interface>
-        <name>[% interface.name %]</name>
+        <name>[% interface.interface %]</name>
         <unit>
           <name>[% interface.unit %]</name>
           <shaping-rate>
@@ -67,7 +67,7 @@
       <instance-type>vrf</instance-type>
       [% FOREACH interface IN interfaces %]
       <interface>
-	<name>[% interface.name %].[% interface.unit %]</name>
+	<name>[% interface.interface %].[% interface.unit %]</name>
       </interface>
       [% END %]
       <route-distinguisher>
@@ -118,7 +118,14 @@
               <authentication-key>[% peer.key %]</authentication-key>
               [% END %]
 
-              [% IF interface.type == 'gcp-partner-interconnect' %]
+              [% IF peer.bfd == 1 %]
+              <bfd-liveness-detection>
+                <minimum-interval>1000</minimum-interval>
+                <multiplier>3</multiplier>
+              </bfd-liveness-detection>
+              [% END %]
+
+              [% IF interface.cloud_interconnect_type == 'gcp-partner-interconnect' %]
               <multihop>
                 <ttl>4</ttl>
               </multihop>

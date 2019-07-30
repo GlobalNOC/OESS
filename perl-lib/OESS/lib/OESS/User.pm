@@ -6,6 +6,7 @@ use warnings;
 package OESS::User;
 
 use OESS::DB::User;
+use OESS::Workgroup;
 
 =head2 new
 
@@ -17,10 +18,9 @@ sub new{
     my $logger = Log::Log4perl->get_logger("OESS.User");
 
     my %args = (
-        vrf_peer_id => undef,
+        user_id => undef,
+        username => undef,
         db => undef,
-        just_display => 0,
-        link_status => undef,
         @_
         );
 
@@ -30,7 +30,7 @@ sub new{
 
     $self->{'logger'} = $logger;
 
-    if(!defined($self->{'db'})){
+    if (!defined $self->{'db'}) {
         $self->{'logger'}->error("No Database Object specified");
         return;
     }
@@ -51,20 +51,21 @@ sub to_hash{
 
     my $obj = {};
 
+    $obj->{'username'} = $self->username();
     $obj->{'first_name'} = $self->first_name();
     $obj->{'last_name'} = $self->last_name();
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
-    
-    my @wgs;
-    foreach my $wg (@{$self->workgroups()}){
-        push(@wgs, $wg->to_hash());
-    }
-    
     $obj->{'is_admin'} = $self->is_admin();
     $obj->{'type'} = $self->type();
-    $obj->{'workgroups'} = \@wgs;
-    
+
+    if (defined $self->{workgroups}) {
+        $obj->{'workgroups'} = [];
+        foreach my $wg (@{$self->{workgroups}}) {
+            push @{$obj->{workgroups}}, $wg->to_hash;
+        }
+    }
+
     return $obj;
 }
 
@@ -76,12 +77,16 @@ sub from_hash{
     my $hash = shift;
 
     $self->{'user_id'} = $hash->{'user_id'};
+    $self->{'username'} = $hash->{'username'};
     $self->{'first_name'} = $hash->{'given_names'};
     $self->{'last_name'} = $hash->{'family_name'};
     $self->{'email'} = $hash->{'email'};
-    $self->{'workgroups'} = $hash->{'workgroups'};
     $self->{'type'} = $hash->{'type'};
     $self->{'is_admin'} = $hash->{'is_admin'};
+
+    if (defined $hash->{workgroups}) {
+        $self->{'workgroups'} = $hash->{'workgroups'};
+    }
 
     return 1;
 }
@@ -92,12 +97,47 @@ sub from_hash{
 sub _fetch_from_db{
     my $self = shift;
 
-    my $user = OESS::DB::User::fetch(db => $self->{'db'}, user_id => $self->{'user_id'});
+    my $user = OESS::DB::User::fetch(
+        db => $self->{'db'},
+        user_id => $self->{'user_id'},
+        username => $self->{'username'}
+    );
     if (!defined $user) {
         return;
     }
 
     return $self->from_hash($user);
+}
+
+=head2 load_workgroups
+
+=cut
+sub load_workgroups {
+    my $self = shift;
+
+    my ($datas, $err) = OESS::DB::User::get_workgroups(
+        db => $self->{db},
+        user_id => $self->{user_id}
+    );
+    if (defined $err) {
+        $self->{logger}->error($err);
+        return;
+    }
+
+    $self->{workgroups} = [];
+    foreach my $data (@$datas){
+        push @{$self->{workgroups}}, OESS::Workgroup->new(db => $self->{db}, model => $data);
+    }
+
+    return;
+}
+
+=head2 username
+
+=cut
+sub username{
+    my $self = shift;
+    return $self->{'username'};
 }
 
 =head2 first_name
@@ -156,6 +196,8 @@ sub is_admin{
 sub in_workgroup{
     my $self = shift;
     my $workgroup_id = shift;
+
+    $self->load_workgroups if !defined $self->{workgroups};
 
     foreach my $wg (@{$self->workgroups()}){
         if($wg->workgroup_id() == $workgroup_id){

@@ -1,142 +1,40 @@
-class EndpointModal extends Component {
-  constructor(state) {
-    super();
-    this.state = state;
+function NewEndpoint(endpoint) {
+  let t = document.querySelector('#template-l2-endpoint');
+  let e = document.importNode(t.content, true);
+
+  e.querySelector('.l2vpn-entity').innerHTML = endpoint.entity || 'NA';
+  e.querySelector('.l2vpn-node').innerHTML = endpoint.node;
+  e.querySelector('.l2vpn-interface').innerHTML = endpoint.interface;
+  e.querySelector('.l2vpn-interface-description').innerHTML = endpoint.description;
+  e.querySelector('.l2vpn-tag').innerHTML = endpoint.tag;
+  e.querySelector('.l2vpn-inner-tag').innerHTML = endpoint.inner_tag || null;
+  e.querySelector('.l2vpn-bandwidth').innerHTML = (endpoint.bandwidth == null || endpoint.bandwidth == 0) ? 'Unlimited' : `${endpoint.bandwidth} Mb/s`;
+  e.querySelector('.l2vpn-graph').setAttribute('src', `[% g_l2_port %]&from=now-1h&to=now&var-node=${endpoint.node}&var-interface=${endpoint.interface}.${endpoint.tag}&refresh=30s`);
+
+  if ('mtu' in endpoint) {
+    e.querySelector('.l2vpn-mtu').innerHTML = endpoint.mtu;
+  } else {
+    e.querySelector('.l2vpn-mtu').innerHTML = (endpoint.jumbo) ? 'Jumbo' : 'Standard';
   }
 
-  async render(props) {
-    return `
-EndpointModal
-`;
-  }
-}
-
-class Endpoint extends Component {
-  constructor(state) {
-    super();
-    this.state = state;
-
-    this.state.onDelete = ('onDelete' in this.state) ? this.state.onDelete : () => { console.log('Endpoint.onDelete'); };
-    this.state.onModify = ('onModify' in this.state) ? this.state.onModify : () => { console.log('Endpoint.onModify'); };
+  if (endpoint.inner_tag === undefined || endpoint.inner_tag === null || endpoint.inner_tag === '') {
+    Array.from(e.querySelectorAll('.d1q')).map(e => e.style.display = 'block');
+    Array.from(e.querySelectorAll('.qnq')).map(e => e.style.display = 'none');
+  } else {
+    Array.from(e.querySelectorAll('.d1q')).map(e => e.style.display = 'none');
+    Array.from(e.querySelectorAll('.qnq')).map(e => e.style.display = 'block');
   }
 
-  onDelete() {
-    this.state.onDelete(this.state.index);
-  }
+  e.querySelector('.l2vpn-endpoint-buttons').style.display = (endpoint.editable) ? 'block' : 'none';
 
-  onModify() {
-    this.state.onModify(this.state.endpoint.index, this.state.endpoint);
-  }
+  e.querySelector('.l2vpn-modify-button').addEventListener('click', function(e) {
+    modal.display(endpoint);
+  });
 
-  render(props) {
-    let handleDelete = `document.components[${this._id}].onDelete()`;
-    let handleModify = `document.components[${this._id}].onModify()`;
+  e.querySelector('.l2vpn-delete-button').addEventListener('click', function(e) {
+    state.deleteEndpoint(endpoint.index);
+    update();
+  });
 
-    let displayEdits = (this.state.editable) ? 'block' : 'none';
-    let height = '100';
-
-    let title = `
-    <div style="">
-      <h3>Node:&nbsp;</h3>
-      <h4>Port:&nbsp;</h4>
-      <h5>VLAN:&nbsp;</h5>
-    </div>
-
-    <div style="">
-      <h3>${props.node} <small></small></h3>
-      <h4>${props.interface} <small>${props.interface_description}</small></h4>
-      <h5>${props.tag}</h5>
-    </div>
-`;
-    if (props.entity && props.entity.name) {
-      height = 130;
-      title = `
-      <div style="">
-        <h3>Entity:&nbsp;</h3>
-        <h4>Node:&nbsp;</h4>
-        <h4>Port:&nbsp;</h4>
-        <h5>VLAN:&nbsp;</h5>
-      </div>
-
-      <div style="">
-        <h3>${props.entity.name} <small></small></h3>
-        <h4>${props.node}</h4>
-        <h4>${props.interface} <small>${props.interface_description}</small></h4>
-        <h5>${props.tag}</h5>
-      </div>
-`;
-    }
-
-    return `
-    <div class="panel panel-default" style="padding: 0 15 0 15;">
-
-      <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
-        ${title}
-
-        <iframe src="[% g_l2_port %]&from=now-1h&to=now&var-node=${props.node}&var-interface=${props.interface}&refresh=30s" height="${height}" frameborder="0" style="flex: 1;"></iframe>
-
-        <div style="display: ${displayEdits};">
-          <button class="btn btn-link" type="button" onclick="${handleModify}" style="padding: 12 6 12 6;">
-            <span class="glyphicon glyphicon-edit"></span>
-          </button>
-          <button class="btn btn-link" type="button" onclick="${handleDelete}" style="padding: 12 6 12 6;">
-            <span class="glyphicon glyphicon-trash"></span>
-          </button>
-        </div>
-      </div>
-
-    </div>
-`;
-  }
-}
-
-class EndpointList extends Component {
-  constructor(state) {
-    super();
-    this.state = state;
-
-    this.state.onCreate = ('onCreate' in this.state) ? this.state.onCreate : () => { console.log('EndpointList.onCreate'); };
-    this.state.onDelete = ('onDelete' in this.state) ? this.state.onDelete : () => { console.log('EndpointList.onDelete'); };
-    this.state.onModify = ('onModify' in this.state) ? this.state.onModify : () => { console.log('EndpointList.onModify'); };
-  }
-
-  onCreate() {
-    this.state.onCreate(-1);
-  }
-
-  async render(props) {
-    let handleCreate = `document.components[${this._id}].onCreate()`;
-    let displayEdits = (this.state.editable && props.state !== 'decom') ? 'block' : 'none';
-
-    let endpoints = props.endpoints.map((e, i) => {
-      e.index = i;
-
-      let obj = new Endpoint({
-        onDelete: this.state.onDelete,
-        onModify: this.state.onModify,
-        endpoint: e,
-        editable: (this.state.editable && props.state !== 'decom')
-      });
-
-      return obj.render(e);
-    }).join('');
-
-    return `
-    <div class="row">
-      <br/>
-      <div id="actions" class="col-sm-12" style="display: ${displayEdits};">
-        <button class="btn-sm btn-primary" type="button" onclick="${handleCreate}">
-          <span class="glyphicon glyphicon-plus"></span> New Endpoint
-        </button>
-      </div>
-    </div>
-
-    <div class="row">
-      <br/>
-      <div class="col-sm-12">
-        ${endpoints}
-      </div>
-    </div>
-`;
-  }
+  return e;
 }

@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.2
+Version 2.0.5
 
 =cut
 
-our $VERSION = '2.0.2';
+our $VERSION = '2.0.5';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.2';
+use constant VERSION => '2.0.5';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -874,6 +874,7 @@ sub is_external_vlan_available_on_interface {
         $self->_set_error("Internal error while finding available external vlan tags.");
         return;
     }
+
     foreach my $circuit (@{$result}) {
         if (defined $circuit_id && $circuit->{'circuit_id'} == $circuit_id) {
             # There's no problem here; We are editing the circuit.
@@ -883,12 +884,24 @@ sub is_external_vlan_available_on_interface {
         }
     }
 
-    $query = "select vrf.vrf_id from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf.state='active' and vrf_ep.interface_id=? and vrf_ep.tag=? and vrf_ep.inner_tag=?";
-    my $result2 = $self->_execute_query($query, [$interface_id, $vlan_tag, $inner_vlan_tag]);
+    
+
+    $query = "select vrf.vrf_id from vrf join vrf_ep on vrf.vrf_id = vrf_ep.vrf_id where vrf.state='active' and vrf_ep.interface_id=? and vrf_ep.tag=?";
+    my $query_args2 = [$interface_id, $vlan_tag];
+    
+    if (defined $inner_vlan_tag) {
+        push @$query_args, $inner_vlan_tag;
+        $inner_tags = " and vrf_ep.inner_tag=? ";
+    } else {
+        $inner_tags = " and vrf_ep.inner_tag is NULL ";
+    } 
+
+    my $result2 = $self->_execute_query($query, $query_args2);
     if (!defined $result2) {
         $self->_set_error("Internal error while finding available vrf vlan tags");
         return;
     }
+
     foreach my $vrf (@{$result2}) {
         if (defined $circuit_id && $vrf->{vrf_id} == $circuit_id) {
             # There's no problem here; We are editing the circuit.
@@ -1172,71 +1185,84 @@ sub edit_link {
 =head2 create_link_instantiation
 
 =cut
-
-sub create_link_instantiation{
+sub create_link_instantiation {
     my $self = shift;
-    my %args = @_;
+    my $args = {
+        link_id        => undef,
+        interface_a_id => undef,
+        interface_z_id => undef,
+        ip_a           => undef,
+        ip_z           => undef,
+        mpls           => 0,
+        openflow       => 0,
+        state          => 'planned',
+        @_
+    };
 
-    if(!defined($args{'link_id'})){
-	$self->_set_error("Link ID was not specified");
-	return;
+    if (!defined $args->{link_id}) {
+        $self->_set_error("Required argument `link_id` is missing.");
+        return;
     }
 
-    if(!defined($args{'state'})){
-	$args{'state'} = "Unknown";
+    if (!defined $args->{interface_a_id}) {
+        $self->_set_error("Required argument `interface_a_id` is missing.");
+        return;
     }
 
-    if(!defined($args{'interface_a_id'})){
-	$self->_set_error("Interface A was not specified");
-	return;
+    if (!defined $args->{interface_z_id}) {
+        $self->_set_error("Required argument `interface_z_id` is missing.");
+        return;
     }
 
-    if(!defined($args{'interface_z_id'})){
-	$self->_set_error("Interface Z was not specified");
-	return;
+    eval {
+        my $q = $self->{dbh}->prepare(
+            "insert into link_instantiation (
+               end_epoch, start_epoch, link_id, interface_a_id, interface_z_id, ip_a, ip_z, mpls, openflow, link_state
+             ) VALUES (-1, unix_timestamp(NOW()), ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        $q->execute(
+            $args->{link_id},
+            $args->{interface_a_id},
+            $args->{interface_z_id},
+            $args->{ip_a},
+            $args->{ip_z},
+            $args->{mpls},
+            $args->{openflow},
+            $args->{state}
+        );
+    };
+    if ($@) {
+        $self->_set_error("$@");
+        return;
     }
 
-    if(!defined($args{'openflow'}) && !defined($args{'mpls'})){
-	$args{'openflow'} = 1;
-	$args{'mpls'} = 0;
-    }
-
-    if(!defined($args{'openflow'})){
-	$args{'openflow'} = 0;
-    }
-
-    if(!defined($args{'mpls'})){
-	$args{'mpls'} = 0;
-    }
-
-    my $res = $self->_execute_query("insert into link_instantiation (link_id,end_epoch,start_epoch,link_state,interface_a_id,interface_z_id, openflow, mpls, ip_a, ip_z) VALUES (?,-1,UNIX_TIMESTAMP(NOW()),?,?,?,?,?,?,?)",[$args{'link_id'},$args{'state'},$args{'interface_a_id'},$args{'interface_z_id'}, $args{'openflow'}, $args{'mpls'}, $args{'ip_a'}, $args{'ip_z'}]);
-
-    if(!defined($res)){
-	return;
-    }
-
-    return $res;
-
-
+    return 1;
 }
-
 
 =head2 decom_link_instantiation
 
-=cut
+decom_link_instantiation sets the C<end_epoch> of the active
+link_instantiation identified by C<link_id>.
 
+=cut
 sub decom_link_instantiation{
     my $self = shift;
-    my %args = @_;
+    my $args = {
+        link_id => undef,
+        @_
+    };
 
-    if(!defined($args{'link_id'})){
-	$self->_set_error("No Link ID Specified to decom_link_instantiation");
-	return;
+    if (!defined $args->{link_id}) {
+        $self->_set_error("Required argument `link_id` is missing.");
+        return;
     }
 
-    my $res = $self->_execute_query("update link_instantiation set end_epoch = UNIX_TIMESTAMP(NOW()) where link_id = ? and end_epoch = -1", [$args{'link_id'}]);
+    my $result = $self->_execute_query(
+        "update link_instantiation set end_epoch=UNIX_TIMESTAMP(NOW()) where link_id=? and end_epoch=-1",
+        [$args->{link_id}]
+    );
 
-    return 1;
+    return $result;
 }
 
 =head2 get_edge_links
@@ -2807,13 +2833,54 @@ sub add_acl {
     my $acl_id = $self->_execute_query($query, $args);
 
     if (! defined $acl_id){
-        $self->_set_error("Unable to add new workgroup");
+        $self->_set_error("Unable to add acl for interface: $interface->{'name'}");
         return;
     }
 
     return $acl_id;
 
 }
+
+=head2 move_acls
+
+    my $err = move_acls(
+        new_interface => 2,
+        old_interface => 1
+    );
+    if (defined $err) {
+        warn $err;
+    }
+
+move_acls takes all ACLs on C<new_interface> and copies them to
+C<old_interface>. ACLs on C<old_interface> are then removed.
+
+=cut
+sub move_acls {
+    my $self = shift;
+    my $args = {
+        new_interface => undef,
+        old_interface => undef,
+        @_
+    };
+
+    return 'Required argument `new_interface` is missing.' if !defined $args->{new_interface};
+    return 'Required argument `old_interface` is missing.' if !defined $args->{old_interface};
+
+    my $q = "UPDATE interface_acl SET interface_id=? WHERE interface_id=?";
+    my $count = $self->_execute_query($q, [$args->{new_interface}, $args->{old_interface}]);
+    if (!defined $count) {
+        return $self->get_error;
+    }
+
+    $q = "DELETE FROM interface_acl WHERE interface_id=?";
+    $count = $self->_execute_query($q, [$args->{old_interface}]);
+    if (!defined $count) {
+        return $self->get_error;
+    }
+
+    return undef;
+}
+
 
 =head2 update_acl
 
@@ -4151,7 +4218,9 @@ sub get_circuit_paths{
 
 =head2 get_circuit_details
 
-Returns a hash of information such as id, name, bandwidth, which path is active, and more about the requested circuit. This information also includes endpoints, links, and backup links.
+Returns a hash of information such as id, name, bandwidth, which path
+is active, and more about the requested circuit. This information also
+includes endpoints, links, and backup links.
 
 =over
 
@@ -4171,8 +4240,6 @@ sub get_circuit_details {
     if(!defined($circuit_id)){
 	return;
     }
-
-    
 
     my @bind_params = ($circuit_id);
 
@@ -4666,6 +4733,39 @@ sub update_interface_operational_state{
     }
 
     return 1;
+}
+
+=head2 update_interface_role
+
+=cut
+sub update_interface_role {
+    my $self = shift;
+    my $args = {
+        interface_id => undef,
+        role         => undef,
+        @_
+    };
+
+    if (!defined $args->{interface_id}) {
+        $self->_set_error("Required argument `interface_id` is missing.");
+        return;
+    }
+
+    if (!defined $args->{role}) {
+        $self->_set_error("Required argument `role` is missing.");
+        return;
+    }
+
+    my $res = $self->_execute_query(
+        "update interface set role=? where interface_id=?",
+        [$args->{role}, $args->{interface_id}]
+    );
+    if (!defined $res) {
+        $self->_set_error("Unable to update interface $args->{interface_id} role.");
+        return;
+    }
+
+    return $res;
 }
 
 =head2 update_interfaces_operational_state
@@ -5515,16 +5615,14 @@ sub decom_link {
     }
 
     if($link_details->{'status'} eq 'down'){
-	#link does not appear to be connected... set the interfaces back to "unknown" state
-
-	my $update_interface_role = "update interface set role = 'unknown' where interface_id = ?";
-	my $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_a_id'}]);
-	$res = $self->_execute_query($update_interface_role,[$link_details->{'interface_z_id'}]);
+        #link does not appear to be connected... set the interfaces back to "unknown" state
+        my $update_interface_role = "update interface set role = 'unknown' where interface_id = ?";
+        my $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_a_id'}]);
+        $res = $self->_execute_query($update_interface_role,[$link_details->{'interface_z_id'}]);
     }else{
-	#link is still up so its connected create a new instantiation waiting for approval
-	$self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
-	$self->_execute_query("insert into link_instantiation (end_epoch, start_epoch, link_state, link_id, interface_a_id, interface_z_id) VALUES (-1,unix_timestamp(NOW()),'available',?,?,?)",[$link_id,$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
-
+        #link is still up so its connected create a new instantiation waiting for approval
+        $self->_execute_query("update link_instantiation set end_epoch = unix_timestamp(NOW()) where end_epoch = -1 and link_id = ?", [$link_id]);
+        $self->_execute_query("insert into link_instantiation (end_epoch, start_epoch, link_state, link_id, interface_a_id, interface_z_id) VALUES (-1,unix_timestamp(NOW()),'available',?,?,?)",[$link_id,$link_details->{'interface_a_id'},$link_details->{'interface_z_id'}]);
     }
 
     $self->_commit();
@@ -5673,15 +5771,21 @@ sub get_link_ints_on_node{
 
 =head2 get_link
 
-should use this everywhere
+    my $link = Database::get_link(
+      link_id   => 123,          # Optional
+      link_name => 'NodeA-NodeZ' # Optional
+    );
+    if (!defined $link) {
+      warn Database::get_error();
+    }
+
+get_link returns the link identified by C<link_id> or C<link_name>.
 
 =cut
 
 sub get_link{
     my $self = shift;
     my %args = @_;
-
-
 
     if(!defined($args{'link_id'}) && !defined($args{'link_name'})){
 	$self->_set_error("No Link_id or link_name specified");
@@ -10099,6 +10203,15 @@ sub add_edge_interface_move_maintenance {
         }
     }
 
+    # Apply new cloud settings to temp interface
+    my $rec =  $self->migrate_cloud_settings(
+        orig_interface_id => $orig_interface_id,
+        new_interface_id => $temp_interface_id);
+    if (!defined($rec)) {
+        $self->_set_error("Unable to migrate cloud settings".$self->{'dbh'}->errstr);
+        $self->_rollback() if($do_commit);
+    }
+
     $self->_commit() if($do_commit);
     return { 
         maintenance_id   => $maintenance_id,
@@ -10176,6 +10289,15 @@ sub revert_edge_interface_move_maintenance {
 	    $self->_rollback() if($do_commit);
         return;
     }
+    
+    # restore cloud settings
+    my $rec =  $self->migrate_cloud_settings(
+        orig_interface_id => $maints->[0]{'temp_interface_id'},
+        new_interface_id  => $maints->[0]{'orig_interface_id'});
+    if (!defined($rec)) {
+        $self->_set_error("Unable to restore cloud settings".$self->{'dbh'}->errstr);
+        $self->_rollback() if($do_commit);
+    }
 
     # now set the end_epoch time on the maintenance record
     my $query = "UPDATE edge_interface_move_maintenance ".
@@ -10223,6 +10345,61 @@ sub get_circuit_edge_interface_memberships {
     return $edge_interface_recs;
 }
 
+=head2 migrate_cloud_settings
+
+=cut
+
+sub migrate_cloud_settings {
+    my ($self, %args) = @_;
+    my $orig_interface_id = $args{'orig_interface_id'};
+    my $new_interface_id  = $args{'new_interface_id'};
+    my $do_commit = 0;
+
+    # Gather original interface's cloud settings        
+    my $query = "SELECT cloud_interconnect_type AS it, ".
+             "  cloud_interconnect_id AS ii ".
+             "FROM interface WHERE interface_id = ? ";
+    my $recs = $self->_execute_query($query, [$orig_interface_id]);
+    if (!defined($recs)) {
+        $self->_rollback() if($do_commit);
+        return;
+    }
+    if (scalar($recs) == 0) {
+        # If there are no cloud_settings associated with this
+        # interface return an OK.
+        return 1;
+    }
+
+    my $orig_interconnect_type = $recs->[0]->{it};
+    my $orig_interconnect_id = $recs->[0]->{ii};
+
+    # Perform the update on the new interface's cloud settings
+    $query = "UPDATE interface ".
+            "SET cloud_interconnect_type = ?, ".
+            "  cloud_interconnect_id = ? ".
+            "WHERE interface_id = ?";
+    $recs = $self->_execute_query($query, [
+                                    $orig_interconnect_type,
+                                    $orig_interconnect_id,
+                                    $new_interface_id]);
+    if (!defined($recs)) {
+        $self->_rollback() if($do_commit);
+        return;
+    }
+
+    # Clear old interface's cloud settings
+    $query = "UPDATE interface ".
+            "SET cloud_interconnect_type = NULL, ".
+            "  cloud_interconnect_id = NULL ".
+            "WHERE interface_id = ?";
+    $recs = $self->_execute_query($query, [$orig_interface_id]);
+    if (!defined($recs)) {
+        $self->_rollback() if($do_commit);
+        return;
+    }
+    return $recs;
+}
+
 =head2 move_edge_interface_circuits
 
 =cut
@@ -10236,7 +10413,6 @@ sub move_edge_interface_circuits {
     warn "Circuit IDS: " . Dumper($circuit_ids);
 
     my $do_commit    = (defined($args{'do_commit'})) ? $args{'do_commit'} : 1;
-
     #sanity checks
     if(!defined($orig_interface_id)){
         $self->_set_error("Must pass in orig_interface_id.");

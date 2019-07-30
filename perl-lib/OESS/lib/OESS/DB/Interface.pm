@@ -10,6 +10,8 @@ use OESS::DB::ACL;
 use OESS::ACL;
 use OESS::Node;
 
+use OESS::DB::Node;
+
 use Data::Dumper;
 
 =head2 fetch
@@ -176,6 +178,145 @@ sub circuit_vlans_in_use{
     }
 
     return \@tags;
+}
+
+=head2 update
+
+    OESS::DB::Interface::update(
+        db => $db,
+        interface => {
+            interface_id            => 1,
+            cloud_interconnect_id   => 'gxcon12345',            # Optional
+            cloud_interconnect_type => 'aws-hosted-vinterface', # Optional
+            name                    => 'xe-7/0/0',              # Optional
+            role                    => 'unknown',               # Optional
+            description             => '...',                   # Optional
+            operational_state       => 'up',                    # Optional
+            vlan_tag_range          => '-1',                    # Optional
+            mpls_vlan_tag_range     => '1-4095',                # Optional
+            workgroup_id            => 1                        # Optional
+        }
+    );
+
+=cut
+sub update {
+    my $args = {
+        db  => undef,
+        interface => {},
+        @_
+    };
+
+    return if !defined $args->{interface}->{interface_id};
+
+    my $params = [];
+    my $values = [];
+
+    if (exists $args->{interface}->{cloud_interconnect_id}) {
+        push @$params, 'cloud_interconnect_id=?';
+        push @$values, $args->{interface}->{cloud_interconnect_id};
+    }
+    if (exists $args->{interface}->{cloud_interconnect_type}) {
+        push @$params, 'cloud_interconnect_type=?';
+        push @$values, $args->{interface}->{cloud_interconnect_type};
+    }
+    if (exists $args->{interface}->{name}) {
+        push @$params, 'name=?';
+        push @$values, $args->{interface}->{name};
+    }
+    if (exists $args->{interface}->{role}) {
+        push @$params, 'role=?';
+        push @$values, $args->{interface}->{role};
+    }
+    if (exists $args->{interface}->{description}) {
+        push @$params, 'description=?';
+        push @$values, $args->{interface}->{description};
+    }
+    if (exists $args->{interface}->{operational_state}) {
+        push @$params, 'operational_state=?';
+        push @$values, $args->{interface}->{operational_state};
+    }
+    if (exists $args->{interface}->{vlan_tag_range}) {
+        push @$params, 'vlan_tag_range=?';
+        push @$values, $args->{interface}->{vlan_tag_range};
+    }
+    if (exists $args->{interface}->{mpls_vlan_tag_range}) {
+        push @$params, 'mpls_vlan_tag_range=?';
+        push @$values, $args->{interface}->{mpls_vlan_tag_range};
+    }
+    if (exists $args->{interface}->{workgroup_id}) {
+        push @$params, 'workgroup_id=?';
+        push @$values, $args->{interface}->{workgroup_id};
+    }
+
+    my $fields = join(', ', @$params);
+    push @$values, $args->{interface}->{interface_id};
+
+    return $args->{db}->execute_query(
+        "UPDATE interface SET $fields WHERE interface_id=?",
+        $values
+    );
+}
+
+=head2 get_available_internal_vlan
+
+=cut
+sub get_available_internal_vlan {
+    my $args = {
+        db           => undef,
+        interface_id => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `interface_id` is missing.') if !defined $args->{interface_id};
+
+    my $query = "
+        select CASE
+        WHEN link_instantiation.interface_a_id = ?
+            THEN link_path_membership.interface_a_vlan_id
+            ELSE link_path_membership.interface_z_vlan_id
+        END as 'internal_vlan_id'
+        from link_path_membership
+        join link on (
+            link.link_id=link_path_membership.link_id and link_path_membership.end_epoch=-1
+        )
+        join link_instantiation
+        on link.link_id = link_instantiation.link_id
+        and link_instantiation.end_epoch=-1
+        and (
+            link_instantiation.interface_a_id = ? or link_instantiation.interface_z_id = ?
+        )
+        join path_instantiation on link_path_membership.path_id = path_instantiation.path_id
+        and path_instantiation.end_epoch = -1
+    ";
+
+    my $used = {};
+
+    my $results = $args->{db}->execute_query(
+        $query,
+        [$args->{interface_id}, $args->{interface_id}, $args->{interface_id}]
+    );
+    if (!defined $results) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    foreach my $row (@$results){
+        $used->{$row->{'internal_vlan_id'}} = 1;
+    }
+
+    my ($allowed_vlan_tags, $err) = OESS::DB::Node::get_allowed_vlans(
+        db => $args->{db},
+        interface_id => $args->{interface_id}
+    );
+    if (defined $err) {
+        return (undef, $err);
+    }
+
+    foreach my $tag (@$allowed_vlan_tags) {
+        return ($tag, undef) if !exists $used->{$tag};
+    }
+
+    return (undef, "Couldn't find an available internal VLAN.");
 }
 
 1;

@@ -1,5 +1,5 @@
 NAME= oess-frontend
-VERSION = 2.0.2
+VERSION = 2.0.5
 
 rpm:	dist
 	rpmbuild -ta dist/$(NAME)-$(VERSION).tar.gz
