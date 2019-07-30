@@ -40,7 +40,7 @@ sub main{
 	$all_oess_users{$user->{'auth_name'}[0]} = $user;
     }
 
-    my $grouper_workgroups = make_group_request( url => $config->{'grouper'}->{'url'} . "/groups", user => $config->{'grouper'}->{'user'}, password => $config->{'grouper'}->{'password'}, $config->{'grouper'}->{'stem'} );
+    my $grouper_workgroups = make_group_request( url => $config->{'grouper'}->{'url'} . "/groups", user => $config->{'grouper'}->{'user'}, password => $config->{'grouper'}->{'password'}, stem => $config->{'grouper'}->{'stem'} );
     log_debug("Grouper Workgroups: " . Dumper($grouper_workgroups));
 
     foreach my $wg (@$grouper_workgroups){
@@ -174,30 +174,16 @@ sub get_grouper_users{
 	my $o = {'WsRestGetSubjectsRequest' => {'actAsSubjectLookup' => {'subjectId' => 'oess_provision'},
 						'wsSubjectLookups' => [{'subjectId' => $gu->{'id'}}],
 						'subjectAttributeNames' => ['givenname','sn','edupersonprincipalname','uid','employeenumber','cn','mail']}};
-	my $str = encode_json($o);
-	#log_debug("JSON STR: " . $str);
-#	my $str = '{
-#  "WsRestGetSubjectsRequest":{
-#    "actAsSubjectLookup":{
-#      "subjectId":"oess_provision"
-#    },
-#    "wsSubjectLookups":[
-#      {
-#        "subjectId":"' . $gu->{'id'} . '"
-#      }
-#    ] ,
-#    "subjectAttributeNames":[
-#      "givenname",
-#      "sn",
-#      "edupersonprincipalname",
-#      "uid",
-#      "employeenumber",
-#      "cn",
-#      "mail"
-#    ]
-#  }
-#}';
-	
+	my $str;
+	eval{
+	    $str = encode_json($o);
+	};
+
+	if(!defined($str)){
+	    log_error("unable to encode our JSON for fetching user details");
+	    die "unable to encode our JSON for fetching user details";
+	}
+
 	my $h = HTTP::Headers->new(
 	    Content_Length => length($str),
 	    Content_Type => 'text/x-json' );
@@ -208,8 +194,15 @@ sub get_grouper_users{
 	my $res = $ua->request($r);
 	
 	log_debug("Results " . Dumper($res));
-	my $obj = decode_json($res->content)->{'WsGetSubjectsResults'};
+	my $obj;
+	eval{
+	    $obj = decode_json($res->content)->{'WsGetSubjectsResults'};
+	};
 
+	if(!defined($obj)){
+	    log_error("Unable to fetch Grouper user details");
+	    die "Unable to fetch Grouper User details";
+	}
 	log_debug("Attribute Values: " . Dumper($obj->{'wsSubjects'}->[0]->{'attributeValues'}));
 	log_debug("Attribute Names: " . Dumper($obj->{'subjectAttributeNames'}));
 
@@ -247,7 +240,7 @@ sub fetch_config{
     $grouper->{'user'} = $config->get('/config/grouper/@user')->[0];
     $grouper->{'url'} = $config->get('/config/grouper/@url')->[0];
     $grouper->{'password'} = $config->get('/config/grouper/@password')->[0];
-
+    $grouper->{'stem'} = $config->get('/config/grouper/@stem')->[0];
     $oess->{'user'} = $config->get('/config/oess/@user')->[0];
     $oess->{'url'} = $config->get('/config/oess/@url')->[0];
     $oess->{'password'} = $config->get('/config/oess/@password')->[0];
@@ -287,33 +280,37 @@ sub make_group_request{
 
     my $obj = {'WsRestFindGroupsRequest' => {'actAsSubjectLookup' => {'subjectId' => 'oess_provision'},
 	       'wsQueryFilter' => {'queryFilterType' => 'FIND_BY_STEM_NAME', 'stemName' => $stem}}};
-    my $str = encode_json($obj);
-    #log_debug("JSON STring: $str");
-    #my $str = '{
-#  "WsRestFindGroupsRequest":{
-#    "actAsSubjectLookup":{
-#      "subjectId":"oess_provision"
-#    },
-#    "wsQueryFilter":{
-#      "queryFilterType":"FIND_BY_STEM_NAME",
-#      "stemName":"app:oess:service:workgroups"
-#    }
-#  }
-#}';
-
+    my $str;
+    eval{
+	$str = encode_json($obj);
+    };
+    if(!defined($str)){
+	log_error("Unable to compile our JSON object");
+	die "Unable to compile our JSON object";
+    }
+    
     my $h = HTTP::Headers->new(
 	Content_Length => length($str),
 	Content_Type => 'text/x-json' );
-
+    
     my $r = HTTP::Request->new('POST', $url, $h, $str);
-
+    
     $r->authorization_basic($user, $password);
     
     my $res = $ua->request($r);
    
     log_debug("Results " . Dumper($res));
- 
-    my $o = decode_json($res->content);
+    
+    my $o;
+    eval{
+	$o = decode_json($res->content);
+    };
+    
+    if(!defined($o)){
+	log_error("Error fetching workgroups from Grouper");
+	die "Error fetching workgroups from Grouper";
+    }
+
     log_debug("OBJ: " . Dumper($o));    
     return $o->{'WsFindGroupsResults'}->{'groupResults'};
 }
