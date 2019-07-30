@@ -8,6 +8,7 @@ use HTTP::Request::Common;
 use GRNOC::Log;
 use Getopt::Long;
 use GRNOC::WebService::Client;
+use GRNOC::Config;
 use JSON::XS;
 my $log;
 
