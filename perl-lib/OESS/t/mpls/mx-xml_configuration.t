@@ -20,7 +20,7 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
 my $mock = OESS::Mock->new;
 $device->{jnx} = $mock;
 
-my $exp_xml = '<configuration>
+my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></groups><groups><name>OESS</name>
   <interfaces>
     
     <interface>
@@ -86,7 +86,7 @@ my $exp_xml = '<configuration>
     </instance>
   </routing-instances>
 
-</configuration>';
+</groups><apply-groups>OESS</apply-groups></configuration>';
 
 my $conf = $device->xml_configuration(
     [{
@@ -110,7 +110,7 @@ my $conf = $device->xml_configuration(
         ckt_type => 'L2VPLS'
     }],
     [],
-    ''
+    '<groups operation="delete"><name>OESS</name></groups>'
 );
 
 warn "XML: " . $conf . "\n";

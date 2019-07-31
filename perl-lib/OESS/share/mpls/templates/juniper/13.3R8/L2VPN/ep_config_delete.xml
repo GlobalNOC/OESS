@@ -1,4 +1,4 @@
-<configuration>
+<configuration><groups><name>OESS</name>
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
@@ -14,4 +14,4 @@
       <name>OESS-L2VPN-[% circuit_id %]</name>
     </instance>
   </routing-instances>
-</configuration>
+</groups></configuration>

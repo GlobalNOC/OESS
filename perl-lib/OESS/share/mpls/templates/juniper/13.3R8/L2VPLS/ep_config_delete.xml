@@ -1,4 +1,4 @@
-<configuration>
+<configuration><groups><name>OESS</name>
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
@@ -41,4 +41,4 @@
       <name>OESS-L2VPLS-[% circuit_id %]</name>
     </instance>
   </routing-instances>
-</configuration>
+</groups></configuration>
