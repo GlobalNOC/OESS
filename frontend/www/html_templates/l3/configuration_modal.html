@@ -1,0 +1,208 @@
+<style>
+ .configuration-text {
+   height: 40%;
+   width:  100%;
+ } 
+</style>
+
+<template id="template-configuration-modal">
+  <div class="modal fade" role="dialog" tabindex="-1" id="configuration-modal">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">Auto-Generated Configuration</h4>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom: 15px;">
+            <!-- <div id="entity-alert" class="alert alert-danger" role="alert" style="display: none;"></div> -->
+            <div class="alert alert-success" role="alert" style="display: none;">
+              <button type="button" class="close alert-success-dismiss" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+              <span class="alert-success-content"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="control-label">Network Vendor</label>
+              <select class="form-control make">
+                <option value="cisco" selected>Cisco</option>
+                <option value="juniper">Juniper Networks</option>
+                <option value="paloalto">Palo Alto Networks</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="control-label">Model</label>
+              <select class="form-control model">
+                <option value="2900" selected>2900 Series Routers</option>
+                <option value="3700">3700 Series Routers</option>
+                <option value="7200">7200 Series Routers</option>
+                <option value="nexus7000">Nexus 7000 Series Switches</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="control-label">Version</label>
+              <select class="form-control version">
+                <option value="ios124" selected>IOS 12.4+</option>
+              </select>
+            </div>
+
+            <textarea class="configuration-text" wrap="off" disabled>
+            </textarea>
+          </div>
+
+          <hr/>
+          <button class="btn btn-default copy-configuration-modal-button" type="button">
+            <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>&nbsp;&nbsp;Copy
+          </button>
+          <button class="btn btn-danger cancel-configuration-modal-button" type="button">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+ class ConfigurationModal {
+   constructor(parent) {
+     let template = document.querySelector('#template-configuration-modal');
+     this.element = document.importNode(template.content, true);
+
+     this.handleMakeChange = this.handleMakeChange.bind(this); 
+     this.handleModelChange = this.handleModelChange.bind(this);
+     this.handleVersionChange = this.handleVersionChange.bind(this);
+
+     this.display = this.display.bind(this);
+     this.hide = this.hide.bind(this);
+     this.onCancel = this.onCancel.bind(this);
+
+     this.element.querySelector('.make').addEventListener('change', this.handleMakeChange);
+     this.element.querySelector('.model').addEventListener('change', this.handleModelChange);
+     this.element.querySelector('.version').addEventListener('change', this.handleVersionChange);
+
+     this.element.querySelector('.copy-configuration-modal-button').addEventListener('click', function(e) {
+       let alert = this.parent.querySelector('.alert-success');
+       alert.style.display = 'block';
+
+       this.parent.querySelector('.alert-success-dismiss').onclick = (e) => {
+         alert.style.display = 'none';
+       };
+
+       let text = this.parent.querySelector('.configuration-text');
+       text.disabled = false;
+       text.select();
+       document.execCommand('copy');
+       text.disabled = true;
+
+       this.parent.querySelector('.alert-success-content').innerHTML = 'Configuration copied to clipboard.';
+     }.bind(this));
+
+     this.element.querySelector('.cancel-configuration-modal-button').addEventListener('click', function(e) {
+       this.hide();
+     }.bind(this));
+
+     this.parent = parent;
+     this.parent.innerHTML = '';
+     this.parent.appendChild(this.element);
+   }
+
+   handleMakeChange(e) {
+     let models = {
+       cisco: [
+         {text: '2900 Series Routers', value: '2900'},
+         {text: '3700 Series Routers', value: '3700'},
+         {text: '7200 Series Routers', value: '7200'},
+         {text: 'Nexus 7000 Series Switches', value: 'nexus7000'}
+       ],
+       juniper: [
+         {text: 'M/MX Series Routers', value: 'mmx'},
+         {text: 'SRX Series Routers', value: 'srx'},
+         {text: 'T Series Routers', value: 't'}
+       ],
+       paloalto: [
+         {text: 'PA-3000+ Series', value: 'pa3000'},
+         {text: 'PA-5000+ Series', value: 'pa5000'}
+       ]
+     };
+
+     let modelsElem = this.parent.querySelector('.model');
+     modelsElem.innerHTML = '';
+
+     let model = null;
+     for (let i = 0; i < models[e.target.value].length; i++) {
+       if (model === null) { model = models[e.target.value][i].value; }
+       let option = document.createElement("option");
+       option.value = models[e.target.value][i].value;
+       option.text = models[e.target.value][i].text;
+       modelsElem.add(option);
+     }
+     this.handleModelChange({target: {value: model}});
+   }
+
+   handleModelChange(e) {
+     let versions = {
+       2900:      [{text: 'IOS 12.4+', value: 'ios124'}],
+       3700:      [{text: 'IOS 12.4+', value: 'ios124'}],
+       7200:      [{text: 'IOS 12.4+', value: 'ios124'}],
+       nexus7000: [{text: 'NX-OS 5.1+', value: 'nxos51'}],
+       mmx:       [{text: 'JunOS 9.5+', value: 'junos95'}],
+       srx:       [{text: 'JunOS 9.5+', value: 'junos95'}],
+       t:         [{text: 'JunOS 9.5+', value: 'junos95'}],
+       pa3000:    [{text: 'PAN-OS 8.0.3+', value: 'panos803'}],
+       pa5000:    [{text: 'PAN-OS 8.0.3+', value: 'panos803'}]
+     };
+
+     let versionsElem = this.parent.querySelector('.version');
+     versionsElem.innerHTML = '';
+
+     let version = null;
+     for (let i = 0; i < versions[e.target.value].length; i++) {
+       if (version === null) { version = versions[e.target.value][i].value; }
+       let option = document.createElement("option");
+       option.value = versions[e.target.value][i].value;
+       option.text = versions[e.target.value][i].text;
+       versionsElem.add(option);
+     }
+     this.handleVersionChange({target: {value: version}});
+   }
+
+   handleVersionChange(e) {
+     getConfiguration(
+       session.data.workgroup_id,
+       this.endpoint.vrf_endpoint_id,
+       this.parent.querySelector('.make').options[this.parent.querySelector('.make').selectedIndex].value,
+       this.parent.querySelector('.model').options[this.parent.querySelector('.model').selectedIndex].value,
+       this.parent.querySelector('.version').options[this.parent.querySelector('.version').selectedIndex].value
+     ).then((conf) => {
+       this.parent.querySelector('.configuration-text').innerHTML = conf;
+     });
+   }
+
+   onCancel(f) {
+     this.parent.querySelector('.cancel-configuration-modal-button').addEventListener('click', function(e) {
+       f(e);
+     }.bind(this));
+   }
+
+   display(endpoint) {
+     let alert = this.parent.querySelector('.alert-success');
+     alert.style.display = 'none';
+
+     $('#configuration-modal').modal('show');
+
+     this.endpoint = endpoint;
+     getConfiguration(
+       session.data.workgroup_id,
+       this.endpoint.vrf_endpoint_id,
+       this.parent.querySelector('.make').options[this.parent.querySelector('.make').selectedIndex].value,
+       this.parent.querySelector('.model').options[this.parent.querySelector('.model').selectedIndex].value,
+       this.parent.querySelector('.version').options[this.parent.querySelector('.version').selectedIndex].value
+     ).then((conf) => {
+       this.parent.querySelector('.configuration-text').innerHTML = conf;
+     });
+   }
+
+   hide() {
+     $('#configuration-modal').modal('hide');
+   }
+ }
+</script>
