@@ -41,6 +41,11 @@ class Endpoint2 {
       update();
     });
 
+    this.element.querySelector('.view-endpoint-configuration-button').addEventListener('click', function(e) {
+      let modal = new ConfigurationModal(document.querySelector('#configuration-modal-container'));
+      modal.display(endpoint);
+    }.bind(this));
+
     this.element.querySelector('.add-peering-button').addEventListener('click', function(e) {
       let modal = new PeeringModal('#peering-modal', endpoint);
       modal.onSubmit((peering) => {

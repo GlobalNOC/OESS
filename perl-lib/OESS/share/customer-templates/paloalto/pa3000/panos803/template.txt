@@ -1,0 +1,99 @@
+[% FOREACH peer IN peers -%]
+[% IF peer.ip_version == 4 -%]
+!=======================================IPV4=======================================
+! OESS
+! Layer 3 Connection ID: [% vrf_id %]
+! --------------------------------------------------------------------------------
+! Interface Configuration
+
+1. To add a subinterface to an ethernet interface, go to Network --> Interfaces --> Ethernet, click on "ethernet<1/1>" --> Interface Type: Layer3 and click OK
+2. Select the ethernet interface "ethernet<1/1>" and click on "Add Subinterface" --> Interface Name: ethernet<1/1.[% tag %]>, Tag: [% tag %] --> Config --> Virtual Router: <default>, Security Zone: <OESS Interface Zone> --> IPv4 --> Type: Static, click on "Add", IP: [% peer.peer_ip %] and click OK.
+
+! --------------------------------------------------------------------------------
+! Border Gateway Protocol (BGP) Configuration
+!
+! BGP is used to exchange prefixes between the Layer 3 Connection and your
+! Customer Endpoint.
+!
+! The local BGP Autonomous System Number (ASN) ([% peer.peer_asn %]) is configured as
+! part of your Customer Endpoint. If the ASN must be changed, the Layer 3 Connection
+! will need to be recreated with OESS.
+
+1. To configure BGP, go to Network --> Virtual Routers --> click on <default> Virtual Router --> BGP
+2. Check "Enable", Router ID: <[% peer.peer_ip.split('/').0 %]>, AS Number: [% peer.peer_asn %], Check "Install Route"
+3. Peer Group --> Click on "Add" --> Name: <OESS>, check "Soft Reset With Stored Info", Type: EBGP
+4. Click on "Add" peer --> Name: <OESS-[% vrf_id %]>, Peer AS: 55038 --> Addressing: Local Address: Interface: <ethernet1/1.[% tag %]>, IP: [% peer.peer_ip %], Peer Address: IP: [% peer.local_ip.split('/').0 %]
+[% IF peer.md5_key != '' -%]
+5. Connection Options: Auth Profile: New Auth Profile --> Profile Name: <MD5_for_OESS> --> Secret: [% peer.md5_key %], Confirm Secret: [% peer.md5_key %] --> click OK and commit.
+[% END %]
+
+! If this is a Private Peering, your Customer Endpoint may announce a default route (0.0.0.0/0),
+! which can be done as shown below. To advertise additional prefixes, Modify the "Redistribution Profile" and "Export" rules accordingly.
+! Make sure the prefix is present in the routing table of the device with a valid next-hop.
+!
+! For Public Peering, you must advertise public IP prefixes that you own.
+
+1. Go to Network --> Virtual Routers --> select <default> virtual router --> Redistribution Profile --> click on "Add" --> Name: <Routes_Adv>, Priority <1>, Redistribute: Select "Redist" radio button --> General Filter --> Destination --> click on "Add" --> 0.0.0.0/0 and click OK
+2. Select "BGP" tab --> Redist Rules --> check "Allow Redistribute Default Route", click on "Add" --> Name: Select <Routes_Adv> and click OK
+3. Select "Export" tab --> Click on "Add" --> General --> Rules: "<Routes_Exp>" --> UsedBy: Click on "Add" and select <OESS> peer group --> Match --> Address Prefix: click on "Add" --> 0.0.0.0/0 and check "Exact" --> Action --> Action: "Allow" --> click OK and commit.
+
+! --------------------------------------------------------------------------------
+! Bidirectional Forwarding Detection (BFD) Configuration (Optional)
+!
+! Bidirectional Forwarding Detection (BFD) ensures fast forwarding-path failure detection times for BGP. 
+! Also provides fast failover to redundant connections. 
+! An example is provided below:
+
+1. Go to Network --> Virtual Routers --> Select <default> virtual router --> BGP --> Peer Group --> Select <OESS> peer group --> Select <OESS-[% vrf_id %]> --> Advanced --> BFD: Select "New BFD Profile"
+2. Name: <BFD_for_OESS>, Mode: Active, Desired Minimum Tx Interval (ms): 1000, Required Minimum Rx Interval (ms): 1000, Detection Time Multiplier: 3 --> click OK and commit.
+
+[% ELSE %]
+!=======================================IPV6=======================================
+! OESS
+! Layer 3 Connection ID: [% vrf_id %]
+! --------------------------------------------------------------------------------
+! Interface Configuration
+
+1. To add a subinterface to an ethernet interface, go to Network --> Interfaces --> Ethernet, click on "ethernet<1/1>" --> Interface Type: Layer3 and click OK
+2. Select the ethernet interface "ethernet<1/1>" and click on "Add Subinterface" --> Interface Name: ethernet<1/1.[% tag %]>, Tag: [% tag %] --> Config --> Virtual Router: <default>, Security Zone: <OESS Interface Zone> --> IPv6 --> check "Enable IPv6 on the interface", click on "Add", Address: [% peer.peer_ip %] and click OK.
+
+! --------------------------------------------------------------------------------
+! Border Gateway Protocol (BGP) Configuration
+!
+! BGP is used to exchange prefixes between the Layer 3 Connection and your
+! Customer Endpoint.
+!
+! The local BGP Autonomous System Number (ASN) ([% peer.peer_asn %]) is configured as
+! part of your Customer Endpoint. If the ASN must be changed, the Layer 3 Connection
+! will need to be recreated with OESS.
+
+1. To configure BGP, go to Network --> Virtual Routers --> click on <default> Virtual Router --> BGP
+2. Check "Enable", Router ID: <IPv4 address>, AS Number: [% peer.peer_asn %], check "Install Route"
+3. Peer Group --> click on "Add" --> Name: <OESS>, check "Soft Reset With Stored Info", Type: EBGP
+4. Click on "Add" peer --> Name: <OESS-[% vrf_id %]>, Peer AS: 55038 --> Addressing: check "Enable MP-BGP Extensions", Address Family Type: IPv6, Local Address: Interface: <ethernet1/1.[% tag %]>, IP: [% peer.peer_ip %], Peer Address: IP: [% peer.local_ip.split('/').0 %]
+[% IF peer.md5_key != '' -%]
+5. Connection Options: Auth Profile: New Auth Profile --> Profile Name: <MD5_for_OESS> --> Secret: [% peer.md5_key %], Confirm Secret: [% peer.md5_key %] --> click OK and commit.
+[% END %]
+
+! If this is a Private Peering, your Customer Endpoint may announce a default route (::/0),
+! which can be done as shown below. To advertise additional prefixes, Modify the "Redistribution Profile" and "Export" rules accordingly.
+! Make sure the prefix is present in the routing table of the device with a valid next-hop.
+!
+! For Public Peering, you must advertise public IP prefixes that you own.
+
+1. Go to Network --> Virtual Routers --> select <default> virtual router --> Redistribution Profile --> IPv6 --> click on "Add" --> Name: <Routes_Adv>, Priority <1>, Redistribute: Select "Redist" radio button --> General Filter --> Destination --> click on "Add" --> ::/0 and click OK
+2. Select "BGP" tab --> Redist Rules --> check "Allow Redistribute Default Route", click on "Add" --> Address Family Type: IPv6, Name: Select <Routes_Adv> and click OK
+3. Select "Export" tab --> Click on "Add" --> General --> Rules: "<Routes_Exp>" --> UsedBy: click on "Add" and select <OESS> peer group --> Match --> Address Prefix: click on "Add" --> ::/0 and check "Exact" --> Action --> Action: "Allow" --> click OK and commit.
+
+! --------------------------------------------------------------------------------
+! Bidirectional Forwarding Detection (BFD) Configuration (Optional)
+!
+! Bidirectional Forwarding Detection (BFD) ensures fast forwarding-path failure detection times for BGP. 
+! Also provides fast failover to redundant connections. 
+! An example is provided below:
+
+1. Go to Network --> Virtual Routers --> Select <default> virtual router --> BGP --> Peer Group --> Select <OESS> peer group --> Select <OESS-[% vrf_id %]> --> Advanced --> BFD: Select "New BFD Profile"
+2. Name: <BFD_for_OESS>, Mode: Active, Desired Minimum Tx Interval (ms): 1000, Required Minimum Rx Interval (ms): 1000, Detection Time Multiplier: 3 --> click OK and commit.
+
+[% END -%]
+[% END -%]

@@ -1,0 +1,152 @@
+[% FOREACH peer IN peers -%]
+[% IF peer.ip_version == 4 -%]
+#=======================================IPV4=======================================
+# OESS
+# Layer 3 Connection ID: [% vrf_id %]
+#
+# --------------------------------------------------------------------------------
+# Interface Configuration
+
+configure exclusive
+edit interfaces ge-0/0/1
+set description "OESS - Layer 3 Connection"
+set flexible-vlan-tagging
+set mtu [% mtu + 22 %]
+edit unit [% tag %]
+set vlan-id [% tag %]
+set family inet mtu [% mtu %]
+set family inet address [% peer.peer_ip %]
+top
+
+# --------------------------------------------------------------------------------
+# Border Gateway Protocol (BGP) Configuration
+#
+# BGP is used to exchange prefixes between the Layer 3 Connection and your
+# Customer Endpoint.
+#
+# If this is a Private Peering, your Customer Endpoint may announce a default route (0.0.0.0/0).
+# To advertise other prefixes, configure appropriate route-filters to identify the prefixes you wish to advertise. Make sure the prefix is present in the routing
+# table of the device with a valid next-hop.
+#
+# For Public Peering, you must advertise public IP prefixes that you own.
+#
+# The local BGP Autonomous System Number (ASN) [% peer.peer_asn %] is configured as
+# part of your Customer Endpoint. If the ASN must be changed, the Endpoint's peering
+# will need to be recreated with OESS.
+
+edit policy-options policy-statement EXPORT-PREFIXES
+edit term PREFIXES
+set from route-filter 0.0.0.0/0 exact
+set then accept
+up
+edit term REJECT
+set then reject
+top
+
+set routing-options autonomous-system [% peer.peer_asn %]
+
+edit protocols bgp group EBGP
+set type external
+set peer-as 55038
+
+edit neighbor [% peer.local_ip %]
+set local-address [% peer.peer_ip %]
+set export EXPORT-PREFIXES
+[% IF peer.md5_key != '' %]set authentication-key "[% peer.md5_key %]"[% END -%]
+top
+commit check
+commit and-quit
+
+# --------------------------------------------------------------------------------
+# Bidirectional Forwarding Detection (BFD) Configuration (Optional)
+#
+# Bidirectional Forwarding Detection (BFD) ensures fast forwarding-path failure detection times for BGP.
+# Also provides fast failover to redundant Layer 3 Connections.
+# An example is provided below:
+#
+# edit protocols bgp group EBGP neighbor [% peer.local_ip.split('/').0 %]
+# set bfd-liveness-detection minimum-interval 1000
+# set bfd-liveness-detection multiplier 3
+# commit check
+# commit and-quit
+#
+# Please make sure BFD is configured for the group used in the BGP configurations above.
+
+[% ELSE %]
+#=======================================IPV6=======================================
+# OESS
+# Layer 3 Connection ID: [% vrf_id %]
+#
+# --------------------------------------------------------------------------------
+# Interface Configuration
+
+configure exclusive
+edit interfaces ge-0/0/1
+set description "OESS - Layer 3 Connection"
+set flexible-vlan-tagging
+set mtu [% mtu + 22 %]
+edit unit [% tag %]
+set vlan-id [% tag %]
+set family inet6 mtu [% mtu %]
+set family inet6 address [% peer.peer_ip %]
+ipv6 nd suppress-ra
+top
+
+# --------------------------------------------------------------------------------
+# Border Gateway Protocol (BGP) Configuration
+#
+# BGP is used to exchange prefixes between the Layer 3 Connection and your
+# Customer Endpoint.
+#
+# If this is a Private Peering, your Customer Endpoint may announce a default route (::/0).
+# To advertise other prefixes, configure appropriate route-filters to identify the prefixes you wish to advertise. Make sure the prefix is present in the routing
+# table of the device with a valid next-hop.
+#
+# For Public Peering, you must advertise public IP prefixes that you own.
+#
+# The local BGP Autonomous System Number (ASN) [% peer.peer_asn %] is configured as
+# part of your Customer Endpoint. If the ASN must be changed, the Endpoint's peering
+# will need to be recreated with OESS.
+
+edit policy-options policy-statement EXPORT-PREFIXES
+edit term PREFIXES
+set from route-filter ::/0 exact
+set then accept
+up
+edit term REJECT
+set then reject
+top
+
+set routing-options autonomous-system [% peer.peer_asn %]
+
+edit protocols bgp group EBGP-6
+set type external
+set family inet6 unicast
+set peer-as 55038
+edit neighbor [% peer.local_ip.split('/').0 %]
+set local-address [% peer.peer_ip.split('/').0 %]
+set export EXPORT-PREFIXES
+[% IF peer.md5_key != '' %]set authentication-key "[% peer.md5_key %]"[% END -%]
+top
+commit check
+commit and-quit
+
+# --------------------------------------------------------------------------------
+# Bidirectional Forwarding Detection (BFD) Configuration (Optional)
+#
+# Bidirectional Forwarding Detection (BFD) ensures fast forwarding-path failure detection times for BGP.
+# Also provides fast failover to redundant Layer 3 Connections.
+# An example is provided below:
+
+#
+# edit protocols bgp group EBGP-6 neighbor [% peer.local_ip.split('/').0 %]
+# set bfd-liveness-detection minimum-interval 1000
+# set bfd-liveness-detection multiplier 3
+# commit check
+# commit and-quit
+
+#
+# Please make sure BFD is configured for the group used in the BGP configurations above. 
+
+[% END -%]
+[% END -%]

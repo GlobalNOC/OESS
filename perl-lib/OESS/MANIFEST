@@ -76,6 +76,15 @@ perl-OESS-2.0.5.tar.gz
 perl-OESS.spec
 share/fresh_backup.sql
 share/fresh_schema.sql
+share/customer-templates/cisco/2900/ios124/template.txt
+share/customer-templates/cisco/3700/ios124/template.txt
+share/customer-templates/cisco/7200/ios124/template.txt
+share/customer-templates/cisco/nexus7000/nxos51/template.txt
+share/customer-templates/juniper/mmx/junos95/template.txt
+share/customer-templates/juniper/srx/junos95/template.txt
+share/customer-templates/juniper/t/junos95/template.txt
+share/customer-templates/paloalto/pa3000/panos803/template.txt
+share/customer-templates/paloalto/pa5000/panos803/template.txt
 share/mpls/templates/juniper/13.3R8/L2CCC/ep_config.xml
 share/mpls/templates/juniper/13.3R8/L2CCC/ep_config_delete.xml
 share/mpls/templates/juniper/13.3R8/L2VPLS/ep_config.xml

@@ -165,7 +165,6 @@ class GlobalState extends Component {
 let state = new GlobalState();
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
 
-
 document.addEventListener('DOMContentLoaded', function() {
   loadUserMenu();
 
