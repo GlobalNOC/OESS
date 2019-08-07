@@ -4,7 +4,9 @@
   [% INCLUDE html_templates/l3/endpoint.html %]
   [% INCLUDE html_templates/l3/peering.html %]
   [% INCLUDE html_templates/l3/peering_modal.html %]
+  [% INCLUDE html_templates/l3/configuration_modal.html %]
 
+  <div id="configuration-modal-container"></div>
   <div id="endpoint-selection-modal"></div>
   <div id="peering-modal"></div>
 
@@ -80,6 +82,7 @@
 
     [% INCLUDE js_templates/api/vrf.js %]
     [% INCLUDE js_templates/api/command.js %]
+    [% INCLUDE js_templates/api/configuration.js %]
     [% INCLUDE js_templates/api/vlan.js %]
     [% INCLUDE js_templates/api/interfaces.js  %]
     [% INCLUDE js_templates/api/entity.js %]
