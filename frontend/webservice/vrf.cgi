@@ -210,11 +210,13 @@ sub provision_vrf{
     my $method = shift;
     my $params = shift;
 
-    my $user = OESS::DB::User::find_user_by_remote_auth(db => $db, remote_user => $ENV{'REMOTE_USER'});
-    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
-
+    my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
-        $method->set_error("User $ENV{'REMOTE_USER'} is not in OESS.");
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+        return;
+    }
+    if ($user->type eq 'read-only') {
+        $method->set_error("User '$user->{username}' is read-only.");
         return;
     }
 
@@ -701,20 +703,20 @@ sub remove_vrf{
     my $ref = shift;
 
     my $model = {};
-    my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
+    my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
+    if (!defined $user) {
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+        return;
+    }
+    if ($user->type eq 'read-only') {
+        $method->set_error("User '$user->{username}' is read-only.");
+        return;
+    }
 
     my $wg = $params->{'workgroup_id'}{'value'};
     my $vrf_id = $params->{'vrf_id'}{'value'} || undef;
 
     my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
-
-    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
-
-    if(!defined($user)){
-        $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in OESS");
-        return;
-    }
-
     if(!defined($vrf)){
         $method->set_error("Unable to find VRF: " . $vrf_id);
         return {success => 0};
