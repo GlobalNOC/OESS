@@ -200,10 +200,14 @@ class EndpointSelectionModal2 {
   async populateEntityForm(endpoint) {
     let entity_id = 1;
     let index = -1;
+    let selectedInterface = 'TBD';
+    let selectedNode = 'TBD';
 
     if (endpoint !== undefined && endpoint !== null) {
       entity_id = endpoint.entity_id;
       index = endpoint.index;
+      selectedInterface = endpoint.interface || 'TBD';
+      selectedNode = endpoint.node || 'TBD';
     }
 
     this.parent.querySelector('.entity-search').oninput = function(search) {
@@ -304,7 +308,8 @@ class EndpointSelectionModal2 {
         elem.setAttribute('class', 'list-group-item');
         elem.innerHTML = `${spacer}<b>${child.node}</b> ${child.name}`;
         elem.addEventListener('click', function(e) {
-          // PopulateEntityForm(child.entity_id);
+          selectedInterface = child.name;
+          selectedNode = child.node;
         });
 
         list.appendChild(elem);
@@ -472,9 +477,9 @@ class EndpointSelectionModal2 {
       endpoint.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
       endpoint.cloud_account_id = cloudAccountInput.value;
       endpoint.entity = entity.name;
-      endpoint.name = 'TBD';
-      endpoint.node = 'TBD';
-      endpoint.interface = 'TBD';
+      endpoint.name = selectedInterface;
+      endpoint.node = selectedNode;
+      endpoint.interface = selectedInterface;
       endpoint.jumbo = jumboCheckbox.checked;
       endpoint.cloud_interconnect_type = entity.cloud_interconnect_type;
 
