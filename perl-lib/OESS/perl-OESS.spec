@@ -1,7 +1,7 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.4
-Release: 2%{?dist}
+Version: 2.0.5
+Release: 1%{?dist}
 License: APL 2.0
 Group: Network
 URL: http://globalnoc.iu.edu
@@ -114,6 +114,7 @@ make
 rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/upgrade
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/customer-templates
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
@@ -127,6 +128,7 @@ make pure_install
 %__install etc/notification_vrf.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
+cp -ar share/customer-templates/* $RPM_BUILD_ROOT/%{docdir}/share/customer-templates/
 %__install share/mpls/templates/juniper/13.3R8/L2CCC/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__install share/mpls/templates/juniper/13.3R8/L2VPLS/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
 %__install share/mpls/templates/juniper/13.3R8/L2VPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
@@ -282,6 +284,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Webservice.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
+%{docdir}/share/customer-templates/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN/*

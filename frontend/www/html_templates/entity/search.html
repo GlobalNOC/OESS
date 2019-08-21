@@ -1,0 +1,73 @@
+<style>
+  .entity-search-container {
+    position: relative;
+  }
+
+  .entity-search-list {
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    max-height: 250px;
+    overflow-y: scroll;
+    position:   absolute;
+    width:      100%;
+    z-index:    100;
+  }
+</style>
+
+<template id="template-entity-search">
+  <div class="form-group entity-search-container">
+    <input class="form-control entity-search-input" type="text" placeholder="Search" />
+    <div class="list-group entity-search-list"></div>
+  </div>
+</template>
+
+<script>
+ class EntitySearch {
+   constructor(parent) {
+     let template = document.querySelector('#template-entity-search');
+     this.element = document.importNode(template.content, true);
+
+     this.timeout = 0;
+     this.onselect = (e) => { return; }
+
+     this.element.querySelector('.entity-search-input').oninput = (e) => {
+       if (e.target.value.length < 2) {
+         this.parent.querySelector('.entity-search-list').innerHTML = '';
+         return;
+       }
+
+       clearTimeout(this.timeout);
+       this.timeout = setTimeout(async () => {
+         let entities = await getEntitiesAll(session.data.workgroup_id, e.target.value);
+         let list = this.parent.querySelector('.entity-search-list');
+         list.innerHTML = '';
+         list.style.display = 'block';
+
+         for (let i = 0; i < entities.length; i++) {
+           let l = document.createElement('a');
+           l.setAttribute('href', '#');
+           l.setAttribute('class', 'list-group-item');
+           l.innerText = entities[i].name;
+
+           l.onclick = () => {
+             this.onselect({value: e.target.value, entity: entities[i]});
+             e.target.value = '';
+             list.innerHTML = '';
+           };
+           list.appendChild(l);
+         }
+       }, 800);
+     };
+
+     this.element.querySelector('.entity-search-input').onfocusout = (event) => {
+       // Only hide auto-complete options if focus is not on a link
+       if (event.relatedTarget != null && event.relatedTarget.tagName === 'A') {
+         return;
+       }
+       this.parent.querySelector('.entity-search-list').style.display = 'none';
+     };
+
+     this.parent = parent;
+     this.parent.appendChild(this.element);
+   }
+ }
+</script>

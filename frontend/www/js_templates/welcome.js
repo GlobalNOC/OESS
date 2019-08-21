@@ -54,7 +54,7 @@ async function loadEntityList() {
     let ok = true;
 
     if (entities.length === 0) {
-        html = '<p>There are no Layer3 VPNs currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_cloud">here</a> to create one.</p>';
+        html = '<p>There are no Layer 3 Connections currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_cloud">here</a> to create one.</p>';
     }
 
     entities.forEach(function(entity, index) {
@@ -95,7 +95,7 @@ async function loadEntityList() {
 
         let edit = `<a href='?action=modify_cloud&vrf_id=${entity.vrf_id}'><span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span></a>`;
         let del = `<a onclick="deleteConnection(${entity.vrf_id}, '${entity.name}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
-        if(owner != 1){
+        if(owner != 1 && !session.data.isAdmin) {
             edit = "<span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span>";
             del = "<span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span>";
         }
@@ -113,8 +113,8 @@ async function loadEntityList() {
       </div>
     </div>
     <h4>
-      ${edit}
-      <a href="?action=view_l3vpn&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-eye-open" style="padding-right: 9px;"></span></a>
+      <!-- edit link has here -->
+      <a href="?action=modify_cloud&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-eye-open" style="padding-right: 9px;"></span></a>
       ${del}
       <a id="entity-body-${index}-opened" onclick="toggleEntityBody(${index})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
       <a id="entity-body-${index}-closed" onclick="toggleEntityBody(${index})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>
@@ -167,21 +167,23 @@ async function loadL2VPNs() {
   let ok = true;
 
   if (circuits.length === 0) {
-    html = '<p>There are no Layer2 VPNs currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_l2vpn">here</a> to create one.</p>';
+    html = '<p>There are no Layer 2 Connections currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_l2vpn">here</a> to create one.</p>';
   }
 
   circuits.forEach(function(circuit, index) {
     let color = ok ? '#E0F0D9' : '#F2DEDE';
     let createdOn = new Date(circuit.created_on);
     let modifiedOn = new Date(circuit.last_edited);
-
-    let del = `<a onclick="deleteL2VPN(${circuit.circuit_id}, '${circuit.description}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
-
     let bg_color = '#fff';
     let owner = 1;
     if(circuit.workgroup_id != session.data.workgroup_id){
       bg_color = '#e5e5e5';
       owner = 0;
+    }
+
+    let del = `<a onclick="deleteL2VPN(${circuit.circuit_id}, '${circuit.description}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
+    if(owner != 1 && !session.data.isAdmin){
+      del = "<span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span>";
     }
 
     let endpointHTML = '';

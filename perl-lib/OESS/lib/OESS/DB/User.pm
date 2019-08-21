@@ -8,6 +8,7 @@ use OESS::Workgroup;
 package OESS::DB::User;
 
 =head2 fetch
+
 =cut
 sub fetch{
     my %params = @_;
@@ -34,35 +35,71 @@ sub fetch{
         ";
         $user = $db->execute_query($q, [$username]);
     }
-
-    if(!defined($user) || !defined($user->[0])){
+    if (!defined($user) || !defined($user->[0])){
         return;
     }
 
-    $user = $user->[0];
-    $user->{'workgroups'} = ();
-    my $workgroups = $db->execute_query("select workgroup_id from user_workgroup_membership where user_id = ?",[$user->{user_id}]);
-    $user->{'is_admin'} = 0;
-    foreach my $workgroup (@$workgroups){
-        my $wg = OESS::Workgroup->new(db => $db, workgroup_id => $workgroup->{'workgroup_id'});
-        push(@{$user->{'workgroups'}}, $wg);
-        if($wg->type() eq 'admin'){
-            $user->{'is_admin'} = 1;
-        }
+    my $admin_query = "
+        select exists(
+            select type
+            from workgroup
+            join user_workgroup_membership on workgroup.workgroup_id=user_workgroup_membership.workgroup_id
+            where user_workgroup_membership.user_id=? and type='admin'
+        ) as is_admin;
+    ";
+    my $admin_result = $db->execute_query(
+        $admin_query,
+        [$user->[0]->{user_id}]
+    );
+    if (!defined($admin_result) || !defined($admin_result->[0])){
+        return;
     }
 
-    #if they are an admin they are a part of every workgroup
-    if($user->{'is_admin'}){
-        $user->{'workgroups'} = ();
-        my $workgroups = $db->execute_query("select workgroup_id from workgroup",[]);
-        
-        foreach my $workgroup (@$workgroups){
-            push(@{$user->{'workgroups'}}, OESS::Workgroup->new(db => $db, workgroup_id => $workgroup->{'workgroup_id'}));
-        }
+    # Replace is_admin field with scan for admin workgroups
+    $user->[0]->{is_admin} = $admin_result->[0]->{is_admin};
 
+    return $user->[0];
+}
+
+=head2 get_workgroups
+
+=cut
+sub get_workgroups {
+    my $args = {
+        db       => undef,
+        user_id  => undef,
+        @_
+    };
+
+    my $check = $args->{db}->execute_query(
+        "SELECT is_admin from user where user_id=?",
+        [$args->{user_id}]
+    );
+    if (!defined $check && !defined $check->[0]) {
+        return (undef, $args->{db}->get_error);
     }
 
-    return $user;
+    my $query;
+    my $values;
+    if ($check->[0]->{is_admin}) {
+        $query = "SELECT * from workgroup";
+        $values = [];
+    } else {
+        $query = "
+            SELECT workgroup.*
+            FROM workgroup
+            JOIN user_workgroup_membership ON workgroup.workgroup_id=user_workgroup_membership.workgroup_id
+            WHERE user_workgroup_membership.user_id=?
+        ";
+        $values = [$args->{user_id}];
+    }
+
+    my $datas = $args->{db}->execute_query($query, $values);
+    if (!defined $datas) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    return ($datas, undef);
 }
 
 =head2 find_user_by_remote_auth

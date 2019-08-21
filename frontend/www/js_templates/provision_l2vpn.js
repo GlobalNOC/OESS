@@ -93,7 +93,7 @@ async function update(props) {
   list.innerHTML = '';
   state.circuit.endpoints.map(function(e, i) {
     e.index = i;
-
+    e.editable = true;
     let elem = NewEndpoint(e);
     list.appendChild(elem);
   });

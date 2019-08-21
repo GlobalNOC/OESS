@@ -22,7 +22,8 @@ use Data::Dumper;
             peer_asn          => 1200
             peer_ip           => '192.168.1.3/31',
             md5_key           => undef,
-            operational_state => 'up'
+            operational_state => 'up',
+            bfd               => 0
         }
     );
 
@@ -38,13 +39,14 @@ sub create {
     return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
 
     my $q1 = "
-        INSERT INTO vrf_ep_peer (circuit_ep_id, vrf_ep_id, local_ip, peer_asn, peer_ip, md5_key, operational_state, state)
-        VALUES (?,?,?,?,?,?,?,?)
+        INSERT INTO vrf_ep_peer (circuit_ep_id, vrf_ep_id, local_ip, peer_asn, peer_ip, md5_key, operational_state, state, bfd)
+        VALUES (?,?,?,?,?,?,?,?,?)
     ";
 
     $args->{model}->{circuit_ep_id} = (exists $args->{model}->{circuit_ep_id}) ? $args->{model}->{circuit_ep_id} : undef;
     $args->{model}->{vrf_ep_id} = (exists $args->{model}->{vrf_ep_id}) ? $args->{model}->{vrf_ep_id} : undef;
     $args->{model}->{operational_state} = (defined $args->{model}->{operational_state} && $args->{model}->{operational_state} eq 'up') ? 1 : 0;
+    $args->{model}->{bfd} = (defined $args->{model}->{bfd}) ? $args->{model}->{bfd} : 0;
 
     my $peer_id = $args->{db}->execute_query($q1, [
         $args->{model}->{circuit_ep_id},
@@ -54,7 +56,8 @@ sub create {
         $args->{model}->{peer_ip},
         $args->{model}->{md5_key},
         $args->{model}->{operational_state},
-        'active'
+        'active',
+        $args->{model}->{bfd}
     ]);
     if (!defined $peer_id) {
         return (undef, $args->{db}->get_error);
@@ -84,7 +87,8 @@ C<circuit_ep_id>.
         peer_asn          => 1200
         peer_ip           => '192.168.1.3/31',
         md5_key           => undef,
-        operational_state => 'up'
+        operational_state => 'up',
+        bfd               => 0
     }
 
 =cut
@@ -117,7 +121,7 @@ sub fetch_all {
 
     my $q = "
         SELECT vrf_ep_peer_id, circuit_ep_id, vrf_ep_id,
-               local_ip, peer_asn, peer_ip, md5_key, operational_state
+               local_ip, peer_asn, peer_ip, md5_key, operational_state, bfd
         FROM vrf_ep_peer
         $where
     ";
@@ -127,6 +131,7 @@ sub fetch_all {
     }
     foreach my $peer (@$peers) {
         $peer->{operational_state} = ($peer->{operational_state} == 1) ? 'up' : 'down';
+        $peer->{bfd} = int($peer->{bfd});
     }
 
     return ($peers, undef);
@@ -145,8 +150,9 @@ sub fetch_all {
             name           => 'Peer', # Optional
             status         => 'up',   # Optional
             remote_urn     => undef,  # Optional
-            metric         => 553     # Optional
-        }
+            metric         => 553,    # Optional
+            bfd            => 0       # Optional
+       }
     );
 
 =cut
@@ -178,6 +184,10 @@ sub update {
     if (defined $args->{peer}->{operational_state}) {
         push @$params, 'operational_state=?';
         push @$values, $args->{peer}->{operational_state};
+    }
+    if (defined $args->{peer}->{bfd}) {
+        push @$params, 'bfd=?';
+        push @$values, $args->{peer}->{bfd};
     }
 
     my $fields = join(', ', @$params);

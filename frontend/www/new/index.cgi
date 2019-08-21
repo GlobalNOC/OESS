@@ -97,49 +97,40 @@ sub main{
     }
     
     switch ($action) {
-        case "provision_l3vpn" {
-            $title              = "New private network";
-            $filename           = "html_templates/provision_l3vpn.html";
-            $current_breadcrumb = "New private network";
-            $breadcrumbs        = [
-                {title => "Welcome",          url => "?action=welcome"},
-                {title => "New private network", url => "#"}
-            ];
-        }
-        case "view_l3vpn" {
-            $title              = "Private network details";
-            $filename           = "html_templates/view_l3vpn.html";
-            $current_breadcrumb = "Private network details";
-            $breadcrumbs        = [
-                {title => "Welcome",              url => "?action=welcome"},
-                {title => "Private network details", url => "#"}
-            ];
-        }
         case "modify_l2vpn" {
-            $title              = "L2VPN - Details";
+            $title              = "Layer 2 Connection";
             $filename           = "html_templates/modify_l2vpn.html";
-            $current_breadcrumb = "Modify L2VPN";
+            $current_breadcrumb = "Layer 2 Connection";
             $breadcrumbs        = [
-                {title => "Welcome",       url => "?action=welcome"},
-                {title => "L2VPN Details", url => "#"}
+                {title => "Welcome",            url => "?action=welcome"},
+                {title => "Layer 2 Connection", url => "#"}
             ];
         }
         case "provision_l2vpn" {
-            $title              = "L2VPN - Provision";
+            $title              = "New Layer 2 Connection";
             $filename           = "html_templates/provision_l2vpn.html";
-            $current_breadcrumb = "L2VPN Details";
+            $current_breadcrumb = "New Layer 2 Connection";
             $breadcrumbs        = [
-                {title => "Welcome",       url => "?action=welcome"},
-                {title => "L2VPN Details", url => "#"}
+                {title => "Welcome",                url => "?action=welcome"},
+                {title => "New Layer 2 Connection", url => "#"}
+            ];
+        }
+        case "modify_cloud" {
+            $title              = "Layer 3 Connection";
+            $filename           = "html_templates/modify_cloud.html";
+            $current_breadcrumb = "Layer 3 Connection";
+            $breadcrumbs        = [
+                {title => "Welcome",            url => "?action=welcome"},
+                {title => "Layer 3 Connection", url => "#"}
             ];
         }
         case "provision_cloud" {
-            $title              = "New cloud network";
+            $title              = "New Layer 3 Connection";
             $filename           = "html_templates/provision_cloud.html";
-            $current_breadcrumb = "New cloud network";
+            $current_breadcrumb = "New Layer 3 Connection";
             $breadcrumbs        = [
-                {title => "Welcome",        url => "?action=welcome"},
-                {title => "New cloud network", url => "#"}
+                {title => "Welcome",                url => "?action=welcome"},
+                {title => "New Layer 3 Connection", url => "#"}
             ];
         }
         case "phonebook" {
@@ -147,7 +138,7 @@ sub main{
             $filename           = "html_templates/phonebook.html";
             $current_breadcrumb = "Phonebook";
             $breadcrumbs        = [
-                {title => "Welcome", url => "?action=welcome"},
+                {title => "Welcome",    url => "?action=welcome"},
                 {title => "Phonebook",  url => "#"}
             ];
         }
@@ -156,16 +147,7 @@ sub main{
             $filename           = "html_templates/welcome.html";
             $current_breadcrumb = "Welcome";
             $breadcrumbs        = [
-                {title => "Welcome",    url => "#"}
-            ];
-        }
-        case "modify_cloud" {
-            $title              = "Update cloud network";
-            $filename           = "html_templates/modify_cloud.html";
-            $current_breadcrumb = "Update cloud network";
-            $breadcrumbs        = [
-                {title => "Welcome",          url => "?action=welcome"},
-                {title => "Update cloud network", url => "#"}
+                {title => "Welcome", url => "#"}
             ];
         }
         case "acl" {

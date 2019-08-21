@@ -1,5 +1,4 @@
-<configuration>
-
+<configuration><groups><name>OESS</name>
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
@@ -57,5 +56,4 @@
       <name>OESS-L3VPN-[% vrf_id %]-BGP</name>
     </community>
   </policy-options>
-
-</configuration>
+</groups></configuration>

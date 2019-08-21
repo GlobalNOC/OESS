@@ -1,4 +1,4 @@
-<configuration>
+<configuration><groups><name>OESS</name>
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
@@ -116,6 +116,13 @@
 
               [% IF peer.key %]
               <authentication-key>[% peer.key %]</authentication-key>
+              [% END %]
+
+              [% IF peer.bfd == 1 %]
+              <bfd-liveness-detection>
+                <minimum-interval>1000</minimum-interval>
+                <multiplier>3</multiplier>
+              </bfd-liveness-detection>
               [% END %]
 
               [% IF interface.cloud_interconnect_type == 'gcp-partner-interconnect' %]
@@ -294,4 +301,4 @@
       <members>[% local_as %]:[% vrf_id %]</members>
     </community>
   </policy-options>
-</configuration>
+</groups></configuration>

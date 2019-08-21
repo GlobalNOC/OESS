@@ -151,18 +151,27 @@ sub fetch_all {
             return (undef, "Couldn't find Circuit Endpoints: " . $args->{db}->get_error);
         }
 
+        my $entity_q = "
+          SELECT entity_id, name
+          FROM entity
+          WHERE entity_id IN (
+              SELECT entity_id
+              FROM interface_acl
+              WHERE interface_id=? AND (vlan_start <= ? AND vlan_end >= ?)
+          )
+        ";
         foreach my $e (@$circuit_endpoints) {
-            my $entity = new OESS::Entity(
-                db           => $args->{db},
-                interface_id => $e->{interface_id},
-                vlan         => $e->{tag}
-            );
-            if (defined $entity) {
-                $e->{entity_id} = $entity->entity_id;
-                $e->{entity} = $entity->name;
+            my $entity = $args->{db}->execute_query($entity_q, [
+                $e->{interface_id},
+                $e->{tag},
+                $e->{tag}
+            ]);
+            if (defined $entity && defined $entity->[0]) {
+                $e->{entity_id} = $entity->[0]->{entity_id};
+                $e->{entity} = $entity->[0]->{name};
             }
-            $e->{type} = 'circuit';
 
+            $e->{type} = 'circuit';
             push @$endpoints, $e;
         }
     }
@@ -553,6 +562,35 @@ sub find_available_unit{
 
     if (!defined $args->{db} || !defined $args->{interface_id}) {
         return;
+    }
+
+    if (!defined $args->{inner_tag}) {
+        my $l3query = "
+            select unit
+            from vrf_ep
+            where unit=? and state='active' and interface_id=?
+        ";
+        my $l3units = $args->{db}->execute_query(
+            $l3query,
+            [$args->{tag}, $args->{interface_id}]
+        );
+        if (@$l3units > 0) {
+            return;
+        }
+
+        my $l2query = "
+            select unit
+            from circuit_edge_interface_membership
+            where unit=? and end_epoch=-1 and interface_id=?
+        ";
+        my $l2units = $args->{db}->execute_query(
+            $l2query,
+            [$args->{tag}, $args->{interface_id}]
+        );
+        if (@$l2units > 0) {
+            return;
+        }
+        return $args->{tag};
     }
 
     # To preserve backwards compatibility with existing VLANs we find

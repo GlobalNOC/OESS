@@ -663,7 +663,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('2.0.4');
+INSERT INTO `oess_version` VALUES ('2.0.5');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1003,6 +1003,7 @@ CREATE TABLE `vrf_ep_peer` (
   `local_ip` varchar(255) DEFAULT NULL,
   `md5_key` varchar(255) DEFAULT NULL,
   `circuit_ep_id` int(11) DEFAULT NULL,
+  `bfd` int(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   KEY `vrf_ep_peer_ibfk_2` (`circuit_ep_id`),
@@ -1032,7 +1033,7 @@ CREATE TABLE `workgroup` (
   `description` varchar(255) NOT NULL,
   `name` varchar(255) NOT NULL,
   `external_id` varchar(255) DEFAULT NULL,
-  `type` varchar(20) DEFAULT 'normal',
+  `type` enum('demo','normal','admin') NOT NULL DEFAULT 'normal',
   `max_mac_address_per_end` int(10) DEFAULT '10',
   `max_circuits` int(10) DEFAULT '20',
   `max_circuit_endpoints` int(10) DEFAULT '10',

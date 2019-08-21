@@ -1,0 +1,116 @@
+[% FOREACH peer IN peers -%]
+[% IF peer.ip_version == 4 -%]
+!=======================================IPV4=======================================
+! OESS
+! Layer 3 Connection ID: [% vrf_id %]
+!
+! --------------------------------------------------------------------------------
+! Interface Configuration
+
+interface GigabitEthernet0/1
+  no ip address
+
+interface GigabitEthernet0/1.[% tag %]
+  description "OESS - Layer 3 Connection"
+  encapsulation dot1Q [% tag %]
+  ip address [% peer.peer_ip %]
+
+! Note: Please ensure to remove any individual member port configurations before the EtherChannel is configured.
+
+! --------------------------------------------------------------------------------
+! Border Gateway Protocol (BGP) Configuration
+!
+! BGP is used to exchange prefixes between the Layer 3 Connection and your
+! Customer Endpoint.
+!
+! If this is a Private Peering, your Customer Endpoint may announce a default route (0.0.0.0/0),
+! which can be done with the 'network' and 'default-originate' statements. To advertise other/additional prefixes,
+! copy the 'network' statement and identify the prefix you wish to advertise. Make sure the prefix is present in the routing
+! table of the device with a valid next-hop.
+!
+! For Public Peering, you must advertise public IP prefixes that you own.
+!
+! The local BGP Autonomous System Number (ASN) ([% peer.peer_asn %]) is configured as
+! part of your Customer Endpoint. If the ASN must be changed, the Customer Endpoint
+! Peering will need to be recreated with OESS.
+
+router bgp [% peer.peer_asn %]
+  address-family ipv4
+   neighbor [% peer.local_ip.split('/').0 %] remote-as 55038
+[% IF peer.md5_key != '' %]   neighbor [% peer.local_ip.split('/').0 %] password [% peer.md5_key %][% END -%]
+   network 0.0.0.0
+exit
+
+! --------------------------------------------------------------------------------
+! Bidirectional Forwarding Detection (BFD) Configuration (Optional)
+!
+! Bidirectional Forwarding Detection (BFD) ensures fast forwarding-path failure detection times for BGP.
+! Also provides fast failover to redundant Layer 3 Connections.
+! An example is provided below:
+!
+
+! interface GigabitEthernet0/1.101
+!   bfd interval 1000 min_rx 1000 multiplier 3
+!  router bgp [% peer.peer_asn %]
+!   neighbor [% peer.local_ip.split('/').0 %] fall-over bfd
+
+[% ELSE %]
+!=======================================IPV6=======================================
+! OESS
+! Layer 3 Connection ID: [% vrf_id %]
+!
+! --------------------------------------------------------------------------------
+! Interface Configuration
+
+interface GigabitEthernet0/1
+  no ip address
+
+interface GigabitEthernet0/1.[% tag %]
+  description "OESS - Layer 3 Connection"
+  encapsulation dot1Q [% tag %]
+  ipv6 address [% peer.peer_ip %]
+  ipv6 nd ra suppress
+
+! Note: Please ensure to remove any individual member port configurations before the EtherChannel is configured.
+
+! --------------------------------------------------------------------------------
+! Border Gateway Protocol (BGP) Configuration
+!
+! BGP is used to exchange prefixes between the Layer 3 Connection and your
+! Customer Endpoint.
+!
+! If this is a Private Peering, your Customer Endpoint may announce a default route (::/0),
+! which can be done with the 'network' and 'default-originate' statements. To advertise additional prefixes, 
+! copy the 'network' statement and identify the prefix you wish to advertise. Make sure the prefix is present in the routing
+! table of the device with a valid next-hop.
+!
+! For Public Peering, you must advertise public IP prefixes that you own. 
+!
+! The local BGP Autonomous System Number (ASN) ([% peer.peer_asn %]) is configured as
+! part of your Customer Endpoint. If the ASN must be changed, the Customer Endpoint
+! Peering will need to be recreated with OESS.
+
+ipv6 unicast-routing
+router bgp [% peer.peer_asn %]
+  neighbor [% peer.local_ip.split('/').0 %] remote-as 55038
+[% IF peer.md5_key != '' %]  neighbor [% peer.local_ip.split('/').0 %] password [% peer.md5_key %][% END -%]
+  address-family ipv6 unicast
+   neighbor [% peer.local_ip.split('/').0 %] activate
+   network ::/0
+exit
+
+! --------------------------------------------------------------------------------
+! Bidirectional Forwarding Detection (BFD) Configuration (Optional)
+!
+! Bidirectional Forwarding Detection (BFD) ensures fast forwarding-path failure detection times for BGP. 
+! Also provides fast failover to redundant Layer 3 Connections.
+! An example is provided below:
+
+!
+! interface GigabitEthernet0/1.[% tag %]
+!   bfd interval 1000 min_rx 1000 multiplier 3
+!  router bgp [% peer.peer_asn %]
+!   neighbor [% peer.local_ip.split('/').0 %] fall-over bfd
+
+[% END -%]
+[% END -%]

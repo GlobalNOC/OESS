@@ -261,14 +261,25 @@ sub provision {
             return;
         }
 
-        my $entity = new OESS::Entity(db => $db, name => $ep->{entity});
+        my $entity;
+        my $interface;
 
-        my $interface = $entity->select_interface(
-            inner_tag    => $ep->{inner_tag},
-            tag          => $ep->{tag},
-            workgroup_id => $args->{workgroup_id}->{value},
-            cloud_account_id => $ep->{cloud_account_id}
-        );
+        if (defined $ep->{node} && defined $ep->{interface}) {
+            $interface = new OESS::Interface(
+                db => $db,
+                name => $ep->{interface},
+                node => $ep->{node}
+            );
+        } else {
+            $entity = new OESS::Entity(db => $db, name => $ep->{entity});
+            $interface = $entity->select_interface(
+                inner_tag    => $ep->{inner_tag},
+                tag          => $ep->{tag},
+                workgroup_id => $args->{workgroup_id}->{value},
+                cloud_account_id => $ep->{cloud_account_id}
+            );
+        }
+
         if (!defined $interface) {
             $method->set_error("Couldn't create Circuit: Cannot find a valid Interface for $ep->{entity}.");
             $db->rollback;
@@ -485,14 +496,25 @@ sub update {
         if (!defined $ep->{circuit_ep_id}) {
             warn "Adding Endpoint";
 
-            my $entity = new OESS::Entity(db => $db, name => $ep->{entity});
+            my $entity;
+            my $interface;
 
-            my $interface = $entity->select_interface(
-                inner_tag    => $ep->{inner_tag},
-                tag          => $ep->{tag},
-                workgroup_id => $args->{workgroup_id}->{value},
-                cloud_account_id => $ep->{cloud_account_id}
-            );
+            if (defined $ep->{node} && defined $ep->{interface}) {
+                $interface = new OESS::Interface(
+                    db => $db,
+                    name => $ep->{interface},
+                    node => $ep->{node}
+                );
+            } else {
+                $entity = new OESS::Entity(db => $db, name => $ep->{entity});
+                $interface = $entity->select_interface(
+                    inner_tag    => $ep->{inner_tag},
+                    tag          => $ep->{tag},
+                    workgroup_id => $args->{workgroup_id}->{value},
+                    cloud_account_id => $ep->{cloud_account_id}
+                );
+            }
+
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
                 return;

@@ -11,17 +11,17 @@
             <!-- <div id="entity-alert-ok" class="alert alert-info" role="alert" style="display: none;"></div> -->
 
             <ul class="nav nav-tabs">
-              <li role="presentation">
+              <li role="presentation" class="active">
                 <a id="basic" href="#basic-content" aria-controls="basic" role="tab" data-toggle="tab">By Entity</a>
               </li>
-              <li role="presentation" class="active">
+              <li role="presentation">
                 <a id="advanced" href="#advanced-content" aria-controls="advanced" role="tab" data-toggle="tab">My Interfaces</a>
               </li>
             </ul>
 
             <div class="tab-content">
 
-              <div role="tabpanel" id="basic-content" class="tab-pane">
+              <div role="tabpanel" id="basic-content" class="tab-pane active">
                 <div style="margin-bottom: 15px;"></div>
 
                 <!-- entity form -->
@@ -66,7 +66,7 @@
               </div>
 
               <!-- interface form -->
-              <div role="tabpanel" id="advanced-content" class="tab-pane active">
+              <div role="tabpanel" id="advanced-content" class="tab-pane">
                 <br/>
 
                 <div class="form-group">
@@ -79,7 +79,11 @@
                 </div>
                 <div class="form-group">
                   <label class="control-label">Max Bandwidth (Mb/s)</label>
-                  <input class="form-control endpoint-bandwidth" placeholder="Unlimited" type="number" min="10" max="100000"/>
+                  <select class="form-control endpoint-bandwidth"></select>
+                </div>
+                <div class="form-group">
+                  <label class="control-label">Jumbo Frames</label><br/>
+                  <input class="endpoint-jumbo-frames" type="checkbox"> Enable</input>
                 </div>
                 <div class="form-group">
                   <input id="endpoint-index" class="form-control" type="hidden">

@@ -1,10 +1,4 @@
 <div>
-  <!-- Latest compiled and minified CSS -->
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-
-  <!-- Latest compiled and minified JavaScript -->
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-
   <div id="circuit-header" class="row"></div>
   <br/>
 
@@ -37,7 +31,7 @@
 
           <div class="row">
             <br/>
-            <div id="actions" class="col-sm-12" style="display: ${displayEdits};">
+            <div id="actions" class="col-sm-12 l2vpn-new-endpoint-button-container" style="display: none;">
               <button class="btn-sm btn-primary l2vpn-new-endpoint-button" type="button">
                 <span class="glyphicon glyphicon-plus"></span> New Endpoint
               </button>
@@ -90,8 +84,6 @@
     [% INCLUDE js_templates/l2/endpoint.js %]
     [% INCLUDE js_templates/l2/schedule.js %]
     [% INCLUDE js_templates/l2/endpoint_selection_modal.js %]
-
-    [% INCLUDE js_templates/l2/demo.js %]
 
     [% INCLUDE js_templates/l2/circuit.js %]
 

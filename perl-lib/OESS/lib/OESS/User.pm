@@ -6,6 +6,7 @@ use warnings;
 package OESS::User;
 
 use OESS::DB::User;
+use OESS::Workgroup;
 
 =head2 new
 
@@ -55,15 +56,15 @@ sub to_hash{
     $obj->{'last_name'} = $self->last_name();
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
-
-    my @wgs;
-    foreach my $wg (@{$self->workgroups()}){
-        push(@wgs, $wg->to_hash());
-    }
-
     $obj->{'is_admin'} = $self->is_admin();
     $obj->{'type'} = $self->type();
-    $obj->{'workgroups'} = \@wgs;
+
+    if (defined $self->{workgroups}) {
+        $obj->{'workgroups'} = [];
+        foreach my $wg (@{$self->{workgroups}}) {
+            push @{$obj->{workgroups}}, $wg->to_hash;
+        }
+    }
 
     return $obj;
 }
@@ -80,9 +81,12 @@ sub from_hash{
     $self->{'first_name'} = $hash->{'given_names'};
     $self->{'last_name'} = $hash->{'family_name'};
     $self->{'email'} = $hash->{'email'};
-    $self->{'workgroups'} = $hash->{'workgroups'};
     $self->{'type'} = $hash->{'type'};
     $self->{'is_admin'} = $hash->{'is_admin'};
+
+    if (defined $hash->{workgroups}) {
+        $self->{'workgroups'} = $hash->{'workgroups'};
+    }
 
     return 1;
 }
@@ -103,6 +107,29 @@ sub _fetch_from_db{
     }
 
     return $self->from_hash($user);
+}
+
+=head2 load_workgroups
+
+=cut
+sub load_workgroups {
+    my $self = shift;
+
+    my ($datas, $err) = OESS::DB::User::get_workgroups(
+        db => $self->{db},
+        user_id => $self->{user_id}
+    );
+    if (defined $err) {
+        $self->{logger}->error($err);
+        return;
+    }
+
+    $self->{workgroups} = [];
+    foreach my $data (@$datas){
+        push @{$self->{workgroups}}, OESS::Workgroup->new(db => $self->{db}, model => $data);
+    }
+
+    return;
 }
 
 =head2 username
@@ -169,6 +196,8 @@ sub is_admin{
 sub in_workgroup{
     my $self = shift;
     my $workgroup_id = shift;
+
+    $self->load_workgroups if !defined $self->{workgroups};
 
     foreach my $wg (@{$self->workgroups()}){
         if($wg->workgroup_id() == $workgroup_id){

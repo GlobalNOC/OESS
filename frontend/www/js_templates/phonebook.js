@@ -27,7 +27,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 });
 
- });
+  let search = new EntitySearch(document.querySelector('#entity-search-container'));
+  search.onselect = (e) => {
+    window.location.href = `?action=phonebook&entity_id=${e.entity.entity_id}`;
+  };
+
+});
 
 // Called when the 'Add to existing Connection' button is
 // pressed. Presents the user with a list of all connections to which

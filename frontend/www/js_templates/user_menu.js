@@ -14,13 +14,17 @@ async function loadUserMenu() {
 <li role="separator" class="divider"></li>
 `;
 
-  session.data.isAdmin = (user.is_admin === 1) ? true : false;
+  session.data.isAdmin = false;
   session.data.isReadOnly = (user.type === 'read-only') ? true : false;
   session.data.username = user.username;
 
   user.workgroups.forEach(function(group) {
       if (session.data.workgroup_id === undefined) {
           session.data.workgroup_id = group.workgroup_id;
+      }
+
+      if (group.type === 'admin') {
+          session.data.isAdmin = true;
       }
 
       if (session.data.workgroup_id == group.workgroup_id) {

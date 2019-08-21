@@ -1,6 +1,6 @@
 Name:		oess-core
-Version:	2.0.4
-Release:	2%{?dist}
+Version:	2.0.5
+Release:	1%{?dist}
 Summary:	The core OESS service providers
 
 Group:		Network
@@ -20,7 +20,7 @@ Requires: /bin/bash
 Requires: /usr/bin/perl
 Requires: perl(base), perl(constant), perl(strict), perl(warnings)
 
-Requires: perl-OESS >= 2.0.4
+Requires: perl-OESS >= 2.0.5
 
 Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
 Requires: perl(CPAN), perl(CPAN::Shell)
@@ -90,6 +90,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess_topology_submitter.pl %{buildroot}/%{_bindir}
 %{__install} oess_pull_aws_interfaces.pl %{buildroot}/%{_bindir}
 %{__install} oess_pull_gcp_interfaces.pl %{buildroot}/%{_bindir}
+%{__install} grouper_syncer.pl %{buildroot}/%{_bindir}
 %{__install} oess_pull_azure_interfaces.pl %{buildroot}/%{_bindir}
 
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
@@ -112,6 +113,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} etc/vlan_stats-init $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-vlan_stats
 %{__install} etc/nsi-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess-nsi
 %{__install} etc/oess-init-rh $RPM_BUILD_ROOT%{_sysconfdir}/init.d/oess
+%{__install} etc/grouper_config.xml $RPM_BUILD_ROOT%{_sysconfdir}/oess/
 %{__install} etc/nddi-scheduler.cron $RPM_BUILD_ROOT/etc/cron.d/
 %{__install} snapp.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
 %{__install} snapp_base.mysql.sql $RPM_BUILD_ROOT/%{docdir}/
@@ -135,6 +137,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/vlan_stats_d.pl
 %{_bindir}/oess-nsi
 %{_bindir}/oess_setup.pl
+%{_bindir}/grouper_syncer.pl
 %{_bindir}/oess_scheduler.pl
 %{_bindir}/populate_remote_topologies.pl
 %{_bindir}/oess_topology_submitter.pl
@@ -162,7 +165,9 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) %{_sysconfdir}/oess/logging.conf
 %config(noreplace) %{_sysconfdir}/oess/firmware.xml
 %config(noreplace) %{_sysconfdir}/oess/watchdog.conf
+%config(noreplace) %{_sysconfdir}/oess/grouper_config.xml
 %config(noreplace) %{_sysconfdir}/oess/fwdctl.xml
+
 %doc
 
 %post

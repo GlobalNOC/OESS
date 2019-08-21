@@ -1,4 +1,4 @@
-<configuration>
+<configuration><groups><name>OESS</name>
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
@@ -66,4 +66,4 @@
       </remote-interface-switch>
     </connections>
   </protocols>
-</configuration>
+</groups></configuration>

@@ -186,7 +186,7 @@ $ok = $device->add_vlan({
 
 ok($ok == 0, "add_vlan failed when error message received.");
 
-my $expected_config = '<configuration>
+my $expected_config = '<configuration><groups><name>OESS</name>
   <interfaces>
     
     <interface>
@@ -251,7 +251,7 @@ my $expected_config = '<configuration>
       </protocols>
     </instance>
   </routing-instances>
-</configuration>
+</groups></configuration>
 ';
 
 # Validates edit_config was called 3 times and that the last call was
