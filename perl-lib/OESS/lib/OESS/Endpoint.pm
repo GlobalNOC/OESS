@@ -761,6 +761,31 @@ sub update_db {
     return $error;
 }
 
+=head2 update_unit
+
+    my $error = $endpoint->update_unit;
+    die $error if (defined $error);
+
+Updates the unit of this Endpoint based on $self->{tag} and
+$self->{inner_tag}. Used to reselect a unit in the case that an
+Endpoint goes from a traditional VLAN to a qnq tagged VLAN.
+
+=cut
+sub update_unit {
+    my $unit = OESS::DB::Endpoint::find_available_unit(
+        db => $self->{db},
+        interface_id => $self->{interface_id},
+        tag => $self->{tag},
+        inner_tag => $self->{inner_tag}
+    );
+    if (!defined $unit) {
+        return "Couldn't update Endpoint: Couldn't find an available Unit.";
+    }
+
+    $self->{unit} = $unit;
+    return;
+}
+
 =head2 move_endpoints
 
 =cut
