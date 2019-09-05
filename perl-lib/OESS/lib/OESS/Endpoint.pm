@@ -772,6 +772,8 @@ Endpoint goes from a traditional VLAN to a qnq tagged VLAN.
 
 =cut
 sub update_unit {
+    my $self = shift;
+
     my $unit = OESS::DB::Endpoint::find_available_unit(
         db => $self->{db},
         interface_id => $self->{interface_id},
