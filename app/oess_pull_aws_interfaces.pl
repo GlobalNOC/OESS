@@ -152,7 +152,7 @@ sub update_oess_vrf{
                                                   inner_tag => $ep->{'inner_tag'},
                                                   vrf_endpoint_id => $ep->{'vrf_endpoint_id'},
                                                   circuit_ep_id => $ep->{'circuit_ep_id'},
-                                                  peerings => \@peerings}));
+                                                  peers => \@peerings}));
     }
 
     # warn Dumper(\%params);

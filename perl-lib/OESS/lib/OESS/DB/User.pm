@@ -71,18 +71,18 @@ sub get_workgroups {
         @_
     };
 
-    my $check = $args->{db}->execute_query(
-        "SELECT is_admin from user where user_id=?",
-        [$args->{user_id}]
-    );
-    if (!defined $check && !defined $check->[0]) {
-        return (undef, $args->{db}->get_error);
-    }
+    my $is_admin_query = "
+        SELECT workgroup.*
+        FROM workgroup
+        JOIN user_workgroup_membership ON workgroup.workgroup_id=user_workgroup_membership.workgroup_id AND workgroup.type='admin'
+        WHERE user_workgroup_membership.user_id=?
+    ";
+    my $is_admin = $args->{db}->execute_query($is_admin_query, [$args->{user_id}]);
 
     my $query;
     my $values;
-    if ($check->[0]->{is_admin}) {
-        $query = "SELECT * from workgroup";
+    if (defined $is_admin && defined $is_admin->[0]) {
+        $query = "SELECT * from workgroup ORDER BY workgroup.name ASC";
         $values = [];
     } else {
         $query = "
@@ -90,6 +90,7 @@ sub get_workgroups {
             FROM workgroup
             JOIN user_workgroup_membership ON workgroup.workgroup_id=user_workgroup_membership.workgroup_id
             WHERE user_workgroup_membership.user_id=?
+            ORDER BY workgroup.name ASC
         ";
         $values = [$args->{user_id}];
     }
