@@ -1759,6 +1759,7 @@ sub verify_connection{
         }
     }
 
+    warn "Network OS $sysinfo->{'os_name'} version $sysinfo->{'version'} on the $sysinfo->{'model'} is not supported.";
     $self->{'logger'}->error("Network OS $sysinfo->{'os_name'} version $sysinfo->{'version'} on the $sysinfo->{'model'} is not supported.");
     $self->disconnect();
     return 0;

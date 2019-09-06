@@ -38,7 +38,10 @@ sub _get_credentials{
     my $self = shift;
     my $node_id = $self->{'node_id'};
     my $config = GRNOC::Config->new( config_file => OESS_PW_FILE );
-    my $node = $config->{'doc'}->getDocumentElement()->find("/config/node[\@node_id='$node_id']")->[0];
+    my $node;
+    if (defined $node_id) {
+        $node = $config->{'doc'}->getDocumentElement()->find("/config/node[\@node_id='$node_id']")->[0];
+    }
 
     my $creds;
     if(!defined($node)){
