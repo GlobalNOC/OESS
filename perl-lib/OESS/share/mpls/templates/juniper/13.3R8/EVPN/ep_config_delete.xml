@@ -1,0 +1,20 @@
+<configuration><groups><name>OESS</name>
+
+  <interfaces>
+    [% FOREACH interface IN interfaces %]
+    <interface>
+      <name>[% interface.interface %]</name>
+      <unit operation='delete'>
+	    <name>[% interface.unit %]</name>
+      </unit>
+    </interface>
+    [% END %]
+  </interfaces>
+
+  <routing-instances>
+    <instance operation='delete'>
+      <name>OESS-EVPN-[% circuit_id %]</name>
+    </instance>
+  </routing-instances>
+
+</groups></configuration>
