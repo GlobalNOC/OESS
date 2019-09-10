@@ -823,7 +823,7 @@ sub remove_vlan{
       paths => [],
       circuit_id => 3012,
       site_id => 1,
-      ckt_type => 'L2VPLS'
+      ckt_type => 'L2VPLS' # EVPN, L2CCC, L2VPLS, L2VPN, or L3VPN
     });
 
 add_vlan adds a vlan to this device via NetConf. Returns 1 on success.
