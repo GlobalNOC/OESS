@@ -65,8 +65,7 @@ B<Example 1:>
         bandwidth           => 100,        # Acts as an interface selector and validator
         workgroup_id        => 10,         # Acts as an interface selector and validator
         mtu                 => 9000,
-        unit                => 345,
-        peerings            => [ {...} ]
+        unit                => 345
     };
     my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);
 
@@ -82,8 +81,7 @@ B<Example 2:>
         bandwidth           => 100,        # Acts as an interface validator
         workgroup_id        => 10,         # Acts as an interface validator
         mtu                 => 9000,
-        unit                => 345,
-        peerings            => [ {...} ]
+        unit                => 345
     };
     my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);
 
@@ -167,13 +165,6 @@ sub _build_from_model{
     $self->{circuit_id} = $self->{model}->{circuit_id};
     $self->{vrf_id} = $self->{model}->{vrf_id};
     $self->{start_epoch} = $self->{model}->{start_epoch};
-
-    if ($self->{type} eq 'vrf') {
-        $self->{peers} = [];
-        foreach my $peer (@{$self->{model}->{peers}}) {
-            push @{$self->{peers}}, OESS::Peer->new(db => $self->{'db'}, model => $peer);
-        }
-    }
 }
 
 =head2 to_hash
