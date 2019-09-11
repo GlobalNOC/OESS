@@ -137,10 +137,13 @@ sub create_device_object{
     switch($host_info->{'vendor'}){
         case "Juniper" {
             my $dev;
-            if($host_info->{'model'} =~ /mx/i){
+            if ($host_info->{'model'} =~ /mx/i) {
                 $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
                 $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
-            }else{
+            } elsif ($host_info->{'model'} =~ /qfx/i){
+                $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
+                $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
+            } else {
                 $self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
                 return;
             }
