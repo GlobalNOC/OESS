@@ -96,7 +96,7 @@ sub new{
     bless $self, $class;
 
     my $config_filename = '/etc/oess/database.xml';
-    $self->{'config'} = OESS::Config(config_filename => $config_filename);
+    $self->{'config'} = new OESS::Config(config_filename => $config_filename);
 
     if (!defined $self->{'test'}) {
         $self->{'test'} = 0;
