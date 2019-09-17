@@ -74,6 +74,7 @@ sub main{
     while (!($network_type = required_parameter('Network Stack: OpenFlow (1), VPN-MPLS (2), or EVPN-VXLAN (3)')) || !$network_types->{$network_type}) {
         print "Invalid network type '$network_type' selected. - Use 1, 2 or 3.\n";
     }
+    $network_type = $network_types->{$network_type};
 
     my $use_mpls = 'enabled';
     my $use_openflow = 'enabled';
