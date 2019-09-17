@@ -24,6 +24,8 @@ use GRNOC::WebService::Regex;
 
 
 use OESS::MPLS::Device;
+use OESS::MPLS::Device::Juniper::MX;
+use OESS::MPLS::Device::Juniper::QFX;
 
 use JSON::XS;
 
@@ -142,7 +144,7 @@ sub create_device_object{
                 $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
             } elsif ($host_info->{'model'} =~ /qfx/i){
                 $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
-                $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
+                $dev = OESS::MPLS::Device::Juniper::QFX->new( %$host_info );
             } else {
                 $self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
                 return;
