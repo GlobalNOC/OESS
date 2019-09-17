@@ -34,11 +34,11 @@ my $db_server = $config->db_server();
 =head2 new
 
 =cut
-sub new{
+sub new {
     my $that  = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS.Config");    
+    my $logger = Log::Log4perl->get_logger("OESS.Config");
 
     my %args = (
         config_filename => '/etc/oess/database.xml' ,
@@ -47,25 +47,12 @@ sub new{
 
     my $self = \%args;
 
-    
-
     bless $self, $class;
 
     $self->{'logger'} = $logger;
-
-    $self->_process_config();
+    $self->{'config'} = XML::Simple::XMLin($self->{'config_filename'});
 
     return $self;
-}
-
-=head2 _process_config
-
-=cut
-sub _process_config{
-    my $self = shift;
-
-    my $config = XML::Simple::XMLin($self->{'config_filename'});
-    $self->{'config'} = $config;
 }
 
 =head2 local_as
@@ -73,7 +60,7 @@ sub _process_config{
 returns the configured local_as number
 
 =cut
-sub local_as{
+sub local_as {
     my $self = shift;
 
     return $self->{'config'}->{'local_as'};
@@ -82,7 +69,7 @@ sub local_as{
 =head2 db_credentials
 
 =cut
-sub db_credentials{
+sub db_credentials {
     my $self = shift;
 
     my $creds = $self->{'config'}->{'credentials'};
@@ -95,19 +82,146 @@ sub db_credentials{
             password => $password};
 }
 
+=head2 fwdctl_enabled
+
+=cut
+sub fwdctl_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'fwdctl'});
+    return ($self->{'config'}->{'process'}->{'fwdctl'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
+=head2 fvd_enabled
+
+=cut
+sub fvd_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'fvd'});
+    return ($self->{'config'}->{'process'}->{'fvd'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
+=head2 mpls_enabled
+
+=cut
+sub mpls_enabled {
+    my $self = shift;
+    return ($self->{'config'}->{'network_type'} eq 'vpn-mpls') ? 1 : 0;
+}
+
+=head2 mpls_fwdctl_enabled
+
+=cut
+sub mpls_fwdctl_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'fwdctl'});
+    return ($self->{'config'}->{'process'}->{'mpls_fwdctl'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
+=head2 mpls_discovery_enabled
+
+=cut
+sub mpls_discovery_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'discovery'});
+    return ($self->{'config'}->{'process'}->{'mpls_discovery'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
+=head2 network_type
+
+Returns one of C<openflow>, C<vpn-mpls>, or C<evpn-vxlan>.
+
+=cut
+sub network_type {
+    my $self = shift;
+    if (!defined $self->{'config'}->{'network_type'}) {
+        return 'vpn-mpls';
+    }
+
+    my $type = $self->{'config'}->{'network_type'};
+    foreach my $valid_type (['openflow', 'vpn-mpls', 'evpn-vxlan']) {
+        if ($type eq $valid_type) {
+            return $type;
+        }
+    }
+
+    $self->{'logger'}->warn("Invalid network_type $type specified. Using 'vpn-mpls' instead.");
+    return 'vpn-mpls';
+}
+
+=head2 notification_enabled
+
+=cut
+sub notification_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'notification'});
+    return ($self->{'config'}->{'process'}->{'notification'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
+=head2 nox_enabled
+
+=cut
+sub nox_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'nox'});
+    return ($self->{'config'}->{'process'}->{'nox'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
+=head2 nsi_enabled
+
+=cut
+sub nsi_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'nsi'});
+    return ($self->{'config'}->{'process'}->{'nsi'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
+=head2 openflow_enabled
+
+=cut
+sub openflow_enabled {
+    my $self = shift;
+    return ($self->{'config'}->{'network_type'} eq 'openflow') ? 1 : 0;
+}
+
+=head2 traceroute_enabled
+
+=cut
+sub traceroute_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'traceroute'});
+    return ($self->{'config'}->{'process'}->{'traceroute'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
+=head2 vlan_stats_enabled
+
+=cut
+sub vlan_stats_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'vlan_stats'});
+    return ($self->{'config'}->{'process'}->{'vlan_stats'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
+=head2 watchdog_enabled
+
+=cut
+sub watchdog_enabled {
+    my $self = shift;
+    return 1 if (!defined $self->{'config'}->{'process'}->{'watchdog'});
+    return ($self->{'config'}->{'process'}->{'watchdog'}->{'status'} eq 'enabled') ? 1 : 0;
+}
+
 =head2 get_cloud_config
 
 =cut
-sub get_cloud_config{
+sub get_cloud_config {
     my $self = shift;
-
     return $self->{'config'}->{'cloud'};
 }
 
 =head2 base_url
 
 =cut
-sub base_url{
+sub base_url {
     my $self = shift;
     return $self->{'config'}->{'base_url'};
 }

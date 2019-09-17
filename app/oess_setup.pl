@@ -68,10 +68,26 @@ sub main{
           or !$allowed_modes{$of_mpls_mode}) {
         print "Invalid value $of_mpls_mode entered - use 1, 2, or 3.\n";
     }
-    my $use_openflow = 'enabled';
-    $use_openflow = 'disabled' if $of_mpls_mode == 2;
+
+    my $network_types = { '1' => 'openflow', '2' => 'vpn-mpls', '3' => 'evpn-vxlan' };
+    my $network_type;
+    while (!($network_type = required_parameter('Network Stack: OpenFlow (1), VPN-MPLS (2), or EVPN-VXLAN (3)')) || !$network_types->{$network_type}) {
+        print "Invalid network type '$network_type' selected. - Use 1, 2 or 3.\n";
+    }
+
     my $use_mpls = 'enabled';
-    $use_mpls = 'disabled' if $of_mpls_mode == 1;
+    my $use_openflow = 'enabled';
+
+    if ($network_type eq 'openflow') {
+        $use_mpls = 'disabled';
+    }
+    elsif ($network_type eq 'vpn-mpls') {
+        $use_openflow = 'disabled';
+    }
+    elsif ($network_type eq 'evpn-vxlan') {
+        $use_mpls = 'disabled';
+        $use_openflow = 'disabled';
+    }
 
     my $host = hostname;
     my $oscars_host = optional_parameter("Oscars Host URL","https://$host");
@@ -135,7 +151,7 @@ sub main{
 
     print FILE << "END";
 <config host="$db_host" port="$db_port" base_url="$base_url"
-        openflow="$use_openflow" mpls="$use_mpls">
+        openflow="$use_openflow" mpls="$use_mpls" network_type="$network_type">
   <tsds url="$tsds_url" username="$tsds_username" password="$tsds_password" />
   <grafana host="$grafana_url">
     <graph panelName="oess-interface"     uid="aaaaaaaaa" orgId="1" panelId="1"/>
