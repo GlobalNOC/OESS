@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-package OESS::MPLS::Device::Juniper::QFX;
+package OESS::MPLS::Device::Juniper::VXLAN;
 
 use parent 'OESS::MPLS::Device::Juniper::MX';
 
@@ -13,15 +13,15 @@ use constant FWDCTL_BLOCKED     => 4;
 
 use Log::Log4perl;
 
-=head1 OESS::MPLS::Device::Juniper::QFX
+=head1 OESS::MPLS::Device::Juniper::VXLAN
 
-    use OESS::MPLS::Device::Juniper::QFX;
+    use OESS::MPLS::Device::Juniper::VXLAN;
 
 =cut
 
 =head2 new
 
-    my $qfx = OESS::MPLS::Device::Juniper::QFX->new(
+    my $VXLAN = OESS::MPLS::Device::Juniper::VXLAN->new(
       config => '/etc/oess/database.xml',
       loopback_addr => '127.0.0.1',
       mgmt_addr     => '192.168.1.1',
@@ -29,7 +29,7 @@ use Log::Log4perl;
       node_id       => 1
     );
 
-new creates a Juniper QFX device object. Use methods on this object to
+new creates a Juniper VXLAN device object. Use methods on this object to
 communicate with a device on the network.
 
 =cut
@@ -42,8 +42,8 @@ sub new {
     my $self = $class->SUPER::new(@_);
     bless $self, $class;
 
-    $self->{logger} = Log::Log4perl->get_logger("OESS.MPLS.Device.Juniper.QFX.$self->{mgmt_addr}");
-    $self->{logger}->info("Juniper QFX Loaded: $self->{mgmt_addr}");
+    $self->{logger} = Log::Log4perl->get_logger("OESS.MPLS.Device.Juniper.VXLAN.$self->{mgmt_addr}");
+    $self->{logger}->info("Juniper VXLAN Loaded: $self->{mgmt_addr}");
 
     return $self;
 }
@@ -53,7 +53,7 @@ sub new {
 =cut
 sub add_vrf {
     my $self = shift;
-    $self->{logger}->error('Layer 3 Connections are not supported on QFX devices.');
+    $self->{logger}->error('Layer 3 Connections are not supported on VXLAN devices.');
     return FWDCTL_FAILURE;
 }
 
@@ -62,7 +62,7 @@ sub add_vrf {
 =cut
 sub remove_vrf {
     my $self = shift;
-    $self->{logger}->error('Layer 3 Connections are not supported on QFX devices.');
+    $self->{logger}->error('Layer 3 Connections are not supported on VXLAN devices.');
     return FWDCTL_FAILURE;
 }
 
