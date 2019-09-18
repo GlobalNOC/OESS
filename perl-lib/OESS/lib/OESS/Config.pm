@@ -138,7 +138,8 @@ sub network_type {
     }
 
     my $type = $self->{'config'}->{'network_type'};
-    foreach my $valid_type (['openflow', 'vpn-mpls', 'evpn-vxlan']) {
+    my $valid_types = ['openflow', 'vpn-mpls', 'evpn-vxlan'];
+    foreach my $valid_type (@$valid_types) {
         if ($type eq $valid_type) {
             return $type;
         }
