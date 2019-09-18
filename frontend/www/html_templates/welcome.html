@@ -10,6 +10,11 @@
   
   <br/>
 
+  [% IF network_type == 'evpn-vxlan' %]
+  <h3>Layer 2 Connections</h3>
+  <p>&nbsp;</p>
+  <div id="l2vpn-list"></div>
+  [% ELSE %]
   <h3>Layer 3 Connections</h3>
   <p>&nbsp;</p>
   <div id="entity-list"></div>
@@ -18,7 +23,7 @@
   <h3>Layer 2 Connections</h3>
   <p>&nbsp;</p>
   <div id="l2vpn-list"></div>
-
+  [% END %]
   <!-- waiting for deletion modal -->
   <div class="modal fade" role="dialog" tabindex="-1" id="delete-circuit-loading">
     <div class="modal-dialog" role="document">
