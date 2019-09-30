@@ -812,12 +812,14 @@ sub remove_vlan{
         {
           interface => 'ge-0/0/1',
           inner_tag => 100,
-          tag => 2004
+          tag => 2004,
+          unit => 2004
         },
         {
           interface => 'ge-0/0/2',
           inner_tag => 100,
-          tag => 2004
+          tag => 2004,
+          unit => 2004
         }
       ],
       paths => [],
