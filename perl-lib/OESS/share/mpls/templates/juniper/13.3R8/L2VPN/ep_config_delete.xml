@@ -9,6 +9,20 @@
     </interface>
     [% END %]
   </interfaces>
+  [%- FOREACH interface IN interfaces -%]
+  [%- IF interface.bandwidth > 0 %]
+  <class-of-service>
+    <interfaces>
+      <interface>
+        <name>[% interface.interface %]</name>
+        <unit operation='delete'>
+          <name>[% interface.unit %]</name>
+        </unit>
+      </interface>
+    </interfaces>
+  </class-of-service>
+  [%- END -%]
+  [%- END %]
   <routing-instances>
     <instance operation='delete'>
       <name>OESS-L2VPN-[% circuit_id %]</name>
