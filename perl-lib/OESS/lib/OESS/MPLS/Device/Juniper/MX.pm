@@ -783,6 +783,7 @@ sub remove_vlan{
     foreach my $i (@{$ckt->{'interfaces'}}) {
         push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
+                                          bandwidth => $i->{'bandwidth'} || 0,
                                           tag => $i->{'tag'},
                                           unit => $i->{'unit'}
                                         });
@@ -848,6 +849,7 @@ sub add_vlan{
 
         push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
+                                          bandwidth => $i->{'bandwidth'} || 0,
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'}
                                       });

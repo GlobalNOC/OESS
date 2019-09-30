@@ -370,6 +370,7 @@ sub add_circuit_edge_membership{
     my $result = $db->execute_query(
         "INSERT INTO circuit_edge_interface_membership (".
             "interface_id, ".
+            "bandwidth, ".
             "circuit_id, ".
             "end_epoch, ".
             "start_epoch, ".
@@ -379,6 +380,7 @@ sub add_circuit_edge_membership{
             "mtu ".
             ") VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
             [$endpoint->{interface_id},
+             $endpoint->{bandwidth},
              $endpoint->{circuit_id},
              -1,
              $endpoint->{tag},
