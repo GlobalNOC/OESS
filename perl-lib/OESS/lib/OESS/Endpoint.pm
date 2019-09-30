@@ -715,9 +715,11 @@ sub update_db_circuit{
     my $self = shift;
     my $endpoint = shift;
 
+    # TODO: Update end_epoch for circuits in update_circuit_edge_membership
     my $result = OESS::DB::Endpoint::update_circuit_edge_membership(
-                        db       => $self->{db},
-                        endpoint => $endpoint);
+        db       => $self->{db},
+        endpoint => $endpoint
+    );
     if(!defined($result)){
         return $self->{db}->{error};
     }
@@ -788,50 +790,67 @@ sub move_endpoints{
     my $orig_interface_id  = $args{orig_interface_id};
     my $new_interface_id   = $args{new_interface_id};
     my $type   = $args{type} || 'all';
-    my %used_vlans;
-    my %used_units;
-  
+
+    my $used_vlans = {};
+    my $used_units = {};
+
     # Gather occupied vlans on the new interface 
-    my $new_endpoints = get_endpoints_on_interface(
-                        db => $db,
-                        interface_id => $new_interface_id);
-    foreach my $endpoint (@$new_endpoints) {
-        # Note tag pairs for QnQ, and just the outer tag for non-QnQ
-        if(defined($endpoint->inner_tag())) {
-            $used_vlans{$endpoint->tag()}{$endpoint->inner_tag()} = 1;
-        }else{
-            $used_vlans{$endpoint->tag()} = 1;
+    my $existing_endpoints = get_endpoints_on_interface(
+        db => $db,
+        interface_id => $new_interface_id
+    );
+    foreach my $endpoint (@$existing_endpoints) {
+        if (defined $endpoint->inner_tag) {
+            # Note tag pairs for QnQ tagged Endpoints
+            $used_vlans->{$endpoint->tag}->{$endpoint->inner_tag} = 1;
+        } else {
+            $used_vlans->{$endpoint->tag} = 1;
         }
-        $used_units{$endpoint->unit()} = 1;
+
+        $used_units->{$endpoint->unit} = 1;
     }
 
     # Gather the endpoints we want to attempt to move
-    my $orig_endpoints = get_endpoints_on_interface(
-                            db => $db,
-                            interface_id => $orig_interface_id,
-                            type => $type);
-    foreach my $endpoint (@$orig_endpoints) {
-        # Check if our tag pair conflicts with the new interface
-        if(($used_vlans{$endpoint->tag()} == 1) ||
-           ($used_vlans{$endpoint->tag()}{$endpoint->inner_tag()} == 1)){
-            next;
-        } 
+    my $moving_endpoints = get_endpoints_on_interface(
+        db => $db,
+        interface_id => $orig_interface_id,
+        type => $type
+    );
+    foreach my $endpoint (@$moving_endpoints) {
+        # Verify tags on our moving Endpoints do not conflict with our
+        # existing Endpoints.
+        if (defined $endpoint->inner_tag) {
+            if ($used_vlans->{$endpoint->tag} == 1) {
+                warn 'Outer VLAN is already used in a single VLAN tagged context on the destination Interface.';
+                next;
+            }
 
-        # If QnQ, make sure no unit conflicts, or alternatively just generate a new one
-        my $new_unit_number = $endpoint->unit();
-        if($endpoint->inner_tag() != undef && $used_units{$endpoint->unit()}) {
-            $new_unit_number = $endpoint->interface()->find_available_unit(
-                    interface_id => $new_interface_id,
-                    tag          => $endpoint->tag(),
-                    inner_tag    => $endpoint->inner_tag());
+            if (defined $used_vlans->{$endpoint->tag}->{$endpoint->inner_tag}) {
+                warn 'QnQ tagged VLAN is already in use on the destination Interface.';
+                next;
+            }
+        } else {
+            if ($used_vlans->{$endpoint->tag} == 1) {
+                warn 'VLAN is already in use on the destination Interface.';
+                next;
+            }
         }
 
-        # Update the interface_id (and unit number if needed)
-        # TODO: Update end_epoch for circuits in circuit_edge_interface_membership
-        $endpoint->unit($new_unit_number);
-        $endpoint->{interface} = OESS::Interface->new(
-                db => $db,
-                interface_id => $new_interface_id);
+        my $intf = OESS::Interface->new(db => $db, interface_id => $new_interface_id);
+
+        # If Unit conflict exists generate a new one.
+        if (defined $used_units->{$endpoint->unit}) {
+            my $new_unit_number = $intf->find_available_unit(
+                interface_id => $intf->interface_id,
+                tag          => $endpoint->tag,
+                inner_tag    => $endpoint->inner_tag
+            );
+            $endpoint->unit($new_unit_number);
+        }
+
+        $endpoint->{interface} = $intf->name();
+        $endpoint->{interface_id} = $intf->interface_id();
+
         $endpoint->update_db();
     }
     return 1;
