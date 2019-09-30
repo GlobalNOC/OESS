@@ -415,7 +415,12 @@ sub provision {
             OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints);
 
             foreach my $ep (@{$circuit->endpoints}) {
-                my $update_err = $ep->update_db;
+                # Azure endpoints use qnq which require us to reselect
+                # a unit. The initial unit was the selected vlan.
+                my $update_err = $ep->update_unit;
+                die $update_err if (defined $update_err);
+
+                $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }
         };
