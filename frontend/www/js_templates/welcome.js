@@ -3,8 +3,12 @@ document.addEventListener('DOMContentLoaded', function() {
   let entityID = url.searchParams.get('entity_id');
 
   loadUserMenu().then(function() {
+    [% IF network_type == 'evpn-vxlan' %]
+    loadL2VPNs();
+    [% ELSE %]
     loadEntityList();
     loadL2VPNs();
+    [% END %]
   });
 });
 

@@ -40,6 +40,7 @@ lib/OESS/Measurement.pm
 lib/OESS/Mock.pm
 lib/OESS/MPLS/Device.pm
 lib/OESS/MPLS/Device/Juniper/MX.pm
+lib/OESS/MPLS/Device/Juniper/VXLAN.pm
 lib/OESS/MPLS/Discovery.pm
 lib/OESS/MPLS/Discovery/Interface.pm
 lib/OESS/MPLS/Discovery/ISIS.pm
@@ -85,6 +86,8 @@ share/customer-templates/juniper/srx/junos95/template.txt
 share/customer-templates/juniper/t/junos95/template.txt
 share/customer-templates/paloalto/pa3000/panos803/template.txt
 share/customer-templates/paloalto/pa5000/panos803/template.txt
+share/mpls/templates/juniper/13.3R8/EVPN/ep_config.xml
+share/mpls/templates/juniper/13.3R8/EVPN/ep_config_delete.xml
 share/mpls/templates/juniper/13.3R8/L2CCC/ep_config.xml
 share/mpls/templates/juniper/13.3R8/L2CCC/ep_config_delete.xml
 share/mpls/templates/juniper/13.3R8/L2VPLS/ep_config.xml

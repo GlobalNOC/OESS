@@ -22,8 +22,10 @@ use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::WebService::Regex;
 
-
+use OESS::Config;
 use OESS::MPLS::Device;
+use OESS::MPLS::Device::Juniper::MX;
+use OESS::MPLS::Device::Juniper::VXLAN;
 
 use JSON::XS;
 
@@ -48,6 +50,7 @@ sub new{
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
     $self->{'config'} = $args{'config'} || '/etc/oess/database.xml';
+    $self->{'config_obj'} = new OESS::Config(config_filename => $self->{'config'});
 
     $self->{'node'}->{'node_id'} = $self->{'id'};
     
@@ -133,14 +136,20 @@ sub create_device_object{
 
     my $host_info = $self->{'node'};
     $host_info->{'config'} = $self->{'config'};
+$self->{logger}->error(Dumper($host_info));
 
     switch($host_info->{'vendor'}){
         case "Juniper" {
             my $dev;
-            if($host_info->{'model'} =~ /mx/i){
-                $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
-                $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
-            }else{
+            if ($host_info->{'model'} =~ /mx/i) {
+                if ($self->{'config_obj'}->network_type eq 'evpn-vxlan') {
+                    $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
+                    $dev = OESS::MPLS::Device::Juniper::VXLAN->new( %$host_info );
+                } else {
+                    $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
+                    $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
+                }
+            } else {
                 $self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
                 return;
             }
