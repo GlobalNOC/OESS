@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 9;
+use Test::More tests => 16;
 
 use OESSDatabaseTester;
 
@@ -61,9 +61,9 @@ foreach my $raw_peer (@{$raw->{peers}}) {
 }
 ok(@{$ep->peers} == $peer_count, "$peer_count Peer(s) added to Endpoint from raw model after manual creation.");
 
-# =====================
-# === move_endpoint ===
-# =====================
+# =============================
+# === move_circuit_endpoint ===
+# =============================
 
 my $ep2 = new OESS::Endpoint(db => $db, circuit_id => 4181, interface_id => 391, type => 'circuit');
 
@@ -85,8 +85,26 @@ ok($ep2->mtu == $ep3->mtu, 'MTU transfered');
 ok($ep2->bandwidth == $ep3->bandwidth, 'Bandwidth transfered');
 ok($ep2->circuit_ep_id == $ep3->circuit_ep_id, 'CircuitEndpointID transfered');
 
+# =============================
+# === move_vrf_endpoint =======
+# =============================
+
+my $ep4 = new OESS::Endpoint(db => $db, vrf_endpoint_id => 3, type => 'vrf');
+
 OESS::Endpoint::move_endpoints(
     db => $db,
     orig_interface_id => 1,
     new_interface_id  => 391
 );
+
+my $ep5 = new OESS::Endpoint(db => $db, vrf_endpoint_id => 3, type => 'vrf');
+
+ok($ep4->interface_id == 1, 'InterfaceID updated correctly');
+ok($ep5->interface_id == 391, 'Initial InterfaceID as correctly');
+
+ok($ep4->node_id == 1, 'NodeID updated correctly');
+ok($ep5->node_id == 11, 'Initial NodeID as correctly');
+
+ok($ep4->mtu == $ep5->mtu, 'MTU transfered');
+ok($ep4->bandwidth == $ep5->bandwidth, 'Bandwidth transfered');
+ok($ep4->vrf_endpoint_id == $ep5->vrf_endpoint_id, 'VRFEndpointID transfered');
