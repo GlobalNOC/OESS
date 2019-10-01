@@ -264,6 +264,7 @@ sub _fetch_from_db{
 
     if ($self->{'type'} eq 'circuit') {
         my ($data, $err) = OESS::DB::Endpoint::fetch_all(
+            db => $self->{db},
             circuit_id => $self->{circuit_id},
             interface_id => $self->{interface_id}
         );
@@ -395,34 +396,31 @@ sub get_endpoints_on_interface{
     my $interface_id = $args{'interface_id'};
     my $state = $args{'state'} || 'active';
     my $type = $args{'type'} || 'all';
-    my @results; 
+    my @results;
 
     # Gather all VRF endpoints
     if ($type eq 'all' || $type eq 'vrf') {
         my $endpoints = OESS::DB::VRF::fetch_endpoints_on_interface(
-                                db => $db,
-                                interface_id => $interface_id,
-                                state => $state);
-        foreach my $endpoint (@$endpoints){
-            push(@results, OESS::Endpoint->new(
-                                db => $db,
-                                type => 'vrf',
-                                vrf_endpoint_id => $endpoint->{'vrf_ep_id'}));
+            db => $db,
+            interface_id => $interface_id,
+            state => $state
+        );
+        foreach my $endpoint (@$endpoints) {
+            push @results, OESS::Endpoint->new(db => $db, type => 'vrf', vrf_endpoint_id => $endpoint->{'vrf_ep_id'});
         }
     }
-  
+
     # Gather all Circuit endpoints
     if ($type eq 'all' || $type eq 'circuit') {
         my $endpoints = OESS::DB::Circuit::fetch_endpoints_on_interface(
-                                db => $db,
-                                interface_id => $interface_id); 
-        foreach my $endpoint (@$endpoints){
-            push(@results, OESS::Endpoint->new(
-                                db => $db,
-                                type => 'circuit',
-                                model => $endpoint));
+            db => $db,
+            interface_id => $interface_id
+        );
+        foreach my $endpoint (@$endpoints) {
+            push @results, OESS::Endpoint->new(db => $db, type => 'circuit', model => $endpoint);
         }
     }
+
     return \@results;
 }
 
@@ -478,6 +476,20 @@ sub interface{
     }
 
     return $self->{'interface'};
+}
+
+=head2 interface_id
+
+=cut
+sub interface_id{
+    my $self = shift;
+    my $interface_id = shift;
+
+    if(defined($interface_id)){
+        $self->{'interface_id'} = $interface_id;
+    }
+
+    return $self->{'interface_id'};
 }
 
 =head2 description
@@ -850,7 +862,6 @@ sub move_endpoints{
 
         $endpoint->{interface} = $intf->name();
         $endpoint->{interface_id} = $intf->interface_id();
-
         $endpoint->update_db();
     }
     return 1;

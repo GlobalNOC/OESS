@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 2;
+use Test::More tests => 9;
 
 use OESSDatabaseTester;
 
@@ -60,3 +60,33 @@ foreach my $raw_peer (@{$raw->{peers}}) {
     $ep->add_peer($peer);
 }
 ok(@{$ep->peers} == $peer_count, "$peer_count Peer(s) added to Endpoint from raw model after manual creation.");
+
+# =====================
+# === move_endpoint ===
+# =====================
+
+my $ep2 = new OESS::Endpoint(db => $db, circuit_id => 4181, interface_id => 391, type => 'circuit');
+
+OESS::Endpoint::move_endpoints(
+    db => $db,
+    orig_interface_id => 391,
+    new_interface_id  => 1
+);
+
+my $ep3 = new OESS::Endpoint(db => $db, circuit_id => 4181, interface_id => 1, type => 'circuit');
+
+ok($ep2->interface_id == 391, 'Initial InterfaceID as correctly');
+ok($ep3->interface_id == 1, 'InterfaceID updated correctly');
+
+ok($ep2->node_id == 11, 'Initial NodeID as correctly');
+ok($ep3->node_id == 1, 'NodeID updated correctly');
+
+ok($ep2->mtu == $ep3->mtu, 'MTU transfered');
+ok($ep2->bandwidth == $ep3->bandwidth, 'Bandwidth transfered');
+ok($ep2->circuit_ep_id == $ep3->circuit_ep_id, 'CircuitEndpointID transfered');
+
+OESS::Endpoint::move_endpoints(
+    db => $db,
+    orig_interface_id => 1,
+    new_interface_id  => 391
+);
