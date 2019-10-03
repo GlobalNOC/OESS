@@ -30,9 +30,21 @@ my $res = $db->get_available_resources(
     'workgroup_id' => 21,
 );
 ok($res, 'query ok');
-is(@$res, 6, 'count');
+is(@$res, 7, 'count');
 
 my $correct_result = [
+    {
+        'interface_name' => 'e1/2',
+        'remote_links' => [],
+        'node_name' => 'Node 1',
+        'owning_workgroup' => undef,
+        'interface_id' => '1',
+        'description' => 'e1/2',
+        'is_owner' => 0,
+        'vlan_tag_range' => '1-99,4095',
+        'node_id' => '1',
+        'operational_state' => 'down'
+    },
     {
             'interface_name' => 'e15/1',
             'remote_links' => [],

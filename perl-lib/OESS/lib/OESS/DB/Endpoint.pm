@@ -401,6 +401,7 @@ sub update_circuit_edge_membership{
     my $result = $db->execute_query(
         "UPDATE circuit_edge_interface_membership SET ".
             "interface_id=?, ".
+            "bandwidth=?, ".
             "circuit_id=?, ".
             "extern_vlan_id=?, ".
             "inner_tag=?, ".
@@ -408,6 +409,7 @@ sub update_circuit_edge_membership{
             "mtu=? ".
             "WHERE circuit_edge_id=?",
             [$endpoint->{interface_id},
+             $endpoint->{bandwidth},
              $endpoint->{circuit_id},
              $endpoint->{tag},
              $endpoint->{inner_tag},
