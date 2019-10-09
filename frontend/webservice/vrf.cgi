@@ -318,7 +318,7 @@ sub provision_vrf{
             my $entity;
             my $interface;
 
-            if (defined $ep->{node} && defined $ep->{interface}) {
+            if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
                 $interface = new OESS::Interface(
                     db => $db,
                     name => $ep->{interface},
