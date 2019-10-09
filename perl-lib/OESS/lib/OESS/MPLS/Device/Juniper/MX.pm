@@ -909,10 +909,6 @@ sub add_vrf{
             my $peer_ip = $bgp->{'peer_ip'};
             $peer_ip =~ s/\/\d+//g;
 
-            if(!defined($bgp->{'md5_key'})){
-                $bgp->{'key'} = -1;
-            }
-            
             my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
             warn "Version: " . $type . "\n";
             $self->{'logger'}->error("IP Address type: " . $type);
