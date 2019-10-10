@@ -360,7 +360,7 @@ sub _write_cache{
                 $touch->{$ep_z->{'node'}} = 1;
 
 
-                my $primary = $ckt->get_path(type => 'primary');
+                my $primary = $ckt->get_path(path => 'primary');
                 if (!defined $primary) {
                     push @$paths, {
                         name           => 'PRIMARY',
