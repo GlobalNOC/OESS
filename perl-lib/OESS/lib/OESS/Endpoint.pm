@@ -783,7 +783,9 @@ sub update_unit {
         db => $self->{db},
         interface_id => $self->{interface_id},
         tag => $self->{tag},
-        inner_tag => $self->{inner_tag}
+        inner_tag => $self->{inner_tag},
+        circuit_ep_id => $self->{circuit_ep_id},
+        vrf_ep_id => $self->{vrf_endpoint_id}
     );
     if (!defined $unit) {
         return "Couldn't update Endpoint: Couldn't find an available Unit.";

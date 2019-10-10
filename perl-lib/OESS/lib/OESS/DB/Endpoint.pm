@@ -557,10 +557,12 @@ sub add_vrf_peers{
 =cut
 sub find_available_unit{
     my $args = {
-        db           => undef,
-        interface_id => undef,
-        tag          => undef,
-        inner_tag    => undef,
+        db            => undef,
+        interface_id  => undef,
+        tag           => undef,
+        inner_tag     => undef,
+        circuit_ep_id => undef,
+        vrf_ep_id     => undef,
         @_
     };
 
@@ -570,7 +572,7 @@ sub find_available_unit{
 
     if (!defined $args->{inner_tag}) {
         my $l3query = "
-            select unit
+            select unit, vrf_ep_id
             from vrf_ep
             where unit=? and state='active' and interface_id=?
         ";
@@ -579,11 +581,15 @@ sub find_available_unit{
             [$args->{tag}, $args->{interface_id}]
         );
         if (@$l3units > 0) {
+            my $l3unit = $l3units->[0]; # If the selected unit is already used by this Endpoint then OK.
+            if ($l3unit->{vrf_ep_id} eq $args->{vrf_ep_id} && $l3unit->{unit} eq $args->{tag}) {
+                return $args->{tag};
+            }
             return;
         }
 
         my $l2query = "
-            select unit
+            select unit, circuit_edge_id as circuit_ep_id
             from circuit_edge_interface_membership
             where unit=? and end_epoch=-1 and interface_id=?
         ";
@@ -592,6 +598,10 @@ sub find_available_unit{
             [$args->{tag}, $args->{interface_id}]
         );
         if (@$l2units > 0) {
+            my $l2unit = $l2units->[0]; # If the selected unit is already used by this Endpoint then OK.
+            if ($l2unit->{circuit_ep_id} eq $args->{circuit_ep_id} && $l2unit->{unit} eq $args->{tag}) {
+                return $args->{tag};
+            }
             return;
         }
         return $args->{tag};
