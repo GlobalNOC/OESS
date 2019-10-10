@@ -136,7 +136,6 @@ sub create_device_object{
 
     my $host_info = $self->{'node'};
     $host_info->{'config'} = $self->{'config'};
-$self->{logger}->error(Dumper($host_info));
 
     switch($host_info->{'vendor'}){
         case "Juniper" {
