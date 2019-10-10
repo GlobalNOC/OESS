@@ -378,7 +378,7 @@ sub add_circuit_edge_membership{
             "inner_tag, ".
             "unit, ".
             "mtu ".
-            ") VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
+            ") VALUES (?, ?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
             [$endpoint->{interface_id},
              $endpoint->{bandwidth},
              $endpoint->{circuit_id},
