@@ -96,6 +96,7 @@ sub new{
     bless $self, $class;
 
     my $config_filename = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
+    $self->{'config_filename'} = $config_filename;
     $self->{'config'} = new OESS::Config(config_filename => $config_filename);
 
     if (!defined $self->{'test'}) {
@@ -308,7 +309,7 @@ sub _init_interfaces{
 sub _init_lsp{
     my $self = shift;
 
-    my $lsps = OESS::MPLS::Discovery::LSP->new( db => $self->{'db'});
+    my $lsps = OESS::MPLS::Discovery::LSP->new( db => $self->{'db'} );
     if(!defined($lsps)){
 	die "Unable to create LSP Processor\n";
     }
@@ -337,7 +338,7 @@ sub _init_isis{
 =cut
 sub _init_paths{
     my $self = shift;
-    my $paths = OESS::MPLS::Discovery::Paths->new( db => $self->{'db'} );
+    my $paths = OESS::MPLS::Discovery::Paths->new( db => $self->{'db'}, config => $self->{config_filename} );
     if(!defined($paths)){
         die "Unable to create Path Processor\n";
     }

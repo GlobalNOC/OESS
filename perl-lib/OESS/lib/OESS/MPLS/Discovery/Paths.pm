@@ -46,7 +46,7 @@ sub new{
 	
     }
     if (!defined $self->{db2}) {
-        $self->{db2} = new OESS::DB;
+        $self->{db2} = new OESS::DB(config => $self->{config});
     }
 
     return $self;
