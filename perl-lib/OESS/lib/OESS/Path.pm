@@ -319,6 +319,37 @@ sub load_links {
     return 1;
 }
 
+=head2 compare_links
+
+    my $eq = $path->compare_links($links);
+
+compare_links returns C<1> if this C<OESS::Path>'s links are the same
+as C<$links>, which is an array of C<OESS::Link>s. Otherwise C<0> is
+returned.
+
+=cut
+sub compare_links {
+    my $self = shift;
+    my $links = shift;
+
+    my $lookup = {};
+    foreach my $link (@$links) {
+        $lookup->{$link->link_id} = $link;
+    }
+
+    foreach my $link (@{$self->{links}}) {
+        if (!defined $lookup->{$link->link_id}) {
+            return 0;
+        }
+        delete $lookup->{$link->link_id};
+    }
+
+    if (keys(%$lookup) > 0) {
+        return 0;
+    }
+    return 1;
+}
+
 =head2 path_id
 
 =cut

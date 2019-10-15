@@ -172,7 +172,6 @@ sub fetch_history {
     my $acl = OESS::DB::Link::fetch_all(
         db           => $conn,
         link_id      => 1,             # Optional
-        path_id      => 1,             # Optional
         name         => 'a-to-b',      # Optional
         remote_urn   => '',            # Optional
         status       => 'up',          # Optional
@@ -206,10 +205,6 @@ sub fetch_all {
     if (defined $args->{link_id}) {
         push @$params, 'link.link_id=?';
         push @$values, $args->{link_id};
-    }
-    if (defined $args->{path_id}) {
-        push @$params, 'link_path_membership.path_id=?';
-        push @$values, $args->{path_id};
     }
     if (defined $args->{name}) {
         push @$params, 'link.name=?';
@@ -249,7 +244,6 @@ sub fetch_all {
                node_a.loopback_address as node_a_loopback, node_z.loopback_address as node_z_loopback
         FROM link
         JOIN link_instantiation ON link.link_id=link_instantiation.link_id AND link_instantiation.end_epoch=-1
-        JOIN link_path_membership ON link.link_id=link_path_membership.link_id AND link_path_membership.end_epoch=-1
         JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
         JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
         JOIN node_instantiation as node_a ON node_a.node_id=interface_a.node_id AND node_a.end_epoch=-1
