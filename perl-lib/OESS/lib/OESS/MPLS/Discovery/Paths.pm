@@ -131,17 +131,23 @@ sub _process_paths{
         if (defined $pri) {
             my $equal = $pri->compare_links(\@ckt_path);
             if ($equal) {
-                OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $pri->path_id, state => 'active' });
+                if ($pri->state eq 'active') {
+                    # PASS
+                } else {
+                    OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $pri->path_id, state => 'active' });
+                }
                 $pri_active = 1;
             } else {
-                OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $pri->path_id, state => 'deploying' });
+                if ($pri->state eq 'active') {
+                    OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $pri->path_id, state => 'deploying' });
+                }
             }
         }
 
         # $dft will be undefined on circuits with static paths until
         # that path encounters a failure.
         if ($pri_active) {
-            if (defined $dft) {
+            if (defined $dft && $dft->state eq 'active') {
                 OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $dft->path_id, state => 'deploying' });
             } else {
                 # If primary is active and a default is undef then the
@@ -149,7 +155,31 @@ sub _process_paths{
                 # default path has been created. Do nothing for now.
             }
         } else {
-            if (defined $dft) {
+            if (!defined $dft) {
+                # If primary is inactive and a default is undef then
+                # the primary path has experienced its first
+                # failure. Create and populate a default path. This
+                # will populate the Circuit's currently active path.
+
+                $dft = new OESS::Path(db => $self->{db2}, model => {
+                    mpls_type => 'loose',
+                    type      => 'tertiary',
+                    state     => 'active'
+                });
+                foreach my $link (@ckt_path) {
+                    $dft->add_link($link);
+                }
+                $dft->create(circuit_id => $ckt->circuit_id);
+                next;
+            }
+
+            my $equal = $dft->compare_links(\@ckt_path);
+            if ($equal) {
+                if ($dft->state eq 'active') {
+                    next;
+                }
+                OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $dft->path_id, state => 'active' });
+            } else {
                 my $lookup = {};
                 foreach my $link (@{$dft->links}) {
                     $lookup->{$link->link_id} = 1;
@@ -169,21 +199,6 @@ sub _process_paths{
 
                 $dft->state('active');
                 $dft->update;
-            } else {
-                # If primary is inactive and a default is undef then
-                # the primary path has experienced its first
-                # failure. Create and populate a default path. This
-                # will populate the Circuit's currently active path.
-
-                $dft = new OESS::Path(db => $self->{db2}, model => {
-                    mpls_type => 'loose',
-                    type      => 'tertiary',
-                    state     => 'active'
-                });
-                foreach my $link (@ckt_path) {
-                    $dft->add_link($link);
-                }
-                $dft->create(circuit_id => $ckt->circuit_id);
             }
         }
     }
