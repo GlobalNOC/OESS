@@ -198,8 +198,8 @@ sub fetch_circuits {
                 circuit.workgroup_id, circuit.circuit_state as state, modified_by_user_id as user_id, reason,
                 external_identifier, remote_url, remote_requester
          FROM circuit
-         JOIN circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
-         JOIN circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id=circuit.circuit_id
+         JOIN circuit_instantiation ON circuit.circuit_id=circuit_instantiation.circuit_id
+         JOIN circuit_edge_interface_membership ON circuit_edge_interface_membership.circuit_id=circuit.circuit_id AND circuit_edge_interface_membership.end_epoch=-1
          JOIN interface on interface.interface_id=circuit_edge_interface_membership.interface_id
          $where
          GROUP BY circuit.circuit_id",
