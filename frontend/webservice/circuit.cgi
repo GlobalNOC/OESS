@@ -673,13 +673,13 @@ sub update {
         }
     }
 
+    _send_remove_command($circuit->circuit_id);
+
     # Put rollback in place for quick tests
     # $db->rollback;
     $db->commit;
-
     warn Dumper($circuit->to_hash);
 
-    _send_remove_command($circuit->circuit_id);
     _send_update_cache($circuit->circuit_id);
     _send_add_command($circuit->circuit_id);
 
