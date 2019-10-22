@@ -22,6 +22,21 @@
     </interface>
     [% END %]
   </interfaces>
+  [%- FOREACH interface IN interfaces -%]
+  [%- IF interface.bandwidth > 0 %]
+  <class-of-service>
+    <interfaces>
+      <interface>
+        <name>[% interface.interface %]</name>
+        <unit>
+          <name>[% interface.unit %]</name>
+          <shaping-rate><rate>[% interface.bandwidth %]m</rate></shaping-rate>
+        </unit>
+      </interface>
+    </interfaces>
+  </class-of-service>
+  [%- END -%]
+  [%- END %]
   <routing-instances>
     <instance>
       <name>OESS-L2VPLS-[% circuit_id %]</name>

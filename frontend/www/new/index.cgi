@@ -32,6 +32,7 @@
 #                                                 
 use strict;
 use warnings;
+use OESS::Config;
 use OESS::Database;
 use Data::Dumper;
 use CGI;
@@ -45,6 +46,7 @@ Log::Log4perl::init('/etc/oess/logging.conf');
 
 
 sub main{
+    my $config = new OESS::Config();
     my $db  = OESS::Database->new();
     my $cgi = new CGI;
     my $tt  = Template->new(INCLUDE_PATH => "$FindBin::Bin/..") || die $Template::ERROR;
@@ -66,6 +68,7 @@ sub main{
 	$vars->{'path'}               = "../";
         $vars->{'is_read_only'}       = 1;
         $vars->{'version'}            = OESS::Database::VERSION;
+        $vars->{'network_type'}       = $config->network_type;
 
         $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
         print "Content-type: text/html\n\n" . $output;
@@ -196,6 +199,7 @@ sub main{
     $vars->{'is_admin'}           = $is_admin;
     $vars->{'is_read_only'}       = $is_read_only;
     $vars->{'version'}            = OESS::Database::VERSION;
+    $vars->{'network_type'}       = $config->network_type;
 
     $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
     print "Content-type: text/html\n\n" . $output;

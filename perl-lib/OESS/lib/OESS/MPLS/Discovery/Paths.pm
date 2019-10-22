@@ -6,11 +6,18 @@ use warnings;
 package OESS::MPLS::Discovery::Paths;
 
 use Data::Dumper;
-use OESS::Database;
-use OESS::Circuit;
 use Log::Log4perl;
 use AnyEvent;
 use List::MoreUtils qw(uniq);
+
+use OESS::Database;
+use OESS::DB;
+use OESS::DB::Link;
+use OESS::DB::Path;
+use OESS::Circuit;
+use OESS::L2Circuit;
+use OESS::Link;
+use OESS::Path;
 
 =head2 new
 
@@ -38,8 +45,9 @@ sub new{
 	$self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
 	
     }
-
-    #die if(!defined($self->{'db'}));
+    if (!defined $self->{db2}) {
+        $self->{db2} = new OESS::DB(config => $self->{config});
+    }
 
     return $self;
 }
@@ -79,50 +87,123 @@ sub _process_paths{
     $self->{'logger'}->debug(Dumper($circuit_lsps));
     $self->{'logger'}->debug(Dumper($lsp_paths));
 
-    my %ip_links; # Map from IP address to link_id
-    my %links_by_id; # Map from link_id to link
+    my $ip_links = {}; # Map from IPAddress to Link
+    $self->{db2}->start_transaction;
 
-    $self->{db}->_start_transaction();
-
-    my $links_db = $self->{'db'}->get_current_links(type => 'mpls');
+    my $links_db = OESS::DB::Link::fetch_all(db => $self->{db2});
     foreach my $link (@{$links_db}){
-        my $ip_a = $link->{'ip_a'};
-        my $ip_z = $link->{'ip_z'};
-        my $link_id = $link->{'link_id'};
-
-        $ip_links{$ip_a} = $link_id;
-        $ip_links{$ip_z} = $link_id;
-        $links_by_id{$link_id} = $link;
+        $ip_links->{$link->{ip_a}} = new OESS::Link(db => $self->{db2}, model => $link);
+        $ip_links->{$link->{ip_z}} = new OESS::Link(db => $self->{db2}, model => $link);
     }
 
-    warn "Processing the paths into links!\n";
+    foreach my $circuit_id (keys %{$circuit_lsps}) {
+        $self->{'logger'}->error("Checking paths for circuit $circuit_id.");
 
-    foreach my $circuit_id (keys %{$circuit_lsps}){
-       my @ckt_path0; # list of (possibly duplicated) IP addresses making up the circuit
-       foreach my $lsp (@{$circuit_lsps->{$circuit_id}}){
-           if (!defined $lsp_paths->{$lsp}) {
-               next;
-           }
-           push @ckt_path0, @{$lsp_paths->{$lsp}};
-       }
+        my $links = {};
 
-       my @ckt_path1 = map { $ip_links{$_} } @ckt_path0;
-       my @ckt_path2 = uniq @ckt_path1; # list of link_ids making up the circuit, without duplication
-       my @ckt_path  = map { $links_by_id{$_} } @ckt_path2;
+        foreach my $lsp (@{$circuit_lsps->{$circuit_id}}) {
+            if (!defined $lsp_paths->{$lsp}) {
+                # Circuit is associated with an LSP that we don't have
+                # a list of hops for; Continue on without it.
+                $self->{'logger'}->warn("LSP missing path data.");
+                next;
+            }
 
-       # Remove any undef elements. It's possible this may happen when
-       # multiple lsps are configured on the same port.
-       @ckt_path = grep defined, @ckt_path;
+            foreach my $ip (@{$lsp_paths->{$lsp}}) {
+                my $link = $ip_links->{$ip};
+                if (defined $link) {
+                    # This if check removes any undef elements. It's
+                    # possible this may happen when multiple LSPs are
+                    # configured on the same port.
+                    $links->{$link->{link_id}} = $link;
+                }
+            }
+        }
+        my @ckt_path = map { $links->{$_} } keys(%$links);
 
-       my $ckt = OESS::Circuit->new(db => $self->{'db'}, circuit_id => $circuit_id);
-       my $ok = $ckt->update_mpls_path(links => \@ckt_path);
-       if (!$ok) {
-           $self->{db}->_rollback();
-           return 0;
-       }
+        my $ckt = new OESS::L2Circuit(db => $self->{db2}, circuit_id => $circuit_id);
+        $ckt->load_paths;
+
+        my $pri = $ckt->path(type => 'primary');
+        my $pri_active = 0;
+        my $dft = $ckt->path(type => 'tertiary');
+
+        if (defined $pri) {
+            my $equal = $pri->compare_links(\@ckt_path);
+            if ($equal) {
+                if ($pri->state eq 'active') {
+                    # PASS
+                } else {
+                    OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $pri->path_id, state => 'active' });
+                }
+                $pri_active = 1;
+            } else {
+                if ($pri->state eq 'active') {
+                    OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $pri->path_id, state => 'deploying' });
+                }
+            }
+        }
+
+        # $dft will be undefined on circuits with static paths until
+        # that path encounters a failure.
+        if ($pri_active) {
+            if (defined $dft && $dft->state eq 'active') {
+                OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $dft->path_id, state => 'deploying' });
+            } else {
+                # If primary is active and a default is undef then the
+                # primary path has yet to experience a failure and no
+                # default path has been created. Do nothing for now.
+            }
+        } else {
+            if (!defined $dft) {
+                # If primary is inactive and a default is undef then
+                # the primary path has experienced its first
+                # failure. Create and populate a default path. This
+                # will populate the Circuit's currently active path.
+
+                $dft = new OESS::Path(db => $self->{db2}, model => {
+                    mpls_type => 'loose',
+                    type      => 'tertiary',
+                    state     => 'active'
+                });
+                foreach my $link (@ckt_path) {
+                    $dft->add_link($link);
+                }
+                $dft->create(circuit_id => $ckt->circuit_id);
+                next;
+            }
+
+            my $equal = $dft->compare_links(\@ckt_path);
+            if ($equal) {
+                if ($dft->state eq 'active') {
+                    next;
+                }
+                OESS::DB::Path::update(db => $self->{db2}, path => { path_id => $dft->path_id, state => 'active' });
+            } else {
+                my $lookup = {};
+                foreach my $link (@{$dft->links}) {
+                    $lookup->{$link->link_id} = 1;
+                }
+
+                foreach my $link (@ckt_path) {
+                    if (defined $lookup->{$link->link_id}) {
+                        delete $lookup->{$link->link_id};
+                        next;
+                    }
+                    $dft->add_link($link);
+                }
+
+                foreach my $link_id (keys %$lookup) {
+                    $dft->remove_link($link_id);
+                }
+
+                $dft->state('active');
+                $dft->update;
+            }
+        }
     }
 
-    $self->{db}->_commit();
+    $self->{db2}->commit;
     return 1;
 }
 

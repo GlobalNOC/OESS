@@ -14,6 +14,7 @@ use GRNOC::WebService::Dispatcher;
 use OESS::RabbitMQ::Client;
 use OESS::Cloud;
 use OESS::Cloud::AWS;
+use OESS::Config;
 use OESS::DB;
 use OESS::DB::Entity;
 use OESS::VRF;
@@ -21,7 +22,7 @@ use OESS::VRF;
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
-
+my $config = new OESS::Config();
 my $db = OESS::DB->new();
 my $svc = GRNOC::WebService::Dispatcher->new();
 my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
@@ -159,16 +160,20 @@ sub get_vrf_details{
     my $ref = shift;
 
     my $vrf_id = $params->{'vrf_id'}{'value'};
-    
+
+    if ($config->network_type ne 'vpn-mpls') {
+        $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
+        return;
+    }
+
     my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
-    
+
     if(!defined($vrf)){
         $method->set_error("VRF: " . $vrf_id . " was not found");
         return;
     }
 
     return {results => [$vrf->to_hash()]};
-    
 }
 
 sub get_vrfs{
@@ -177,6 +182,11 @@ sub get_vrfs{
     my $ref = shift;
 
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
+
+    if ($config->network_type ne 'vpn-mpls') {
+        $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
+        return;
+    }
 
     #verify user is in workgroup
     my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
@@ -209,6 +219,11 @@ sub get_vrfs{
 sub provision_vrf{
     my $method = shift;
     my $params = shift;
+
+    if ($config->network_type ne 'vpn-mpls') {
+        $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
+        return;
+    }
 
     my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
@@ -303,7 +318,7 @@ sub provision_vrf{
             my $entity;
             my $interface;
 
-            if (defined $ep->{node} && defined $ep->{interface}) {
+            if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
                 $interface = new OESS::Interface(
                     db => $db,
                     name => $ep->{interface},
@@ -701,6 +716,11 @@ sub remove_vrf{
     my $method = shift;
     my $params = shift;
     my $ref = shift;
+
+    if ($config->network_type ne 'vpn-mpls') {
+        $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
+        return;
+    }
 
     my $model = {};
     my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});

@@ -250,13 +250,14 @@ DROP TABLE IF EXISTS `entity`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `entity` (
   `entity_id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255),
+  `name` varchar(255) DEFAULT NULL,
   `description` text,
   `logo_url` varchar(255) DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`entity_id`),
   UNIQUE KEY `name` (`name`),
-  UNIQUE KEY `name_2` (`name`)
+  UNIQUE KEY `name_2` (`name`),
+  UNIQUE KEY `name_3` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=124 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -357,7 +358,7 @@ CREATE TABLE `interface_acl` (
   KEY `interface_id` (`interface_id`),
   CONSTRAINT `interface_acl_ibfk_1` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
   CONSTRAINT `interface_acl_ibfk_2` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -366,7 +367,7 @@ CREATE TABLE `interface_acl` (
 
 LOCK TABLES `interface_acl` WRITE;
 /*!40000 ALTER TABLE `interface_acl` DISABLE KEYS */;
-INSERT INTO `interface_acl` VALUES (1,21,45901,'deny',10,101,200,'ima note',NULL),(2,21,45911,'deny',20,100,NULL,NULL,NULL),(3,21,45811,'allow',10,100,NULL,'ima note',NULL),(4,31,45811,'allow',20,101,NULL,'ima note',NULL),(5,101,45811,'allow',30,102,NULL,'ima note',NULL),(6,61,45811,'allow',40,103,NULL,'ima note',NULL),(7,71,45811,'allow',50,104,NULL,'ima note',NULL),(8,81,45811,'allow',60,105,NULL,'ima note',NULL),(9,11,321,'allow',10,1,10,'(for test 34-provision_circuit.t)',NULL),(10,11,511,'allow',10,1,10,'(for test 34-provision_circuit.t)',NULL),(11,11,391,'deny',10,1,NULL,'(for test 34-provision_circuit.t)',7),(12,11,391,'allow',20,1,4095,'(for test 34-provision_circuit.t)',7),(13,21,45901,'allow',20,120,125,NULL,NULL),(14,21,45901,'allow',30,-1,4095,NULL,NULL),(15,31,14081,'allow',1,-1,4095,NULL,7),(16,31,21,'allow',20,-1,4095,NULL,11),(17,31,21,'allow',30,-1,4095,NULL,12),(18,31,35961,'allow',20,-1,4095,NULL,14),(19,241,45811,'allow',22,1,4095,'',NULL),(20,241,45861,'allow',22,1,4095,'',NULL),(21,241,45741,'allow',10,2000,2010,'',NULL),(22,241,45841,'allow',10,3000,4000,'',NULL);
+INSERT INTO `interface_acl` VALUES (1,21,45901,'deny',10,101,200,'ima note',NULL),(2,21,45911,'deny',20,100,NULL,NULL,NULL),(3,21,45811,'allow',10,100,NULL,'ima note',NULL),(4,31,45811,'allow',20,101,NULL,'ima note',NULL),(5,101,45811,'allow',30,102,NULL,'ima note',NULL),(6,61,45811,'allow',40,103,NULL,'ima note',NULL),(7,71,45811,'allow',50,104,NULL,'ima note',NULL),(8,81,45811,'allow',60,105,NULL,'ima note',NULL),(9,11,321,'allow',10,1,10,'(for test 34-provision_circuit.t)',NULL),(10,11,511,'allow',10,1,10,'(for test 34-provision_circuit.t)',NULL),(11,11,391,'deny',10,1,NULL,'(for test 34-provision_circuit.t)',7),(12,11,391,'allow',20,1,4095,'(for test 34-provision_circuit.t)',7),(13,21,45901,'allow',20,120,125,NULL,NULL),(14,21,45901,'allow',30,-1,4095,NULL,NULL),(15,31,14081,'allow',1,-1,4095,NULL,7),(16,31,21,'allow',20,-1,4095,NULL,11),(17,31,21,'allow',30,-1,4095,NULL,12),(18,31,35961,'allow',20,-1,4095,NULL,14),(19,241,45811,'allow',22,1,4095,'',NULL),(20,241,45861,'allow',22,1,4095,'',NULL),(21,241,45741,'allow',10,2000,2010,'',NULL),(22,241,45841,'allow',10,3000,4000,'',NULL),(23,NULL,1,'allow',10,1,100,NULL,NULL);
 /*!40000 ALTER TABLE `interface_acl` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -700,7 +701,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('2.0.0');
+INSERT INTO `oess_version` VALUES ('2.0.5');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1038,6 +1039,7 @@ CREATE TABLE `vrf_ep` (
   `interface_id` int(10) NOT NULL,
   `state` enum('active','decom') DEFAULT NULL,
   `unit` int(11) DEFAULT NULL,
+  `mtu` int(11) NOT NULL DEFAULT '9000',
   PRIMARY KEY (`vrf_ep_id`),
   KEY `vrf_id` (`vrf_id`),
   KEY `interface_id` (`interface_id`)
@@ -1050,7 +1052,7 @@ CREATE TABLE `vrf_ep` (
 
 LOCK TABLES `vrf_ep` WRITE;
 /*!40000 ALTER TABLE `vrf_ep` DISABLE KEYS */;
-INSERT INTO `vrf_ep` VALUES (2,0,3,123,2,391,'active',0),(3,3,3,3,3,1,'active',1);
+INSERT INTO `vrf_ep` VALUES (2,0,3,123,2,391,'active',0,9000),(3,3,3,3,3,1,'active',1,9000);
 /*!40000 ALTER TABLE `vrf_ep` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1071,8 +1073,12 @@ CREATE TABLE `vrf_ep_peer` (
   `md5_key` varchar(255) DEFAULT NULL,
   `ip_version` enum('ipv4','ipv6') DEFAULT NULL,
   `operational_state` int(1) DEFAULT NULL,
+  `circuit_ep_id` int(11) DEFAULT NULL,
+  `bfd` int(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`vrf_ep_peer_id`),
-  KEY `vrf_ep_id` (`vrf_ep_id`)
+  KEY `vrf_ep_id` (`vrf_ep_id`),
+  KEY `vrf_ep_peer_ibfk_2` (`circuit_ep_id`),
+  CONSTRAINT `vrf_ep_peer_ibfk_2` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1097,7 +1103,7 @@ CREATE TABLE `workgroup` (
   `description` varchar(255) NOT NULL,
   `name` varchar(255) NOT NULL,
   `external_id` varchar(255) DEFAULT NULL,
-  `type` varchar(20) DEFAULT 'normal',
+  `type` enum('demo','normal','admin') NOT NULL DEFAULT 'normal',
   `max_mac_address_per_end` int(10) DEFAULT '10',
   `max_circuits` int(10) DEFAULT '20',
   `max_circuit_endpoints` int(10) DEFAULT '10',
@@ -1179,4 +1185,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-05-10 17:30:18
+-- Dump completed on 2019-10-01  0:44:58

@@ -264,7 +264,7 @@ sub provision {
         my $entity;
         my $interface;
 
-        if (defined $ep->{node} && defined $ep->{interface}) {
+        if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
             $interface = new OESS::Interface(
                 db => $db,
                 name => $ep->{interface},
@@ -415,7 +415,12 @@ sub provision {
             OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints);
 
             foreach my $ep (@{$circuit->endpoints}) {
-                my $update_err = $ep->update_db;
+                # Azure endpoints use qnq which require us to reselect
+                # a unit. The initial unit was the selected vlan.
+                my $update_err = $ep->update_unit;
+                die $update_err if (defined $update_err);
+
+                $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }
         };
@@ -499,7 +504,7 @@ sub update {
             my $entity;
             my $interface;
 
-            if (defined $ep->{node} && defined $ep->{interface}) {
+            if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
                 $interface = new OESS::Interface(
                     db => $db,
                     name => $ep->{interface},
@@ -657,6 +662,7 @@ sub update {
             OESS::Cloud::setup_endpoints($circuit->description, $add_endpoints);
 
             foreach my $ep (@{$circuit->endpoints}) {
+                $ep->update_unit;
                 my $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }
@@ -668,13 +674,13 @@ sub update {
         }
     }
 
+    _send_remove_command($circuit->circuit_id);
+
     # Put rollback in place for quick tests
     # $db->rollback;
     $db->commit;
-
     warn Dumper($circuit->to_hash);
 
-    _send_remove_command($circuit->circuit_id);
     _send_update_cache($circuit->circuit_id);
     _send_add_command($circuit->circuit_id);
 

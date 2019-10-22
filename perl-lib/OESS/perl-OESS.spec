@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.5
+Version: 2.0.6
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -115,6 +115,7 @@ rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/upgrade
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/customer-templates
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
@@ -129,6 +130,7 @@ make pure_install
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
 cp -ar share/customer-templates/* $RPM_BUILD_ROOT/%{docdir}/share/customer-templates/
+%__install share/mpls/templates/juniper/13.3R8/EVPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN
 %__install share/mpls/templates/juniper/13.3R8/L2CCC/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__install share/mpls/templates/juniper/13.3R8/L2VPLS/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
 %__install share/mpls/templates/juniper/13.3R8/L2VPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
@@ -185,6 +187,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
 %doc %{_mandir}/man3/OESS::Measurement.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Device::Juniper::MX.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Device::Juniper::VXLAN.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Device.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Discovery::Interface.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Discovery::ISIS.3pm.gz
@@ -257,6 +260,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/FWDCTL/Switch.pm
 %{perl_vendorlib}/OESS/Measurement.pm
 %{perl_vendorlib}/OESS/MPLS/Device/Juniper/MX.pm
+%{perl_vendorlib}/OESS/MPLS/Device/Juniper/VXLAN.pm
 %{perl_vendorlib}/OESS/MPLS/Device.pm
 %{perl_vendorlib}/OESS/MPLS/Discovery/Interface.pm
 %{perl_vendorlib}/OESS/MPLS/Discovery/ISIS.pm
@@ -285,6 +289,7 @@ rm -rf $RPM_BUILD_ROOT
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 %{docdir}/share/customer-templates/*
+%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN/*

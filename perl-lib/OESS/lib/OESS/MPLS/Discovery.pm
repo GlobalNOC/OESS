@@ -50,6 +50,7 @@ use GRNOC::WebService::Regex;
 use OESS::Database;
 use JSON::XS;
 
+use OESS::Config;
 use OESS::MPLS::Discovery::Interface;
 use OESS::MPLS::Discovery::LSP;
 use OESS::MPLS::Discovery::ISIS;
@@ -94,14 +95,15 @@ sub new{
 
     bless $self, $class;
 
-    if (!defined $self->{'config'}) {
-        $self->{'config'} = "/etc/oess/database.xml";
-    }
+    my $config_filename = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
+    $self->{'config_filename'} = $config_filename;
+    $self->{'config'} = new OESS::Config(config_filename => $config_filename);
+
     if (!defined $self->{'test'}) {
         $self->{'test'} = 0;
     }
 
-    $self->{'db'} = OESS::Database->new(config => $self->{'config'});
+    $self->{'db'} = OESS::Database->new(config => $config_filename);
     die if (!defined $self->{'db'});
 
     $self->{'interface'} = $self->_init_interfaces();
@@ -128,7 +130,7 @@ sub new{
 
     # Create the client for talking to our Discovery switch objects!
     $self->{'rmq_client'} = OESS::RabbitMQ::Client->new(
-        config => $self->{'config'},
+        config => $config_filename,
         timeout => 120,
         topic => 'MPLS.Discovery'
     );
@@ -147,12 +149,14 @@ sub new{
 
     $self->{'device_timer'} = AnyEvent->timer( after => 10, interval => 60, cb => sub { $self->device_handler(); });
     $self->{'int_timer'} = AnyEvent->timer( after => 60, interval => 120, cb => sub { $self->int_handler(); });
-    $self->{'lsp_timer'} = AnyEvent->timer( after => 70, interval => 200, cb => sub { $self->lsp_handler(); });
-    $self->{'isis_timer'} = AnyEvent->timer( after => 80, interval => 120, cb => sub { $self->isis_handler(); } );
-    $self->{'path_timer'} = AnyEvent->timer( after => 40, interval => 300, cb => sub { $self->path_handler(); });
-    $self->{'vrf_stats_time'} = AnyEvent->timer( after => 20, interval => VRF_STATS_INTERVAL, cb => sub {
-        $self->vrf_stats_handler();
-    });
+    $self->{'isis_timer'} = AnyEvent->timer( after => 80, interval => 120, cb => sub { $self->isis_handler(); });
+    $self->{'vrf_stats_time'} = AnyEvent->timer( after => 20, interval => VRF_STATS_INTERVAL, cb => sub { $self->vrf_stats_handler(); });
+
+    # Only lookup LSPs and Paths when network type is vpn-mpls.
+    if ($self->{'config'}->network_type eq 'vpn-mpls') {
+        $self->{'lsp_timer'} = AnyEvent->timer( after => 70, interval => 200, cb => sub { $self->lsp_handler(); });
+        $self->{'path_timer'} = AnyEvent->timer( after => 40, interval => 300, cb => sub { $self->path_handler(); });
+    }
 
     # Dispatcher for receiving events (eg. A new switch was created).
     $self->{'dispatcher'} = OESS::RabbitMQ::Dispatcher->new(
@@ -305,7 +309,7 @@ sub _init_interfaces{
 sub _init_lsp{
     my $self = shift;
 
-    my $lsps = OESS::MPLS::Discovery::LSP->new( db => $self->{'db'});
+    my $lsps = OESS::MPLS::Discovery::LSP->new( db => $self->{'db'} );
     if(!defined($lsps)){
 	die "Unable to create LSP Processor\n";
     }
@@ -334,7 +338,7 @@ sub _init_isis{
 =cut
 sub _init_paths{
     my $self = shift;
-    my $paths = OESS::MPLS::Discovery::Paths->new( db => $self->{'db'} );
+    my $paths = OESS::MPLS::Discovery::Paths->new( db => $self->{'db'}, config => $self->{config_filename} );
     if(!defined($paths)){
         die "Unable to create Path Processor\n";
     }
@@ -347,7 +351,9 @@ sub _init_paths{
 =cut
 sub int_handler{
     my $self = shift;
-    
+
+    $self->{'logger'}->info("Calling get_interfaces!");
+
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
@@ -374,12 +380,14 @@ sub int_handler{
 
 =cut
 sub path_handler {
-
     my $self = shift;
 
-    warn "IN Path handler\n";
+    if ($self->{'config'}->network_type ne 'vpn-mpls') {
+        # Only lookup Paths when network type is set to vpn-mpls.
+        return 1;
+    }
 
-    $self->{'logger'}->info("path_handler: calling");
+    $self->{'logger'}->info("Calling get_routed_lsps and get_lsp_paths!");
 
     my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     if (!defined $nodes) {
@@ -449,7 +457,14 @@ sub path_handler {
 =cut
 sub lsp_handler{
     my $self = shift;
-    
+
+    if ($self->{'config'}->network_type ne 'vpn-mpls') {
+        # Only lookup LSPs when network type is set to vpn-mpls.
+        return 1;
+    }
+
+    $self->{'logger'}->info("Calling get_LSPs!");
+
     my %nodes;
 
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
@@ -484,6 +499,7 @@ sub lsp_handler{
 sub isis_handler{
     my $self = shift;
 
+    $self->{'logger'}->info("Calling get_isis_adjacencies!");
 
     my %nodes;
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
@@ -517,6 +533,9 @@ sub isis_handler{
 =cut
 sub device_handler{
     my $self =shift;
+
+    $self->{'logger'}->info("Calling get_system_info!");
+
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
@@ -540,7 +559,9 @@ sub device_handler{
 =cut
 sub vrf_stats_handler{
     my $self = shift;
-    $self->{'logger'}->debug("Attempting to pull VRF stats");
+
+    $self->{'logger'}->info("Calling get_vrf_stats!");
+
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];

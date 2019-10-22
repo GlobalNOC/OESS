@@ -98,6 +98,9 @@ class EndpointSelectionModal2 {
           [300, '300 Mb/s'],
           [400, '400 Mb/s'],
           [500, '500 Mb/s'],
+          [1000, '1 Gb/s'],
+          [2000, '2 Gb/s'],
+          [5000, '5 Gb/s']
         ];
       } else if (cloud_interconnect_type === 'gcp-partner-interconnect') {
         bandwidthOptions = [

@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.5
+Version 2.0.6
 
 =cut
 
-our $VERSION = '2.0.5';
+our $VERSION = '2.0.6';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.5';
+use constant VERSION => '2.0.6';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -8575,6 +8575,14 @@ sub edit_circuit {
     my $paths = $self->_execute_query($query, [$circuit_id]);
 
     foreach my $path (@$paths){
+        if ($path->{'path_type'} eq 'tertiary') {
+            # Default or tertiary paths are defined by the
+            # network. For this reason, the only user generated action
+            # that should modify tertiary paths is circuit
+            # decommissions.
+            next;
+        }
+
         $query = "update path_instantiation set end_epoch = unix_timestamp(now()) where path_id = ? and end_epoch = -1";
         if(!defined($self->_execute_query($query, [$path->{'path_id'}]))){
             $self->_set_error("Unable to decom path_instantiations");

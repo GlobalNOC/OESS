@@ -77,7 +77,7 @@ sub update_oess_vrf {
                                                   tag => $ep->{'tag'},
                                                   bandwidth => $ep->{'bandwidth'},
                                                   inner_tag => $ep->{'inner_tag'},
-                                                  peerings => \@peerings}));
+                                                  peers => \@peerings}));
     
         
     }

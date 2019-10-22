@@ -105,7 +105,8 @@ $ok = $device->remove_vlan({
         {
             interface => 'ge-0/0/2',
             unit => 2004,
-            tag => 2004
+            tag => 2004,
+            bandwidth => 50
         }
     ],
     paths => [],
@@ -183,6 +184,16 @@ my $expected_config = "<configuration><groups><name>OESS</name>
     </interface>
     
   </interfaces>
+  <class-of-service>
+    <interfaces>
+      <interface>
+        <name>ge-0/0/2</name>
+        <unit operation=\'delete\'>
+          <name>2004</name>
+        </unit>
+      </interface>
+    </interfaces>
+  </class-of-service>
   
   <protocols>
     <mpls>

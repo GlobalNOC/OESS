@@ -198,8 +198,8 @@ sub fetch_circuits {
                 circuit.workgroup_id, circuit.circuit_state as state, modified_by_user_id as user_id, reason,
                 external_identifier, remote_url, remote_requester
          FROM circuit
-         JOIN circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
-         JOIN circuit_edge_interface_membership on circuit_edge_interface_membership.circuit_id=circuit.circuit_id
+         JOIN circuit_instantiation ON circuit.circuit_id=circuit_instantiation.circuit_id
+         JOIN circuit_edge_interface_membership ON circuit_edge_interface_membership.circuit_id=circuit.circuit_id AND circuit_edge_interface_membership.end_epoch=-1
          JOIN interface on interface.interface_id=circuit_edge_interface_membership.interface_id
          $where
          GROUP BY circuit.circuit_id",
@@ -247,7 +247,7 @@ sub fetch_circuit_endpoint {
     my $circuit_id = $params{'circuit_id'};
     my $interface_id = $params{'interface_id'};
     
-    my $query = "select distinct(interface.interface_id), circuit_edge_interface_membership.start_epoch, circuit_edge_interface_membership.circuit_id, circuit_edge_interface_membership.unit, circuit_edge_interface_membership.extern_vlan_id as tag, circuit_edge_interface_membership.inner_tag, circuit_edge_interface_membership.circuit_edge_id, interface.name as interface, interface.description as interface_description, node.name as node, node.node_id as node_id, interface.port_number, interface.role, network.is_local from interface left join  interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 join network on node.network_id = network.network_id join circuit_edge_interface_membership on circuit_edge_interface_membership.interface_id = interface.interface_id where circuit_edge_interface_membership.circuit_id = ? and interface.interface_id = ? and circuit_edge_interface_membership.end_epoch = -1";
+    my $query = "select distinct(interface.interface_id), circuit_edge_interface_membership.start_epoch, circuit_edge_interface_membership.circuit_id, circuit_edge_interface_membership.unit, circuit_edge_interface_membership.bandwidth, circuit_edge_interface_membership.mtu, circuit_edge_interface_membership.extern_vlan_id as tag, circuit_edge_interface_membership.inner_tag, circuit_edge_interface_membership.circuit_edge_id, interface.name as interface, interface.description as interface_description, node.name as node, node.node_id as node_id, interface.port_number, interface.role, network.is_local from interface left join  interface_instantiation on interface.interface_id = interface_instantiation.interface_id and interface_instantiation.end_epoch = -1 join node on interface.node_id = node.node_id left join node_instantiation on node_instantiation.node_id = node.node_id and node_instantiation.end_epoch = -1 join network on node.network_id = network.network_id join circuit_edge_interface_membership on circuit_edge_interface_membership.interface_id = interface.interface_id where circuit_edge_interface_membership.circuit_id = ? and interface.interface_id = ? and circuit_edge_interface_membership.end_epoch = -1";
 
     my $res = $db->execute_query($query, [$circuit_id, $interface_id]);
     if(!defined($res) || scalar(@$res) != 1){

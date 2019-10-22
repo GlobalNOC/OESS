@@ -8,6 +8,7 @@ use Data::Dumper;
 use Log::Log4perl;
 use Socket;
 
+use OESS::Config;
 use OESS::Database;
 use OESS::Topology;
 use OESS::Circuit;
@@ -69,11 +70,10 @@ sub new {
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.MASTER');
 
-    if(!defined($self->{'config'})){
-        $self->{'config'} = "/etc/oess/database.xml";
-    }
+    my $config_filename = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
+    $self->{'config'} = new OESS::Config(config_filename => $config_filename);
 
-    $self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
+    $self->{'db'} = OESS::Database->new( config_file => $config_filename );
     $self->{'db2'} = OESS::DB->new();
     my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-FWDCTL',
                                                              topic => "MPLS.FWDCTL.RPC");
@@ -304,31 +304,36 @@ sub _write_cache{
         my $details = $ckt->to_hash();
         my $eps = $ckt->endpoints();
 
-        my $ckt_type = "L2VPN";
+        my $ckt_type;
+        if ($self->{'config'}->network_type eq 'evpn-vxlan') {
+            $ckt_type = "EVPN";
+        } else {
+            $ckt_type = "L2VPN";
 
-        my $primary_path = $ckt->path(type => 'primary');
-        if (defined $primary_path && @{$primary_path->links} > 0) {
-            $ckt_type = "L2CCC";
+            my $primary_path = $ckt->path(type => 'primary');
+            if (defined $primary_path && @{$primary_path->links} > 0) {
+                $ckt_type = "L2CCC";
+            }
+
+            if(scalar(@$eps) > 2){
+                $ckt_type = "L2VPLS";
+            }
         }
 
-        if(scalar(@$eps) > 2){
-            $ckt_type = "L2VPLS";
-        }
-
-	my $site_id = 0;
-	foreach my $ep_a (@$eps){
+        my $site_id = 0;
+        foreach my $ep_a (@$eps){
             my @ints;
             push(@ints, $ep_a->to_hash);
 
-	    $site_id++;
-	    my $paths = [];
+            $site_id++;
+            my $paths = [];
             my $touch = {};
 
-	    if(defined($switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}})){
-		next;
-	    }
+            if(defined($switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}})){
+                next;
+            }
 
-	    foreach my $ep_z (@$eps){
+            foreach my $ep_z (@$eps){
 
                 # Ignore interations comparing the same endpoint.
                 next if ($ep_a->{'node'} eq $ep_z->{'node'} && $ep_a->{'interface'} eq $ep_z->{'interface'} && $ep_a->{'tag'} eq $ep_z->{'tag'} && $ep_a->{'inner_tag'} eq $ep_z->{'inner_tag'});
@@ -355,7 +360,7 @@ sub _write_cache{
                 $touch->{$ep_z->{'node'}} = 1;
 
 
-                my $primary = $ckt->get_path(type => 'primary');
+                my $primary = $ckt->get_path(path => 'primary');
                 if (!defined $primary) {
                     push @$paths, {
                         name           => 'PRIMARY',
@@ -639,7 +644,7 @@ sub make_baby {
     my $node = $self->{'node_by_id'}->{$id};
     my %args;
     $args{'id'} = $id;
-    $args{'config'} = $self->{'config'};
+    $args{'config'} = $self->{'config'}->{'config_filename'};
     $args{'share_file'} = $self->{'share_file'}. "." . $id;
     $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
     $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};

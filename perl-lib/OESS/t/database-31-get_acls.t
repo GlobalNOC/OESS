@@ -31,13 +31,13 @@ is($acl->{'vlan_end'},4095,'vlan_end ok');
 is($acl->{'vlan_start'},1,'vlan_start ok');
 is($acl->{'workgroup_id'},undef,'workgroup_id ok');
 is($acl->{'interface_id'},45571,'interface_id ok');
-is($acl->{'interface_acl_id'},24,'interface_acl_id ok');
+is($acl->{'interface_acl_id'},25,'interface_acl_id ok');
 is($acl->{'eval_position'},10,'eval_position ok');
 is($acl->{'allow_deny'},'allow','allow_deny ok');
 is($acl->{'notes'},'Default ACL Rule','notes ok');
 
 $acls = $db->get_acls( interface_id => 45811 );
-is(@$acls, 7, '6 ACLs Retrieved');
+is(@$acls, 7, '7 ACLs Retrieved');
 
 $acls = $db->get_acls( interface_acl_id => 1 );
 is(@$acls, 1, '1 ACLs Retrieved');

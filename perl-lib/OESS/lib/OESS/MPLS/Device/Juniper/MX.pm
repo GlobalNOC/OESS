@@ -783,6 +783,7 @@ sub remove_vlan{
     foreach my $i (@{$ckt->{'interfaces'}}) {
         push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
+                                          bandwidth => $i->{'bandwidth'} || 0,
                                           tag => $i->{'tag'},
                                           unit => $i->{'unit'}
                                         });
@@ -812,18 +813,20 @@ sub remove_vlan{
         {
           interface => 'ge-0/0/1',
           inner_tag => 100,
-          tag => 2004
+          tag => 2004,
+          unit => 2004
         },
         {
           interface => 'ge-0/0/2',
           inner_tag => 100,
-          tag => 2004
+          tag => 2004,
+          unit => 2004
         }
       ],
       paths => [],
       circuit_id => 3012,
       site_id => 1,
-      ckt_type => 'L2VPLS'
+      ckt_type => 'L2VPLS' # EVPN, L2CCC, L2VPLS, L2VPN, or L3VPN
     });
 
 add_vlan adds a vlan to this device via NetConf. Returns 1 on success.
@@ -848,6 +851,7 @@ sub add_vlan{
 
         push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
+                                          bandwidth => $i->{'bandwidth'} || 0,
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'}
                                       });
@@ -905,10 +909,6 @@ sub add_vrf{
             my $peer_ip = $bgp->{'peer_ip'};
             $peer_ip =~ s/\/\d+//g;
 
-            if(!defined($bgp->{'md5_key'})){
-                $bgp->{'key'} = -1;
-            }
-            
             my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
             warn "Version: " . $type . "\n";
             $self->{'logger'}->error("IP Address type: " . $type);
@@ -1759,6 +1759,7 @@ sub verify_connection{
         }
     }
 
+    warn "Network OS $sysinfo->{'os_name'} version $sysinfo->{'version'} on the $sysinfo->{'model'} is not supported.";
     $self->{'logger'}->error("Network OS $sysinfo->{'os_name'} version $sysinfo->{'version'} on the $sysinfo->{'model'} is not supported.");
     $self->disconnect();
     return 0;
