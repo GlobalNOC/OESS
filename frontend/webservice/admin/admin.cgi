@@ -1589,23 +1589,6 @@ sub move_interface_configuration {
 
     $db2->start_transaction();
 
-    # ACLs
-    my $acls = OESS::DB::ACL::fetch_all(
-        db => $db2,
-        interface_id => $orig_interface_id
-    );
-    foreach my $acl (@$acls) {
-        my $obj = OESS::ACL->new(db => $db2, model => $acl);
-        $obj->{interface_id} = $new_interface_id;
-
-        my $ok = $obj->update_db();
-        if (!defined $ok) {
-            $method->set_error("Couldn't move ACLs: $err");
-            $db2->rollback();
-            return;
-        }
-    }
-
     # Cloud Interconnects and Workgroup
     my $orig_interface = OESS::Interface->new(
         db => $db2,
@@ -1646,6 +1629,23 @@ sub move_interface_configuration {
         $method->set_error("Couldn't move Endpoints: " . $db2->get_error());
         $db2->rollback();
         return;
+    }
+
+    # ACLs
+    my $acls = OESS::DB::ACL::fetch_all(
+        db => $db2,
+        interface_id => $orig_interface_id
+    );
+    foreach my $acl (@$acls) {
+        my $obj = OESS::ACL->new(db => $db2, model => $acl);
+        $obj->{interface_id} = $new_interface_id;
+
+        my $ok = $obj->update_db();
+        if (!defined $ok) {
+            $method->set_error("Couldn't move ACLs: $err");
+            $db2->rollback();
+            return;
+        }
     }
 
     $db2->commit();
