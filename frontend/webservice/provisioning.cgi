@@ -128,8 +128,7 @@ sub register_webservice_methods {
 	 pattern         => $GRNOC::WebService::Regex::TEXT,
 	 required        => 0,
 	 description     => "External Identifier of the circuit"
-	 ); 
-
+	 );
 
     #add the optional input parameter circuit_id
      $method->add_input_parameter(
@@ -137,8 +136,8 @@ sub register_webservice_methods {
 	 pattern         => $GRNOC::WebService::Regex::INTEGER,
 	 required        => 0,
 	 description     => "-1 or undefined indicate circuit is to be added."
-	 ); 
-    
+	 );
+
     #add the required input parameter description
      $method->add_input_parameter(
 	 name            => 'description',
@@ -222,15 +221,6 @@ sub register_webservice_methods {
         multiple        => 1,
         description     => 'Array of interfaces to be used. Note that interface[0] is on node[0].'
 	);
-
-        #add the required input parameter node
-    $method->add_input_parameter(
-        name            => 'node',
-        pattern         => $GRNOC::WebService::Regex::TEXT,
-        required        => 0,
-        multiple        => 1,
-        description     => "Array of nodes to be used."
-        );
 
     #add the required input parameter interface
     $method->add_input_parameter(
@@ -447,83 +437,6 @@ sub register_webservice_methods {
     $svc->register_method($method);
 
 
-    #provision_vrf
-    $method = GRNOC::WebService::Method->new(
-	name            => "provision_vrf",
-	description     => "Provisions a VRF (L3VPN) on the network",
-	callback        => sub {  provision_vrf ( @_ ) }
-    );
-    
-    $method->add_input_parameter(
-	name            => 'vrf_id',
-        pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 0,
-        description     => "If editing an existing VRF specify the ID otherwise leave blank for new VRF."
-        );
-    
-    $method->add_input_parameter(
-        name            => 'name',
-        pattern         => $GRNOC::WebService::Regex::NAME_ID,
-        required        => 1,
-        description     => "The workgroup_id with permission to build the vrf, the user must be a member of this workgroup."
-        );
-
-    $method->add_input_parameter(
-        name            => 'workgroup_id',
-        pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 1,
-        description     => "The workgroup_id with permission to build the vrf, the user must be a member of this workgroup."
-        );
-    
-    #add the required input parameter description
-    $method->add_input_parameter(
-        name            => 'description',
-        pattern         => $GRNOC::WebService::Regex::TEXT,
-        required        => 1,
-        description     => "The description of the circuit."
-        );
-
-    $method->add_input_parameter(
-        name            => 'endpoint',
-        pattern         => $GRNOC::WebService::Regex::TEXT,
-        required        => 1,
-	multiple        => 1,
-        description     => "The JSON blob describing all of the endpoints"
-        );
-    
-    $method->add_input_parameter(
-        name            => 'local_asn',
-        pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 1,
-        description     => "The JSON blob describing all of the endpoints"
-        );
-    
-    $method->add_input_parameter(
-        name            => 'prefix_limit',
-        pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 0,
-        default         => 1000,
-        description     => "Maximum prefix limit size for BGP peer routes"
-        );
-    
-    $method->add_input_parameter(
-        name            => 'provision_time',
-        pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 0,
-        default         => -1,
-        description     => "time to provision -1 = now and unix timestamp for any other time"
-        );
-
-    $method->add_input_parameter(
-        name            => 'remove_time',
-        pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 0,
-        default         => -1,
-        description     => "defaults to -1 for never otherwise takes a unix timestamp",
-        );
-
-    $svc->register_method($method);
-
     #remove_vrf
     $method = GRNOC::WebService::Method->new(
         name            => "remove_vrf",
@@ -619,37 +532,6 @@ sub _send_vrf_rem_command{
     return $result->{'results'}->{'status'};
 }
 
-sub _send_vrf_add_command{
-    my %args = @_;
-
-    if (!defined $mq) {
-        return;
-    } else {
-        $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
-    }    
-
-    my $vrf_id = $args{'vrf_id'};
-    my $cv = AnyEvent->condvar;
-
-    warn "_send_vrf_add_command: Calling addVrf on vrf $vrf_id";
-    $mq->addVrf(vrf_id => int($vrf_id), async_callback => sub {
-        my $result = shift;
-        $cv->send($result);
-                });
-
-    my $result = $cv->recv();
-
-    if (defined $result->{'error'} || !defined $result->{'results'}){
-        warn '_send_vrf_add_command: Could not complete rabbitmq call to addVrf. Received no event_id';
-        if (defined $result->{'error'}) {
-            warn '_send_mpls_vrf_command: ' . $result->{'error'};
-        }
-        return undef;
-    }
-
-    return $result->{'results'}->{'status'};
-}
-
 sub _send_mpls_add_command {
     my %args = @_;
 
@@ -671,14 +553,14 @@ sub _send_mpls_add_command {
     my $result = $cv->recv();
 
     if (defined $result->{'error'} || !defined $result->{'results'}){
-	warn '_send_mpls_add_command: Could not complete rabbitmq call to addVlan. Received no event_id';
+	warn "_send_mpls_add_command: $result->{'error'}\n";
 	if (defined $result->{'error'}) {
 	    warn '_send_mpls_add_command: ' . $result->{'error'};
 	}
-        return undef;
+        return (0, $result->{'error'});
     }
 
-    return $result->{'results'}->{'status'};
+    return ($result->{'results'}->{'status'}, $result->{'error'});
 }
 
 sub _send_add_command {
@@ -743,10 +625,10 @@ sub _send_mpls_remove_command {
     my $result = $cv->recv();
     if($result->{'error'} || !($result->{'results'})){
         warn "Error occured while calling mpls_remove_command: " . $result->{'error'};
-        return undef;
+        return (0, $result->{'error'});
     }
 
-    return $result->{'results'}->{'status'};
+    return ($result->{'results'}->{'status'}, $result->{'error'});
 }
 
 sub _send_remove_command {
@@ -908,159 +790,9 @@ sub remove_vrf {
     return $results;
 }
 
-sub provision_vrf {
-    my ($method, $args) = @_;
-    my $results;
-    
-    my $start = [gettimeofday];
-    
-    $results->{'results'} = [];
-    
-    my $workgroup_id = $args->{'workgroup_id'}{'value'};
-    my $vrf_id = $args->{'vrf_id'}{'value'} || undef;
-    my $description = $args->{'description'}{'value'};
-    my $name = $args->{'name'}{'value'};
-    my $provision_time = $args->{'provision_time'}{'value'};
-    my $remove_time = $args->{'provision_time'}{'value'};
-    my $prefix_limit = $args->{'prefix_limit'}{'value'};
-    my $endpoints = $args->{'endpoint'}{'value'};
-    
-    my $user_id = $db->get_user_id_by_auth_name(auth_name => $ENV{'REMOTE_USER'});
-    
-    my $user = $db->get_user_by_id(user_id => $user_id)->[0];
-
-    if ($user->{'type'} eq 'read-only') {
-        warn "You are a read-only user and unable to provision.";
-        $method->set_error("You are a read-only user and unable to provision.");
-        return;
-    }
-    
-    my @nodes;
-    my @interfaces;
-    my @vlans;
-    my @inner_vlans;
-
-    my @endpoints;
-    foreach my $ep (@$endpoints){
-	warn "Endpoints: $ep\n";
-	eval{
-	    my $decoded = decode_json($ep);
-	    warn Dumper($decoded);
-	    push(@endpoints, $decoded);
-	};
-
-    }
-
-    foreach my $endpoint (@endpoints){
-        push(@nodes, $endpoint->{'node'});
-        push(@interfaces, $endpoint->{'interface'});
-        push(@vlans, $endpoint->{'tag'});
-        push(@inner_vlans, $endpoint->{'inner_tag'});
-    }
-    
-    warn Dumper(@endpoints);
-
-    #yes I know this is not a circuit, however the same permissions exist!
-    #so we can validate the circuit is valid (ie... we have all the permissions)
-    #
-    # We only consider outer tags during validation as these are the
-    # defined customer endpoints.
-    my ($status,$err) = $db->validate_circuit(
-        links => [],
-        backup_links => [],
-        nodes => \@nodes,
-        interfaces => \@interfaces,
-        vlans => \@vlans,
-        inner_vlans => \@inner_vlans
-    );
-
-    if (!$status){
-        warn "Couldn't validate circuit: " . $err;
-        $method->set_error("Couldn't validate circuit: " . $err);
-        return;
-    }
-
-     if(!defined($vrf_id) || $vrf_id == -1){
-         #create new VRF
-
-         #first create the initial VRF record
-         $db->_start_transaction();
-
-	 #warn Dumper($name);
-	 #warn Dumper($description);
-	 #warn Dumper($workgroup_id);
-	 #warn Dumper($user_id);
-
-         my $vrf_id = $db->_execute_query("insert into vrf (name, description, workgroup_id, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$name, $description,$workgroup_id, $user_id, $user_id]);
-         if(!defined($vrf_id)){
-             my $error = $db->get_error();
-             $method->set_error("Unable to create VRF: " . $error);
-             $db->_rollback();
-             return;
-         }
-
-         foreach my $ep (@endpoints){
-             my $interface_id = $db->get_interface_id_by_names( interface => $ep->{'interface'}, node => $ep->{'node'} );
-
-             if(!defined($interface_id)){
-                 $db->_rollback();
-                 $method->set_error("Unable to find interface: " . $ep->{'interface'} . " on node " . $ep->{'node'});
-                 return;
-             }
-
-             if(!defined($ep->{'tag'}) || !defined($ep->{'bandwidth'})){
-                 $db->_rollback();
-                 $method->set_error("VRF Endpoints require both VLAN and Bandwidth fields to be specified");
-                 return;
-             }
-
-
-             my $vrf_ep_id = $db->_execute_query("insert into vrf_ep (interface_id, tag, inner_tag, bandwidth, vrf_id, state) VALUES (?,?,?,?,?,?)",[$interface_id, $ep->{'tag'}, $ep->{'inner_tag'}, $ep->{'bandwidth'}, $vrf_id, 'active']);
-             if(!defined($vrf_ep_id)){
-                 my $error = $db->get_error();
-         	$method->set_error("Unable to add VRF Endpoint: " . $error);
-         	$db->_rollback();
-         	return;
-             }
-             
-             foreach my $bgp (@{$ep->{'peerings'}}){
-                 warn Dumper($bgp);
-                 my $res = $db->_execute_query("insert into vrf_ep_peer (vrf_ep_id, peer_ip, local_ip, peer_asn, md5_key, state) VALUES (?,?,?,?,?,?)",[$vrf_ep_id, $bgp->{'peer_ip'}, $bgp->{'local_ip'}, $bgp->{'asn'}, $bgp->{'key'}, 'active']);
-                 if(!defined($res)){
-                     my $error = $db->get_error();
-                     $method->set_error("Uanble to add VRF Endpoint peer: " . $error);
-                     $db->_rollback();
-                     return;
-                 }
-             }
-         }
-         
-         $db->_commit();
-         
-         my $vrf = OESS::VRF->new( vrf_id => $vrf_id, db => $db);
-         if(!defined($vrf)){
-             push(@{$results->{'results'}},{success => 0, vrf_id => $vrf_id});
-             return $results;
-         }
-
-         my $res = _send_vrf_add_command( vrf_id => $vrf_id);
-         
-
-         push(@{$results->{'results'}},{success => $res, vrf_id => $vrf_id});
-         
-     }else{
-         #edit existing VRF
-         
-     }
-
-    return $results;
-
-}
-
 =head2 provision_circuit
 
 =cut
-
 sub provision_circuit {
     my ($method, $args) = @_;
     my $results;
@@ -1124,7 +856,7 @@ sub provision_circuit {
         warn "unable to find workgroup $workgroup_id";
 	$method->set_error("unable to find workgroup $workgroup_id");
 	return;
-    } elsif ($workgroup->{'name'} eq 'Demo') {
+    } elsif ($workgroup->{'type'} eq 'demo') {
         warn "Sorry this is a demo account, and can not actually provision.";
         $method->set_error("Sorry this is a demo account, and can not actually provision.");
 	return;
@@ -1146,49 +878,45 @@ sub provision_circuit {
     my $new_db = OESS::DB->new();
 
     foreach my $endpoint (@$endpoints){
-	my $obj;
-	eval{
-	    $obj = decode_json($endpoint);
-	};
-	if ($@) {
-	    $method->set_error("Cannot decode endpoint: $@");
-	    return;
-	}
-	
-	$obj->{'workgroup_id'} = $workgroup_id;
+        my $obj;
+        eval{
+            $obj = decode_json($endpoint);
+        };
+        if ($@) {
+            $method->set_error("Cannot decode endpoint: $@");
+            return;
+        }
+        $obj->{'workgroup_id'} = $workgroup_id;
 
-
-
-	my $ep = OESS::Endpoint->new( db => $new_db, model => $obj );
-	if(defined($ep)){
-	    push(@$interfaces, $ep->interface->name());
-	    push(@$nodes, $ep->node->name());
-	    push(@$tags, $ep->tag());
-	    push(@$inner_tags, $ep->inner_tag());
-	}
+        my $ep = OESS::Endpoint->new( db => $new_db, model => $obj );
+        if(defined($ep)){
+            push(@$interfaces, $ep->interface->name());
+            push(@$nodes, $ep->node->name());
+            push(@$tags, $ep->tag());
+            push(@$inner_tags, $ep->inner_tag());
+        }
     }
-    
 
 
     my ($status,$err) = $db->validate_circuit(
-	links => $links,
-	backup_links => $backup_links,
-	nodes => $nodes,
-	interfaces => $interfaces,
+        links => $links,
+        backup_links => $backup_links,
+        nodes => $nodes,
+        interfaces => $interfaces,
         vlans => $tags,
         inner_vlans => $inner_tags
     );
     if (!$status){
-	warn "Couldn't validate circuit: " . $err;
-	$method->set_error("Couldn't validate circuit: " . $err);
-	return;
+        warn "Couldn't validate circuit: " . $err;
+        $method->set_error("Couldn't validate circuit: " . $err);
+        return;
     }
 
     if ( !$circuit_id || $circuit_id == -1 ) {
         #Register with DB
-	warn 'provision_circuit: adding new circuit to the database';
+        warn 'provision_circuit: adding new circuit to the database';
 
-	my $before_provision = [gettimeofday];
+        my $before_provision = [gettimeofday];
 
         $output = $db->provision_circuit(
             description    => $description,
@@ -1267,8 +995,7 @@ sub provision_circuit {
 		warn 'provision_circuit: sending add command to mpls controller';
 		my $before_add_command = [gettimeofday];
 
-                my $result = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
-                my $err    = undef;
+                my ($result, $err) = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
 
                 my $after_add_command = [gettimeofday];
 
@@ -1277,7 +1004,7 @@ sub provision_circuit {
 
                 if (!defined $result || $result == 0) {
                     # failure, remove the circuit now
-		    $err = "provision_circuit: response from mpls controller was undef. Couldn't talk to fwdctl: $err";
+		    #$err = "provision_circuit: response from mpls controller was undef. Couldn't talk to fwdctl: $err";
                     warn "$err";
                     $output->{'warning'} = $err;
                     $method->set_error($err);
@@ -1408,15 +1135,11 @@ sub provision_circuit {
                 warn "Unexpected circuit state '$state' was received while reprovisioning circuit. Forwarding may not work as expected";
             }
 	}else{
-	    my $result = _send_mpls_remove_command( circuit_id => $circuit_id );
+	    my ($result, $err) = _send_mpls_remove_command( circuit_id => $circuit_id );
 
-            if ( !$result ) {
-                $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
-                $method->set_error("Unable to talk to fwdctl service - is it running?");
-                return;
-            }
-            if ( $result == 0 ) {
-                $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database.");
+            if ( !$result || $result == 0) {
+                $output->{'warning'} = $err;
+		$method->set_error($err);
                 return;
             }
             # modify database entry
@@ -1427,13 +1150,10 @@ sub provision_circuit {
             }
             # add flows on switch
             if($state eq 'active' || $state eq 'looped'){
-                $result = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
-                if ( !defined $result ) {
-                    $output->{'warning'} = "Unable to talk to fwdctl service - is it running?";
-                }
-                if ( $result == 0 ) {
-                    $method->set_error("Unable to edit circuit. Please check your logs or contact your server adminstrator for more information. Circuit is likely not live on the network anymore.");
-                    return;
+                ($result, $err) = _send_mpls_add_command( circuit_id => $output->{'circuit_id'} );
+                if ( !defined $result || $result == 0) {
+                    $output->{'warning'} = $err;
+		    $method->set_error($err);
                 }
             }
 	}
@@ -1517,27 +1237,17 @@ sub remove_circuit {
 		}
             }
         } else {
-            $result = _send_mpls_remove_command( circuit_id => $circuit_id );
+            ($result, $err) = _send_mpls_remove_command( circuit_id => $circuit_id );
         }
 
-        if ( !defined $result) {
-            warn "Unable to talk to fwdctl service - is it running?";
-            $method->set_error("Unable to talk to fwdctl service - is it running?");
+        if ( !defined $result || $result == 0) {
+            warn "$err";
+            $method->set_error($err);
 	    if ( !$args->{'force'}{'value'} ) {
-		return;
+		if(!$args->{'force'}{'value'}){
+		    return;
+		}
 	    }
-        }
-
-        if ( $result == 0) {
-            warn "Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database";
-            $method->set_error("Unable to remove circuit. Please check your logs or contact your server adminstrator for more information. Circuit has been left in the database");
-
-            # If force is sent, it will clear it from the database
-            # regardless of whether fwdctl reported success or not.
-            # Otherwise the error is returned.
-            if ( !$args->{'force'}{'value'} ) {
-                return;
-            }
         }
     }
 
@@ -1628,16 +1338,16 @@ sub reprovision_circuit {
 	    return {results => {status => 0} ,error => 1, error_message => $error_text};
 	}
     } else {
-        my $success= _send_mpls_remove_command(circuit_id => $circuit_id);
-        if (!$success) {
-            $method->set_error('Error sending circuit removal request to controller, please try again or contact your Systems Administrator');
+        my ($success, $err) = _send_mpls_remove_command(circuit_id => $circuit_id);
+        if (!$success || $success == 0) {
+            $method->set_error($err);
         }
 
 	#sleep(30);
 
-        my $add_success = _send_mpls_add_command(circuit_id => $circuit_id);
-        if (!$add_success) {
-            $method->set_error('Error sending circuit provision request to controller, please try again or contact your Systems Administrator');
+        ($success, $err) = _send_mpls_add_command(circuit_id => $circuit_id);
+        if (!$success || $success == 0) {
+            $method->set_error($err);
             return;
         }
 	

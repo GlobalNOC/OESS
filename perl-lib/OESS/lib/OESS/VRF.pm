@@ -75,9 +75,9 @@ sub new{
 
     $self->{'logger'} = $logger;
 
-    if(!defined($self->{'db'})){
-	$self->{'logger'}->error("No Database Object specified");
-	return;
+    if (!defined $self->{'db'}) {
+        $self->{'logger'}->error("No Database Object specified");
+        return;
     }
 
     if(!defined($self->{'config'})){
@@ -104,14 +104,14 @@ sub _build_from_model{
     $self->{'description'} = $self->{'model'}->{'description'};
     $self->{'prefix_limit'} = $self->{'model'}->{'prefix_limit'};
 
-    $self->{'endpoints'} = ();
-    #process Endpoints
-    foreach my $ep (@{$self->{'model'}->{'endpoints'}}){
-        $ep->{workgroup_id} = $self->{model}->{workgroup_id};
+    # $self->{'endpoints'} = ();
+    # #process Endpoints
+    # foreach my $ep (@{$self->{'model'}->{'endpoints'}}){
+    #     $ep->{workgroup_id} = $self->{model}->{workgroup_id};
 
-        my $ep_obj = OESS::Endpoint->new(db => $self->{'db'}, model => $ep, type => 'vrf');
-        push(@{$self->{'endpoints'}}, $ep_obj);
-    }
+    #     my $ep_obj = OESS::Endpoint->new(db => $self->{'db'}, model => $ep, type => 'vrf');
+    #     push(@{$self->{'endpoints'}}, $ep_obj);
+    # }
 
     #process Workgroups
     $self->{'workgroup'} = OESS::Workgroup->new( db => $self->{'db'}, workgroup_id => $self->{'model'}->{'workgroup_id'});
@@ -167,8 +167,9 @@ sub to_hash{
     $obj->{'description'} = $self->description();
     my @endpoints;
     foreach my $endpoint (@{$self->endpoints()}){
-        push(@endpoints, $endpoint->to_hash());
+        push(@endpoints, $endpoint->to_hash);
     }
+
     $obj->{'state'} = $self->{'state'};
     $obj->{'endpoints'} = \@endpoints;
     $obj->{'prefix_limit'} = $self->prefix_limit();
@@ -203,6 +204,93 @@ sub id{
         $self->{'vrf_id'} = $id;
         return $self->{'vrf_id'};
     }
+}
+
+=head2 load_endpoints
+
+=cut
+sub load_endpoints {
+    my $self = shift;
+
+    my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
+        db => $self->{db},
+        vrf_id => $self->{vrf_id}
+    );
+
+    $self->{endpoints} = [];
+    foreach my $data (@$ep_datas) {
+        my $ep = new OESS::Endpoint(db => $self->{db}, model => $data);
+        push @{$self->{endpoints}}, $ep;
+    }
+
+    return 1;
+}
+
+=head2 add_endpoint
+
+=cut
+sub add_endpoint {
+    my $self = shift;
+    my $endpoint = shift;
+
+    push @{$self->{endpoints}}, $endpoint;
+}
+
+=head2 get_endpoint
+
+    my $ep = $vrf->get_endpoint(
+        vrf_ep_id => 100
+    );
+
+get_endpoint returns the endpoint identified by C<vrf_ep_id>.
+
+=cut
+sub get_endpoint {
+    my $self = shift;
+    my $args = {
+        vrf_ep_id => undef,
+        @_
+    };
+
+    if (!defined $args->{vrf_ep_id}) {
+        return;
+    }
+
+    foreach my $ep (@{$self->{endpoints}}) {
+        if ($args->{vrf_ep_id} == $ep->{vrf_endpoint_id}) {
+            return $ep;
+        }
+    }
+
+    return;
+}
+
+=head2 remove_endpoint
+
+    my $ok = $vrf->remove_endpoint($vrf_ep_id);
+
+remove_endpoint removes the endpoint identified by C<vrf_ep_id> from
+this vrf.
+
+=cut
+sub remove_endpoint {
+    my $self = shift;
+    my $vrf_ep_id = shift;
+
+    if (!defined $vrf_ep_id) {
+        return;
+    }
+
+    my $new_endpoints = [];
+    foreach my $ep (@{$self->{endpoints}}) {
+        if ($vrf_ep_id == $ep->{vrf_endpoint_id}) {
+            next;
+        }
+        push @$new_endpoints, $ep;
+    }
+    $self->{endpoints} = $new_endpoints;
+
+    return 1;
 }
 
 =head2 endpoints
@@ -287,42 +375,42 @@ sub create{
     my $self = shift;
 
     #need to validate endpoints
-    foreach my $ep (@{$self->endpoints()}){
-        if(!defined($ep) || !defined($ep->interface())){
-            $self->{'logger'}->error("No Endpoint specified");
-	    $self->error("No Endpoint specified");
-            return 0;
-        }
+    # foreach my $ep (@{$self->endpoints()}){
+    #     if(!defined($ep) || !defined($ep->interface())){
+    #         $self->{'logger'}->error("No Endpoint specified");
+    #         $self->error("No Endpoint specified");
+    #         return 0;
+    #     }
 
-        if( !$ep->interface()->vlan_valid( workgroup_id => $self->workgroup()->workgroup_id(), vlan => $ep->tag() )){
-            $self->{'logger'}->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
-            $self->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
-            return 0;
-        }
+    #     # if( !$ep->interface()->vlan_valid( workgroup_id => $self->workgroup()->workgroup_id(), vlan => $ep->tag() )){
+    #     #     $self->{'logger'}->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
+    #     #     $self->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
+    #     #     return 0;
+    #     # }
 
-        #validate IP addresses for peerings
-        foreach my $peer (@{$ep->peers()}){
-            my $peer_ip = NetAddr::IP->new($peer->peer_ip());
-            my $local_ip = NetAddr::IP->new($peer->local_ip());
-            if(!$local_ip->contains($peer_ip)){
-                $self->{'logger'}->error("Peer and Local IPs are not in the same subnet...");
-		$self->error("Peer and Local IPs are not in the same subnet...");
-                return 0;
-            }
-        }
-    }
+    #     #validate IP addresses for peerings
+    #     foreach my $peer (@{$ep->peers()}){
+    #         my $peer_ip = NetAddr::IP->new($peer->peer_ip());
+    #         my $local_ip = NetAddr::IP->new($peer->local_ip());
+    #         if(!$local_ip->contains($peer_ip)){
+    #             $self->{'logger'}->error("Peer and Local IPs are not in the same subnet...");
+    #             $self->error("Peer and Local IPs are not in the same subnet...");
+    #             return 0;
+    #         }
+    #     }
+    # }
 
-    #validate that we have at least 2 endpoints
-    if(scalar($self->endpoints()) < 2){
-        $self->{'logger'}->error("VRF Needs at least 2 endpoints");
-	$self->error("VRF Needs at least 2 endpoints");
-        return 0;
-    }
+    # #validate that we have at least 2 endpoints
+    # if(scalar($self->endpoints()) < 2){
+    #     $self->{'logger'}->error("VRF Needs at least 2 endpoints");
+    #     $self->error("VRF Needs at least 2 endpoints");
+    #     return 0;
+    # }
 
     my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash());
     if ($vrf_id == -1) {
-	$self->error("Could not add VRF to db.");
-	return 0;
+        $self->error("Could not add VRF to db.");
+        return 0;
     }
     $self->{'vrf_id'} = $vrf_id;
     return 1;
@@ -346,7 +434,7 @@ sub update {
     # Validate we have at least 2 endpoints
     if (@{$modal->{endpoints}} < 2) {
         $self->{'logger'}->error("VRF Needs at least 2 endpoints");
-	$self->error("VRF Needs at least 2 endpoints");
+        $self->error("VRF Needs at least 2 endpoints");
         return 0;
     }
 
@@ -358,15 +446,15 @@ sub update {
         my $tag = $ep->{tag};
 
         if (!defined $tag) {
-	    $self->error("Endpoint tag is missing.");
+            $self->error("Endpoint tag is missing.");
             return 0;
         }
         if (!defined $intf) {
-	    $self->error("Endpoint interface is missing.");
+            $self->error("Endpoint interface is missing.");
             return 0;
         }
         if (!defined $node) {
-	    $self->error("Endpoint node is missing.");
+            $self->error("Endpoint node is missing.");
             return 0;
         }
 
@@ -385,7 +473,7 @@ sub update {
             my $local_ip = NetAddr::IP->new($peer->local_ip());
 
             if(!$local_ip->contains($peer_ip)){
-		$self->error("Peer and Local IPs must be in the same subnet.");
+                $self->error("Peer and Local IPs must be in the same subnet.");
                 return 0;
             }
         }
@@ -415,8 +503,6 @@ sub _edit {
 
     my $vrf = $self->to_hash();
 
-    $self->{db}->start_transaction();
-
     my $result = OESS::DB::VRF::update(db => $self->{db}, vrf => $vrf);
     if (!$result) {
         $self->{db}->rollback();
@@ -427,7 +513,7 @@ sub _edit {
     $result = OESS::DB::VRF::delete_endpoints(db => $self->{db}, vrf_id => $vrf->{vrf_id});
     if (!$result) {
         $self->{db}->rollback();
-	$self->error("Could not remove old endpoints from VRF.");
+        $self->error("Could not remove old endpoints from VRF.");
         return;
     }
 
@@ -439,8 +525,6 @@ sub _edit {
             return;
         }
     }
-
-    $self->{db}->commit();
 
     return 1;
 }

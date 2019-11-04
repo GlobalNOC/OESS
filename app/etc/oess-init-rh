@@ -3,7 +3,8 @@
 use strict;
 use warnings;
 
-use OESS::Database;
+use OESS::Config;
+
 use AnyEvent;
 use AnyEvent::DBus;
 use Net::DBus::Annotation qw(:call);
@@ -12,6 +13,8 @@ use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
 use constant FWDCTL_FAILURE     => 0;
 use constant FWDCTL_UNKNOWN     => 3;
+
+my $config = new OESS::Config;
 
 sub main{
     my $option = shift;
@@ -83,270 +86,229 @@ print $str . "\n";
     }else{
         usage();
     }
-    
 }
 
-sub status{
-    
-    my $db = OESS::Database->new();
+sub status {
     my $result = 0;
 
-    if($db->is_openflow_enabled()){
-	
-	if($db->is_fwdctl_enabled()){
-	    my $res = system("/etc/init.d/oess-fwdctl status");
-	    if($res != 0){
-		$result = $res;
-	    }
-	}
-	
-	
-	if($db->is_vlan_stats_enabled()){
-	    my $res = system("/etc/init.d/oess-vlan_stats status");
-	    if($res != 0){
-		$result = $res;
-	    }
-	}
-	if($db->is_nox_enabled()){
-	    my $res = system("/etc/init.d/nox_cored status");
-	    if($res != 0){
-		$result = $res;
-	    }
-	}
-	
-	if($db->is_fvd_enabled()){
-	    my $res = system("/etc/init.d/oess-fvd status");
-	    if($res != 0){
-		$result = $res;
-	    }
-	}
+    if ($config->openflow_enabled) {
 
-	if($db->is_traceroute_enabled()){
-	    my $res = system("/etc/init.d/oess-traceroute status");
-	    if($res != 0){
-		$result = $res;
-	    }
-	}
+        if ($config->fwdctl_enabled) {
+            my $res = system("/etc/init.d/oess-fwdctl status");
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->fvd_enabled) {
+            my $res = system("/etc/init.d/oess-fvd status");
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->nox_enabled) {
+            my $res = system("/etc/init.d/oess-nox status");
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->traceroute_enabled) {
+            my $res = system("/etc/init.d/oess-traceroute status");
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->vlan_stats_enabled) {
+            my $res = system("/etc/init.d/oess-vlan_stats status");
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
 
-	#END OF OPENFLOW only
-    }
+    } else {
 
-    if($db->is_mpls_enabled()){
-
-	if($db->is_mpls_fwdctl_enabled()){
-	    my $res = system("/etc/init.d/oess-mpls-fwdctl status");
-	    if($res != 0){
-		$result = $res;
-	    }
-	}
-
-	if($db->is_mpls_discovery_enabled()){
+        if ($config->mpls_discovery_enabled) {
             my $res = system("/etc/init.d/oess-mpls-discovery status");
-            if($res != 0){
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->mpls_fwdctl_enabled) {
+            my $res = system("/etc/init.d/oess-mpls-fwdctl status");
+            if ($res != 0) {
                 $result = $res;
             }
         }
 
-	#END OF MPLS only
     }
 
-    if($db->is_nsi_enabled()){
-	my $res = system("/etc/init.d/oess-nsi status");
-	if($res != 0){
-	    $result = $res;
-	}
-    }
-    
-    if($db->is_notification_enabled()){
+    if ($config->notification_enabled) {
         my $res = system("/etc/init.d/oess-notification status");
-        if($res != 0){
+        if ($res != 0) {
             $result = $res;
         }
     }
-    
-    if($db->is_watchdog_enabled()){
+    if ($config->nsi_enabled) {
+        my $res = system("/etc/init.d/oess-nsi status");
+        if ($res != 0) {
+            $result = $res;
+        }
+    }
+    if ($config->watchdog_enabled) {
         my $res = system("/etc/init.d/oess-watchdog status");
-        if($res != 0){
+        if ($res != 0) {
             $result = $res;
         }
     }
-    
 
     #cause this is how wait work?
     return $result / 256;
 
 }
 
-sub stop{
-    my $db = OESS::Database->new();
+sub stop {
     my $result = 0;
-    if($db->is_openflow_enabled()){
-	
-        if($db->is_fwdctl_enabled()){
+
+    if ($config->openflow_enabled) {
+
+        if ($config->fwdctl_enabled) {
             my $res = system("/etc/init.d/oess-fwdctl stop");
-            if($res != 0){
+            if ($res != 0) {
                 $result = $res;
             }
         }
-
-
-        if($db->is_vlan_stats_enabled()){
-            my $res = system("/etc/init.d/oess-vlan_stats stop");
-            if($res != 0){
-                $result = $res;
-            }
-        }
-        if($db->is_nox_enabled()){
-            my $res = system("/etc/init.d/nox_cored stop");
-            if($res != 0){
-                $result = $res;
-            }
-        }
-
-        if($db->is_fvd_enabled()){
+        if ($config->fvd_enabled) {
             my $res = system("/etc/init.d/oess-fvd stop");
-            if($res != 0){
+            if ($res != 0) {
                 $result = $res;
             }
         }
-
-        if($db->is_traceroute_enabled()){
+        if ($config->nox_enabled) {
+            my $res = system("/etc/init.d/oess-nox stop");
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->traceroute_enabled) {
             my $res = system("/etc/init.d/oess-traceroute stop");
-            if($res != 0){
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->vlan_stats_enabled) {
+            my $res = system("/etc/init.d/oess-vlan_stats stop");
+            if ($res != 0) {
                 $result = $res;
             }
         }
 
-        #END OF OPENFLOW only
-    }
+    } else {
 
-    if($db->is_mpls_enabled()){
-
-        if($db->is_mpls_fwdctl_enabled()){
-            my $res = system("/etc/init.d/oess-mpls-fwdctl stop");
-            if($res != 0){
-                $result = $res;
-            }
-        }
-
-        if($db->is_mpls_discovery_enabled()){
+        if ($config->mpls_discovery_enabled) {
             my $res = system("/etc/init.d/oess-mpls-discovery stop");
-            if($res != 0){
+            if ($res != 0) {
                 $result = $res;
             }
         }
-	
-        #END OF MPLS only
-    }
-
-    if($db->is_nsi_enabled()){
-        my $res = system("/etc/init.d/oess-nsi stop");
-        if($res != 0){
-            $result = $res;
+        if ($config->mpls_fwdctl_enabled) {
+            my $res = system("/etc/init.d/oess-mpls-fwdctl stop");
+            if ($res != 0) {
+                $result = $res;
+            }
         }
+
     }
 
-    if($db->is_notification_enabled()){
+    if ($config->notification_enabled) {
         my $res = system("/etc/init.d/oess-notification stop");
-        if($res != 0){
+        if ($res != 0) {
             $result = $res;
         }
     }
-
-    if($db->is_watchdog_enabled()){
+    if ($config->nsi_enabled) {
+        my $res = system("/etc/init.d/oess-nsi stop");
+        if ($res != 0) {
+            $result = $res;
+        }
+    }
+    if ($config->watchdog_enabled) {
         my $res = system("/etc/init.d/oess-watchdog stop");
-        if($res != 0){
+        if ($res != 0) {
             $result = $res;
         }
     }
 
     #cause this is how wait work?
     return $result / 256;
-
-
 }
 
-sub start{
-    my $db = OESS::Database->new();
-    
+sub start {
     my $result = 0;
 
-    if($db->is_openflow_enabled()){
+    if ($config->openflow_enabled) {
 
-        if($db->is_fwdctl_enabled()){
+        if ($config->fwdctl_enabled) {
             my $res = system("/etc/init.d/oess-fwdctl start");
-            if($res != 0){
+            if ($res != 0) {
                 $result = $res;
             }
         }
-
-        if($db->is_vlan_stats_enabled()){
-            my $res = system("/etc/init.d/oess-vlan_stats start");
-            if($res != 0){
-                $result = $res;
-            }
-        }
-        if($db->is_nox_enabled()){
-            my $res = system("/etc/init.d/nox_cored start");
-            if($res != 0){
-                $result = $res;
-            }
-        }
-
-        if($db->is_fvd_enabled()){
+        if ($config->fvd_enabled) {
             my $res = system("/etc/init.d/oess-fvd start");
-            if($res != 0){
+            if ($res != 0) {
                 $result = $res;
             }
         }
-
-        if($db->is_traceroute_enabled()){
+        if ($config->nox_enabled) {
+            my $res = system("/etc/init.d/oess-nox start");
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->traceroute_enabled) {
             my $res = system("/etc/init.d/oess-traceroute start");
-            if($res != 0){
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->vlan_stats_enabled) {
+            my $res = system("/etc/init.d/oess-vlan_stats start");
+            if ($res != 0) {
                 $result = $res;
             }
         }
 
-        #END OF OPENFLOW only
-    }
+    } else {
 
-
-    if($db->is_mpls_enabled()){
-
-        if($db->is_mpls_fwdctl_enabled()){
-            my $res = system("/etc/init.d/oess-mpls-fwdctl start");
-            if($res != 0){
-                $result = $res;
-            }
-        }
-
-        if($db->is_mpls_discovery_enabled()){
+        if ($config->mpls_discovery_enabled) {
             my $res = system("/etc/init.d/oess-mpls-discovery start");
-            if($res != 0){
+            if ($res != 0) {
+                $result = $res;
+            }
+        }
+        if ($config->mpls_fwdctl_enabled) {
+            my $res = system("/etc/init.d/oess-mpls-fwdctl start");
+            if ($res != 0) {
                 $result = $res;
             }
         }
 
-        #END OF MPLS only
     }
 
-    if($db->is_nsi_enabled()){
-        my $res = system("/etc/init.d/oess-nsi start");
-        if($res != 0){
-            $result = $res;
-        }
-    }
-
-    if($db->is_notification_enabled()){
+    if ($config->notification_enabled) {
         my $res = system("/etc/init.d/oess-notification start");
-        if($res != 0){
+        if ($res != 0) {
             $result = $res;
         }
     }
-
-    if($db->is_watchdog_enabled()){
+    if ($config->nsi_enabled) {
+        my $res = system("/etc/init.d/oess-nsi start");
+        if ($res != 0) {
+            $result = $res;
+        }
+    }
+    if ($config->watchdog_enabled) {
         my $res = system("/etc/init.d/oess-watchdog start");
-        if($res != 0){
+        if ($res != 0) {
             $result = $res;
         }
     }

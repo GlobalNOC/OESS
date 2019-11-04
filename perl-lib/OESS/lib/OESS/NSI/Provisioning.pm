@@ -428,7 +428,7 @@ sub _terminate_failure{
     log_error("terminate FAILED!!");
 
     #first send the terminate success
-    $self->terminate_success( $data );
+    $self->_terminate_success( $data );
 
     #now send the error 
 

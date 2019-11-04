@@ -126,9 +126,17 @@ ok($interface->{'name'} eq "e15/1", "The object interface returns expected name"
 ok($interface->{'interface_id'} eq '391', "The object interface has the correct interface_id");
 ok($interface->{'node'}->{'node_id'} eq "11", "The object interface has the correct node");
 ok($interface->{'description'} eq 'e15/1', "The object interface has correct description");
-cmp_deeply($interface->{'acls'}->{'acls'},
-[
+
+$acls = [];
+foreach my $acl (@{$interface->acls()}){
+ push @$acls, $acl->to_hash();
+}
+
+cmp_deeply($acls, [
           {
+            'interface_acl_id' => 11,
+            'interface_id' => 391,
+            'notes' => '(for test 34-provision_circuit.t)',
             'eval_position' => '10',
             'workgroup_id' => '11',
             'allow_deny' => 'deny',
@@ -137,6 +145,9 @@ cmp_deeply($interface->{'acls'}->{'acls'},
             'start' => 1
           },
           {
+            'interface_acl_id' => 12,
+            'interface_id' => 391,
+            'notes' => '(for test 34-provision_circuit.t)',
             'eval_position' => '20',
             'workgroup_id' => 11,
             'allow_deny' => 'allow',

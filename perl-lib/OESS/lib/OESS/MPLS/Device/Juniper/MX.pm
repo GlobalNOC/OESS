@@ -133,6 +133,17 @@ sub get_response {
         $errors = [$errors];
     }
 
+    if (defined $dom->{'commit-results'} && $dom->{'commit-results'}->{'routing-engine'}) {
+        my $re0 = $dom->{'commit-results'}->{'routing-engine'}->{'re0'};
+        if (defined $re0 && defined $re0->{'rpc-error'}) {
+            push @$errors, $re0->{'rpc-error'};
+        }
+        my $re1 = $dom->{'commit-results'}->{'routing-engine'}->{'re1'};
+        if (defined $re1 && defined $re1->{'rpc-error'}) {
+            push @$errors, $re1->{'rpc-error'};
+        }
+    }
+
     foreach my $error (@{$errors}) {
         my $lvl = $error->{'error-severity'};
         my $msg = $error->{'error-message'};
@@ -164,8 +175,8 @@ sub lock {
     my $self = shift;
 
     if (!$self->connected()) {
-	$self->{'logger'}->error("Not currently connected to device");
-	return 0;
+        $self->{'logger'}->error("Not currently connected to device");
+        return 0;
     }
 
     eval {
@@ -198,8 +209,8 @@ sub commit {
     my $self = shift;
 
     if (!$self->connected()) {
-	$self->{'logger'}->error("Not currently connected to device");
-	return 0;
+        $self->{'logger'}->error("Not currently connected to device");
+        return 0;
     }
 
     eval {
@@ -770,8 +781,9 @@ sub remove_vlan{
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
+                                          bandwidth => $i->{'bandwidth'} || 0,
                                           tag => $i->{'tag'},
                                           unit => $i->{'unit'}
                                         });
@@ -801,18 +813,20 @@ sub remove_vlan{
         {
           interface => 'ge-0/0/1',
           inner_tag => 100,
-          tag => 2004
+          tag => 2004,
+          unit => 2004
         },
         {
           interface => 'ge-0/0/2',
           inner_tag => 100,
-          tag => 2004
+          tag => 2004,
+          unit => 2004
         }
       ],
       paths => [],
       circuit_id => 3012,
       site_id => 1,
-      ckt_type => 'L2VPLS'
+      ckt_type => 'L2VPLS' # EVPN, L2CCC, L2VPLS, L2VPN, or L3VPN
     });
 
 add_vlan adds a vlan to this device via NetConf. Returns 1 on success.
@@ -830,11 +844,17 @@ sub add_vlan{
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
     $vars->{'interfaces'} = [];
     foreach my $i (@{$ckt->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+        if ($self->unit_name_available($i->{interface}, $i->{unit}) == 0) {
+            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
+            return FWDCTL_FAILURE;
+        }
+
+        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
+                                          bandwidth => $i->{'bandwidth'} || 0,
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'}
-                                        });
+                                      });
     }
     $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'destination_ip'} = $ckt->{'destination_ip'};
@@ -845,18 +865,13 @@ sub add_vlan{
     $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
     $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
-    if ($self->unit_name_available($vars->{'interface'}->{'name'}, $vars->{'interface'}->{'unit'}) == 0) {
-        $self->{'logger'}->error("Unit $vars->{'vlan_tag'} is not available on $vars->{'interface'}->{'name'}");
-        return FWDCTL_FAILURE;
-    }
-
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
         return FWDCTL_FAILURE;
     }
-    
+
     if (!defined $output) {
         return FWDCTL_FAILURE;
     }
@@ -894,10 +909,6 @@ sub add_vrf{
             my $peer_ip = $bgp->{'peer_ip'};
             $peer_ip =~ s/\/\d+//g;
 
-            if(!defined($bgp->{'md5_key'})){
-                $bgp->{'key'} = -1;
-            }
-            
             my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
             warn "Version: " . $type . "\n";
             $self->{'logger'}->error("IP Address type: " . $type);
@@ -906,7 +917,7 @@ sub add_vrf{
                 $has_ipv4 = 1;
                 $vars->{'has_ipv4'} = 1;
                 push(@bgp_v4, { asn => $bgp->{'peer_asn'},
-                                
+                                bfd => $bgp->{'bfd'},
                                 local_ip => $bgp->{'local_ip'},
                                 peer_ip => $peer_ip,
                                 key => $bgp->{'md5_key'}
@@ -916,7 +927,7 @@ sub add_vrf{
                 $has_ipv6 = 1;
                 $vars->{'has_ipv6'} = 1;
                 push(@bgp_v6, { asn => $bgp->{'peer_asn'},
-                                
+                                bfd => $bgp->{'bfd'},
                                 local_ip => $bgp->{'local_ip'},
                                 peer_ip => $peer_ip,
                                 key => $bgp->{'md5_key'}
@@ -925,18 +936,19 @@ sub add_vrf{
         }
 
 
-        if ($self->unit_name_available($i->{'name'}, $i->{'unit'}) == 0) {
-            $self->{'logger'}->error("Unit " . $i->{'unit'}  . " is not available on $i->{'name'}");
+        if ($self->unit_name_available($i->{'interface'}, $i->{'unit'}) == 0) {
+            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
             return FWDCTL_FAILURE;
         }
 
-        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           type => $i->{'type'},
+                                          mtu  => $i->{'mtu'},
                                           inner_tag => $i->{'inner_tag'},
                                           tag  => $i->{'tag'},
                                           unit => $i->{'unit'},
                                           bandwidth => $i->{'bandwidth'},
-					  v4_peers => \@bgp_v4,
+                                          v4_peers => \@bgp_v4,
                                           has_ipv4 => $has_ipv4,
                                           has_ipv6 => $has_ipv6,
                                           v6_peers => \@bgp_v6 });
@@ -975,16 +987,7 @@ sub remove_vrf{
     }
 
     my $vars = {};
-    $vars->{'vrf_name'} = $vrf->{'vrf_name'};
-    $vars->{'interfaces'} = [];
-    foreach my $i (@{$vrf->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
-                                          inner_tag => $i->{'inner_tag'},
-                                          tag  => $i->{'tag'},
-                                          unit => $i->{'unit'}
-	      });
-    }
-
+    $vars->{'interfaces'} = $vrf->{'interfaces'};
     $vars->{'vrf_id'} = $vrf->{'vrf_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
 
@@ -1009,8 +1012,12 @@ sub xml_configuration {
     my $vrf = shift;
     my $remove = shift;
 
+    # We first delete the group then pass the same group a second
+    # time. This results in a fully rebuilt config.
     my $configuration = '<configuration>';
     $configuration .= $remove;
+    $configuration .= '<groups><name>OESS</name>';
+
     foreach my $ckt (@{$ckts}) {
         # The argument $ckts is passed in a generic form. This should be
         # converted to work with the template.
@@ -1019,7 +1026,7 @@ sub xml_configuration {
         $vars->{'circuit_name'} = $ckt->{'circuit_name'};
         $vars->{'interfaces'} = [];
         foreach my $i (@{$ckt->{'interfaces'}}) {
-            push (@{$vars->{'interfaces'}}, { name => $i->{'interface'},
+            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                               inner_tag => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               unit => $i->{'unit'}
@@ -1044,8 +1051,8 @@ sub xml_configuration {
             # The remove case is now handled in get_config_to_remove
         }
 
-        $xml =~ s/<configuration>//g;
-        $xml =~ s/<\/configuration>//g;
+        $xml =~ s/<configuration><groups><name>OESS<\/name>//g;
+        $xml =~ s/<\/groups><\/configuration>//g;
         $configuration = $configuration . $xml;
     }
    
@@ -1078,7 +1085,8 @@ sub xml_configuration {
                     $self->{'logger'}->error("Processing IPv4 peer");
                     $has_ipv4 = 1;
                     $vars->{'has_ipv4'} = 1;
-                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},                                    
+                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},
+                                    bfd => $bgp->{'bfd'},
                                     local_ip => $bgp->{'local_ip'},
                                     peer_ip => $peer_ip,
                                     key => $bgp->{'md5_key'}
@@ -1088,7 +1096,8 @@ sub xml_configuration {
                     $self->{'logger'}->error("Processing IPv6 peer");
                     $has_ipv6 = 1;
                     $vars->{'has_ipv6'} = 1;
-                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},                                    
+                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},
+                                    bfd => $bgp->{'bfd'},
                                     local_ip => $bgp->{'local_ip'},
                                     peer_ip => $peer_ip,
                                     key => $bgp->{'md5_key'}
@@ -1097,9 +1106,10 @@ sub xml_configuration {
                 
             }
 
-            push (@{$vars->{'interfaces'}}, { name => $i->{'name'},
+            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                               unit => $i->{'unit'},
-					      type => $i->{'type'},
+                                              cloud_interconnect_type => $i->{'cloud_interconnect_type'},
+                                              mtu  => $i->{'mtu'},
                                               inner_tag  => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
                                               bandwidth => $i->{'bandwidth'},
@@ -1112,20 +1122,19 @@ sub xml_configuration {
         $vars->{'vrf_id'} = $vrf->{'vrf_id'};
         $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
         $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
-        
-        $self->{'logger'}->error("VARS: " . Dumper($vars));
+
+        $self->{'logger'}->debug("VARS: " . Dumper($vars));
         
         if($vrf->{'state'} eq 'active'){
             $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$xml);
         }
         
-        $xml =~ s/<configuration>//g;
-        $xml =~ s/<\/configuration>//g;
+        $xml =~ s/<configuration><groups><name>OESS<\/name>//g;
+        $xml =~ s/<\/groups><\/configuration>//g;
         $configuration = $configuration . $xml;
     }
     
-    $configuration = $configuration . '</configuration>';
-
+    $configuration = $configuration . '</groups><apply-groups>OESS</apply-groups></configuration>';
     return $configuration;
 }
 
@@ -1140,293 +1149,7 @@ sub get_config_to_remove{
     my $circuits = $params{'circuits'};
     my $vrfs = $params{'vrfs'};
 
-    $self->{'logger'}->debug("VRFS: " . Dumper($vrfs));
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $res = $self->{'jnx'}->get_configuration( database => 'committed', format => 'xml' );
-    if ($self->{'jnx'}->has_error) {
-        my $error = $self->{'jnx'}->get_first_error();
-        if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->{'logger'}->error("Error getting conf from MX: " . $error->{'error_message'});
-            return;
-        }
-    }
-
-    my $dom = $self->{'jnx'}->get_dom();
-
-    #so there are a few chunks of the config we need to check for
-    #interface sub unit
-    #mpls label switch path
-    #mpls paths
-    #connections remote interface switch
-    #routing instances
-
-    my $delete = "";
-    my $ri_dels = "";
-    my $remove_cos = "";
-    my $xp = XML::LibXML::XPathContext->new($dom);
-    my $cos_xp = XML::LibXML::XPathContext->new($dom);
-
-    $xp->registerNs("base", $dom->documentElement->namespaceURI);
-    $xp->registerNs('c', 'http://xml.juniper.net/xnm/1.1/xnm');
-
-    $cos_xp->registerNs("base", $dom->documentElement->namespaceURI);
-    $cos_xp->registerNs('c', 'http://xml.juniper.net/xnm/1.1/xnm');
-
-    $self->{'logger'}->debug("About to process routing instances");
-    my $routing_instances = $xp->find( '/base:rpc-reply/c:configuration/c:routing-instances/c:instance');
-    foreach my $ri (@{$routing_instances}){
-        my $name = $xp->findvalue( './c:name', $ri );
-
-        $self->{'logger'}->debug("Processing routing instance: " . $name);
-
-        if($name =~ /^OESS/){
-            $name =~ /OESS\-(\S+)\-(\d+)/;
-            my $type = $1;
-            my $circuit_id = $2;
-            if($type eq 'L3VPN'){
-                if(!$self->_is_active_vrf($circuit_id, $vrfs)){
-                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
-                    next;
-                }
-            }else{
-                #figure out the right bit!
-                if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                    $ri_dels .= "<instance operation='delete'><name>" . $name . "</name></instance>";
-                    next;
-                }
-            }
-
-            my $ints = $xp->find(' ./c:interface', $ri);
-
-            foreach my $int (@$ints){
-                my $int_full_name = $xp->findvalue( './c:name', $int);
-                $self->{'logger'}->debug("Checking to see if port: $int_full_name is part of circuit: $circuit_id");
-                my ($int_name,$unit_name) = split('\.',$int_full_name);
-                if($type eq 'L3VPN'){
-                    if(!$self->_is_vrf_on_port($circuit_id, $vrfs, $int_name, $unit_name)){
-                        $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
-                    }
-                }else{
-                    if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
-                        $ri_dels .= "<instance><name>$name</name><interface operation='delete'><name>$int_full_name</name></interface></instance>";
-                    }
-                }
-            }
-
-            if ($type eq 'L2CCC') {
-                $ri_dels .= "<instance operation='delete'><name>OESS-L2VPN-$circuit_id</name></instance>";
-            }
-
-            if($type eq 'L2VPN'){
-                my $sites = $xp->find(' ./c:protocols/c:l2vpn/c:site', $ri);
-                foreach my $site (@$sites){
-                    my $site_name = $xp->findvalue( './c:name', $site);
-                    my $site_id = $xp->findvalue( './c:site-identifier', $site);
-
-                    my $expected_site_name = $self->{'name'} . '-' . $circuit_id;
-                    my $expected_site_id = $circuits->{$circuit_id}->{site_id};
-
-                    if ($expected_site_id != $site_id || $expected_site_name ne $site_name) {
-                        $ri_dels .= "<instance><name>$name</name><protocols><l2vpn><site operation='delete'><name>$site_name</name></site></l2vpn></protocols></instance>";
-                        next;
-                    }
-
-                    my $ints = $xp->find('./c:interface', $site);
-                    my $intf_dels = '';
-
-                    foreach my $int (@$ints){
-                        my $int_full_name = $xp->findvalue( './c:name', $int);
-                        $self->{'logger'}->debug("Checking if port $int_full_name is a part of circuit $circuit_id.");
-
-                        my ($int_name, $unit_name) = split('\.', $int_full_name);
-                        if (!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)) {
-                            $intf_dels .= "<interface operation='delete'><name>$int_full_name</name></interface>";
-                        }
-                    }
-                    if ($intf_dels ne '') {
-                        $ri_dels .= "<instance><name>$name</name><protocols><l2vpn><site><name>$site_name</name>$intf_dels</site></l2vpn></protocols></instance>";
-                    }
-                }
-            }
-        }
-    }
-
-    if($ri_dels ne ''){
-        $delete .= "<routing-instances>$ri_dels</routing-instances>";
-    }
-
-    my $interfaces = $xp->find( '/base:rpc-reply/c:configuration/c:interfaces/c:interface');
-    my $interfaces_del = "";
-    foreach my $interface (@$interfaces){
-	my $int_name = $xp->findvalue( './c:name', $interface);
-	my $units = $xp->find( './c:unit', $interface);
-	my $int_del = "<interface><name>" . $int_name . "</name>";
-	my $has_dels = 0;
-	foreach my $unit (@$units){
-	    my $description = $xp->findvalue( './c:description', $unit );
-	    if($description =~ /^OESS/){
-		$description =~ /OESS\-(\w+)\-(\d+)/;
-		
-                my $type = $1;
-		my $circuit_id = $2;
-		my $unit_name = $xp->findvalue( './c:name', $unit);
-
-                if($type eq 'L3VPN'){
-                    if(!$self->_is_active_vrf($circuit_id, $vrfs)){
-                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
-                        $has_dels = 1;
-                        next;
-                    }
-
-                    if(!$self->_is_vrf_on_port($circuit_id, $vrfs, $int_name, $unit_name)){
-                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
-                        $has_dels = 1;
-                        next;
-                    }
-
-		    #check shaper
-		    $self->_check_for_shaper($vrfs,  $int_name, $unit_name, $cos_xp, $remove_cos);
-			
-                    $int_del .= "<unit><name>$unit_name</name>";
-
-                    # Need to process each BGP peer for L3VPNs
-                    #   family inet address name $address
-                    #   family inet6 address name $address
-
-                    my $addrs = $xp->find( './c:family/c:inet/c:address', $unit);
-                    foreach my $addr (@$addrs) {
-                        my $addr_name = $xp->findvalue( './c:name', $addr);
-
-                        if (!$self->_is_peer_address($circuit_id, $vrfs, $int_name, $addr_name)) {
-                            $int_del .= "<family><inet><address operation='delete'><name>$addr_name</name></address></inet></family>";
-                        }
-                    }
-
-                    $addrs = $xp->find( './c:family/c:inet6/c:address', $unit);
-                    foreach my $addr (@$addrs) {
-                        my $addr_name = $xp->findvalue( './c:name', $addr);
-
-                        if (!$self->_is_peer_address($circuit_id, $vrfs, $int_name, $addr_name)) {
-                            $int_del .= "<family><inet6><address operation='delete'><name>$addr_name</name></address></inet6></family>";
-                        }
-                    }
-
-                    $int_del .= "</unit>";
-                    $self->{logger}->error(Dumper($int_del));
-
-                }else{
-                    if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
-                        $has_dels = 1;
-                        next;
-                    }
-                    if(!$self->_is_circuit_on_port($circuit_id, $circuits, $int_name, $unit_name)){
-                        $int_del .= "<unit operation='delete'><name>" . $unit_name . "</name></unit>";
-                        $has_dels = 1;
-                    }
-                }
-	    }
-	}
-	$int_del .= "</interface>";
-	if($has_dels){
-	    $interfaces_del .= $int_del;
-	}
-    }
-
-    if($interfaces_del ne ''){
-	$delete .= "<interfaces>$interfaces_del</interfaces>";
-    }
-
-    my $lsp_dels = "";
-    my $mpls_lsps = $xp->find( '/base:rpc-reply/c:configuration/c:protocols/c:mpls/c:label-switched-path');    
-    foreach my $lsp (@{$mpls_lsps}){
-	my $name = $xp->findvalue( './c:name', $lsp);
-	if($name =~ /^OESS/){
-	    $name =~ /OESS\-\w+\-\d+\-\d+\-LSP\-(\d+)/;
-	    my $circuit_id = $1;
-	    if(!$self->_is_active_circuit($circuit_id, $circuits)){
-		$lsp_dels .= "<label-switched-path operation='delete'><name>" . $name . "</name></label-switched-path>";
-	    }
-	}
-    }
-    my $path_dels = "";
-    my $paths = $xp->find( '/base:rpc-reply/c:configuration/c:protocols/c:mpls/c:path');
-    foreach my $path (@{$paths}){
-	my $name = $xp->findvalue( './c:name', $path);
-        if($name =~ /^OESS/){
-	    $name =~ /OESS\-\w+\-\w+\-\w+\-LSP\-(\d+)/;
-	    my $circuit_id = $1;
-            if (!$self->_is_active_circuit($circuit_id, $circuits)) {
-                $path_dels .= "<path operation='delete'><name>" . $name . "</name></path>";
-	    } else {
-                # Active circuits with a 'strict' or manually defined
-                # path should check their path for extra hops.
-                my $strict_path = $self->_get_strict_path($circuit_id, $circuits);
-                if (!defined $strict_path) {
-                    next;
-                }
-
-                my $path_list_dels = "";
-                my $path_lists = $xp->find('./c:path-list', $path);
-
-                foreach my $path_list (@$path_lists) {
-                    my $path_list_name = $xp->findvalue('./c:name', $path_list);
-
-                    if (!defined $strict_path->{$path_list_name}) {
-                        $path_list_dels .= "<path-list operation='delete'><name>" . $path_list_name . "</name></path-list>";
-                    }
-                }
-
-                if ($path_list_dels ne '') {
-                    $path_dels .= "<path><name>" . $name . "</name>" . $path_list_dels . "</path>";
-                }
-            }
-        }
-    }
-
-    if($lsp_dels ne '' || $path_dels ne ''){
-	$delete .= "<protocols><mpls>";
-	if($lsp_dels ne ''){
-	    $delete .= $lsp_dels;
-	}
-	
-	if($path_dels ne ''){
-	    $delete .= $path_dels;
-	}
-	$delete .= "</mpls></protocols>";
-    }
-
-
-    my $ris_dels = "";
-
-    my $remote_interface_switches = $xp->find( '/base:rpc-reply/c:configuration/c:protocols/c:connections/c:remote-interface-switch');
-    
-    foreach my $ris (@{$remote_interface_switches}){
-	my $name = $xp->findvalue( './c:name', $ris);
-        if($name =~ /^OESS/){
-	    $name =~ /OESS\-\S+\-(\d+)/;
-	    my $circuit_id = $1;
-	    #figure out the right bit!
-	    if(!$self->_is_active_circuit($circuit_id, $circuits)){
-                $ris_dels .= "<remote-interface-switch operation='delete'><name>" . $name . "</name></remote-interface-switch>";
-            }
-        }
-    }
-
-    if($ris_dels ne ''){
-	$delete .= "<protocols><connections>" . $ris_dels . "</connections></protocols>";
-    }
-
-    if ($remove_cos ne '') {
-        $delete .= "<class-of-service><interfaces>$remove_cos</interfaces></class-of-service>";
-    }
-
-    return $delete;
+    return '<groups operation="delete"><name>OESS</name></groups>';
 }
 
 =head2 _get_strict_path
@@ -1475,7 +1198,7 @@ sub _check_for_shaper{
     my $vrf = $vrfs->{$vrf_id};
     foreach my $int (@{$vrf->{'interfaces'}}){
 
-	if($int->{'name'} eq $port && $int->{'unit'} eq $unit){
+	if($int->{'interface'} eq $port && $int->{'unit'} eq $unit){
 	    if($int->{'bandwidth'} > 0){
 
 		#will be changed by the template
@@ -1547,12 +1270,10 @@ sub _is_vrf_on_port{
         return 0;
     }
 
+    # check to see if the port matches the port
+    # check to see if the vlan matches the vlan
     foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}){
-        # check to see if the port matches the port
-        # check to see if the vlan matches the vlan
-
-        if($int->{'name'} eq $port && $int->{'unit'} eq $unit){
-            $self->{'logger'}->error("Interface $int->{'name'}.$int->{'unit'} is in vrf $vrf_id.");
+        if ($int->{'interface'} eq $port && $int->{'unit'} eq $unit) {
             return 1;
         }
     }
@@ -1581,7 +1302,7 @@ sub _is_peer_address {
     }
 
     foreach my $int (@{$vrfs->{$vrf_id}->{'interfaces'}}) {
-        if ($int->{name} ne $int_name) {
+        if ($int->{interface} ne $int_name) {
             next;
         }
 
@@ -1641,6 +1362,12 @@ sub _is_active_circuit{
 
 =head2 get_device_diff
 
+    my $diff = get_device_diff($xml_configuration);
+    if (defined $diff->{error}) {
+        warn $diff->{error};
+    }
+    print $diff->{value};
+
 Returns and stores a human readable diff for display to users.
 
 =cut
@@ -1648,51 +1375,58 @@ sub get_device_diff {
     my $self = shift;
     my $conf = shift;
 
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
+    if (!$self->connected()) {
+        return (undef, "Not currently connected to device");
     }
 
     $self->{'logger'}->debug("Candidate config: " . $conf);
 
-    my %queryargs = ('target' => 'candidate');
-    $queryargs{'config'} = $conf;
+    my %queryargs = (
+        'config' => $conf,
+        'target' => 'candidate',
+    );
 
     my $ok = $self->lock();
+    if (!$ok) {
+        return {value => undef, error => "Unable to generate diff without a valid lock."};
+    }
 
     my $res = $self->{'jnx'}->edit_config(%queryargs);
     if ($self->{'jnx'}->has_error) {
-	my $dom = $self->{'jnx'}->get_dom();
-	$self->{'logger'}->error($dom->toString());
+        my $dom = $self->{'jnx'}->get_dom();
+        $self->{'logger'}->error($dom->toString());
+
         my $error = $self->{'jnx'}->get_first_error();
         if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->{'logger'}->error("Error getting device diff: " . $error->{'error_message'});
             $self->disconnect();
-            return;
+            return {value => undef, error => "Error getting device diff: $error->{error_message}"};
         }
     }
 
     # According to docs format isn't considered when used with
     # compare. However in 15.1F6-S6.4 it is; I would expect this to
     # continue in later Junos versions.
-    my $configcompare = $self->{'jnx'}->get_configuration( compare => "rollback", rollback => "0", format => "text" );
+    my $configcompare = $self->{'jnx'}->get_configuration(
+        compare => "rollback",
+        rollback => "0",
+        format => "text"
+    );
     if ($self->{'jnx'}->has_error) {
+        my $dom = $self->{'jnx'}->get_dom();
+        $self->{'logger'}->error($dom->toString());
+
         my $error = $self->{'jnx'}->get_first_error();
-
         if ($error->{'error_message'} !~ /uncommitted/) {
-            $self->set_error($error->{'error_message'});
-
-            $self->{'logger'}->error("Error getting diff from MX: " . $error->{'error_message'});
             $res = $self->{'jnx'}->discard_changes();
-
             $ok = $self->unlock();
-            return;
+            return {value => undef, error => "Error getting device diff: $error->{error_message}"};
         }
     }
 
     my $dom = $self->{'jnx'}->get_dom();
     my $text = $dom->getElementsByTagName('configuration-output')->string_value();
-    $self->{'logger'}->error("Raw diff text: " . $text);
+    $self->{'logger'}->debug("Raw diff: " . $text);
+
     $ok = $self->unlock();
 
     $text =~ s/\n\[edit .*\]\n[+|-] \s+ authentication-key \S+ \#\# SECRET-DATA\n//g;
@@ -1704,7 +1438,7 @@ sub get_device_diff {
         $text = '';
     }
 
-    return $text;
+    return {value => $text, error => undef};
 }
 
 =head2 _large_diff( $diff )
@@ -1755,7 +1489,7 @@ sub diff {
     }
 
     my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove);
-    if ($configuration eq '<configuration></configuration>') {
+    if ($configuration eq '<configuration><groups operation="delete"><name>OESS</name></groups><groups><name>OESS</name></groups><apply-groups>OESS</apply-groups></configuration>') {
         $self->{'logger'}->info('No diff required at this time.');
         return FWDCTL_SUCCESS;
     }
@@ -1771,12 +1505,16 @@ sub diff {
     # Check the size of the diff to see if verification is required for
     # the changes to be applied. $diff is a human readable diff.
     my $diff = $self->get_device_diff($configuration);
-    if (!defined $diff || $diff eq '') {
-        $self->{'logger'}->info('No diff required at this time.');
+    if (defined $diff->{error}) {
+        $self->{'logger'}->error($diff->{error});
         return FWDCTL_FAILURE;
     }
+    if ($diff->{value} eq '') {
+        $self->{'logger'}->info('No diff required at this time.');
+        return FWDCTL_SUCCESS;
+    }
 
-    if ($self->_large_diff($diff)) {
+    if ($self->_large_diff($diff->{value})) {
         # It may be possible that a large diffs is considered untrusted.
         # If so, block until the diff has been approved.
         $self->{'logger'}->info('Large diff detected. Waiting for approval before installation.');
@@ -1791,6 +1529,12 @@ sub diff {
 
 =head2 get_diff_text
 
+    my $diff = get_diff_text(...);
+    if (defined $diff->{error}) {
+        warn $diff->{error};
+    }
+    print $diff->{value};
+
 Returns a human readable diff between $circuits and this Device's
 configuration, or undef when no diff is required. Takes an array of
 circuits to build the current configuration, and a remove string of
@@ -1803,18 +1547,17 @@ sub get_diff_text {
     my $circuits = $params{'circuits'};
     my $vrfs = $params{'vrfs'};
     my $remove = $params{'remove'};
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-    
+
     $self->{'logger'}->debug("Calling MX.get_diff_text");
+
+    if(!$self->connected()){
+        return {value => undef, error => "Not currently connected to device."};
+    }
 
     my @circuits;
     foreach my $ckt_id (keys (%{$circuits})){
         push(@circuits, $circuits->{$ckt_id});
     }
-
 
     my @vrfs;
     foreach my $vrf_id (keys (%{$vrfs})){
@@ -1822,17 +1565,11 @@ sub get_diff_text {
     }
 
     my $configuration = $self->xml_configuration(\@circuits,\@vrfs, $remove );
-    if ($configuration eq '<configuration></configuration>') {
-        return undef;
+    if ($configuration eq '<configuration><groups operation="delete"><name>OESS</name></groups><groups><name>OESS</name></groups><apply-groups>OESS</apply-groups></configuration>') {
+        return {value => '', error => undef};
     }
 
-    my $diff = $self->get_device_diff($configuration);
-    if ($diff eq '') {
-        # Handles case where a device returns an empty string
-        return undef;
-    }
-
-    return $diff;
+    return $self->get_device_diff($configuration);
 }
 
 =head2 unit_name_available
@@ -2022,6 +1759,7 @@ sub verify_connection{
         }
     }
 
+    warn "Network OS $sysinfo->{'os_name'} version $sysinfo->{'version'} on the $sysinfo->{'model'} is not supported.";
     $self->{'logger'}->error("Network OS $sysinfo->{'os_name'} version $sysinfo->{'version'} on the $sysinfo->{'model'} is not supported.");
     $self->disconnect();
     return 0;
@@ -2529,6 +2267,11 @@ sub _edit_config{
 
     $self->{'logger'}->debug("Locking config");
     $ok = $self->lock();
+    if (!$ok) {
+        $self->{'logger'}->error("Unable to edit config without a valid lock.");
+        return FWDCTL_FAILURE;
+    }
+
     $self->{'logger'}->debug("Locked config!");
 
     %queryargs = (
@@ -2565,7 +2308,7 @@ sub _edit_config{
                 $self->{'logger'}->warn($msg);
             } else {
                 # error-severity of 'error' is considered fatal
-                $self->{'logger'}->error($msg);
+                $self->{'logger'}->debug(Dumper($error));
                 die $msg;
             }
         }

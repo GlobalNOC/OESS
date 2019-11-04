@@ -5,37 +5,100 @@ use warnings;
 
 package OESS::Entity;
 
-use OESS::DB::Entity;
+use Log::Log4perl;
 
+use OESS::DB::Entity;
 use OESS::User;
+
+=head1 OESS::Entity
+
+    use OESS::Entity
+
+=cut
+
 =head2 new
+
+    my $entity = new OESS::Entity(
+        db => $db,
+        entity_id => 100
+    );
+
+    # or
+
+    my $entity = new OESS::Entity(
+        db => $db,
+        name => 'entity name'
+    );
+
+    # or
+
+    my $entity = new OESS::Entity(
+        db => $db,
+        interface_id => 100,
+        vlan => 1200
+    );
+
+    # or
+
+    my $entity = new OESS::Entity(
+        model => {
+            name        => 'name'
+            description => 'description'
+            logo_url    => 'https://...'
+            url         => 'https://...'
+            interfaces  => [],           # Optional
+            parents     => [],           # Optional
+            children    => [],           # Optional
+            entity_id   => 100,          # Optional
+            users       => []            # Optional
+        }
+    );
+
+new creates a new Entity object loaded from the database or the
+C<model> hash. For flexibility, nn Entity may be loaded by
+C<entity_id>, C<name>, or <Cinterface_id> and C<vlan>.
 
 =cut
 sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS.Entity");
-
     my %args = (
+        db           => undef,
+        name         => undef,
+        entity_id    => undef,
+        interface_id => undef,
+        vlan         => undef,
+        model        => undef,
+        logger       => Log::Log4perl->get_logger("OESS.Entity"),
+        reservations => {},
         @_
-        );
-    
+    );
+
     my $self = \%args;
 
     bless $self, $class;
 
-    $self->{'logger'} = $logger;
-
-    if(!defined($self->{'db'})){
-        $self->{'logger'}->error("No Database Object specified");
-        return;
+    if (!defined $self->{'db'}) {
+        $self->{'logger'}->warn("No Database Object specified");
     }
 
-    my $fetch_ok = $self->_fetch_from_db();
-    return undef if !$fetch_ok;
-    
-    return $self;    
+    my $by_id = defined $self->{entity_id};
+    my $by_name = defined $self->{name};
+    my $by_vlan = (defined $self->{interface_id} && defined $self->{vlan});
+
+    if (defined $self->{db} && ($by_id || $by_name || $by_vlan)) {
+        my $fetch_ok = $self->_fetch_from_db();
+        return undef if !$fetch_ok;
+
+    } elsif (defined $self->{model}) {
+        $self->_from_hash($self->{model});
+
+    } else {
+        return undef;
+    }
+
+    return $self;
 }
 
 =head2 _from_hash
@@ -62,7 +125,13 @@ sub _from_hash{
 sub _fetch_from_db{
     my $self = shift;
 
-    my $info = OESS::DB::Entity::fetch(db => $self->{'db'}, entity_id => $self->{'entity_id'}, name => $self->{'name'}, interface_id => $self->{'interface_id'}, vlan => $self->{'vlan'});
+    my $info = OESS::DB::Entity::fetch(
+        db => $self->{'db'},
+        entity_id => $self->{'entity_id'},
+        name => $self->{'name'},
+        interface_id => $self->{'interface_id'},
+        vlan => $self->{'vlan'}
+    );
     return 0 if !defined($info);
 
     $self->_from_hash($info);
@@ -152,6 +221,59 @@ sub to_hash{
         children => $self->children(),
         entity_id => $self->entity_id()
     };
+}
+
+=head2 select_interface
+
+=cut
+sub select_interface {
+    my $self = shift;
+    my $args = {
+        inner_tag               => undef,
+        tag                     => undef,
+        workgroup_id            => undef,
+        cloud_account_id => undef,
+        # cloud_interconnect_id   => undef,
+        # cloud_interconnect_type => undef,
+        @_
+    };
+
+    foreach my $intf (@{$self->{interfaces}}) {
+        if (defined $intf->cloud_interconnect_type && $intf->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+            if (!defined $args->{cloud_account_id}) {
+                return undef;
+            }
+
+            my @part = split(/\//, $args->{cloud_account_id});
+            my $key_zone = 'zone' . $part[2];
+
+            @part = split(/-/, $intf->cloud_interconnect_id);
+            my $conn_zone = $part[4];
+
+            if ($conn_zone ne $key_zone) {
+                next;
+            }
+        }
+
+        my $ok = $intf->vlan_valid(
+            vlan => $args->{tag},
+            workgroup_id => $args->{workgroup_id}
+        );
+        if ($ok) {
+            # TODO register and selected vlans as being in use so that
+            # successive calls to the same entity with the same vlan
+            # yield different interfaces.
+
+            if (!defined $self->{reservations}->{$intf->{interface_id}}) {
+                $self->{reservations}->{$intf->{interface_id}} = {};
+            }
+            if (!defined $self->{reservations}->{$intf->{interface_id}}->{$args->{tag}}) {
+                $self->{reservations}->{$intf->{interface_id}}->{$args->{tag}} = 1;
+                return $intf;
+            }
+        }
+    }
+    return undef;
 }
 
 =head2 users
@@ -355,7 +477,7 @@ sub remove_user {
     return 1;
 }
 
-=head2 create_entity
+=head2 create_child_entity
 
 =cut
 sub create_child_entity {

@@ -3,16 +3,35 @@ document.addEventListener('DOMContentLoaded', function() {
   let entityID = url.searchParams.get('entity_id');
 
   loadUserMenu().then(function() {
-      loadEntityList();
+    [% IF network_type == 'evpn-vxlan' %]
+    loadL2VPNs();
+    [% ELSE %]
+    loadEntityList();
+    loadL2VPNs();
+    [% END %]
   });
 });
 
 async function deleteConnection(id, name) {
     let ok = confirm(`Are you sure you want to delete ${name}?`);
     if (ok) {
+        let deleteCircuitModal = $('#delete-circuit-loading');
+        deleteCircuitModal.modal('show');
+
         await deleteVRF(session.data.workgroup_id, id);
         window.location = '?action=welcome';
     }
+}
+
+async function deleteL2VPN(id, name) {
+  let ok = confirm(`Are you sure you want to delete ${name}?`);
+  if (ok) {
+    let deleteCircuitModal = $('#delete-circuit-loading');
+    deleteCircuitModal.modal('show');
+
+    await deleteCircuit(session.data.workgroup_id, id);
+    window.location = '?action=welcome';
+  }
 }
 
 async function toggleEntityBody(id) {
@@ -39,7 +58,7 @@ async function loadEntityList() {
     let ok = true;
 
     if (entities.length === 0) {
-        html = '<p>There are no Layer3 VPNs currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_cloud">here</a> to create one.</p>';
+        html = '<p>There are no Layer 3 Connections currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_cloud">here</a> to create one.</p>';
     }
 
     entities.forEach(function(entity, index) {
@@ -48,20 +67,22 @@ async function loadEntityList() {
 
         entity.endpoints.forEach(function(endpoint) {
             let endpointOK = true;
-            endpoint.peers.forEach(function(peer) {
-                    if (peer.state !== 'active') {
+            if ('peers' in endpoint) {
+                endpoint.peers.forEach(function(peer) {
+                    if (peer.operational_state !== 'up') {
                         ok = false;
                         endpointOK = false;
                     }
-            });
+                });
+            }
 
             if (endpointOK) {
                 endpointHTML += `
-                <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.interface.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface.name} - ${endpoint.tag}</p>
+                <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}</p>
 `;
             } else {
                 endpointHTML += `
-                <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.interface.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface.name} - ${endpoint.tag}</p>
+                <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}</p>
 `;
             }
         });
@@ -78,7 +99,7 @@ async function loadEntityList() {
 
         let edit = `<a href='?action=modify_cloud&vrf_id=${entity.vrf_id}'><span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span></a>`;
         let del = `<a onclick="deleteConnection(${entity.vrf_id}, '${entity.name}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
-        if(owner != 1){
+        if(owner != 1 && !session.data.isAdmin) {
             edit = "<span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span>";
             del = "<span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span>";
         }
@@ -96,8 +117,8 @@ async function loadEntityList() {
       </div>
     </div>
     <h4>
-      ${edit}
-      <a href="?action=view_l3vpn&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-stats" style="padding-right: 9px;"></span></a>
+      <!-- edit link has here -->
+      <a href="?action=modify_cloud&vrf_id=${entity.vrf_id}"><span class="glyphicon glyphicon-eye-open" style="padding-right: 9px;"></span></a>
       ${del}
       <a id="entity-body-${index}-opened" onclick="toggleEntityBody(${index})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
       <a id="entity-body-${index}-closed" onclick="toggleEntityBody(${index})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>
@@ -140,4 +161,102 @@ async function loadEntityList() {
     });
 
     entitiesList.innerHTML = html;
+}
+
+async function loadL2VPNs() {
+  let circuits = await getCircuits(session.data.workgroup_id);
+  let circuitsList = document.querySelector('#l2vpn-list');
+
+  let html = '';
+  let ok = true;
+
+  if (circuits.length === 0) {
+    html = '<p>There are no Layer 2 Connections currently provisioned. Click <a href="[% path %]new/index.cgi?action=provision_l2vpn">here</a> to create one.</p>';
+  }
+
+  circuits.forEach(function(circuit, index) {
+    let color = ok ? '#E0F0D9' : '#F2DEDE';
+    let createdOn = new Date(circuit.created_on);
+    let modifiedOn = new Date(circuit.last_edited);
+    let bg_color = '#fff';
+    let owner = 1;
+    if(circuit.workgroup_id != session.data.workgroup_id){
+      bg_color = '#e5e5e5';
+      owner = 0;
+    }
+
+    let del = `<a onclick="deleteL2VPN(${circuit.circuit_id}, '${circuit.description}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
+    if(owner != 1 && !session.data.isAdmin){
+      del = "<span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span>";
+    }
+
+    let endpointHTML = '';
+    circuit.endpoints.forEach(function(endpoint) {
+      let endpointOK = true;
+
+      if (endpointOK) {
+        endpointHTML += `
+        <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}
+        </p>
+        `;
+      } else {
+        endpointHTML += `
+        <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}
+        </p>
+        `;
+      }
+    });
+
+    html += `
+<div class="panel panel-default">
+  <div class="panel-heading" style="display: flex; background-color: ${bg_color};">
+    <div style="width: 30px; background-color: ${color}; margin: -10px 15px -10px -15px;">
+    </div>
+    <div style="flex: 1;">
+      <h4>${circuit.description}</h4>
+      <div style="display: flex;">
+        <p style="padding-right: 15px; margin-bottom: 0px;"><b>Owner:</b> ${circuit.workgroup.name}</p>
+        <p style="padding-right: 15px; margin-bottom: 0px;"><b>Created on:</b> ${createdOn.toDateString()}</p>
+      </div>
+    </div>
+    <h4>
+      <a href="?action=modify_l2vpn&circuit_id=${circuit.circuit_id}"><span class="glyphicon glyphicon-eye-open" style="padding-right: 9px;"></span></a>
+      ${del}
+      <a id="entity-body-${index+100000}-opened" onclick="toggleEntityBody(${index+100000})" href="javascript:void(0)" style="display: none;"><span class="glyphicon glyphicon-chevron-up"></span></a>
+      <a id="entity-body-${index+100000}-closed" onclick="toggleEntityBody(${index+100000})" href="javascript:void(0)"><span class="glyphicon glyphicon-chevron-down"></span></a>
+    </h4>
+  </div>
+
+  <div id="entity-body-${index+100000}" class="panel-body" style="padding-left: 45px; display: none;">
+    <div style="display: flex;">
+      <div style="padding-right: 15px;">
+        <p><b>Description</b></p>
+        <p><b>ID</b></p>
+      </div>
+      <div style="padding-right: 18px;">
+        <p>${circuit.description}</p>
+        <p>${circuit.circuit_id}</p>
+      </div>
+      <div style="padding-right: 15px;">
+        <p><b>Created by</b><p>
+        <p><b>Created on</b><p>
+        <p><b>Last modified by</b></p>
+        <p><b>Last modified on</b></p>
+      </div>
+      <div style="padding-right: 18px;">
+        <p>${circuit.created_by.email}</p>
+        <p>${createdOn.toDateString()}</p>
+        <p>${circuit.last_modified_by.email}</p>
+        <p>${modifiedOn.toDateString()}</p>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column;">
+        ${endpointHTML}
+      </div>
+    </div>
+  </div>
+</div>
+`;
+  });
+
+  circuitsList.innerHTML = html;
 }

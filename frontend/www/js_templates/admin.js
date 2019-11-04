@@ -11,7 +11,6 @@ var link_maint_table;
 var node_maint_table;
 var int_move_maint_table;
 var config_table;
-var maint_add_button;
 
 function admin_init(){
 
@@ -51,8 +50,6 @@ function display_mpls(obj) {
 }
 
 function makeConfigPanel(x, y, width, obj) {
-
-
     var pre = YAHOO.util.Dom.get('config_diff_pre');
     pre.node_id = obj.getData('node_id');
 
@@ -67,46 +64,45 @@ function makeConfigPanel(x, y, width, obj) {
     YAHOO.util.Dom.setStyle(['config_diff_pre'], 'overflow', 'auto');
 
     load_diff = function(node_id) {
-	var url    = '../services/admin/admin.cgi?';
-	var params = 'method=get_diff_text'+
-        '&node_id='  + node_id;
-	
-	var pre = YAHOO.util.Dom.get('config_diff_pre');
-	pre.innerHTML = 'Loading diff...';
+      var url    = '../services/admin/admin.cgi?';
+      var params = 'method=get_diff_text' + '&node_id='  + node_id;
 
-	var ds = new YAHOO.util.DataSource(url);
-	ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-	ds.responseSchema = {
-	    resultsList: "results",
-	    fields: [
-	{key: 'text'}
-		     ],
-	    metaFields: {
-		error: "error"
-	    }
-	};
+      var pre = YAHOO.util.Dom.get('config_diff_pre');
+      pre.innerHTML = 'Loading diff...';
 
-	ds.sendRequest(params, {
-		success: function(req, resp) {
-		    if (resp.results.length == 0) {
-			pre.innerHTML = 'Failed to receive diff. Please try again later.';
-			console.log('Request failed: ' + resp.error);
-		    } else {
-			if (resp.results[0].text == "\n") {
-			    // TODO This is here due to a bug in the backend
-			    pre.innerHTML = "No diff required at this time.";
-			} else {
-			    pre.innerHTML = resp.results[0].text;
-			}
-		    }
-		},
-		    failure: function(req, resp){
-		    pre.innerHTML = 'Failed to receive diff. Please try again later.';
-		    console.log('Request failed: ' + resp.error);
-		}
-	    });
+      var ds = new YAHOO.util.DataSource(url);
+      ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+      ds.responseSchema = {
+        resultsList: "results",
+        fields: [
+          {key: 'text'}
+        ],
+        metaFields: {
+          error_text: "error_text"
+        }
+      };
+
+      ds.sendRequest(params, {
+        success: function(req, resp) {
+          if (resp.meta.error_text) {
+            pre.innerHTML = 'Failed to generate diff: ' + resp.meta.error_text;
+            return null;
+          }
+
+          if (resp.results[0].text == "\n" || resp.results[0].text == "") {
+            // TODO This is here due to a bug in the backend
+            pre.innerHTML = "No diff required at this time.";
+          } else {
+            pre.innerHTML = resp.results[0].text;
+          }
+          return 1;
+        },
+        failure: function(req, resp){
+          pre.innerHTML = 'Failed to receive diff. Please try again later.';
+          console.log('Request failed: ' + resp.error);
+        }
+      });
     };
-
 
     var approve = new YAHOO.widget.Button('approve_diff_btn', {label: 'Approve'});
     approve.node_id = obj.getData('node_id');
@@ -156,12 +152,12 @@ function makeConfigPanel(x, y, width, obj) {
     panel.load_diff      = load_diff;
 
     panel.load = function(node_id, name) {
-	this.setHeader('Configuration Details - ' + name);
-	this.setFooter('Approve this pending configuration?');
+	  this.setHeader('Configuration Details - ' + name);
+	  this.setFooter('Approve this pending configuration?');
 
-	this.approve_button.node_id = node_id;
-	this.load_diff(node_id);
-    }
+	  this.approve_button.node_id = node_id;
+	  this.load_diff(node_id);
+    };
 
     panel.hideEvent.subscribe(function() {
         pre.innerHTML = 'Loading diff...';
@@ -177,10 +173,12 @@ function makeConfigTable(div_id) {
         var is_pending = rec.getData("pending_diff");
         var html;
 
-        if (is_pending == "1") {
-            html = '<p style="color:#BA2617">Pending Approval</p>';
+        if (is_pending == "2") {
+            html = '<p style="color:#BA2617">Error</p>';
+        } else if (is_pending == "1") {
+            html = '<p style="color:#BA7717">Pending Approval</p>';
         } else {
-            html = '<p style="color:#32BA17">OK</p>';
+            html = '<p style="color:#59BA17">OK</p>';
         }
         el.innerHTML = html;
     };
@@ -2486,55 +2484,36 @@ function setup_network_tab(){
             build_interface_acl_table(interface_id);
         }
 
-        function makeIntMovePanel(params){
-            var obj = {};
-
+        function makeMoveConfigurationPanel(params) {
             var width = 450;
             var container_id = "int_move_panel";
-            //var region = YAHOO.util.Dom.getRegion(params.align_container_id);
-            var move_int_form_creator = getMoveIntForm(container_id, {
+
+            var move_int_form_creator = getMoveConfigurationForm(container_id, {
                 orig_interface_id: params.orig_interface_id,
                 node: params.node
             });
-            var panel = new YAHOO.widget.Panel(container_id,{
-                width: width,
-                centered: true//,
-                //xy: [(region.right - width),region.top]
-            });
 
-            panel.setHeader("Move Circuit Endpoints from interface: "+params.interface_name);
-            panel.setBody(
-            "<div>" +
-                move_int_form_creator.markup()+
-            "</div>"
-            );
+            var panel = new YAHOO.widget.Panel(container_id, {
+                width: width,
+                centered: true
+            });
+            panel.setHeader(`Move ${params.interface_name} configuration to:` );
+            panel.setBody(`<div>${move_int_form_creator.markup()}</div>`);
             panel.setFooter("<div style='text-align: right;' id='move_edge_int_button'></div>");
             panel.render(YAHOO.util.Dom.get("active_element_details"));
-            //panel.show();
 
             var move_int_form = move_int_form_creator.init();
+
             //hook up maint submission
             var add_button = new YAHOO.widget.Button("move_edge_int_button", {label: "Apply"});
-
             add_button.on('click', function(){
                 var move_edge_int = function(){
                     add_button.set('label', 'Submitting...');
                     var url = "../services/admin/admin.cgi?";
-                    var postVars = "method=move_edge_interface_circuits"+
+                    var postVars = "method=move_interface_configuration"+
                                    "&orig_interface_id="+params.orig_interface_id+
                                    "&new_interface_id="+move_int_form.val().new_interface_id;
-                    var circuit_ids = move_int_form.val().circuit_ids();
-                    if(circuit_ids !== undefined){
-                        if(circuit_ids.length === 0){
-                            add_button.set('label', 'Add');
-                            alert("You must select at least one circuit.", null, {error: true});
-                            return;
-                        }else {
-                            $.each(circuit_ids, function(i, circuit_id){
-                                postVars += "&circuit_id="+circuit_id;
-                            });
-                        }
-                    }
+
                     var ds = new YAHOO.util.DataSource(url, { connMethodPost: true } );
                     ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                     ds.responseSchema = {
@@ -2555,15 +2534,21 @@ function setup_network_tab(){
                                 return;
                             }
                             var res = resp.results[0];
-                            var msg = "<div>Edge interface circuit move succesful.</div>"+
-                                      "<div class='success'>"+
-                                      res.moved_circuits.length+" circuits moved"+
-                                      "</div>";
-                            if(res.unmoved_circuits.length > 0){
-                                msg += "<div class='warning'>"+
-                                       res.unmoved_circuits.length+" unmoved circuits due to vlan conflicts"+
-                                       "</div>";
-                            }
+
+                            var msg = `
+                            <div>Interface configuration move succesful.</div>
+                            <div class="success">
+                              <ul>
+                                <li>ACLs Moved</li>
+                                <li>Cloud Configurations Moved</li>
+                                <li>Layer2 Endpoints Moved</li>
+                                <li>Layer3 Endpoints Moved</li>
+                              </ul>
+                            </div>
+                            <div class="warning">
+                            </div>
+                            `;
+
                             panel.destroy();
                             alert(msg);
                             table.load();
@@ -2577,7 +2562,7 @@ function setup_network_tab(){
                 var msg = "This will cause all selected circuits on this interface to be moved to the "+
                           "selected interface. Circuits with conflicting vlans will remain unmoved."+
                           "Are you sure this is what you want to do?";
-                showConfirm(msg,move_edge_int, function(){});
+                showConfirm(msg, move_edge_int, function(){});
             });
 
             panel.hideEvent.subscribe(function(){
@@ -2621,8 +2606,8 @@ function setup_network_tab(){
                     });
                 }
             }
-            function moveCktsAction(rec){
-                makeIntMovePanel({
+            function moveConfigurationAction(rec){
+                makeMoveConfigurationPanel({
                     align_container_id: rec.getId(),
                     orig_interface_id: rec.getData('interface_id'),
                     interface_name: rec.getData('name'),
@@ -2784,8 +2769,8 @@ function setup_network_tab(){
                             { text: 'View ACLs',     value: 'View ACLS', 'onclick': { fn: function(){
                                 aclInfoAction(rec);
                             }}},
-                            { text: 'Move Circuits', value: 'Move Circuits', 'onclick': { fn: function(){
-                                moveCktsAction(rec);
+                            { text: 'Move Configuration', value: 'Move Configuration', 'onclick': { fn: function(){
+                                moveConfigurationAction(rec);
                             }}}
                         ];
                         menu.addItems(items);
@@ -3656,24 +3641,6 @@ function setup_discovery_tab(){
 }
 
 function setup_maintenance_tab(){    
-  
-    if (int_move_maint_table) {
-        int_move_maint_table = undefined;
-    } 
-    //create the edge table
-    int_move_maint_table = makeIntMoveMaintTable();
-
-    if (maint_add_button) {
-        maint_add_button  = undefined;
-    }
-
-    //setup add maint button
-    maint_add_button = new YAHOO.widget.Button('maint_add_button', {
-        label: "Add Edge Interface Maintenace"
-    });
-    maint_add_button.on("click", function(){
-        var obj = makeIntMoveMaintAddPanel(int_move_maint_table);
-    });
 
     if (link_maint_table) {
         link_maint_table = undefined;
@@ -3873,197 +3840,7 @@ function makeLinkMaintenanceTable(){
     return table;
 }
 
-function makeIntMoveMaintTable(){
-    var url = "../services/admin/admin.cgi?method=get_edge_interface_move_maintenances";
-    var ds  = new YAHOO.util.DataSource(url);
-    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-    ds.responseSchema = {
-        resultsList: "results",
-        fields: [
-            {key: "name"},
-            {key: "orig_interface_name"},
-            {key: "temp_interface_name"},
-            {key: "start_epoch", parser: "number"},
-            {key: "maintenance_id", parser: "number"},
-        ]
-    };
-
-    var columns = [
-        {key: "name", label: "Name", width: 180 ,sortable:true},
-        {key: "orig_interface_name", label: "Original Interface", sortable:true },
-        {key: "temp_interface_name", label: "Temporary Interface", sortable:true },
-        {key: "start_epoch", label: "Activated On", formatter: function(el, rec, col, data){
-            el.innerHTML = new Date(data * 1000 ).toLocaleString(); 
-        }, sortable: true},
-        {label: "Complete", formatter: function(el, rec, col, data){
-            var b = new YAHOO.widget.Button({label: "Complete"});
-            var bid = b.get('id');
-            b.appendTo(el);
-            b.on("click", function(){
-                var maintComplete = function(maintenance_id, table){
-                    b.set('label', 'Submitting...');
-                    var url = "../services/admin/admin.cgi?method=revert_edge_interface_move_maintenance"+
-                              "&maintenance_id="+maintenance_id;
-                    var ds = new YAHOO.util.DataSource(url);
-                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-                    ds.responseSchema = {
-                        resultsList: "results",
-                        fields: [
-                            {key: "maintenance_id"}
-                        ],
-                        metaFields: {
-                            error: "error"
-                        }
-                    };
-                    ds.sendRequest("",{
-                        success: function(req, resp){
-                            if (resp.meta.error){
-                                b.set('label', 'Complete');
-                                alert("Error submitting maintenance completion: " + resp.meta.error, null, {error: true});
-                                return;
-                            }
-                            var res = resp.results[0];
-                            table.load();
-                        },
-                        failure: function(req, resp){
-                            b.set('label', 'Complete');
-                            alert("Server error submitting maintenance completion", null, {error: true});
-                        }
-                    });
-                };
-                var msg = "This will restore all circuits, moved from the original "+
-                          "interface to the temporary interface, back to the original interface "+
-                          "Are you sure this is what you want to do?";
-                showConfirm(msg,
-                    $.proxy(function(){
-                        maintComplete(rec.getData("maintenance_id"), this);
-                    },this),
-                    function(){}
-                );
-            },null,this);
-        }, sortable: true}
-    ];
-
-    var config = {
-        paginator:  new YAHOO.widget.Paginator({
-            rowsPerPage: 10
-        })
-    };
-
-    var table = new YAHOO.widget.DataTable("edge_int_maint_table", columns, ds, config);
-    table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
-    table.subscribe("rowMouseoutEvent",  table.onEventUnhighlightRow);
-
-    return table;
-}
-
-function makeIntMoveMaintAddPanel(table){
-    var obj = {};
-
-    var width = 450;
-    var region = YAHOO.util.Dom.getRegion("edge_int_maint_table");
-    var move_int_form_creator = getMoveIntForm("add_int_move_maint_panel");
-    var panel = new YAHOO.widget.Panel("add_int_move_maint_panel",{
-        width: width,
-        xy: [(region.right - width),region.top]
-    });
-
-    //obj.saveSuccess = new YAHOO.util.CustomEvent("saveSuccess");
-
-    panel.setHeader("Add Edge Interface Move Maintenance");
-    panel.setBody(
-    "<div class='move_edge_int_maint_form'>" +
-        "<div class='move_edge_int_maint_name_input'>"+
-            "<div for='intm_maint_name'>Name:</div>" +
-            "<input type='text' id='intm_maint_name' size='38'>"+
-        "</div>"+
-        move_int_form_creator.markup()+
-    "</div>"
-    );
-
-    panel.setFooter("<div id='add_eim_maint'></div>");
-    panel.render("maintenance_content");
-    
-    var move_int_form = move_int_form_creator.init();
-    //hook up maint submission
-    var add_button = new YAHOO.widget.Button("add_eim_maint", {label: "Add"});
-    add_button.on('click', function(){
-        var add_eim_maint = function(){ 
-            add_button.set('label', 'Submitting...');
-            var url = "../services/admin/admin.cgi?";
-            var postVars = "method=add_edge_interface_move_maintenance"+
-                           "&name="+$('#intm_maint_name').val()+
-                           "&orig_interface_id="+move_int_form.val().orig_interface_id+
-                           "&temp_interface_id="+move_int_form.val().new_interface_id;
-
-            var circuit_ids = move_int_form.val().circuit_ids();
-            if(circuit_ids !== undefined){
-                if(circuit_ids.length === 0){
-                    add_button.set('label', 'Add');
-                    alert("You must select at least one circuit.", null, {error: true});
-                    return;
-                }else {
-                    $.each(circuit_ids, function(i, circuit_id){
-                        postVars += "&circuit_id="+circuit_id;
-                    });
-                }
-            }
-            var ds = new YAHOO.util.DataSource(url, { connMethodPost: true } );
-            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-            ds.responseSchema = {
-                resultsList: "results",
-                fields: [
-                    {key: "maintenance_id"}, 
-                    {key: "moved_circuits"}, 
-                    {key: "unmoved_circuits"}
-                ],
-                metaFields: {
-                    error: "error"
-                }
-            };
-            ds.sendRequest(postVars,{
-                success: function(req, resp){
-                    add_button.set('label', 'Add');
-                    if (resp.meta.error){
-                        alert("Error adding maintenance: " + resp.meta.error, null, {error: true});
-                        return;
-                    }
-                    var res = resp.results[0];
-                    var msg = "<div>Maintenance successfully added.</div>"+
-                              "<div class='success'>"+
-                              res.moved_circuits.length+" circuits moved"+
-                              "</div>";
-                    if(res.unmoved_circuits.length > 0){
-                        msg += "<div class='warning'>"+
-                               res.unmoved_circuits.length+" unmoved circuits due to vlan conflicts"+
-                               "</div>";
-                    }
-                    panel.destroy();
-                    alert(msg);
-                    table.load();
-                    //obj.saveSuccess.fire();
-                },
-                failure: function(req, resp){
-                    add_button.set('label', 'Add');
-                    alert("Server error adding maintenance", null, {error: true});
-                }
-            });
-        };
-        var msg = "This will cause all circuits on the original interface to be moved to the "+
-                  "temporary interface. Circuits with conflicting vlans will remain unmoved."+
-                  "Are you sure this is what you want to do?";
-        showConfirm(msg,add_eim_maint, function(){});
-    });
-
-
-    panel.hideEvent.subscribe(function(){
-        this.destroy();
-    });
-
-    return obj;
-}
-
-function getMoveIntForm(container_id, config){
+function getMoveConfigurationForm(container_id, config){
     config = config || {};
     var selector_ids = {
         node: container_id+'_mei_node_selector',
@@ -4076,34 +3853,45 @@ function getMoveIntForm(container_id, config){
     var ckt_selected_table_id   = container_id+"_circuit_selected_table";
 
     var markup = function(){
-        var markup = "<div class='move_edge_int_form'>";
-        if(!config.node){
-             markup += "<div>"+
-                "<div>Node:</div>"+
-                "<select id='"+selector_ids.node+"'></select>"+
-             "</div>";
-        }
-        if(!config.orig_interface_id){        
-            markup += "<div>"+
-                "<div>Original Interface:</div>"+
-                "<select id='"+selector_ids.oint+"'></select>"+
-             "</div>";
-        }
-        markup += "<div>"+
-                "<div>New Interface:</div>"+
-                "<select id='"+selector_ids.nint+"'></select>"+
-             "</div>"+
-             "<div class='yui-buttongroup' id='"+ckt_toggle_id+"'>"+
-                "<input type='radio' value='Move All Circuits' checked>"+
-                "<input type='radio' value='Move Specified Circuits'>"+
-             "</div>"+
-             "<div class='ckt_table_holder' id='"+ckt_select_container_id+"'>"+
-                "<p class='subtitle'>Circuits on Original Interface</p>"+
-                "<div id='"+ckt_options_table_id+"'></div>"+
-                "<p class='subtitle'>Selected Circuits</p>"+
-                "<div id='"+ckt_selected_table_id+"'></div>"+
-             "</div>"+
-        "</div>";
+        let nodeSelector = `
+        <div>
+          <p>Node:</p>
+          <select id="${selector_ids.node}"></select>
+        </div>
+        `;
+
+        let ointSelector = `
+        <div>
+          <p>Original Interface:</p>
+          <select id="${selector_ids.oint}"></select>
+        </div>
+        `;
+
+        let markup = `
+        <div class="move_edge_int_form">
+          <p><b>Warning:</b> Moving this interface's configuration will move all layer2 circuits,
+             all layer3 circuits, all ACLs, all Cloud Interconnect information, and will trigger
+             a diff of the affected node.</p>
+          <br/>
+
+          ${(!config.node)              ? nodeSelector : ''}
+          ${(!config.orig_interface_id) ? ointSelector : ''}
+          <div>
+            <p>New Interface:</p>
+            <select id="${selector_ids.nint}"></select>
+          </div>
+          <div class="yui-buttongroup" id="${ckt_toggle_id}">
+            <input type="radio" value="Move Configuration" checked>
+          </div>
+        </div>
+        <!-- TODO remove circuit selector -->
+        <div class="ckt_table_holder" id="${ckt_select_container_id}">
+          <!-- <p class="subtitle">Circuits on Original Interface</p> -->
+          <div id="${ckt_options_table_id}"></div>
+          <!-- <p class="subtitle">Selected Circuits</p> -->
+          <div id="${ckt_selected_table_id}"></div>
+        </div>
+        `;
 
         return markup;
     };
@@ -4136,11 +3924,11 @@ function getMoveIntForm(container_id, config){
     //gets options for a selector
     var getOptions = function(selector_types, obj){
         var url;
-        if((selector_types.length === 1) && (selector_types[0] === "node")){
+        if ((selector_types.length === 1) && (selector_types[0] === "node")) {
             url = "../services/data.cgi?method=get_nodes";
-        }else {
+        } else {
             url = "../services/data.cgi?method=get_node_interfaces"+
-                  "&show_down=0"+
+                  "&show_down=1"+
                   "&show_trunk=0"+
                   "&node="+obj.node;
         }
@@ -4184,114 +3972,28 @@ function getMoveIntForm(container_id, config){
         });
     };
 
-    //sets up circuit selection tables
-    var makeCircuitTables = function(){
-        var ckt_options_table, ckt_selected_table;
-
-        //setup shared config and columns
-        var columns = [{key: "description", width: 280, label: "Circuit", sortable:true}];
-        var cfg = {
-            paginator:  new YAHOO.widget.Paginator({
-                rowsPerPage: 5,
-                containers: ["owned_interfaces_table_nav"]
-            })
-        };
-        var emptyDS = new YAHOO.util.LocalDataSource([]);
-
-        //create table that contains circuit options
-        var ckt_options_cols = columns.slice();
-        ckt_options_cols.push({label: "Add", width: 80, formatter: function(el, rec, col, data){
-            var b = new YAHOO.widget.Button({label: 'Add'});
-            b.appendTo(el);
-            b.on("click", function(){
-                this.deleteRow(rec); 
-                ckt_selected_table.addRow(rec.getData()); 
-            },null,this);
-        }});
-        var co_cfg = $.extend({MSG_EMPTY:   "Waiting for original interfaces..."}, cfg);
-        ckt_options_table = new YAHOO.widget.DataTable(ckt_options_table_id, ckt_options_cols, emptyDS, co_cfg);
-        ckt_options_table.doBeforeLoadData = function(req, resp, payload){
-            if(resp.results.length === 0){
-                ckt_options_table.setAttributes({ MSG_EMPTY: 'No circuits on this Interface.'});
-            }else {
-                ckt_options_table.setAttributes({ MSG_EMPTY: 'All circuits selected.'}, true);
-            }
-            return true;
-        };
-
-        //create table that contains selected circuits
-        var ckt_selected_cols = columns.slice();
-        ckt_selected_cols.push({label: "Remove", width: 80, formatter: function(el, rec, col, data){
-            var b = new YAHOO.widget.Button({label: 'Remove'});
-            b.appendTo(el);
-            b.on("click", function(){
-                this.deleteRow(rec); 
-                ckt_options_table.addRow(rec.getData()); 
-            },null,this);
-        }});
-        var cs_cfg = $.extend({MSG_EMPTY: "Add Circuits from the table above"}, cfg);
-        ckt_selected_table = new YAHOO.widget.DataTable(ckt_selected_table_id, ckt_selected_cols, emptyDS, cs_cfg);
-
-        // callback for when original interface selector changes
-        var changeInterface = function(interface_id){ 
-            if(!interface_id){ return; }
-            var url = "../services/data.cgi?method=get_circuits_by_interface_id"+
-                      "&interface_id="+interface_id;                   
-            var ds  = new YAHOO.util.DataSource(url);
-            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
-            ds.responseSchema = {
-                resultsList: "results",
-                fields: [
-                    {key: "name"},
-                    {key: "circuit_id"},
-                    {key: "description"},
-                ]
-            };
-            ckt_options_table.deleteRows(0, ckt_options_table.getRecordSet().getRecords().length);
-            ckt_options_table.load({datasource: ds});
-            ckt_selected_table.deleteRows(0, ckt_selected_table.getRecordSet().getRecords().length);
-        };
-
-        return {
-            ckt_options_table:  ckt_options_table,
-            ckt_selected_table: ckt_selected_table,
-            changeInterface:    changeInterface
-        };
-
-    };
-
     var isAllCircuits;
     var init = function(){
-        var ckt_table_obj = makeCircuitTables();
-        if(config.orig_interface_id){
-            ckt_table_obj.changeInterface(config.orig_interface_id);
-        }
 
         //set up circuit selection toggle
-                var circuit_toggle = new YAHOO.widget.ButtonGroup(ckt_toggle_id);
+        var circuit_toggle = new YAHOO.widget.ButtonGroup(ckt_toggle_id);
+
         var isAllCircuits = function(){
             var value;
             $.each(circuit_toggle.getButtons(), function(i, button){
-                if(button.get('checked')){
-                    value = (button.get('value') === 'Move All Circuits') ? true : false;
+                if (button.get('checked')) {
+                    value = (button.get('value') === 'Move Configuration') ? true : false;
                 }
             });
             return value;
         };
-        circuit_toggle.on('checkedButtonChange', function(){
-            if(isAllCircuits()){
-                $('#'+ckt_select_container_id).css('display', 'none');
-            }else {
-                $('#'+ckt_select_container_id).css('display', 'block');
-            }
-        });
 
         //set loading messages and init chosen selectors
         $.each(selector_ids, function(type, selector_id){
-            if((type === 'node') && config.node){
+            if ((type === 'node') && config.node) {
                 return true;
             }
-            if((type === 'oint') && config.orig_interface_id){
+            if ((type === 'oint') && config.orig_interface_id) {
                 return true;
             }
             updatePlaceholder(type, "Loading...", true);
@@ -4300,11 +4002,6 @@ function getMoveIntForm(container_id, config){
 
         //on node change event fetch interface options
         $('#'+selector_ids.node).on('change', function(){
-            ckt_table_obj.ckt_options_table.setAttributes({ MSG_EMPTY: 'Loading...'});
-            $(ckt_table_obj.ckt_options_table.getMsgTdEl())
-                .find('.yui-dt-liner')
-                .html('Waiting for original interfaces...');
-
             var types = ['oint', 'nint'];
             //clear current options
             $.each(types, function(i, type){
@@ -4320,19 +4017,11 @@ function getMoveIntForm(container_id, config){
                 }
             });
         });
-        //on original int change update circuit tables
-        $('#'+selector_ids.oint).on('change', function(){
-            $(ckt_table_obj.ckt_options_table.getMsgTdEl())
-                .find('.yui-dt-liner')
-                .html('Loading...');
-            var interface_id = $('#'+selector_ids.oint).chosen().val()
-            ckt_table_obj.changeInterface(interface_id);
-        });
     
-        //get the node options
-        if(config.node) {
+        // get the node options
+        if (config.node) {
             var types = ['nint'];
-            if(!config.orig_interface_id){
+            if (!config.orig_interface_id) {
                 types.push('oint');
             }
             //fetch new ones
@@ -4343,49 +4032,34 @@ function getMoveIntForm(container_id, config){
                     value: 'interface_id'
                 }
             });
-        }else {
+        } else {
             getOptions(['node'], {
                 fields: {
                     name:  'name',
                     value: 'name'
-                }        
+                }
             });
         }
 
-        var val = function(){
+        var val = function() {
             var orig_interface_id;
-            if(config.orig_interface_id){
+            if (config.orig_interface_id) {
                 orig_interface_id = config.orig_interface_id;
-            }else {
+            } else {
                 orig_interface_id = $('#'+selector_ids.oint).chosen().val();
             }
             return {
                 orig_interface_id: orig_interface_id,
-                new_interface_id:  $('#'+selector_ids.nint).chosen().val(),
-                circuit_ids: function(){
-                    if(isAllCircuits()){
-                        return;
-                    }
-                    var circuit_ids = [];
-                    var circuits = ckt_table_obj.ckt_selected_table.getRecordSet().getRecords();
-                    $.each(circuits, function(i, circuit){
-                        circuit_ids.push(circuit.getData('circuit_id'));
-                    });
-                    return circuit_ids;
-                }
+                new_interface_id:  $('#'+selector_ids.nint).chosen().val()
             };
         };
-
-        return {
-            val: val
-        };
-        
+        return { val: val };
     };
 
     return {
         markup: markup,
         init:   init
-    }
+    };
 }
 
 function makeOwnedInterfaceTable(id){

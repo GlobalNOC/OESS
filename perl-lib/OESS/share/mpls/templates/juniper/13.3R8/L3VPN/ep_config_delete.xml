@@ -1,9 +1,8 @@
-<configuration>
-
+<configuration><groups><name>OESS</name>
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
-      <name>[% interface.name %]</name>
+      <name>[% interface.interface %]</name>
       <unit operation='delete'>
         <name>[% interface.unit %]</name>
       </unit>
@@ -16,7 +15,7 @@
   <class-of-service>
     <interfaces>
       <interface>
-        <name>[% interface.name %]</name>
+        <name>[% interface.interface %]</name>
         <unit operation='delete'>
           <name>[% interface.unit %]</name>
         </unit>
@@ -57,5 +56,4 @@
       <name>OESS-L3VPN-[% vrf_id %]-BGP</name>
     </community>
   </policy-options>
-
-</configuration>
+</groups></configuration>

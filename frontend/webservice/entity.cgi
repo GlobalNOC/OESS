@@ -5,8 +5,9 @@ use warnings;
 
 use GRNOC::WebService::Dispatcher;
 use GRNOC::WebService::Method;
-use List::MoreUtils qw(uniq);
+use List::MoreUtils qw(any uniq);
 use OESS::DB;
+use OESS::DB::User;
 use OESS::Entity;
 use OESS::VRF;
 
@@ -284,6 +285,11 @@ sub update_entity{
         return;
     }
 
+    if (!_may_modify_entity($username, $entity)) {
+        $method->set_error('Entity may not be modified by current user');
+        return;
+    }
+
     if (defined $params->{description}{value}) {
         $entity->description($params->{description}{value});
     }
@@ -366,6 +372,11 @@ sub add_user {
         return;
     }
 
+    if (!_may_modify_entity($username, $entity)) {
+        $method->set_error('Entity may not be modified by current user');
+        return;
+    }
+
     my $user = OESS::User->new(db => $db, user_id => $params->{user_id}{value});
     if (!defined $user) {
         $method->set_error("Unable to find user $params->{'user_id'}{'value'} in the db.");
@@ -390,6 +401,11 @@ sub remove_user {
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
     if (!defined $entity) {
         $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db");
+        return;
+    }
+
+    if (!_may_modify_entity($username, $entity)) {
+        $method->set_error('Entity may not be modified by current user');
         return;
     }
 
@@ -602,7 +618,7 @@ sub get_entity{
                     $vlans{$i} = 1;
                 }
                 
-                if($already_used_tag == $i){
+                if(defined $already_used_tag && $already_used_tag == $i){
                     push(@allowed_vlans, $i);
                     $vlans{$i} = 1;
                 }
@@ -685,6 +701,24 @@ sub add_child_entity {
 	return;
     }
     return { results => [ { success => 1, child_entity_id => $child_id } ] };
+}
+
+sub _may_modify_entity {
+    my $user_name = shift;
+    my $entity = shift;
+
+    my $user_id = OESS::DB::User::find_user_by_remote_auth(db => $db, remote_user => $user_name);
+    $user_id = $user_id->{'user_id'};
+
+    return 0 if !defined($user_id);
+
+    # If the user is a member of the entity, they may modify it:
+    return 1 if any { defined($_->user_id()) && ($_->user_id() == $user_id) } @{$entity->users()};
+
+    # Else, if the user is an admin, they may modify the entity:
+    my $user = OESS::User->new(db => $db, user_id => $user_id);
+    return 0 if !defined($user);
+    return $user->is_admin();
 }
 
 sub main{

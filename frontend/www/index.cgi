@@ -32,6 +32,7 @@
 #                                                 
 use strict;
 use warnings;
+use OESS::Config;
 use OESS::Database;
 use Data::Dumper;
 use CGI;
@@ -42,6 +43,7 @@ use Log::Log4perl;
 
 Log::Log4perl::init('/etc/oess/logging.conf');
 
+my $config = new OESS::Config();
 my $db= OESS::Database->new();
 
 
@@ -224,7 +226,7 @@ sub main{
     $vars->{'is_admin'}           = $is_admin;		    
     $vars->{'is_read_only'}       = $is_read_only;
     $vars->{'version'}            = OESS::Database::VERSION;
-    
+    $vars->{'network_type'}       = $config->network_type;
     
 	#print STDERR Dumper($vars);
     if ($action eq 'view_l3vpn' || $action eq 'provision_cloud' || $action eq 'modify_cloud' || $action eq 'phonebook' || $action eq 'welcome') {

@@ -32,6 +32,7 @@
 #                                                 
 use strict;
 use warnings;
+use OESS::Config;
 use OESS::Database;
 use Data::Dumper;
 use CGI;
@@ -45,6 +46,7 @@ Log::Log4perl::init('/etc/oess/logging.conf');
 
 
 sub main{
+    my $config = new OESS::Config();
     my $db  = OESS::Database->new();
     my $cgi = new CGI;
     my $tt  = Template->new(INCLUDE_PATH => "$FindBin::Bin/..") || die $Template::ERROR;
@@ -66,6 +68,7 @@ sub main{
 	$vars->{'path'}               = "../";
         $vars->{'is_read_only'}       = 1;
         $vars->{'version'}            = OESS::Database::VERSION;
+        $vars->{'network_type'}       = $config->network_type;
 
         $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
         print "Content-type: text/html\n\n" . $output;
@@ -97,31 +100,40 @@ sub main{
     }
     
     switch ($action) {
-        case "provision_l3vpn" {
-            $title              = "New private network";
-            $filename           = "html_templates/provision_l3vpn.html";
-            $current_breadcrumb = "New private network";
+        case "modify_l2vpn" {
+            $title              = "Layer 2 Connection";
+            $filename           = "html_templates/modify_l2vpn.html";
+            $current_breadcrumb = "Layer 2 Connection";
             $breadcrumbs        = [
-                {title => "Welcome",          url => "?action=welcome"},
-                {title => "New private network", url => "#"}
+                {title => "Welcome",            url => "?action=welcome"},
+                {title => "Layer 2 Connection", url => "#"}
             ];
         }
-        case "view_l3vpn" {
-            $title              = "Private network details";
-            $filename           = "html_templates/view_l3vpn.html";
-            $current_breadcrumb = "Private network details";
+        case "provision_l2vpn" {
+            $title              = "New Layer 2 Connection";
+            $filename           = "html_templates/provision_l2vpn.html";
+            $current_breadcrumb = "New Layer 2 Connection";
             $breadcrumbs        = [
-                {title => "Welcome",              url => "?action=welcome"},
-                {title => "Private network details", url => "#"}
+                {title => "Welcome",                url => "?action=welcome"},
+                {title => "New Layer 2 Connection", url => "#"}
+            ];
+        }
+        case "modify_cloud" {
+            $title              = "Layer 3 Connection";
+            $filename           = "html_templates/modify_cloud.html";
+            $current_breadcrumb = "Layer 3 Connection";
+            $breadcrumbs        = [
+                {title => "Welcome",            url => "?action=welcome"},
+                {title => "Layer 3 Connection", url => "#"}
             ];
         }
         case "provision_cloud" {
-            $title              = "New cloud network";
+            $title              = "New Layer 3 Connection";
             $filename           = "html_templates/provision_cloud.html";
-            $current_breadcrumb = "New cloud network";
+            $current_breadcrumb = "New Layer 3 Connection";
             $breadcrumbs        = [
-                {title => "Welcome",        url => "?action=welcome"},
-                {title => "New cloud network", url => "#"}
+                {title => "Welcome",                url => "?action=welcome"},
+                {title => "New Layer 3 Connection", url => "#"}
             ];
         }
         case "phonebook" {
@@ -129,7 +141,7 @@ sub main{
             $filename           = "html_templates/phonebook.html";
             $current_breadcrumb = "Phonebook";
             $breadcrumbs        = [
-                {title => "Welcome", url => "?action=welcome"},
+                {title => "Welcome",    url => "?action=welcome"},
                 {title => "Phonebook",  url => "#"}
             ];
         }
@@ -138,16 +150,7 @@ sub main{
             $filename           = "html_templates/welcome.html";
             $current_breadcrumb = "Welcome";
             $breadcrumbs        = [
-                {title => "Welcome",    url => "#"}
-            ];
-        }
-        case "modify_cloud" {
-            $title              = "Update cloud network";
-            $filename           = "html_templates/modify_cloud.html";
-            $current_breadcrumb = "Update cloud network";
-            $breadcrumbs        = [
-                {title => "Welcome",          url => "?action=welcome"},
-                {title => "Update cloud network", url => "#"}
+                {title => "Welcome", url => "#"}
             ];
         }
         case "acl" {
@@ -191,9 +194,10 @@ sub main{
         }
     }
 
-    $vars->{'g_port'}  = $db->{grafana}->{'oess-interface'};
-    $vars->{'g_peer'}  = $db->{grafana}->{'oess-bgp-peer'};
-    $vars->{'g_route'} = $db->{grafana}->{'oess-routing-table'};
+    $vars->{'g_port'}    = $db->{grafana}->{'oess-interface'};
+    $vars->{'g_l2_port'} = $db->{grafana}->{'oess-l2-interface'};
+    $vars->{'g_peer'}    = $db->{grafana}->{'oess-bgp-peer'};
+    $vars->{'g_route'}   = $db->{grafana}->{'oess-routing-table'};
 
     $vars->{'admin_email'}        = $db->get_admin_email();
     $vars->{'page'}               = $filename;
@@ -204,6 +208,7 @@ sub main{
     $vars->{'is_admin'}           = $is_admin;
     $vars->{'is_read_only'}       = $is_read_only;
     $vars->{'version'}            = OESS::Database::VERSION;
+    $vars->{'network_type'}       = $config->network_type;
 
     $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
     print "Content-type: text/html\n\n" . $output;

@@ -39,7 +39,7 @@ Some examples:
     }
 
     my $success = $circuit->change_path();
-    
+
 =cut
 
 
@@ -55,31 +55,25 @@ sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS.Circuit");
-
-    my %args = (
-	details => undef,
-	circuit_id => undef,
-	db => undef,
-	just_display => 0,
+    my $self = {
+        details => undef,
+        circuit_id => undef,
+        db => undef,
+        logger => Log::Log4perl->get_logger("OESS.Circuit"),
+        just_display => 0,
         link_status => undef,
         @_
-        );
-
-    my $self = \%args;
-
+    };
     bless $self, $class;
 
-    $self->{'logger'} = $logger;
-
     if(!defined($self->{'db'})){
-	$self->{'logger'}->error("No Database Object specified");
-	return;
+        $self->{'logger'}->error("No Database Object specified");
+        return;
     }
 
     if(!defined($self->{'circuit_id'}) && !defined($self->{'details'})){
-	$self->{'logger'}->error("No circuit id or details specified");
-	return;
+        $self->{'logger'}->error("No circuit id or details specified");
+        return;
     }
 
     if(!defined($self->{'topo'})){
@@ -87,16 +81,15 @@ sub new{
     }
 
     if(defined($self->{'details'})){
-	$self->_process_circuit_details();
+        $self->_process_circuit_details();
     }else{
-	$self->_load_circuit_details();
+        $self->_load_circuit_details();
     }
 
     if(!defined($self->{'details'})){
-	$self->{'logger'}->error("NO CIRCUIT FOUND!");
-	return;
+        $self->{'logger'}->error("NO CIRCUIT FOUND!");
+        return;
     }
-    
 
     return $self;
 }
@@ -104,7 +97,6 @@ sub new{
 =head2 get_type
 
 =cut
-
 sub get_type{
     my $self = shift;
     return $self->{'type'};
@@ -115,7 +107,6 @@ sub get_type{
     returns the id of the circuit
 
 =cut
-
 sub get_id{
     my $self = shift;
     return $self->{'circuit_id'};
@@ -124,7 +115,6 @@ sub get_id{
 =head2 get_name
 
 =cut
-
 sub get_name{
     my $self = shift;
     return $self->{'details'}->{'name'};
@@ -133,7 +123,6 @@ sub get_name{
 =head2 get_restore_to_primary
 
 =cut
-
 sub get_restore_to_primary{
     my $self = shift;
     return $self->{'details'}->{'restore_to_primary'};
@@ -141,11 +130,10 @@ sub get_restore_to_primary{
 
 =head2 update_circuit_details
 
-    reload the circuit details from the database to make sure everything 
-    is in sync with what should be there
+update_circuit_details reloads this circuit from the database to make
+sure this object is in sync with the database.
 
 =cut
-
 sub update_circuit_details{
     my $self = shift;
     my %params = @_;
@@ -177,10 +165,13 @@ sub set_link_status{
 sub _load_circuit_details{
     my $self = shift;
     $self->{'logger'}->debug("Loading Circuit data for circuit: " . $self->{'circuit_id'});
-    my $data = $self->{'db'}->get_circuit_details( circuit_id => $self->{'circuit_id'}, link_status => $self->{'link_status'});
+    my $data = $self->{'db'}->get_circuit_details(
+        circuit_id => $self->{'circuit_id'},
+        link_status => $self->{'link_status'}
+    );
     if(!defined($data)){
-	$self->{'logger'}->error("NO DATA FOR THIS CIRCUIT!!! " . $self->{'circuit_id'});
-	return;
+        $self->{'logger'}->error("NO DATA FOR THIS CIRCUIT!!! " . $self->{'circuit_id'});
+        return;
     }
 
     $self->{'details'} = $data;
@@ -230,23 +221,20 @@ sub _process_circuit_details{
         if($endpoint->{'local'} == 0){
             $self->{'interdomain'} = 1;
         }
-	my $entity = OESS::Entity->new( db => $new_db, interface_id => $endpoint->{'interface_id'}, vlan => $endpoint->{'tag'} );
-	if(!defined($entity)){
-	    next;
-	}
+        my $entity = OESS::Entity->new( db => $new_db, interface_id => $endpoint->{'interface_id'}, vlan => $endpoint->{'tag'} );
+        if(!defined($entity)){
+            next;
+        }
 
-	$endpoint->{'entity'} = $entity->to_hash();
+        $endpoint->{'entity'} = $entity->to_hash();
     }
 
-    
-    
+    if(!$self->{'just_display'}){
+        $self->_create_graph();
 
-
-    if(!$self->{'just_display'}){       	
-	$self->_create_graph();
-	if($self->{'type'} eq 'openflow'){
-	    $self->_create_flows();
-	}
+        if($self->{'type'} eq 'openflow'){
+            $self->_create_flows();
+        }
     }
 }
 
@@ -301,10 +289,10 @@ sub _create_flows{
         $self->{'logger'}->error("No Such Circuit circuit_id: " . $self->{'circuit_id'});
         return undef;
     }
-    
+
     my $dpid_lookup  = $self->{'db'}->get_node_dpid_hash();
     $self->{'dpid_lookup'} = $dpid_lookup;
-    
+
     my $nodes = $self->{'db'}->get_current_nodes(type => $self->{'type'});
 
     $self->{'node_id_lookup'} = {};
@@ -343,13 +331,13 @@ sub _create_flows{
     $self->{'path'}{'primary'} = _process_links( 
         $self->{'details'}->{'links'},
         $internal_ids->{'primary'}
-    );        
+    );
     # process backup links
     $self->{'path'}{'backup'}  = _process_links( 
         $self->{'details'}->{'backup_links'},
         $internal_ids->{'backup'}
     ) if($self->has_backup_path());
-    
+
     #do static mac addrs
     if($self->is_static_mac()){
         #generate normal flows that go on the path
@@ -359,22 +347,22 @@ sub _create_flows{
             $self->_generate_static_mac_path_flows( path => 'backup');
         }
     }
-    
+
     #we always do this part static mac addresses or not
     #primary path rules
     $self->_generate_path_flows(path => 'primary');
     #backup path rules
     if($self->has_backup_path()){
         $self->{'logger'}->debug("generating backup path flows");
-	$self->_generate_path_flows(path => 'backup');
+        $self->_generate_path_flows(path => 'backup');
     }
     #endpoint/flood rules
     $self->_generate_endpoint_flows( path => 'primary');
-    
+
     if($self->has_backup_path()){
         $self->{'logger'}->debug("Generating backup path endpoint flows");
-	$self->_generate_endpoint_flows( path => 'backup');
-    }    
+        $self->_generate_endpoint_flows( path => 'backup');
+    }
 
     $self->{'flows'}->{'path'}->{'primary'} = $self->_dedup_flows($self->{'flows'}->{'path'}->{'primary'});
     $self->{'flows'}->{'path'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'path'}->{'backup'});
@@ -389,15 +377,12 @@ sub _create_flows{
     $self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'} = $self->_dedup_flows($self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'});
 
 
-    if($self->{'state'} eq 'looped'){
-        if(defined($self->{'loop_node'})){
-            if($self->has_backup_path()){
-                $self->_generate_loop_node_flows( path => 'backup', node => $self->{'loop_node'});
-            }
-            $self->_generate_loop_node_flows( path => 'primary', node => $self->{'loop_node'});
+    if($self->{'state'} eq 'looped' && defined($self->{'loop_node'})){
+        if($self->has_backup_path()){
+            $self->_generate_loop_node_flows( path => 'backup', node => $self->{'loop_node'});
         }
+        $self->_generate_loop_node_flows( path => 'primary', node => $self->{'loop_node'});
     }
-
 }
 
 =head2 on_node( $node_id )
@@ -421,7 +406,7 @@ sub on_node {
 sub _generate_loop_node_flows{
     my $self = shift;
     my %params = @_;
-    
+
     my $path      = $params{'path'};
     my $path_dict = $self->{'path'}{$path};
 
@@ -429,18 +414,22 @@ sub _generate_loop_node_flows{
         my $node_id = $self->{'node_id_lookup'}->{$node};
         next if $node_id != $params{'node'};
         #ok we found our node
-        
+
         my $dpid = $self->{'dpid_lookup'}->{$node};
         foreach my $enter (@{$path_dict->{$node}}){
-            
-            push(@{$self->{'flows'}->{'path'}->{$path}}, OESS::FlowRule->new( 
-                     priority => 36000,
-                     match => {dl_vlan => $enter->{'port_vlan'},
-                               in_port => $enter->{'port'}},
-                     dpid => $dpid,
-                     actions => [{'set_vlan_vid' => ,$enter->{'remote_port_vlan'}},
-                                 {'output' => $enter->{'port'}}]));
-            
+
+            push(@{$self->{'flows'}->{'path'}->{$path}}, OESS::FlowRule->new(
+                priority => 36000,
+                match => {
+                    dl_vlan => $enter->{'port_vlan'},
+                    in_port => $enter->{'port'}
+                },
+                dpid => $dpid,
+                actions => [
+                    {'set_vlan_vid' => $enter->{'remote_port_vlan'}},
+                    {'output' => $enter->{'port'}}
+                ]
+            ));
         }
     }
 
@@ -448,22 +437,22 @@ sub _generate_loop_node_flows{
         next if ($self->{'node_id_lookup'}->{$endpoint->{'node'}} != $params{'node'});
         next if ($endpoint->{'local'} == 0);
         my $e_dpid = $self->{'dpid_lookup'}{$endpoint->{'node'}};
-        
-        push(@{$self->{'flows'}->{'endpoint'}->{$path}}, 
-             OESS::FlowRule->new( 
-                 priority => 36000,
-                 dpid => $e_dpid,
-                 match => {dl_vlan => $endpoint->{'tag'},
-                           in_port => $endpoint->{'port_no'}},
-                 actions => [{'output' => $endpoint->{'port_no'}}]));
-        
+
+        push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
+            priority => 36000,
+            dpid => $e_dpid,
+            match => {
+                dl_vlan => $endpoint->{'tag'},
+                in_port => $endpoint->{'port_no'}
+            },
+            actions => [{'output' => $endpoint->{'port_no'}}]
+        ));
     }
 }
 
-
 sub _dedup_flows{
     my $self = shift;
-    
+
     my $flows = shift;
     my @deduped = ();
 
@@ -493,12 +482,12 @@ sub _dedup_flows{
 sub _generate_static_mac_path_flows{
     my $self = shift;
     my %args = @_;
-    
+
     my $path = $args{'path'};
-    
+
     my %node_ends;
     my %in_ports;
-    
+
     #push our endpoints into the list of in_ports for each node
     foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}){
 
@@ -514,21 +503,21 @@ sub _generate_static_mac_path_flows{
         $endpoint->{'is_endpoint'} = 1;
         push(@{$in_ports{$endpoint->{'node'}}},$endpoint);
     }
-    
+
     my $graph = $self->{'graph'}->{$path};
     my $internal_ids = $self->{'details'}->{'internal_ids'};
-    
+
     #finds the links when we just have a node and node
     #
     my %finder;
-    
+
     my $links;
 
     if($path eq 'primary'){
-	$links = $self->{'details'}->{'links'};
+        $links = $self->{'details'}->{'links'};
     }else{
-	$links = $self->{'details'}->{'backup_links'};
-    }    
+        $links = $self->{'details'}->{'backup_links'};
+    }
 
     #need to setup some data structures to get the data we want
     foreach my $link (@{$links}) {
@@ -540,84 +529,89 @@ sub _generate_static_mac_path_flows{
         if(!defined($in_ports{$node_a})){
             $in_ports{$node_a} = ();
         }
-        
+
         if(!defined($in_ports{$node_z})){
             $in_ports{$node_z} = ();
         }
 
-        push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'}, 
+        push(@{$in_ports{$node_a}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_a'},
                                     tag => $internal_ids->{$path}{$node_a}{$interface_a}, is_endpoint => 0});
-        push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'}, 
+        push(@{$in_ports{$node_z}},{link_id => $link->{'link_id'}, port_no => $link->{'port_no_z'},
                                     tag => $internal_ids->{$path}{$node_z}{$interface_z}, is_endpoint => 0});
-        
+
         $finder{$node_a}{$node_z} = $link;
         $finder{$node_z}{$node_a} = $link;
     }
 
-    
+
     my @verts = $graph->vertices;
-    
-    
+
     foreach my $vert (@verts){
         if(!defined($node_ends{$vert})){
             $node_ends{$vert} =0;
         }
-	$self->{'logger'}->debug("Vert: " . $vert . " has degree: " . $graph->degree($vert) . " and " . $node_ends{$vert} .
+        $self->{'logger'}->debug("Vert: " . $vert . " has degree: " . $graph->degree($vert) . " and " . $node_ends{$vert} .
 				 " endpoints for total degree " . ($graph->degree($vert) + $node_ends{$vert}));
 
-	#check to see what degree our node is
-	next if(($graph->degree($vert) + $node_ends{$vert})  <= 2);
-	
-	$self->{'logger'}->debug("Processing a complex node with more than 2 edges");
-	#complex node!!! take the endpoints and find the paths to each of them!
-	my @edges = $graph->edges_to($vert);
+        #check to see what degree our node is
+        next if(($graph->degree($vert) + $node_ends{$vert})  <= 2);
 
-	foreach my $edge ($graph->edges_to($vert)){
-	    #$self->{'logger'}->debug("Finding link between " . $edge->[0] . " and " . $edge->[1]);
-	    #my $link = $finder{$edge->[0]}{$edge->[1]};
+        $self->{'logger'}->debug("Processing a complex node with more than 2 edges");
+        #complex node!!! take the endpoints and find the paths to each of them!
+        my @edges = $graph->edges_to($vert);
+
+        foreach my $edge ($graph->edges_to($vert)){
+            #$self->{'logger'}->debug("Finding link between " . $edge->[0] . " and " . $edge->[1]);
+            #my $link = $finder{$edge->[0]}{$edge->[1]};
             #this will process
-	    foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}){
-		$self->{'logger'}->debug("Finding shortest path between " . $vert . " and " . $endpoint->{'node'});
-		
-		my @next_hop = $graph->SP_Dijkstra($vert, $endpoint->{'node'});
-				
-		if(defined($next_hop[1])){
-		    my $link = $finder{$next_hop[0]}{$next_hop[1]};
-		    #if we could find a link do it
-		
-		    if(!defined($link)){
-			$self->{'logger'}->error("Couldn't find the link... but there should be one!");
+            foreach my $endpoint (@{$self->{'details'}->{'endpoints'}}){
+                $self->{'logger'}->debug("Finding shortest path between " . $vert . " and " . $endpoint->{'node'});
+
+                my @next_hop = $graph->SP_Dijkstra($vert, $endpoint->{'node'});
+
+                if(defined($next_hop[1])){
+                    my $link = $finder{$next_hop[0]}{$next_hop[1]};
+                    #if we could find a link do it
+
+                    if(!defined($link)){
+                        $self->{'logger'}->error("Couldn't find the link... but there should be one!");
                         next;
-		    }
+                    }
 
-		    my $port;
+                    my $port;
                     my $interface_id;
-		    if($link->{'node_a'} eq $vert){
-			$port = $link->{'port_no_a'};
+                    if($link->{'node_a'} eq $vert){
+                        $port = $link->{'port_no_a'};
                         $interface_id = $link->{'interface_z_id'}
-		    }else{
-			$port = $link->{'port_no_z'};
+                    }else{
+                        $port = $link->{'port_no_z'};
                         $interface_id = $link->{'interface_a_id'}
-		    }
-		    
-		    foreach my $in_port (@{$in_ports{$vert}}){
-			#if the in port matches the out port go on to next
-			next if($in_port->{'port_no'} == $port);
+                    }
 
-			#for each mac addr
-			foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
-			    
-			    $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
-			    $self->{'logger'}->debug("Next hop: " . $next_hop[1] . " and path: " . $path . " and vlan " . $internal_ids->{$path}{$next_hop[1]}{$interface_id});
+                    foreach my $in_port (@{$in_ports{$vert}}){
+                        #if the in port matches the out port go on to next
+                        next if($in_port->{'port_no'} == $port);
+
+                        #for each mac addr
+                        foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
+
+                            $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
+                            $self->{'logger'}->debug("Next hop: " . $next_hop[1] . " and path: " . $path . " and vlan " . $internal_ids->{$path}{$next_hop[1]}{$interface_id});
                             $self->{'logger'}->debug("In Port: " . $in_port->{'port_no'} . " tag: " . $in_port->{'tag'});
-			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
-								      'in_port' => $in_port->{'port_no'},
-								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
-							    priority => 35000,
-							    dpid => $self->{'dpid_lookup'}->{$vert},
-							    actions => [{'set_vlan_vid' => $internal_ids->{$path}{$next_hop[1]}{$interface_id}},
-									{'output' => $port}]);
-			    
+                            my $flow = OESS::FlowRule->new(
+                                match => {
+                                    'dl_vlan' => $in_port->{'tag'},
+                                    'in_port' => $in_port->{'port_no'},
+                                    'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})
+                                },
+                                priority => 35000,
+                                dpid => $self->{'dpid_lookup'}->{$vert},
+                                actions => [
+                                    {'set_vlan_vid' => $internal_ids->{$path}{$next_hop[1]}{$interface_id}},
+                                    {'output' => $port}
+                                ]
+                            );
+
                             #is this path or endpoint side?
                             if(! $in_port->{'is_endpoint'} ){
                                 #path flow
@@ -627,25 +621,30 @@ sub _generate_static_mac_path_flows{
                                 push(@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}, $flow);
                             }
                         }
-		    }
-		    
-		}else{
-		    #endpoint must be on this node... but this is the path side...
-		    foreach my $in_port (@{$in_ports{$vert}}){
+                    }
+                }else{
+                    #endpoint must be on this node... but this is the path side...
+                    foreach my $in_port (@{$in_ports{$vert}}){
 
-			#if the in port matches the out port go on to next
-			next if($in_port->{'port_no'} == $endpoint->{'port_no'});
-			#for each mac addr
-			foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
-			    
-			    $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
-			    my $flow = OESS::FlowRule->new( match => {'dl_vlan' => $in_port->{'tag'},
-								      'in_port' => $in_port->{'port_no'},
-								      'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})},
-							    priority => 35000,
-							    dpid => $self->{'dpid_lookup'}->{$vert},
-							    actions => [{'set_vlan_vid' => $endpoint->{'tag'}},
-									{'output' => $endpoint->{'port_no'}}]);
+                        #if the in port matches the out port go on to next
+                        next if($in_port->{'port_no'} == $endpoint->{'port_no'});
+                        #for each mac addr
+                        foreach my $mac_addr (@{$endpoint->{'mac_addrs'}}){
+
+                            $self->{'logger'}->debug("Creating flow for mac_addr " . $mac_addr->{'mac_address'} . " on node " . $vert);
+                            my $flow = OESS::FlowRule->new(
+                                match => {
+                                    'dl_vlan' => $in_port->{'tag'},
+                                    'in_port' => $in_port->{'port_no'},
+                                    'dl_dst' => OESS::Database::mac_hex2num($mac_addr->{'mac_address'})
+                                },
+                                priority => 35000,
+                                dpid => $self->{'dpid_lookup'}->{$vert},
+                                actions => [
+                                    {'set_vlan_vid' => $endpoint->{'tag'}},
+                                    {'output' => $endpoint->{'port_no'}}
+                                ]
+                            );
                             #now the question is... are these 2 ports on the same switch that are endpoints?
                             if(! $in_port->{'is_endpoint'} ){
                                 #this is the link -> ep rule
@@ -658,11 +657,11 @@ sub _generate_static_mac_path_flows{
                                     push(@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{$path}},$flow);
                                 }
                             }
-			}
-		    }
-		}
-	    }
-	}
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -724,7 +723,6 @@ sub _generate_endpoint_flows {
                     {'output'       => $e_port}
                 ]
             ));
-
         }
 
         foreach my $node_exit (@{$path_dict->{$e_node}}){
@@ -746,12 +744,11 @@ sub _generate_endpoint_flows {
     }
 }
 
-=head2
+=head2 _generate_loopback_endpoint_flows
 
-    Method that generates the endpoint rules for a loopback circuit
+Method that generates the endpoint rules for a loopback circuit
 
 =cut
-
 sub _generate_loopback_endpoint_flows {
     my ($self, %args) = @_;
 
@@ -786,11 +783,11 @@ sub _generate_loopback_endpoint_flows {
             for(my $j=0;$j<scalar(@endpoints);$j++){
                 next if($i==$j);
                 my $remote_port = $endpoints[$j];
-                
+
                 push(@actions,{'set_vlan_vid' => $remote_port->{'tag'}});
                 push(@actions,{'output' => $remote_port->{'port_no'}});
             }
-            
+
             push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
                  match => {
                      'dl_vlan' => $e->{'tag'},
@@ -798,7 +795,7 @@ sub _generate_loopback_endpoint_flows {
                  },
                  dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
                  actions => \@actions
-             ));    
+             ));
         }
     } else {
         foreach my $l (@links){
@@ -809,7 +806,7 @@ sub _generate_loopback_endpoint_flows {
                 $id='a';
                 $interface_id = $l->{'interface_a_id'};
             }
-            
+
             if( $l->{'node_z'} eq $endpoints[0]{'node'} ){
                 $id = 'z';
                 $interface_id = $l->{'interface_z_id'};
@@ -829,23 +826,23 @@ sub _generate_loopback_endpoint_flows {
             my $port_to_adj_node = $rule->{'port'};
             my $remote_port_vlan = $rule->{'remote_port_vlan'};
             my $port_vlan        = $rule->{'port_vlan'};
-            
+
             # create the rule coming from the edge interface out to an adjacent node
             push(@{$self->{'flows'}->{'endpoint'}->{$path}}, OESS::FlowRule->new(
-                     match => {
-                         'dl_vlan' => $e->{'tag'},
-                         'in_port' => $e->{'port_no'}
-                     },
-                     dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
-                     actions => [
-                         {'set_vlan_vid' => $remote_port_vlan },
-                         {'output' => $port_to_adj_node }
-                     ]
-                 ));
-            
+                match => {
+                    'dl_vlan' => $e->{'tag'},
+                    'in_port' => $e->{'port_no'}
+                },
+                dpid => $self->{'dpid_lookup'}->{$e->{'node'}},
+                actions => [
+                    {'set_vlan_vid' => $remote_port_vlan },
+                    {'output' => $port_to_adj_node }
+                ]
+            ));
+
             # create the rule coming from an adjacent node into the edge interface
             # push these onto both paths
-            my $to_endpoint = OESS::FlowRule->new( 
+            my $to_endpoint = OESS::FlowRule->new(
                  match => {
                      'dl_vlan' => $port_vlan,
                      'in_port' => $port_to_adj_node
@@ -861,6 +858,7 @@ sub _generate_loopback_endpoint_flows {
         }
     }
 }
+
 sub _generate_path_flows {
     my $self   = shift;
     my %params = @_;
@@ -930,7 +928,6 @@ sub _generate_path_flows {
             push(@{$self->{'flows'}{'path'}{$path}},$to_endpoint);
         }
     }
-
 }
 
 =head2 get_flows
@@ -939,7 +936,7 @@ sub _generate_path_flows {
 
 sub get_flows{
     my $self = shift;
-    my %params = @_;	
+    my %params = @_;
     my @flows;
     my @static_flows = ();
 
@@ -951,50 +948,46 @@ sub get_flows{
     	foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
             push(@flows,$flow);
     	}
-        
+
     	foreach my $flow (@{$self->{'flows'}->{'path'}->{'backup'}}){
             push(@flows,$flow);
     	}
-        
+
         foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
             push(@flows,$static_flow);
         }
-        
+
         foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
             push(@flows,$static_flow);
         }
-        
+
     	if($self->get_active_path() eq 'primary'){
-            
+
             foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'primary'}}){
             	push(@flows,$flow);
             }
-         
+
             foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'primary'}}){
                 push(@flows,$static_flow);
             }
-            
-            
-                       
     	} else {
-            
+
             foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{'backup'}}){
             	push(@flows,$flow);
             }
-            
+
             foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{'backup'}}){
                 push(@flows,$static_flow);
             }
-	}
-        
+        }
     } else {
-	my $path = $params{'path'};
-	if($path ne 'primary' && $path ne 'backup'){
+        my $path = $params{'path'};
+        if($path ne 'primary' && $path ne 'backup'){
             $self->{'logger'}->error("Path '$path' is invalid");
             return;
         }
-        
-	foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
+
+        foreach my $flow (@{$self->{'flows'}->{'path'}->{'primary'}}){
             push(@flows,$flow);
         }
 
@@ -1002,22 +995,21 @@ sub get_flows{
             push(@flows,$flow);
         }
 
-	foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{$path}}){
+        foreach my $flow (@{$self->{'flows'}->{'endpoint'}->{$path}}){
             push(@flows,$flow);
         }
-        
+
         foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'primary'}}){
             push(@flows,$static_flow);
         }
-        
+
         foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'path'}->{'backup'}}){
             push(@flows,$static_flow);
         }
-        
+
         foreach my $static_flow (@{$self->{'flows'}->{'static_mac_addr'}->{'endpoint'}->{$path}}){
             push(@flows,$static_flow);
         }
-    
     }
 
     return $self->_dedup_flows(\@flows);
@@ -1026,7 +1018,6 @@ sub get_flows{
 =head2 get_endpoint_flows
 
 =cut
-
 sub get_endpoint_flows{
     my $self = shift;
     my %params = @_;
@@ -1038,13 +1029,13 @@ sub get_endpoint_flows{
     my $path = $params{'path'};
 
     if(!defined($path)){
-	$self->{'logger'}->error("Path was not defined");
-	return;
+        $self->{'logger'}->error("Path was not defined");
+        return;
     }
-    
+
     if($path ne 'primary' && $path ne 'backup'){
-	$self->{'logger'}->error("Path '$path' is invalid");
-	return;
+        $self->{'logger'}->error("Path '$path' is invalid");
+        return;
     }
 
     my $flows = $self->{'flows'}->{'endpoint'}->{$path};
@@ -1052,7 +1043,6 @@ sub get_endpoint_flows{
         push(@$flows, $flow);
     }
     return $flows;
-
 }
 
 
@@ -1060,7 +1050,6 @@ sub get_endpoint_flows{
 =head2 get_details
 
 =cut
-
 sub get_details{
     my $self = shift;
     return $self->{'details'};
@@ -1082,7 +1071,7 @@ sub generate_clr{
 
     foreach my $endpoint (@{$self->get_endpoints()}){
         if ($endpoint->{'tag'} == OESS::FlowRule::UNTAGGED ){ $endpoint->{'tag'} = 'Untagged'; }
-	$clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
+        $clr .= "  " . $endpoint->{'node'} . " - " . $endpoint->{'interface'} . " VLAN " . $endpoint->{'tag'} . "\n";
     }
 
     my $active = $self->get_active_path();
@@ -1125,7 +1114,6 @@ sub generate_clr{
 =cut
 
 sub generate_clr_raw{
-    
     my $self = shift;
 
     my $flows = $self->get_flows();
@@ -1142,7 +1130,6 @@ sub generate_clr_raw{
 =head2 get_endpoints
 
 =cut
-
 sub get_endpoints{
     my $self = shift;
     return $self->{'endpoints'};
@@ -1151,7 +1138,6 @@ sub get_endpoints{
 =head2 has_primary_path
 
 =cut
-
 sub has_primary_path{
     my $self = shift;
     return $self->{'has_primary_path'};
@@ -1160,7 +1146,6 @@ sub has_primary_path{
 =head2 has_backup_path
 
 =cut
-
 sub has_backup_path{
     my $self = shift;
     return $self->{'has_backup_path'};
@@ -1169,7 +1154,6 @@ sub has_backup_path{
 =head2 has_tertiary_path
 
 =cut
-
 sub has_tertiary_path{
     my $self = shift;
     return $self->{'has_tertiary_path'};
@@ -1178,21 +1162,20 @@ sub has_tertiary_path{
 =head2 get_path
 
 =cut
-
 sub get_path{
     my $self = shift;
 
     my %params = @_;
 
     my $path = $params{'path'};
-    
+
     if(!defined($path)){
         $self->{'logger'}->error("Path was not defined");
         return;
     }
 
     $self->{'logger'}->trace("Returning links for path '$path'");
-    
+
     if($path eq 'backup'){
         return $self->{'details'}->{'backup_links'};
     }elsif($path eq 'tertiary'){
@@ -1200,16 +1183,14 @@ sub get_path{
     }else{
         return $self->{'details'}->{'links'};
     }
-    
 }
 
 =head2 get_active_path
 
 =cut
-
 sub get_active_path{
     my $self = shift;
-    
+
     return $self->{'active_path'};
 }
 
@@ -1410,20 +1391,18 @@ sub _compare_links{
                 $found = 1;
             }
         }
-        
+
         if(!$found){
             $same = 0;
         }
     }
-    
+
     return $same;
-    
 }
 
 =head2 change_path
 
 =cut
-
 sub change_path {
     my $self = shift;
     my %params = @_;
@@ -1455,7 +1434,7 @@ sub change_path {
     my $current_path = $self->get_active_path();
     my $alternate_path = 'primary';
     if($current_path eq 'primary'){
-	$alternate_path = 'backup';
+        $alternate_path = 'backup';
     }
 
     $self->{'logger'}->debug("Circuit ". $self->get_name()  . " is changing to " . $alternate_path);
@@ -1464,7 +1443,7 @@ sub change_path {
                  " join path_instantiation on path.path_id = path_instantiation.path_id " .
                  "  and path_instantiation.path_state = 'available' and path_instantiation.end_epoch = -1 " .
                  " where circuit_id = ?";
-    
+
     my $results = $self->{'db'}->_execute_query($query, [$self->{'circuit_id'}]);
     my $new_active_path_id = $results->[0]->{'path_id'};
     if($do_commit){
@@ -1475,7 +1454,7 @@ sub change_path {
 	" join path_instantiation on path.path_id = path_instantiation.path_id " .
 	" where path_instantiation.path_state = 'active' and path_instantiation.end_epoch = -1 " .
 	" and path.circuit_id = ?";
-    
+
     $results = $self->{'db'}->_execute_query($query, [$self->{'circuit_id'}]);
 
     if (! defined $results || @$results < 1){
@@ -1509,11 +1488,11 @@ sub change_path {
         $self->error("Unable to create new available path based on old instantiation.");
         $self->{'db'}->_rollback();
         return;
-    }    
+    }
 
-        # point the internal vlan mappings from the old over to the new path instance
+    # point the internal vlan mappings from the old over to the new path instance
     #$query = "update path_instantiation_vlan_ids set path_instantiation_id = ? where path_instantiation_id = ?";
-    
+
     #$success = $self->{'db'}->_execute_query($query, [$new_available, $old_instantiation]);
 
     #if (! defined $success){
@@ -1555,18 +1534,20 @@ sub change_path {
     }
 
     $query = "insert into circuit_instantiation (circuit_id, reserved_bandwidth_mbps, circuit_state, modified_by_user_id, end_epoch, start_epoch, loop_node, reason) values (?, ?, ?, ?, -1, unix_timestamp(now()),?,?)";
-    if(!defined( $self->{'db'}->_execute_query($query, [ $self->{'circuit_id'}, 
-                                                         $circuit_instantiation->{'reserved_bandwidth_mbps'},
-                                                         $circuit_instantiation->{'circuit_state'},
-                                                         $params{'user_id'}, 
-                                                         $circuit_instantiation->{'loop_node'},
-                                                         $params{'reason'} ] ))){
+    if(!defined( $self->{'db'}->_execute_query($query, [
+        $self->{'circuit_id'},
+        $circuit_instantiation->{'reserved_bandwidth_mbps'},
+        $circuit_instantiation->{'circuit_state'},
+        $params{'user_id'},
+        $circuit_instantiation->{'loop_node'},
+        $params{'reason'}
+    ]))) {
         $self->{'logger'}->error("Unable to create new circuit instantiation");
         $self->error("Unable to create new circuit instantiation.");
         $self->{'db'}->_rollback() if($do_commit);
         return;
     }
-    
+
     if($do_commit){
         $self->{'db'}->_commit();
     }
@@ -1575,13 +1556,11 @@ sub change_path {
     $self->{'details'}->{'active_path'} = $alternate_path;
     $self->{'logger'}->debug("Circuit " . $self->get_id() . " is now on " . $alternate_path);
     return 1;
-
 }
 
 =head2 is_interdomain
 
 =cut
-
 sub is_interdomain{
     my $self = shift;
     return $self->{'interdomain'};
@@ -1590,7 +1569,6 @@ sub is_interdomain{
 =head2 is_static_mac
 
 =cut
-
 sub is_static_mac{
     my $self = shift;
     return $self->{'static_mac'};
@@ -1599,20 +1577,19 @@ sub is_static_mac{
 =head2 get_mpls_path_type
 
 =cut
-
 sub get_mpls_path_type{
     my $self = shift;
     my %params = @_;
 
     if(!defined($params{'path'})){
-	$self->{'logger'}->error("No path specified");
-	return;
+        $self->{'logger'}->error("No path specified");
+        return;
     }
 
     $self->{'logger'}->debug("MPLS Path Type: " . Data::Dumper::Dumper($self->{'details'}{'paths'}));
 
     if(!defined($self->{'details'}{'paths'}{$params{'path'}})){
-	return;
+        return;
     }
 
     return $self->{'details'}{'paths'}{$params{'path'}}{'mpls_path_type'};
@@ -1621,7 +1598,6 @@ sub get_mpls_path_type{
 =head2 get_mpls_hops
 
 =cut
-
 sub get_mpls_hops{
     my $self = shift;
     my %params = @_;
@@ -1630,14 +1606,14 @@ sub get_mpls_hops{
 
     my $path = $params{'path'};
     if(!defined($path)){
-	$self->{'logger'}->error("Fetching the path hops for undefined path");
-	return \@ips;
+        $self->{'logger'}->error("Fetching the path hops for undefined path");
+        return \@ips;
     }
 
     my $start = $params{'start'};
     if(!defined($start)){
-	$self->{'logger'}->error("Fetching hops requires a start");
-	return \@ips;
+        $self->{'logger'}->error("Fetching hops requires a start");
+        return \@ips;
     }
 
     my $end = $params{'end'};
@@ -1645,9 +1621,9 @@ sub get_mpls_hops{
         $self->{'logger'}->error("Fetching hops requires an end");
         return \@ips;
     }
- 
+
     return \@ips if ($end eq $start);
-    
+
     $self->{'logger'}->debug("Path: " . $path);
 
     #fetch the path
@@ -1656,7 +1632,7 @@ sub get_mpls_hops{
     $self->{'logger'}->debug("Path is: " . Dumper($p));
 
     if(!defined($p)){
-	return \@ips;
+        return \@ips;
     }
 
     my $nodes = $self->{'db'}->get_current_nodes( mpls => 1);
@@ -1668,8 +1644,8 @@ sub get_mpls_hops{
     #build our lookup has to find our IP addresses
     my %ip_address;
     foreach my $link (@$p){
-	my $node_a = $link->{'node_a'};
-	my $node_z = $link->{'node_z'};
+        my $node_a = $link->{'node_a'};
+        my $node_z = $link->{'node_z'};
 
         # When using link based ip addresses
         # $ip_address{$node_a}{$node_z} = $link->{'ip_z'};
@@ -1686,16 +1662,16 @@ sub get_mpls_hops{
     my @shortest_path = $self->{'graph'}->{$path}->SP_Dijkstra($start,$end);
     #ok we have the list of verticies... now to convert that into IP addresses
     if(scalar(@shortest_path) <= 1){
-	#uh oh... no path!!!!
-	$self->{'logger'}->error("Uh oh there is no path");
-	return \@ips;
+        #uh oh... no path!!!!
+        $self->{'logger'}->error("Uh oh there is no path");
+        return \@ips;
     }
-    
+
     for(my $i=1;$i<=$#shortest_path;$i++){
-	my $ip = $ip_address{$shortest_path[$i-1]}{$shortest_path[$i]};
-	$self->{'logger'}->debug("  Next hop: " . $shortest_path[$i-1] . " to " . $shortest_path[$i]);
-	$self->{'logger'}->debug("      Address: " . $ip);
-	push(@ips, $ip);
+        my $ip = $ip_address{$shortest_path[$i-1]}{$shortest_path[$i]};
+        $self->{'logger'}->debug("  Next hop: " . $shortest_path[$i-1] . " to " . $shortest_path[$i]);
+        $self->{'logger'}->debug("      Address: " . $ip);
+        push(@ips, $ip);
     }
 
     $self->{'logger'}->debug("IP addresses: " . Dumper(@ips));
@@ -1703,11 +1679,9 @@ sub get_mpls_hops{
     return \@ips;
 }
 
-
 =head2 get_path_status
 
 =cut
-
 sub get_path_status{
     my $self = shift;
     my %params = @_;
@@ -1716,26 +1690,22 @@ sub get_path_status{
     my $link_status = $params{'link_status'};
 
     if(!defined($path)){
-	return;
+        return;
     }
-    
+
     my %down_links;
     my %unknown_links;
-    
+
     if(!defined($link_status)){
         my $links = $self->{'db'}->get_current_links(type => $self->{'type'});
-        
+
         foreach my $link (@$links){
-
-
             if( $link->{'status'} eq 'down'){
                 $down_links{$link->{'name'}} = $link;
             }elsif($link->{'status'} eq 'unknown'){
                 $unknown_links{$link->{'name'}} = $link;
             }
-
         }
-
     }else{
         foreach my $key (keys (%{$link_status})){
             if($link_status->{$key} == OESS_LINK_DOWN){
@@ -1751,23 +1721,20 @@ sub get_path_status{
     foreach my $link (@$path_links){
 
         if( $down_links{ $link->{'name'} } ){
-	    $self->{'logger'}->warn("Path is down because link: " . $link->{'name'} . " is down");
+            $self->{'logger'}->warn("Path is down because link: " . $link->{'name'} . " is down");
             return 0;
         }elsif($unknown_links{$link->{'name'}}){
-	    $self->{'logger'}->warn("Path is unknown because link: " . $link->{'name'} . " is unknown");
+            $self->{'logger'}->warn("Path is unknown because link: " . $link->{'name'} . " is unknown");
             return 2;
         }
-
     }
-    
-    return 1;
 
+    return 1;
 }
 
 =head2 error
 
 =cut
-
 sub error{
     my $self = shift;
     my $error = shift;

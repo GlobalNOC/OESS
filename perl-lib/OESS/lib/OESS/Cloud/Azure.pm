@@ -261,6 +261,7 @@ sub set_cross_connection_state_to_provisioned {
                         primaryPeerAddressPrefix => $args->{primary_prefix},
                         secondaryPeerAddressPrefix => $args->{secondary_prefix},
                         vlanId => $args->{vlan},
+                        state => 'Enabled',
                         # NOTE: private ipv6 peerings not supported by azure
                         # ipv6PeeringConfig => {
                         #     primaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::/126",

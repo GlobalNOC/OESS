@@ -1,7 +1,7 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.1
-Release: 1%{?dist}
+Version: 2.0.6
+Release: 2%{?dist}
 License: APL 2.0
 Group: Network
 URL: http://globalnoc.iu.edu
@@ -24,6 +24,7 @@ BuildRequires: perl(Log::Log4perl)
 BuildRequires: perl(Net::DBus)
 BuildRequires: perl(Pod::Coverage)
 BuildRequires: perl(TAP::Harness)
+BuildRequires: perl(Test::Exception)
 BuildRequires: perl(Test::Deep)
 BuildRequires: perl(Test::Harness)
 BuildRequires: perl(Test::More)
@@ -89,7 +90,7 @@ Requires: perl(XML::Writer)
 Requires: perl(XML::LibXML::XPathContext)
 Requires: grnoc-routerproxy >= 2.0.1
 
-Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule,perl(OESS::DB::Command),perl(OESS::Workgroup),perl(OESS::Cloud::AWS),perl(OESS::Cloud::GCP),perl(OESS::DB::User),perl(OESS::Cloud),perl(OESS::DB),perl(OESS::Interface),perl(OESS::Entity),perl(OESS::VRF),perl(OESS::DB::VRF),perl(OESS::DB::Entity),perl(OESS::WebService)
+Provides: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule,perl(OESS::DB::ACL),perl(OESS::DB::Command),perl(OESS::Workgroup),perl(OESS::Cloud::AWS),perl(OESS::Cloud::GCP),perl(OESS::DB::User),perl(OESS::Cloud),perl(OESS::DB),perl(OESS::Interface),perl(OESS::Entity),perl(OESS::VRF),perl(OESS::DB::VRF),perl(OESS::DB::Entity),perl(OESS::WebService)
 Obsoletes: perl-OESS-Circuit, perl-OESS-Database, perl-OESS-DBus, perl-OESS-Topology,perl-OESS-Measurement,perl-OESS-FlowRule
 
 AutoReq: no
@@ -113,6 +114,8 @@ make
 rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/upgrade
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/customer-templates
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
@@ -126,6 +129,8 @@ make pure_install
 %__install etc/notification_vrf.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
+cp -ar share/customer-templates/* $RPM_BUILD_ROOT/%{docdir}/share/customer-templates/
+%__install share/mpls/templates/juniper/13.3R8/EVPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN
 %__install share/mpls/templates/juniper/13.3R8/L2CCC/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__install share/mpls/templates/juniper/13.3R8/L2VPLS/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
 %__install share/mpls/templates/juniper/13.3R8/L2VPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN
@@ -144,21 +149,31 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::ACL.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::AWS.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::Azure.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::GCP.3pm.gz
 %doc %{_mandir}/man3/OESS::Config.3pm.gz
 %doc %{_mandir}/man3/OESS::DB.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::ACL.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Circuit.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Command.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Endpoint.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Entity.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Interface.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Link.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Node.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Path.3pm.gz
+%doc %{_mandir}/man3/OESS::DB::Peer.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::User.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::VRF.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::Workgroup.3pm.gz
 %doc %{_mandir}/man3/OESS::Endpoint.3pm.gz
 %doc %{_mandir}/man3/OESS::Entity.3pm.gz
 %doc %{_mandir}/man3/OESS::Interface.3pm.gz
+%doc %{_mandir}/man3/OESS::L2Circuit.3pm.gz
+%doc %{_mandir}/man3/OESS::Link.3pm.gz
 %doc %{_mandir}/man3/OESS::Mock.3pm.gz
 %doc %{_mandir}/man3/OESS::Node.3pm.gz
+%doc %{_mandir}/man3/OESS::Path.3pm.gz
 %doc %{_mandir}/man3/OESS::Peer.3pm.gz
 %doc %{_mandir}/man3/OESS::User.3pm.gz
 %doc %{_mandir}/man3/OESS::VRF.3pm.gz
@@ -172,6 +187,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::FWDCTL::Switch.3pm.gz
 %doc %{_mandir}/man3/OESS::Measurement.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Device::Juniper::MX.3pm.gz
+%doc %{_mandir}/man3/OESS::MPLS::Device::Juniper::VXLAN.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Device.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Discovery::Interface.3pm.gz
 %doc %{_mandir}/man3/OESS::MPLS::Discovery::ISIS.3pm.gz
@@ -210,22 +226,32 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/FlowRule.pm
 %{perl_vendorlib}/OESS/FV.pm
 %{perl_vendorlib}/OESS/DB.pm
+%{perl_vendorlib}/OESS/DB/ACL.pm
+%{perl_vendorlib}/OESS/DB/Circuit.pm
 %{perl_vendorlib}/OESS/DB/Command.pm
+%{perl_vendorlib}/OESS/DB/Endpoint.pm
 %{perl_vendorlib}/OESS/DB/Entity.pm
 %{perl_vendorlib}/OESS/DB/Interface.pm
+%{perl_vendorlib}/OESS/DB/Link.pm
 %{perl_vendorlib}/OESS/DB/Node.pm
+%{perl_vendorlib}/OESS/DB/Path.pm
+%{perl_vendorlib}/OESS/DB/Peer.pm
 %{perl_vendorlib}/OESS/DB/User.pm
 %{perl_vendorlib}/OESS/DB/VRF.pm
 %{perl_vendorlib}/OESS/DB/Workgroup.pm
 %{perl_vendorlib}/OESS/Cloud.pm
 %{perl_vendorlib}/OESS/Cloud/AWS.pm
+%{perl_vendorlib}/OESS/Cloud/Azure.pm
 %{perl_vendorlib}/OESS/Cloud/GCP.pm
 %{perl_vendorlib}/OESS/Config.pm
 %{perl_vendorlib}/OESS/Endpoint.pm
 %{perl_vendorlib}/OESS/Entity.pm
 %{perl_vendorlib}/OESS/Interface.pm
+%{perl_vendorlib}/OESS/L2Circuit.pm
+%{perl_vendorlib}/OESS/Link.pm
 %{perl_vendorlib}/OESS/Mock.pm
 %{perl_vendorlib}/OESS/Node.pm
+%{perl_vendorlib}/OESS/Path.pm
 %{perl_vendorlib}/OESS/Peer.pm
 %{perl_vendorlib}/OESS/User.pm
 %{perl_vendorlib}/OESS/VRF.pm
@@ -234,6 +260,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/FWDCTL/Switch.pm
 %{perl_vendorlib}/OESS/Measurement.pm
 %{perl_vendorlib}/OESS/MPLS/Device/Juniper/MX.pm
+%{perl_vendorlib}/OESS/MPLS/Device/Juniper/VXLAN.pm
 %{perl_vendorlib}/OESS/MPLS/Device.pm
 %{perl_vendorlib}/OESS/MPLS/Discovery/Interface.pm
 %{perl_vendorlib}/OESS/MPLS/Discovery/ISIS.pm
@@ -261,6 +288,8 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Webservice.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
+%{docdir}/share/customer-templates/*
+%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPN/*

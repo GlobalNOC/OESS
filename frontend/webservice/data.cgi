@@ -40,7 +40,6 @@ use URI::Escape;
 use GRNOC::WebService;
 
 use OESS::Circuit;
-use OESS::VRF;
 use OESS::Database;
 use OESS::Webservice;
 
@@ -343,24 +342,6 @@ sub register_webservice_methods {
         );
 
     #register the get_circuit_details() method
-    $svc->register_method($method);
-
-        #get_circuit_details
-    $method = GRNOC::WebService::Method->new(
-        name            => "get_vrf_details",
-        description     => "returns all of the details for a given vrf",
-	callback        => sub { get_vrf_details ( @_ ) }
-	);
-
-    #add the required input parameter circuit_id
-    $method->add_input_parameter(
-        name            => 'vrf_id',
-        pattern         => $GRNOC::WebService::Regex::INTEGER,
-        required        => 1,
-        description     => "The id of the vrf to fetch details for."
-    );
-
-    #register the get_vrf_details() method
     $svc->register_method($method);
 
 
@@ -974,25 +955,6 @@ sub get_circuit_history {
     }
     else {
         $results->{'results'} = $events;
-    }
-
-    return $results;
-}
-
-sub get_vrf_details{
-    my $results;
-
-    my ( $method, $args ) = @_ ;
-    my $vrf_id = $args->{'vrf_id'}{'value'};
-
-    my $vrf = OESS::VRF->new( vrf_id => $vrf_id, db => $db);
-    my $details = $vrf->get_details();
-    if ( !defined $details ) {
-        $method->set_error( $db->get_error() );
-        return;
-    }
-    else {
-        $results->{'results'} = $details;
     }
 
     return $results;

@@ -33,7 +33,10 @@ sub fetch{
         return;
     }
 
-    return if (!defined($entity) || !defined($entity->[0]));
+    if (!defined($entity) || !defined($entity->[0])) {
+        warn "Couldn't find entity $params{name}.";
+        return;
+    }
 
     $entity = $entity->[0];
 
@@ -313,6 +316,9 @@ sub add_children {
     );
 }
 
+=head2 create_entity
+
+=cut
 sub create_entity {
     my %params = @_;
     my $db = $params{'db'};

@@ -1,0 +1,39 @@
+<template id="template-l2-endpoint">
+  <div class="panel panel-default" style="padding: 0 15 0 15;">
+
+    <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
+      <div>
+        <h3>Entity:&nbsp;</h3>
+        <h4>Node:&nbsp;</h3>
+        <h4>Port:&nbsp;</h4>
+        <h5 class="d1q">VLAN:&nbsp;</h5>
+        <h5 class="qnq">STag:</h5>
+        <h5 class="qnq">CTag:</h5>
+        <h6><b>Bandwidth:</b></h6>
+        <h6><b>MTU:</b></h6>
+      </div>
+
+      <div>
+        <h3 class="l2vpn-entity">NA</h3>
+        <h4 class="l2vpn-node"></h4>
+        <h4><span class="l2vpn-interface"></span> <small class="l2vpn-interface-description"></small></h4>
+        <h5 class="l2vpn-tag"></h5>
+        <h5 class="l2vpn-inner-tag"></h5>
+        <h6 class="l2vpn-bandwidth"></h6>
+        <h6 class="l2vpn-mtu"></h6>
+      </div>
+
+      <iframe class="l2vpn-graph" height="185" frameborder="0" style="flex: 1;"></iframe>
+
+      <div class="l2vpn-endpoint-buttons">
+        <button class="btn btn-link l2vpn-modify-button" type="button" onclick="" style="padding: 12 6 12 6;" title="Modify endpoint">
+          <span class="glyphicon glyphicon-edit"></span>
+        </button>
+        <button class="btn btn-link l2vpn-delete-button" type="button" onclick="" style="padding: 12 6 12 6;" title="Delete endpoint">
+          <span class="glyphicon glyphicon-trash"></span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</template>

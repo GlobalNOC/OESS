@@ -14,18 +14,26 @@ async function loadUserMenu() {
 <li role="separator" class="divider"></li>
 `;
 
+  session.data.isAdmin = false;
+  session.data.isReadOnly = (user.type === 'read-only') ? true : false;
+  session.data.username = user.username;
+
   user.workgroups.forEach(function(group) {
       if (session.data.workgroup_id === undefined) {
           session.data.workgroup_id = group.workgroup_id;
-          session.data.username = group.username;
-          session.save();
+      }
+
+      if (group.type === 'admin') {
+          session.data.isAdmin = true;
       }
 
       if (session.data.workgroup_id == group.workgroup_id) {
-          userMenuActiveWorkgroup.innerHTML = user.username + ' / ' + group.name;
+          userMenuActiveWorkgroup.innerHTML = user.username + ' / ' + group.name + ' <span class="caret"></span>';
       }
       html += `<li><a onclick="selectWorkgroup(${group.workgroup_id})" href="#">${group.name}</a></li>`;
   });
+
+  session.save();
 
   userMenuWorkgroups.innerHTML += html;
 }

@@ -389,6 +389,40 @@ sub update_acl {
     my $original_acl = OESS::ACL->new(db => $db2, interface_acl_id => $acl_id);
     my $acl = OESS::ACL->new(db => $db2, interface_acl_id => $acl_id);
 
+    $db2->start_transaction();
+
+    if($acl->{'eval_position'} != $args->{eval_position}{value}){
+        #doing an interface move... grab all the acls for this interface
+        my $interface = OESS::Interface->new( db => $db2, interface_id => $acl->{interface_id});
+
+        foreach my $a (@{$interface->acls()}){
+	    next if $a->{acl_id} == $acl_id;
+	    
+	    if($args->{eval_position}{value} < $acl->{eval_position}){
+		
+		if($a->{eval_position} >= $args->{eval_position}{value} && $a->{eval_position} < $acl->{eval_position}){
+		    $a->{eval_position} += 10;
+		    if(!$a->update_db()){
+			$method->set_error( $db->get_error() );
+			$db2->rollback();
+			return;
+		    }
+		}
+
+	    }elsif( $args->{eval_position}{value} > $acl->{eval_position}){
+		if($a->{eval_position} <= $args->{eval_position}{value} && $a->{eval_position} > $acl->{eval_position}){
+		    $a->{eval_position} -= 10;
+		    if(!$a->update_db()){
+			$method->set_error( $db->get_error() );
+                        $db2->rollback();
+                        return;
+		    }
+		}
+	    }
+	}
+    }
+
+
     $acl->{workgroup_id}  = $args->{workgroup_id}{value};
     $acl->{interface_id}  = $args->{interface_id}{value};
     $acl->{entity_id}     = $args->{entity_id}{value};
@@ -422,8 +456,11 @@ sub update_acl {
     if (!defined $success) {
         $logger->info("Failed to update acl with id $acl_id, at ". localtime() . " on $interface_name. Action was initiated by $username.");
         $method->set_error( $db->get_error() );
+	$db2->rollback();
         return;
     }
+
+    $db2->commit();
 
     my $output_string = "Changed: ";
     if ($original_acl->{start} != $acl->{start}) {

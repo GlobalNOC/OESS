@@ -1,8 +1,8 @@
-<configuration>
+<configuration><groups><name>OESS</name>
   <interfaces>
     [% FOREACH interface IN interfaces %]
     <interface>
-      <name>[% interface.name %]</name>
+      <name>[% interface.interface %]</name>
       <unit>
         <name>[% interface.unit %]</name>
         <description>OESS-L2CCC-[% circuit_id %]</description>
@@ -22,6 +22,22 @@
     </interface>
     [% END %]
   </interfaces>
+  [%- FOREACH interface IN interfaces -%]
+  [%- IF interface.bandwidth > 0 %]
+  <class-of-service>
+    <interfaces>
+      <interface>
+        <name>[% interface.interface %]</name>
+        <unit>
+          <name>[% interface.unit %]</name>
+          <shaping-rate><rate>[% interface.bandwidth %]m</rate></shaping-rate>
+        </unit>
+      </interface>
+    </interfaces>
+  </class-of-service>
+  [%- END -%]
+  [%- END %]
+
   <protocols>
     <mpls>
       <label-switched-path>
@@ -59,11 +75,11 @@
       <remote-interface-switch>
         <name>OESS-L2CCC-[% circuit_id %]</name>
         [% FOREACH interface IN interfaces %]
-        <interface>[% interface.name %].[% interface.unit %]</interface>
+        <interface>[% interface.interface %].[% interface.unit %]</interface>
         [% END %]
         <transmit-lsp>OESS-L2CCC-[% a_side %]-[% path.dest_node %]-LSP-[% circuit_id %]</transmit-lsp>
         <receive-lsp>OESS-L2CCC-[% path.dest_node %]-[% a_side %]-LSP-[% circuit_id %]</receive-lsp>
       </remote-interface-switch>
     </connections>
   </protocols>
-</configuration>
+</groups></configuration>

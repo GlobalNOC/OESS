@@ -1,0 +1,62 @@
+<configuration><groups><name>OESS</name>
+
+  <interfaces>
+    [% FOREACH interface IN interfaces %]
+    <interface>
+      <name>[% interface.interface %]</name>
+      <unit>
+        <name>[% interface.unit %]</name>
+        <description>OESS-EVPN-[% circuit_id %]</description>
+        <encapsulation>vlan-bridge</encapsulation>
+        [% IF interface.defined('inner_tag') %]
+        <vlan-tags>
+          <outer>[% interface.tag %]</outer>
+          <inner>[% interface.inner_tag %]</inner>
+        </vlan-tags>
+        [% ELSE %]
+        <vlan-id>[% interface.tag %]</vlan-id>
+        [% END %]
+        <output-vlan-map>
+          <swap/>
+        </output-vlan-map>
+      </unit>
+    </interface>
+    [% END %]
+  </interfaces>
+
+  <routing-instances>
+    <instance>
+      <name>OESS-EVPN-[% circuit_id %]</name>
+      <vtep-source-interface>
+        <interface-name>lo0.0</interface-name>
+      </vtep-source-interface>
+      <instance-type>evpn</instance-type>
+      <vlan-id>none</vlan-id>
+
+      [% FOREACH interface IN interfaces %]
+      <interface>
+	    <name>[% interface.interface %].[% interface.unit %]</name>
+      </interface>
+      [% END %]
+
+      <vxlan>
+        <vni>[% circuit_id %]</vni>
+        <encapsulate-inner-vlan inactive="inactive"/>
+        <decapsulate-accept-inner-vlan inactive="inactive"/>
+      </vxlan>
+      <no-normalization/>
+      <route-distinguisher>
+        <rd-type>65150:[% circuit_id %]</rd-type>
+      </route-distinguisher>
+      <vrf-target>
+        <community>target:65150:[% circuit_id %]</community>
+      </vrf-target>
+      <protocols>
+        <evpn>
+          <encapsulation>vxlan</encapsulation>
+        </evpn>
+      </protocols>
+    </instance>
+  </routing-instances>
+
+</groups></configuration>

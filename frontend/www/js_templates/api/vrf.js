@@ -14,6 +14,7 @@
  * @property {string} [node=undefined] - Name of node
  * @property {integer} tag - VLAN number
  * @property {integer} [cloud_account_id=undefined] - Cloud account owner for cloud interconnect
+ * @property {boolean} [jumbo] - Jumbo frames enabled
  * @property {Peering[]} peerings - Peers on this endpoint
  */
 
@@ -48,30 +49,34 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
 
   endpoints.forEach(function(endpoint) {
     let e = {
+      vrf_endpoint_id: endpoint.vrf_endpoint_id,
       bandwidth: endpoint.bandwidth,
       tag:       endpoint.tag,
-      peerings:  [],
+      jumbo:     (endpoint.jumbo) ? 1 : 0,
+      peers:     [],
       cloud_account_id: endpoint.cloud_account_id
     };
 
     if ('entity_id' in endpoint && endpoint.name === 'TBD' && endpoint.node === 'TBD') {
       e['entity'] = endpoint.entity;
     } else {
-      e['interface'] = endpoint.name;;
+      e['interface'] = endpoint.interface;
       e['node']      = endpoint.node;
     }
 
-    if (endpoint.peerings.length < 1) {
+    if (endpoint.peers.length < 1) {
       throw('At least one peering on each endpoint must be specified.');
     }
 
-    endpoint.peerings.forEach(function(p) {
-      e.peerings.push({
-        asn: p.asn,
-        key: p.key,
-        local_ip: p.oessPeerIP,
-        peer_ip:  p.yourPeerIP,
-        version: p.ipVersion
+    endpoint.peers.forEach(function(p) {
+      e.peers.push({
+        vrf_ep_peer_id: p.vrf_ep_peer_id,
+        peer_asn: p.peer_asn,
+        md5_key:  p.md5_key,
+        local_ip: p.local_ip,
+        peer_ip:  p.peer_ip,
+        version:  p.ip_version,
+        bfd:      (p.bfd) ? 1 : 0
       });
     });
 
@@ -112,7 +117,7 @@ async function deleteVRF(workgroupID, vrfID) {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();
     console.log(data);
-    return data.results[0];
+    return data.results;
   } catch(error) {
     console.log('Failure occurred in deleteVRF.');
     console.log(error);

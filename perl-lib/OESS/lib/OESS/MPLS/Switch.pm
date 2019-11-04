@@ -22,8 +22,10 @@ use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Client;
 use GRNOC::WebService::Regex;
 
-
+use OESS::Config;
 use OESS::MPLS::Device;
+use OESS::MPLS::Device::Juniper::MX;
+use OESS::MPLS::Device::Juniper::VXLAN;
 
 use JSON::XS;
 
@@ -48,6 +50,7 @@ sub new{
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
     $self->{'config'} = $args{'config'} || '/etc/oess/database.xml';
+    $self->{'config_obj'} = new OESS::Config(config_filename => $self->{'config'});
 
     $self->{'node'}->{'node_id'} = $self->{'id'};
     
@@ -137,10 +140,15 @@ sub create_device_object{
     switch($host_info->{'vendor'}){
         case "Juniper" {
             my $dev;
-            if($host_info->{'model'} =~ /mx/i){
-                $self->{'logger'}->info("create_device_object: " . Dumper($host_info));
-                $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
-            }else{
+            if ($host_info->{'model'} =~ /mx/i) {
+                if ($self->{'config_obj'}->network_type eq 'evpn-vxlan') {
+                    $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
+                    $dev = OESS::MPLS::Device::Juniper::VXLAN->new( %$host_info );
+                } else {
+                    $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
+                    $dev = OESS::MPLS::Device::Juniper::MX->new( %$host_info );
+                }
+            } else {
                 $self->{'logger'}->error("Juniper " . $host_info->{'model'} . " is not supported");
                 return;
             }
@@ -311,12 +319,12 @@ sub _register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
     $dispatcher->register_method($method);
 
-    $method = GRNOC::RabbitMQ::Method->new( name        => "get_diff_text",
-					    callback    => sub {
-                                                my $resp = { text => $self->get_diff_text(@_) };
-                                                return $resp;
-                                            },
-					    description => "Proxies diff signal to the underlying device object." );
+    $method = GRNOC::RabbitMQ::Method->new(
+        name        => "get_diff_text",
+        async       => 1,
+        callback    => sub { $self->get_diff_text(@_); },
+        description => "Proxies diff signal to the underlying device object."
+    );
     $dispatcher->register_method($method);
 }
 
@@ -325,7 +333,7 @@ sub _update_cache {
     my $m_ref = shift;
     my $p_ref = shift;
 
-    $self->{'logger'}->debug("Loading circuits from cache file $self->{'share_file'}");
+    $self->{'logger'}->debug("Loading cache from $self->{'share_file'}");
 
     if (!-e $self->{'share_file'}) {
         $self->{'logger'}->error("Cache file $self->{'share_file'} doesn't exists!");
@@ -369,7 +377,7 @@ sub _update_cache {
     }
 
     foreach my $vrf (keys %{$self->{'vrfs'}}){
-	delete $self->{'vrfs'}->{$vrf};
+        delete $self->{'vrfs'}->{$vrf};
     }
 
     foreach my $vrf (keys %{$data->{'vrfs'}}) {
@@ -378,7 +386,6 @@ sub _update_cache {
         $data->{'vrfs'}->{$vrf}->{'vrf_id'} = $vrf;
         $self->{'vrfs'}->{$vrf} = $data->{'vrfs'}->{$vrf};
     }
-    
 
     if ($self->{'node'}->{'name'}) {
         $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.Switch.'.$self->{'node'}->{'name'});
@@ -389,7 +396,7 @@ sub _update_cache {
         $self->{'device'}->{'name'} = $self->{'node'}->{'name'};
     }
 
-    $self->{'logger'}->info("Loaded circuits / VRFs from cache file $self->{'share_file'}");
+    $self->{'logger'}->info("Loaded cache from $self->{'share_file'}");
     return 1;
 }
 
@@ -562,20 +569,32 @@ sub diff {
 =cut
 
 sub get_diff_text {
-    my $self  = shift;
-    my $m_ref = shift;
-    my $p_ref = shift;
+    my $self   = shift;
+    my $method = shift;
+    my $params = shift;
+
+    my $success = $method->{'success_callback'};
+    my $error   = $method->{'error_callback'};
 
     $self->{'logger'}->debug("Calling Switch.get_diff_text");
     $self->_update_cache();
     $self->{'logger'}->debug("Active VRFS: " . Dumper($self->{'vrfs'}));
-    my $to_be_removed = $self->{'device'}->get_config_to_remove( circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'} );
-    my $diff = $self->{'device'}->get_diff_text(circuits => $self->{'ckts'}, vrfs => $self->{'vrfs'}, remove => $to_be_removed);
-    if (!defined $diff) {
-        return 'No diff required at this time.';
+
+    my $to_be_removed = $self->{'device'}->get_config_to_remove(
+        circuits => $self->{'ckts'},
+        vrfs => $self->{'vrfs'}
+    );
+
+    my $diff = $self->{'device'}->get_diff_text(
+        circuits => $self->{'ckts'},
+        vrfs => $self->{'vrfs'},
+        remove => $to_be_removed
+    );
+    if (defined $diff->{error}) {
+        return &$error($diff->{error});
     }
 
-    return $diff;
+    return &$success($diff->{value});
 }
 
 =head2 get_interfaces

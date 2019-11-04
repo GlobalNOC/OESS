@@ -69,6 +69,10 @@ $mock->new_sub(
     result => 1
 );
 
+$mock->new_sub(
+    name    => 'open_configuration',
+    result => 1
+);
 
 $mock->new_sub(
     name   => 'get_dom',
@@ -122,7 +126,8 @@ $ok = $device->add_vlan({
         {
             interface => 'ge-0/0/2',
             tag => 2004,
-            unit => 2004
+            unit => 2004,
+            bandwidth => 50
         }
     ],
     paths => [],
@@ -182,7 +187,7 @@ $ok = $device->add_vlan({
 
 ok($ok == 0, "add_vlan failed when error message received.");
 
-my $expected_config = '<configuration>
+my $expected_config = '<configuration><groups><name>OESS</name>
   <interfaces>
     
     <interface>
@@ -216,6 +221,17 @@ my $expected_config = '<configuration>
     </interface>
     
   </interfaces>
+  <class-of-service>
+    <interfaces>
+      <interface>
+        <name>ge-0/0/2</name>
+        <unit>
+          <name>2004</name>
+          <shaping-rate><rate>50m</rate></shaping-rate>
+        </unit>
+      </interface>
+    </interfaces>
+  </class-of-service>
   <routing-instances>
     <instance>
       <name>OESS-L2VPLS-3012</name>
@@ -247,27 +263,27 @@ my $expected_config = '<configuration>
       </protocols>
     </instance>
   </routing-instances>
-</configuration>
+</groups></configuration>
 ';
 
 # Validates edit_config was called 3 times and that the last call was
 # passed $expected_config.
 my $err = $mock->sub_called(
     name  => 'edit_config',
-    count => 3,
+    count => 2,
     args  => {
         target => 'candidate',
         config => $expected_config
     }
 );
 
-ok(!defined $err, "edit_config called 3 times with expected NetConf payload.");
+ok(!defined $err, "edit_config called 2 times with expected NetConf payload.");
 warn "$err" if defined $err;
 
 $err = $mock->sub_called(
     name  => 'get_dom',
-    count => 3
+    count => 1
 );
 
-ok(!defined $err, "get_dom called 3 times.");
+ok(!defined $err, "get_dom called 1 times.");
 warn "$err" if defined $err;

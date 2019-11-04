@@ -5,6 +5,7 @@ use warnings;
 
 package OESS::ACL;
 
+use Data::Dumper;
 use OESS::DB::ACL;
 
 =head2 new
@@ -42,15 +43,15 @@ sub new {
         logger       => Log::Log4perl->get_logger('OESS.ACL'),
         @_
     };
+    my $self = bless $args, $class;
 
     if (!defined $args->{db}) {
-        die 'Required argument `db` is missing.';
+        $self->{logger}->warn('Optional argument `db` is missing.');
+    } else {
+        if (!defined $args->{interface_acl_id} && !defined $args->{model}) {
+            die 'Required argument `interface_acl_id` or `model` is missing.';
+        }
     }
-    if (!defined $args->{interface_acl_id} && !defined $args->{model}) {
-        die 'Required argument `interface_acl_id` or `model` is missing.';
-    }
-
-    my $self = bless $args, $class;
 
     if (defined $self->{interface_acl_id}) {
         $self->_fetch_from_db();
@@ -186,7 +187,9 @@ sub vlan_allowed {
     die 'Required argument `workgroup_id` is missing.' if !defined $args->{workgroup_id};
     die 'Required argument `vlan` is missing.' if !defined $args->{vlan};
 
-    if ($self->{workgroup_id} != $args->{workgroup_id}) {
+    # If C<< $self->{workgroup_id} >> is defined the acl only applies
+    # to that workgroup. If undef it applies to all workgroups.
+    if (defined $self->{workgroup_id} && $self->{workgroup_id} != $args->{workgroup_id}) {
         # Implicit denial
         return -1;
     }
