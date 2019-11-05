@@ -377,8 +377,11 @@ class EndpointSelectionModal2 {
     let cloudAccountFormGroup = this.parent.querySelector('.entity-cloud-account');
     let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
     let cloudAccountInput = this.parent.querySelector('.entity-cloud-account-id');
+    let cloudGatewayFormGroup = this.parent.querySelector('.form-group.entity-cloud-gateway-type');
+    let cloudGatewayTypeSelector = this.parent.querySelector('.form-control.entity-cloud-gateway-type');
 
     cloudAccountFormGroup.style.display = 'none';
+    cloudGatewayFormGroup.style.display = 'none';
     cloudAccountInput.value = null;
 
     if (entity.cloud_interconnect_type !== null) {
@@ -390,6 +393,10 @@ class EndpointSelectionModal2 {
       } else if (entity.cloud_interconnect_type === 'azure-express-route') {
         cloudAccountLabel.innerText = 'ExpressRoute Service Key';
         cloudAccountInput.setAttribute('placeholder', '00000000-0000-0000-0000-000000000000');
+      } else if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
+        cloudAccountLabel.innerText = 'AWS Account Owner';
+        cloudAccountInput.setAttribute('placeholder', '012301230123');
+        cloudGatewayFormGroup.style.display = 'block';
       } else {
         cloudAccountLabel.innerText = 'AWS Account Owner';
         cloudAccountInput.setAttribute('placeholder', '012301230123');
@@ -476,6 +483,11 @@ class EndpointSelectionModal2 {
       console.log('endpoint:', endpoint);
       console.log('entity:', entity);
 
+      let cloudGatewayType = null;
+      if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
+        cloudGatewayType = cloudGatewayTypeSelector.options[cloudGatewayTypeSelector.selectedIndex].value;
+      }
+
       endpoint.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;
       endpoint.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
       endpoint.cloud_account_id = cloudAccountInput.value;
@@ -485,6 +497,7 @@ class EndpointSelectionModal2 {
       endpoint.interface = selectedInterface;
       endpoint.jumbo = jumboCheckbox.checked;
       endpoint.cloud_interconnect_type = entity.cloud_interconnect_type;
+      endpoint.cloud_gateway_type = cloudGatewayType;
 
       state.updateEndpoint(endpoint);
       $('#add-endpoint-modal2').modal('hide');

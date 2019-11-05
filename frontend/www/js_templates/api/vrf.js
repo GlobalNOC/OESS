@@ -57,6 +57,10 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       cloud_account_id: endpoint.cloud_account_id
     };
 
+    if (endpoint.cloud_gateway_type !== null) {
+      e['cloud_gateway_type'] = endpoint.cloud_gateway_type;
+    }
+
     if ('entity_id' in endpoint && endpoint.name === 'TBD' && endpoint.node === 'TBD') {
       e['entity'] = endpoint.entity;
     } else {
