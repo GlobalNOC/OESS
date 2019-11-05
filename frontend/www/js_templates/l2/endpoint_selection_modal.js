@@ -473,6 +473,11 @@ class EndpointSelectionModal2 {
     if (endpoint !== undefined && endpoint !== null && 'jumbo' in endpoint) {
       if (endpoint.jumbo == 1 || endpoint.jumbo == true) {
         jumboCheckbox.checked = true;
+        if (endpoint.mtu > 8500) {
+          cloudGatewayTypeSelector.value = 'private';
+        } else {
+          cloudGatewayTypeSelector.value = 'transit';
+        }
       } else {
         jumboCheckbox.checked = false;
       }
@@ -486,6 +491,11 @@ class EndpointSelectionModal2 {
       let cloudGatewayType = null;
       if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
         cloudGatewayType = cloudGatewayTypeSelector.options[cloudGatewayTypeSelector.selectedIndex].value;
+        if (jumboCheckbox.checked) {
+          endpoint.mtu = (cloudGatewayType === 'transit') ? 8500 : 9001;
+        } else {
+          endpoint.mtu = 1500;
+        }
       }
 
       endpoint.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;
