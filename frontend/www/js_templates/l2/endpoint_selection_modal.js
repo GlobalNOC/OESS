@@ -377,6 +377,7 @@ class EndpointSelectionModal2 {
     let cloudAccountFormGroup = this.parent.querySelector('.entity-cloud-account');
     let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
     let cloudAccountInput = this.parent.querySelector('.entity-cloud-account-id');
+    let vlanHelp = this.parent.querySelector('.entity-vlans-help');
 
     cloudAccountFormGroup.style.display = 'none';
     cloudAccountInput.value = null;
@@ -390,10 +391,14 @@ class EndpointSelectionModal2 {
       } else if (entity.cloud_interconnect_type === 'azure-express-route') {
         cloudAccountLabel.innerText = 'ExpressRoute Service Key';
         cloudAccountInput.setAttribute('placeholder', '00000000-0000-0000-0000-000000000000');
+
+        vlanHelp.dataset.content = '<b>Layer 2:</b> The sTag of a QnQ Tagged Interface connecting to Microsoft Azure. The selected sTag will be replaced by Microsoft. The cTag is selected by the user within the Azure Portal.<br/><b>Layer 3:</b> ...';
       } else {
         cloudAccountLabel.innerText = 'AWS Account Owner';
         cloudAccountInput.setAttribute('placeholder', '012301230123');
       }
+    } else {
+      vlanHelp.dataset.content = 'So say we all!';
     }
 
     // Max Bandwidth
