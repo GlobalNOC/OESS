@@ -392,7 +392,7 @@ class EndpointSelectionModal2 {
         cloudAccountLabel.innerText = 'ExpressRoute Service Key';
         cloudAccountInput.setAttribute('placeholder', '00000000-0000-0000-0000-000000000000');
 
-        vlanHelp.dataset.content = '<b>Layer 2:</b> The sTag of a QnQ Tagged Interface connecting to Microsoft Azure. The selected sTag will be replaced by Microsoft. The cTag is selected by the user within the Azure Portal.<br/><b>Layer 3:</b> ...';
+        vlanHelp.dataset.content = '<b>Layer 2:</b> The sTag of a QnQ Tagged Interface connecting to Microsoft Azure; This will be modified by Microsoft while provisioning. The cTag is selected by the user within the Azure Portal.<br/><b>Layer 3:</b> The cTag of a QnQ Tagged Interface connecting to Microsoft Azure. The sTag is selected by Microsoft while provisioning.';
       } else {
         cloudAccountLabel.innerText = 'AWS Account Owner';
         cloudAccountInput.setAttribute('placeholder', '012301230123');
