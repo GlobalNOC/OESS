@@ -145,6 +145,18 @@ sub setup_endpoints {
 
             my $azure = OESS::Cloud::Azure->new();
 
+            # Configure peering information only on layer 3
+            # connections.
+            my $peering;
+            if (defined $ep->vrf_endpoint_id) {
+                $peering = {
+                    vlan             => $ep->tag,
+                    local_asn        => 55038,
+                    primary_prefix   => '192.168.100.248/30',
+                    secondary_prefix => '192.168.100.252/30'
+                };
+            }
+
             my $conn = $azure->expressRouteCrossConnection($ep->cloud_interconnect_id, $ep->cloud_account_id);
             my $res = $azure->set_cross_connection_state_to_provisioned(
                 interconnect_id  => $ep->cloud_interconnect_id,
@@ -153,10 +165,7 @@ sub setup_endpoints {
                 region           => $conn->{location},
                 peering_location => $conn->{properties}->{peeringLocation},
                 bandwidth        => $conn->{properties}->{bandwidthInMbps},
-                vlan             => $ep->tag,
-                local_asn        => 55038,
-                primary_prefix   => '192.168.100.248/30',
-                secondary_prefix => '192.168.100.252/30'
+                peering          => $peering
             );
 
             $ep->cloud_connection_id($res->{id});
