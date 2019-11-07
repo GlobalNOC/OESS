@@ -217,6 +217,7 @@ sub fetch_all {
             $where
             AND (vrf_ep.tag >= interface_acl.vlan_start)
             AND (vrf_ep.tag <= interface_acl.vlan_end)
+            AND vrf_ep.state != 'decom'
             ORDER BY interface_acl.eval_position ASC
         ";
 
