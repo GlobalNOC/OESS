@@ -279,12 +279,12 @@ sub provision {
                 cloud_account_id => $ep->{cloud_account_id}
             );
         }
-
         if (!defined $interface) {
             $method->set_error("Couldn't create Circuit: Cannot find a valid Interface for $ep->{entity}.");
             $db->rollback;
             return;
         }
+
         my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
         if (!$valid_bandwidth) {
             $method->set_error("Couldn't create Circuit: Specified bandwidth is invalid for $ep->{entity}.");
@@ -325,42 +325,6 @@ sub provision {
             return;
         }
         $circuit->add_endpoint($endpoint);
-
-        if ($interface->cloud_interconnect_type eq 'azure-express-route') {
-            my $interface2 = $entity->select_interface(
-                inner_tag    => $endpoint->{inner_tag},
-                tag          => $endpoint->{tag},
-                workgroup_id => $args->{workgroup_id}->{value},
-                cloud_account_id => $ep->{cloud_account_id}
-            );
-            if (!defined $interface2) {
-                $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
-                $db->rollback;
-                return;
-            }
-
-            # Populate Endpoint modal with selected Interface details.
-            $ep->{type}         = 'circuit';
-            $ep->{entity_id}    = $entity->{entity_id};
-            $ep->{interface}    = $interface2->{name};
-            $ep->{interface_id} = $interface2->{interface_id};
-            $ep->{node}         = $interface2->{node}->{name};
-            $ep->{node_id}      = $interface2->{node}->{node_id};
-            $ep->{cloud_interconnect_id}   = $interface2->cloud_interconnect_id;
-            $ep->{cloud_interconnect_type} = $interface2->cloud_interconnect_type;
-
-            my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
-            my ($ep2_id, $ep2_err) = $endpoint2->create(
-                circuit_id => $circuit->circuit_id,
-                workgroup_id => $args->{workgroup_id}->{value}
-            );
-            if (defined $ep2_err) {
-                $method->set_error("Couldn't create Circuit: $ep2_err");
-                $db->rollback;
-                return;
-            }
-            $circuit->add_endpoint($endpoint2);
-        }
     }
 
     if (defined $args->{link}->{value}) {
@@ -553,49 +517,6 @@ sub update {
             );
             $circuit->add_endpoint($endpoint);
             push @$add_endpoints, $endpoint;
-
-            if ($interface->cloud_interconnect_type eq 'azure-express-route') {
-                my $interface2 = $entity->select_interface(
-                    inner_tag    => $endpoint->{inner_tag},
-                    tag          => $endpoint->{tag},
-                    workgroup_id => $args->{workgroup_id}->{value},
-                    cloud_account_id => $ep->{cloud_account_id}
-                );
-                if (!defined $interface2) {
-                    $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
-                    $db->rollback;
-                    return;
-                }
-                my $valid_bandwidth = $interface2->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
-                if (!$valid_bandwidth) {
-                    $method->set_error("Couldn't create VRF: Specified bandwidth is invalid for $ep->{entity}.");
-                    $db->rollback;
-                    return;
-                }
-
-                # Populate Endpoint modal with selected Interface details.
-                $ep->{type}         = 'circuit';
-                $ep->{entity_id}    = $entity->{entity_id};
-                $ep->{interface}    = $interface2->{name};
-                $ep->{interface_id} = $interface2->{interface_id};
-                $ep->{node}         = $interface2->{node}->{name};
-                $ep->{node_id}      = $interface2->{node}->{node_id};
-                $ep->{cloud_interconnect_id}   = $interface2->cloud_interconnect_id;
-                $ep->{cloud_interconnect_type} = $interface2->cloud_interconnect_type;
-
-                my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
-                my ($ep2_id, $ep2_err) = $endpoint2->create(
-                    circuit_id => $circuit->circuit_id,
-                    workgroup_id => $args->{workgroup_id}->{value}
-                );
-                if (defined $ep2_err) {
-                    $method->set_error("Couldn't create Circuit: $ep2_err");
-                    $db->rollback;
-                    return;
-                }
-                $circuit->add_endpoint($endpoint2);
-                push @$add_endpoints, $endpoint2;
-            }
 
         } else {
             my $endpoint = $circuit->get_endpoint(

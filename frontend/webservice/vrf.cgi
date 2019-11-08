@@ -13,7 +13,6 @@ use GRNOC::WebService::Dispatcher;
 
 use OESS::RabbitMQ::Client;
 use OESS::Cloud;
-use OESS::Cloud::AWS;
 use OESS::Config;
 use OESS::DB;
 use OESS::DB::Entity;

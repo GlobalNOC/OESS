@@ -250,6 +250,7 @@ sub select_interface {
             return undef;
         }
         $cloud_account_ep_count = scalar @$eps;
+        warn "$cloud_account_ep_count Endpoints used with this cloud_account_id";
     }
 
     foreach my $intf (@{$self->{interfaces}}) {
@@ -271,6 +272,7 @@ sub select_interface {
 
         if (defined $intf->cloud_interconnect_type && $intf->cloud_interconnect_type eq 'azure-express-route') {
             if (!defined $args->{cloud_account_id}) {
+                warn 'Azure Service key was not provided.';
                 return undef;
             }
 
