@@ -237,19 +237,23 @@ sub select_interface {
         @_
     };
 
+    if (!defined $self->{db}) {
+        $self->{logger}->warn('Interface selection may not return accurate results as database object not defined.');
+    }
+
     # Get number of Endpoints using the provided azure service key.
     # If cloud_account_id is already in use on another endpoint we'll
     # want to select the interface associated with the secondary azure
     # port. If the cloud_account_id is already in use on both the
     # primary and secondary the service key may no longer be used.
     my $cloud_account_ep_count = 0;
-    if (defined $args->{cloud_account_id}) {
+    if (defined $args->{cloud_account_id} && defined $self->{db}) {
         my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $self->{db}, cloud_account_id => $args->{cloud_account_id});
         if (defined $eps_err) {
             $self->{logger}->error($eps_err);
             return undef;
         }
-        $cloud_account_ep_count = scalar @$eps;
+        $cloud_account_ep_count = (defined $eps) ? scalar @$eps : 0;
         warn "$cloud_account_ep_count Endpoints used with this cloud_account_id";
     }
 
