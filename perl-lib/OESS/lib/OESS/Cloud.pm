@@ -204,16 +204,17 @@ sub cleanup_endpoints {
     my $config = OESS::Config->new();
     my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
-    my $conn_azure_endpoint_count = 0;
+    my $conn_azure_endpoint_count = {};
     foreach my $ep (@$endpoints) {
         if ($ep->cloud_interconnect_type eq 'azure-express-route') {
-            # TODO lookup actual value before deprovisioning.
-
             # Get number of Endpoints using the provided azure service
             # key. If cloud_account_id is in use on another endpoint
             # we'll want to wait before deprovisioning the
             # ExpressRoute.
-            $conn_azure_endpoint_count += 1;
+            if (!defined $conn_azure_endpoint_count->{$ep->cloud_account_id}) {
+                $conn_azure_endpoint_count->{$ep->cloud_account_id} = 0;
+            }
+            $conn_azure_endpoint_count->{$ep->cloud_account_id} += 1;
         }
     }
 
@@ -273,7 +274,7 @@ sub cleanup_endpoints {
                 next;
             }
             my $full_azure_endpoint_count = (defined $eps) ? scalar @$eps : 0;
-            my $diff_azure_endpoint_count = $full_azure_endpoint_count - $conn_azure_endpoint_count;
+            my $diff_azure_endpoint_count = $full_azure_endpoint_count - $conn_azure_endpoint_count->{$ep->cloud_account_id};
 
             if ($diff_azure_endpoint_count > 0) {
                 $logger->info("Not removing azure-express-route: $service_key is in use by another Connection.");
