@@ -227,12 +227,4 @@ sub base_url {
     return $self->{'config'}->{'base_url'};
 }
 
-=head2 local_as
-
-=cut
-sub local_as {
-    my $self = shift;
-    return $self->{'config'}->{'local_as'};
-}
-
 1;

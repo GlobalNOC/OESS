@@ -379,12 +379,20 @@ sub provision {
             OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints);
 
             foreach my $ep (@{$circuit->endpoints}) {
+                # It's expected that layer2 connections to azure pass
+                # all QnQ tagged traffic directly to the customer
+                # edge; All inner tagged traffic should be passed.
+                if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                    $ep->{unit} = $ep->{tag};
+                    $ep->{inner_tag} = undef;
+                }
+
                 # Azure endpoints use qnq which require us to reselect
                 # a unit. The initial unit was the selected vlan.
-                my $update_err = $ep->update_unit;
-                die $update_err if (defined $update_err);
+                # my $update_err = $ep->update_unit;
+                # die $update_err if (defined $update_err);
 
-                $update_err = $ep->update_db;
+                my $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }
         };
@@ -583,7 +591,15 @@ sub update {
             OESS::Cloud::setup_endpoints($circuit->description, $add_endpoints);
 
             foreach my $ep (@{$circuit->endpoints}) {
-                $ep->update_unit;
+                # It's expected that layer2 connections to azure pass
+                # all QnQ tagged traffic directly to the customer
+                # edge; All inner tagged traffic should be passed.
+                if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                    $ep->{unit} = $ep->{tag};
+                    $ep->{inner_tag} = undef;
+                }
+
+                # $ep->update_unit;
                 my $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }
