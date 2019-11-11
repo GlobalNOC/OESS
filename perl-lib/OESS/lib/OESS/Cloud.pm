@@ -65,7 +65,7 @@ sub setup_endpoints {
             my $aws = OESS::Cloud::AWS->new();
 
             my $amazon_addr   = undef;
-            my $asn           = 55038;
+            my $asn           = $config->local_as;
             my $auth_key      = undef;
             my $customer_addr = undef;
             my $ip_version    = 'ipv6';
@@ -152,7 +152,7 @@ sub setup_endpoints {
             if (defined $ep->vrf_endpoint_id) {
                 $peering = {
                     vlan             => $ep->tag,
-                    local_asn        => 55038,
+                    local_asn        => $config->local_as,
                     primary_prefix   => '192.168.100.248/30',
                     secondary_prefix => '192.168.100.252/30'
                 };
