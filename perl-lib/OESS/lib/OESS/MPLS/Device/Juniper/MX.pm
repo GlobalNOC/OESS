@@ -302,7 +302,7 @@ sub get_system_information{
 
     my $system_info = $self->{'jnx'}->get_dom();
     my $root_ns     = $system_info->documentElement()->namespaceURI();
-    $self->{logger}->info("Using root XML namespace $root_ns.");
+    $self->{logger}->debug("Using root XML namespace $root_ns.");
 
     my $xp = XML::LibXML::XPathContext->new($system_info);
     $xp->registerNs('x', $root_ns);
@@ -310,7 +310,7 @@ sub get_system_information{
     # Eg. http://xml.juniper.net/junos/15.1I0/junos
     my $junos_ns = $xp->lookupNs('junos');
     $self->{'root_namespace'} = substr($junos_ns, 0, -5);
-    $self->{logger}->info("Using JUNOS XML namespace $self->{'root_namespace'}.");
+    $self->{logger}->debug("Using JUNOS XML namespace $self->{'root_namespace'}.");
 
     my $host_name = $xp->findvalue('/x:rpc-reply/x:system-information/x:host-name');
     my $model =     $xp->findvalue('/x:rpc-reply/x:system-information/x:hardware-model');

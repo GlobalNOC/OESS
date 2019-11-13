@@ -97,10 +97,10 @@ sub new{
     #try and connect up right away
     my $ok = $self->{'device'}->connect();
     if (!$ok) {
-	warn "Unable to connect\n";
-	$self->{'logger'}->error("Connection to device could not be established.");
+        warn "Unable to connect\n";
+        $self->{'logger'}->error("Connection to device could not be established.");
     } else {
-	$self->{'logger'}->error("Connection to device was established.");
+        $self->{'logger'}->debug("Connection to device was established.");
     }
 
     $self->{'ckts'} = {};

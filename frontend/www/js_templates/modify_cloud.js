@@ -162,6 +162,10 @@ class GlobalState extends Component {
   }
 }
 
+$(function () {
+  $('[data-toggle="popover"]').popover();
+});
+
 let state = new GlobalState();
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
 

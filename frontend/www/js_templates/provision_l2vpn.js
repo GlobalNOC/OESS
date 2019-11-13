@@ -64,6 +64,10 @@ class GlobalState extends Component {
   }
 }
 
+$(function () {
+  $('[data-toggle="popover"]').popover();
+});
+
 let state = new GlobalState();
 
 let schedule = new Schedule('#l2vpn-schedule-picker');
