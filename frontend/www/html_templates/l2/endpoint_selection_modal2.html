@@ -34,7 +34,12 @@
                   </div>
                   <div class="form-group">
                     <label class="control-label">VLAN</label>
-                    <select class="form-control entity-vlans"></select>
+                    <div style="display: flex; align-items: center;">
+                      <select class="form-control entity-vlans"></select>
+                      <a class="entity-vlans-help" tabindex="0" class="btn btn-link" role="button" style="padding: 6px; margin: 0 0 0 6px;" data-toggle="popover" data-trigger="focus" data-container="body" data-html="true" data-content="">
+                        <span class="glyphicon glyphicon-question-sign" aria-hidden="true"></span>
+                      </a>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label class="control-label">Max Bandwidth (Mb/s)</label>

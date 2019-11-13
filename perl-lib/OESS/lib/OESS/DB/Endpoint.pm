@@ -101,6 +101,10 @@ sub fetch_all {
         push @$params, 'node.node_id=?';
         push @$values, $args->{node_id};
     }
+    if (defined $args->{cloud_account_id}) {
+        push @$params, 'cloud.cloud_account_id=?';
+        push @$values, $args->{cloud_account_id};
+    }
 
     my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : 'WHERE 1 ';
 
@@ -213,6 +217,7 @@ sub fetch_all {
             $where
             AND (vrf_ep.tag >= interface_acl.vlan_start)
             AND (vrf_ep.tag <= interface_acl.vlan_end)
+            AND vrf_ep.state != 'decom'
             ORDER BY interface_acl.eval_position ASC
         ";
 
@@ -325,7 +330,7 @@ sub update_cloud {
     }
 
     my $cloud_connection_vrf_ep_id = -1;
-    if (defined $args->{endpoint}->{cloud_account_id} && defined $args->{endpoint}->{cloud_connection_id}) {
+    if (defined $args->{endpoint}->{cloud_account_id}) {
         my $iq = "
             insert into cloud_connection_vrf_ep
             (vrf_ep_id, circuit_ep_id, cloud_account_id, cloud_connection_id)
@@ -335,7 +340,7 @@ sub update_cloud {
             $args->{endpoint}->{vrf_endpoint_id},
             $args->{endpoint}->{circuit_ep_id},
             $args->{endpoint}->{cloud_account_id},
-            $args->{endpoint}->{cloud_connection_id}
+            $args->{endpoint}->{cloud_connection_id} || ''
         ]);
         if (!defined $cloud_connection_vrf_ep_id) {
             return (undef, $args->{db}->get_error);

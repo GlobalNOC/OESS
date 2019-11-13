@@ -928,6 +928,15 @@ sub create {
         $self->{circuit_ep_id} = $circuit_ep_id;
         $self->{circuit_id} = $args->{circuit_id};
         $self->{unit} = $unit;
+
+        my ($cloud_conn_ep_id, $err) = OESS::DB::Endpoint::update_cloud(
+            db => $self->{db},
+            endpoint => $self->to_hash
+        );
+        if (defined $err) {
+            $self->{'logger'}->error("Couldn't create Endpoint: $err");
+            return (undef, "Couldn't create Endpoint: $err");
+        }
         return ($circuit_ep_id, undef);
 
     } elsif (defined $args->{vrf_id}) {
@@ -947,13 +956,21 @@ sub create {
         $self->{vrf_endpoint_id} = $vrf_ep_id;
         $self->{vrf_id} = $args->{vrf_id};
         $self->{unit} = $unit;
+
+        my ($cloud_conn_ep_id, $err) = OESS::DB::Endpoint::update_cloud(
+            db => $self->{db},
+            endpoint => $self->to_hash
+        );
+        if (defined $err) {
+            $self->{'logger'}->error("Couldn't create Endpoint: $err");
+            return (undef, "Couldn't create Endpoint: $err");
+        }
         return ($vrf_ep_id, undef);
 
     } else {
         $self->{'logger'}->error("Couldn't create Endpoint: No associated Circuit or VRF identifier specified.");
         return (undef, "Couldn't create Endpoint: No associated Circuit or VRF identifier specified.");
     }
-
 }
 
 =head2 remove
