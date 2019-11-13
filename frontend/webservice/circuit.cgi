@@ -303,7 +303,11 @@ sub provision {
         $ep->{cloud_interconnect_type} = $interface->cloud_interconnect_type;
 
         if ($ep->{cloud_interconnect_type} eq 'aws-hosted-connection') {
-            $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+            if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq 'transit') {
+                $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 8500 : 1500;
+            } else {
+                $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+            }
         } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
             $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
         } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
@@ -507,7 +511,11 @@ sub update {
             $ep->{cloud_interconnect_type} = $interface->cloud_interconnect_type;
 
             if ($ep->{cloud_interconnect_type} eq 'aws-hosted-connection') {
-                $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq 'transit') {
+                    $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 8500 : 1500;
+                } else {
+                    $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+                }
             } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
                 $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
             } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
@@ -534,7 +542,22 @@ sub update {
             $endpoint->bandwidth($ep->{bandwidth});
             $endpoint->inner_tag($ep->{inner_tag});
             $endpoint->tag($ep->{tag});
-            $endpoint->mtu($ep->{mtu});
+
+            if ($endpoint->cloud_interconnect_type eq 'aws-hosted-connection') {
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq 'transit') {
+                    $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 8500 : 1500);
+                } else {
+                    $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
+                }
+            } elsif ($endpoint->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+                $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
+            } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-inerconnect') {
+                $endpoint->mtu(1440);
+            } elsif ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
+                $endpoint->mtu(1500);
+            } else {
+                $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9000 : 1500);
+            }
 
             my $err = $endpoint->update_db;
             if (defined $err) {

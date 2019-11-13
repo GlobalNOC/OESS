@@ -53,6 +53,20 @@
                     <label class="control-label">Jumbo Frames</label><br/>
                     <input class="entity-jumbo-frames" type="checkbox"> Enable</input>
                   </div>
+                  <!-- entity-gateway-type should only be shown for interfaces of type aws-hosted-connection -->
+                  <div class="form-group entity-cloud-gateway-type">
+                    <label class="control-label">Direct Connect Gateway</label>
+                    <!-- Popover: See https://getbootstrap.com/docs/3.3/javascript/#popovers for more information -->
+                    <div style="display: flex; align-items: center;">
+                      <select class="form-control entity-cloud-gateway-type">
+                        <option value="transit">Transit</option>
+                        <option value="private" selected>Virtual Private</option>
+                      </select>
+                      <a tabindex="0" class="btn btn-link" role="button" style="padding: 6px; margin: 0 0 0 6px;" data-toggle="popover" data-trigger="focus" data-container="body" data-html="true" data-content="The <b>MTU</b> of AWS Hosted Connections varies depending on the Direct Connect Gateway type used with this Connection. Failure to select the appropriate gateway type may impact network forwarding.">
+                        <span class="glyphicon glyphicon-question-sign" aria-hidden="true"></span>
+                      </a>
+                    </div>
+                  </div>
 
                   <!-- style="display: ${vlanSelectable ? 'inline-block' : 'none'}" -->
                   <button class="btn btn-success add-entity-submit" type="submit">
