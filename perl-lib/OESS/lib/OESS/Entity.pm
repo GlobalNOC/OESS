@@ -247,7 +247,7 @@ sub select_interface {
     # port. If the cloud_account_id is already in use on both the
     # primary and secondary the service key may no longer be used.
     my $cloud_account_ep_count = 0;
-    if (defined $args->{cloud_account_id} && defined $self->{db}) {
+    if (defined $args->{cloud_account_id} && $args->{cloud_account_id} ne '' && defined $self->{db}) {
         my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $self->{db}, cloud_account_id => $args->{cloud_account_id});
         if (defined $eps_err) {
             $self->{logger}->error($eps_err);
