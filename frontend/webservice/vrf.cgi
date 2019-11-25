@@ -614,6 +614,19 @@ sub provision_vrf{
             OESS::Cloud::setup_endpoints($vrf->name, $add_endpoints);
 
             foreach my $ep (@{$vrf->endpoints}) {
+                # It's expected that layer2 connections to azure pass
+                # all QnQ tagged traffic directly to the customer
+                # edge; All inner tagged traffic should be passed
+                # transparently. This is not the case for l3conns
+                # which should match specifically on the qnq tag to
+                # ensure proper peerings.
+                if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                    # We do nothing here as the QinQ tags have already
+                    # been selected and will not change for updates.
+                } else {
+                    $ep->update_unit;
+                }
+
                 my $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }
@@ -628,7 +641,7 @@ sub provision_vrf{
     # warn Dumper($vrf->to_hash);
     # $db->rollback;
     # return { error => 1, error_text => 'lulz' };
-    $db->commit;
+    # $db->commit;
 
     my $vrf_id = $vrf->vrf_id;
     if ($vrf_id == -1) {
@@ -642,12 +655,17 @@ sub provision_vrf{
 
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
         $res = vrf_del(method => $method, vrf_id => $vrf_id);
-        _update_cache(vrf_id => $vrf_id);
-        $res = vrf_add(method => $method, vrf_id => $vrf_id);
 
+        $db->commit;
+        _update_cache(vrf_id => $vrf_id);
+
+        $res = vrf_add(method => $method, vrf_id => $vrf_id);
         $type = 'modified';
         $reason = "Updated by $ENV{'REMOTE_USER'}";
     } else {
+        $db->commit;
+        _update_cache(vrf_id => $vrf_id);
+
         $res = vrf_add(method => $method, vrf_id => $vrf_id);
     }
 
