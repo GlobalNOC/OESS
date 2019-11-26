@@ -10,6 +10,7 @@ use OESS::Cloud::AWS;
 use OESS::Cloud::Azure;
 use OESS::Cloud::GCP;
 use OESS::Config;
+use OESS::DB::Endpoint;
 
 use Data::Dumper;
 use Data::UUID;
@@ -64,7 +65,7 @@ sub setup_endpoints {
             my $aws = OESS::Cloud::AWS->new();
 
             my $amazon_addr   = undef;
-            my $asn           = 55038;
+            my $asn           = $config->local_as;
             my $auth_key      = undef;
             my $customer_addr = undef;
             my $ip_version    = 'ipv6';
@@ -145,6 +146,18 @@ sub setup_endpoints {
 
             my $azure = OESS::Cloud::Azure->new();
 
+            # Configure peering information only on layer 3
+            # connections.
+            my $peering;
+            if (defined $ep->vrf_endpoint_id) {
+                $peering = {
+                    vlan             => $ep->tag,
+                    local_asn        => $config->local_as,
+                    primary_prefix   => '192.168.100.248/30',
+                    secondary_prefix => '192.168.100.252/30'
+                };
+            }
+
             my $conn = $azure->expressRouteCrossConnection($ep->cloud_interconnect_id, $ep->cloud_account_id);
             my $res = $azure->set_cross_connection_state_to_provisioned(
                 interconnect_id  => $ep->cloud_interconnect_id,
@@ -153,10 +166,7 @@ sub setup_endpoints {
                 region           => $conn->{location},
                 peering_location => $conn->{properties}->{peeringLocation},
                 bandwidth        => $conn->{properties}->{bandwidthInMbps},
-                vlan             => $ep->tag,
-                local_asn        => 55038,
-                primary_prefix   => '192.168.100.248/30',
-                secondary_prefix => '192.168.100.252/30'
+                peering          => $peering
             );
 
             $ep->cloud_connection_id($res->{id});
@@ -193,6 +203,20 @@ sub cleanup_endpoints {
 
     my $config = OESS::Config->new();
     my $logger = Log::Log4perl->get_logger('OESS.Cloud');
+
+    my $conn_azure_endpoint_count = {};
+    foreach my $ep (@$endpoints) {
+        if ($ep->cloud_interconnect_type eq 'azure-express-route') {
+            # Get number of Endpoints using the provided azure service
+            # key. If cloud_account_id is in use on another endpoint
+            # we'll want to wait before deprovisioning the
+            # ExpressRoute.
+            if (!defined $conn_azure_endpoint_count->{$ep->cloud_account_id}) {
+                $conn_azure_endpoint_count->{$ep->cloud_account_id} = 0;
+            }
+            $conn_azure_endpoint_count->{$ep->cloud_account_id} += 1;
+        }
+    }
 
     foreach my $ep (@$endpoints) {
         if (!$ep->cloud_interconnect_id) {
@@ -243,6 +267,19 @@ sub cleanup_endpoints {
 
             my $interconnect_id = $ep->cloud_interconnect_id;
             my $service_key = $ep->cloud_account_id;
+
+            my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $ep->{db}, cloud_account_id => $ep->cloud_account_id);
+            if (defined $eps_err) {
+                $logger->error($eps_err);
+                next;
+            }
+            my $full_azure_endpoint_count = (defined $eps) ? scalar @$eps : 0;
+            my $diff_azure_endpoint_count = $full_azure_endpoint_count - $conn_azure_endpoint_count->{$ep->cloud_account_id};
+
+            if ($diff_azure_endpoint_count > 0) {
+                $logger->info("Not removing azure-express-route: $service_key is in use by another Connection.");
+                next;
+            }
 
             $logger->info("Removing azure-express-route $service_key from $interconnect_id.");
             my $conn = $azure->expressRouteCrossConnection($interconnect_id, $service_key);

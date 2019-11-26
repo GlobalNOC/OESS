@@ -252,27 +252,30 @@ sub set_cross_connection_state_to_provisioned {
             bandwidthInMbps => $args->{bandwidth},
             serviceProviderProvisioningState => 'Provisioned',
             peeringLocation => $args->{peering_location},
-            expressRouteCircuit => { id => $args->{circuit_id} },
-            peerings => [
-                {
-                    name => 'AzurePrivatePeering',
-                    properties => {
-                        peerASN => $args->{local_asn},
-                        primaryPeerAddressPrefix => $args->{primary_prefix},
-                        secondaryPeerAddressPrefix => $args->{secondary_prefix},
-                        vlanId => $args->{vlan},
-                        state => 'Enabled',
-                        # NOTE: private ipv6 peerings not supported by azure
-                        # ipv6PeeringConfig => {
-                        #     primaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::/126",
-                        #     secondaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::4/126"
-                        # }
-                    }
-                }
-            ]
+            expressRouteCircuit => { id => $args->{circuit_id} }
         },
         location => $args->{region}
     };
+
+    if (defined $args->{peering}) {
+        $payload->{properties}->{peerings} = [
+            {
+                name => 'AzurePrivatePeering',
+                properties => {
+                    peerASN => $args->{peering}->{local_asn},
+                    primaryPeerAddressPrefix => $args->{peering}->{primary_prefix},
+                    secondaryPeerAddressPrefix => $args->{peering}->{secondary_prefix},
+                    vlanId => $args->{peering}->{vlan},
+                    state => 'Enabled',
+                    # NOTE: private ipv6 peerings not supported by azure
+                    # ipv6PeeringConfig => {
+                    #     primaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::/126",
+                    #     secondaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::4/126"
+                    # }
+                }
+            }
+        ];
+    }
 
     my $req = HTTP::Request->new("PUT", $url);
     $req->header("Content-Type" => "application/json");
@@ -343,6 +346,13 @@ sub set_cross_connection_state_to_not_provisioned {
     $req->content(encode_json($payload));
 
     my $resp = $conn->{http}->request($req);
+    if (defined $resp->{error}) {
+        foreach my $detail (@{$resp->{error}->{details}}) {
+            $self->{logger}->error($detail->{message});
+            return;
+        }
+    }
+
     return decode_json($resp->content);
 }
 
