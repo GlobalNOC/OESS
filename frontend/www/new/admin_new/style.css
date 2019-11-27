@@ -1,0 +1,26 @@
+#user_search_div{
+display: inline-flex;
+float:left;
+text-align:left;
+margin-left:105px;
+margin-bottom:8px;
+}
+#soft_title{
+margin-bottom: 1em;
+}
+#user_search_label{
+    margin-right: 1em;
+    text-align: center;
+}
+.user_table{
+    width: 90%;
+    margin-left: 25px;
+}
+#user_table_nav{
+    width: 10%;
+    margin-bottom: 5%;
+}
+.title{
+    margin-top: 1em;
+    font-size: 20px;
+}
