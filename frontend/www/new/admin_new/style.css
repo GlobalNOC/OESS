@@ -24,3 +24,9 @@ margin-bottom: 1em;
     margin-top: 1em;
     font-size: 20px;
 }
+tr:hover td{
+    background-color:#B2D2FF !important;
+}
+.modal-backdrop{
+	z-index:1;
+}

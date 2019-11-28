@@ -52,7 +52,7 @@ class Users extends React.Component {
     componentDidUpdate() {
         //to-do 
     }
-
+	
     render() {
         //Render Table if atleast 1 user data is available
         if (this.state.users[0].user_id != "") {
