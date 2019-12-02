@@ -24,11 +24,11 @@ constructor(props) {
   }
 
 componentWillReceiveProps(nextProps, prevState) {
-  this.setState({
-    show: nextProps.isVisible[0],
-    rowdata: nextProps.isVisible[1]
-  })
-}
+ 	this.setState({
+ 	   show: nextProps.isVisible[0],
+ 	   rowdata: nextProps.isVisible[1]
+ 	 })
+ }
 
 
   handleClose() {
@@ -37,7 +37,7 @@ componentWillReceiveProps(nextProps, prevState) {
 
   render() {
     return (
-      <Modal show={this.state.show} onHide={this.handleClose}>
+      <Modal dialogAs={DraggableModalDialog} show={this.state.show} onHide={this.handleClose}>
         <Modal.Header closeButton>
           <Modal.Title>User Details</Modal.Title>
         </Modal.Header>
