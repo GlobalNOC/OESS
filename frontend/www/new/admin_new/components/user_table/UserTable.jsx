@@ -1,10 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { BrowserRouter as Router, Route, Link } from "react-router-dom";
-import TableTemplate from './components/TableTemplate.jsx';
-import getUsers from './api/users.jsx';
+import TableTemplate from '.././generic_components/TableTemplate.jsx';
+import getUsers from '../../api/users.jsx';
 
-class Users extends React.Component {
+export default class UsersTable extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -55,5 +55,3 @@ class Users extends React.Component {
     }
 }
 
-let mountNode = document.getElementById("users");
-ReactDOM.render(<Users />, mountNode);

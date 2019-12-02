@@ -14,65 +14,8 @@
 </head>
 
 <body style="padding: 0; margin: 0;">
-    <center>
-        <div>
-            <center>
-                <div>
-                    <p class="title"><b>Users</b></p>
-                    <p class="subtitle">Add or remove users</p>
-                </div>
-            </center>
-            <br>
-            <br>
-            <div id="user_search_div">
-                <label for="user_search" id="user_search_label">Search</label>
-                <input type="text" class="form-control" size="25" id="user_search">
-                <!-- <button type="submit"><i class="fa fa-search"></i></button> -->
-            </div>
-            <br>
-            <br>
-            <p id="soft_title"> Existing Users</p>
-            <center>
-		<!--UserTable-->
-                <div class="user_table" id="users"></div>
-                <script src="./index.jsx"></script>
-            </center>
-            <br>
-            <br>
-            <div id="user_table_nav">
-                <nav aria-label="Page navigation example">
-                    <ul class="pagination">
-
-                        <li class="page-item">
-                            <a class="page-link" href="#" aria-label="First">
-                                <span aria-hidden="true">&laquo;</span>
-                                <span class="sr-only">First</span>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="#" aria-label="Previous">
-                                <span aria-hidden="true">&lsaquo;</span>
-                                <span class="sr-only">Previous</span>
-                            </a>
-                        </li>
-                        <li class="page-item"><a class="page-link" href="#">1</a></li>
-                        <li class="page-item">
-                            <a class="page-link" href="#" aria-label="Next">
-                                <span aria-hidden="true">&rsaquo;</span>
-                                <span class="sr-only">Next</span>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="#" aria-label="Last">
-                                <span aria-hidden="true">&raquo;</span>
-                                <span class="sr-only">Last</span>
-                            </a>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
-            <button type="button" class="button is-link">Add User</button>
-    </center>
+       <div id="show-users"></div>
+       <script src="./components/users/UserLandingPage.jsx"></script>
 </body>
 
 </html>
