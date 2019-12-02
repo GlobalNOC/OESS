@@ -1,14 +1,13 @@
 import React from 'react';
-import UserDetails from './UserDetails.jsx';
-import Modal from "react-bootstrap/Modal";
-export default class UserTable extends React.Component {
+import ModalTemplate from './ModalTemplate.jsx';
+
+export default class TableTemplate extends React.Component {
 
     constructor(props) {
         super(props);
         this.getHeader = this.getHeader.bind(this);
         this.getRowsData = this.getRowsData.bind(this);
         this.getKeys = this.getKeys.bind(this);
-//	this.display = this.display.bind(this);
 	this.state={
 		isVisible : false,
 		rowdata : {}
@@ -29,7 +28,6 @@ export default class UserTable extends React.Component {
 	console.log("This is popup"+JSON.stringify(row));
 	var rowdata = row;
 	currComponent.setState({isVisible:true, rowdata:rowdata});
-	//console.log(this.state);
    }
     getRowsData() {
         var items = this.props.data;
@@ -52,7 +50,7 @@ export default class UserTable extends React.Component {
                         {this.getRowsData()}
                     </tbody>
                 </table>
-	<UserDetails isVisible={[this.state.isVisible, this.state.rowdata]} />
+	<ModalTemplate isVisible={[this.state.isVisible, this.state.rowdata]} />
         </div>
         );
     }

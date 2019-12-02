@@ -12,7 +12,7 @@ class DraggableModalDialog extends React.Component {
     }
 }
 
-export default class UserDetails extends Component {
+export default class ModalTemplate extends Component {
 constructor(props) {
     super(props);
     console.log("props", props);
@@ -35,13 +35,17 @@ componentWillReceiveProps(nextProps, prevState) {
     this.setState({ show: false });
   };
 
+  handleSave(){
+    this.setState({show: false});
+  };
+
   render() {
     return (
       <Modal dialogAs={DraggableModalDialog} show={this.state.show} onHide={this.handleClose}>
         <Modal.Header closeButton>
           <Modal.Title>User Details</Modal.Title>
         </Modal.Header>
-        <Modal.Body>Woohoo, you're reading this text in a modal!</Modal.Body>
+        <Modal.Body>edit form</Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={this.handleClose}>
             Close

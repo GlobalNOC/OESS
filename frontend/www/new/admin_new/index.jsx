@@ -1,24 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { BrowserRouter as Router, Route, Link } from "react-router-dom";
-import UserTable from './UserTable.jsx';
-
-//To be modified
-let path = 'https://rojraman-dev.grnoc.iu.edu/oess/';
-async function getUsers() {
-    let url = `${path}services/admin/admin.cgi?method=get_users`;
-
-    try {
-        const resp = await fetch(url, { method: 'get', credentials: 'include' });
-        const data = await resp.json();
-        if (data.error_text) throw data.error_text;
-        return data.results;
-    } catch (error) {
-        console.log('Failure occurred in get_users.');
-        console.log(error);
-        return [];
-    }
-}
+import TableTemplate from './components/TableTemplate.jsx';
+import getUsers from './api/users.jsx';
 
 class Users extends React.Component {
     constructor(props) {
@@ -35,18 +19,14 @@ class Users extends React.Component {
             }]
         };
     }
-    //Call to getUsers method
-    fetchUsers(props, currComponent) {
-        getUsers().then(function (u) {
+
+    componentDidMount(props) {
+	let currComponent =  this;
+	getUsers().then(function (u) {
             currComponent.setState({
                 users: u
             })
         });
-    }
-
-    componentDidMount(props) {
-        //Fetch Users
-        this.fetchUsers(props, this);
     }
 
     componentDidUpdate() {
@@ -68,7 +48,7 @@ class Users extends React.Component {
                 users_data[obj.user_id - 1] = data;
             });
             //UserTable component to create table from JSON
-            return <UserTable data={users_data} />;
+            return <TableTemplate data={users_data} />;
         } else {
             return null;
         }
