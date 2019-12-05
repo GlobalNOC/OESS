@@ -18,12 +18,13 @@ use OESS::Entity;
 =head2 fetch_all
 
     my ($endpoints, $error) = OESS::DB::Endpoint::fetch_all(
-        db           => new OESS::DB,
-        circuit_id   => 100,          # Optional
-        vrf_id       => 100,          # Optional
-        entity_id    => 100,          # Optional
-        node_id      => 100,          # Optional
-        interface_id => 100           # Optional
+        db                      => new OESS::DB,
+        circuit_id              => 100,          # Optional
+        vrf_id                  => 100,          # Optional
+        entity_id               => 100,          # Optional
+        node_id                 => 100,          # Optional
+        interface_id            => 100,          # Optional
+        cloud_interconnect_type => '...'         # Optional
     );
     warn $error if defined $error;
 
@@ -96,6 +97,10 @@ sub fetch_all {
     if (defined $args->{interface_id}) {
         push @$params, 'interface.interface_id=?';
         push @$values, $args->{interface_id};
+    }
+    if (defined $args->{cloud_interconnect_type}) {
+        push @$params, 'interface.cloud_interconnect_type=?';
+        push @$values, $args->{cloud_interconnect_type};
     }
     if (defined $args->{node_id}) {
         push @$params, 'node.node_id=?';
