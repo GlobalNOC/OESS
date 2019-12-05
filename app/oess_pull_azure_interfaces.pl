@@ -14,7 +14,6 @@ use OESS::Cloud::Azure;
 use OESS::Config;
 use OESS::DB;
 use OESS::DB::Endpoint;
-use OESS::DB::Workgroup;
 use OESS::Endpoint;
 
 my $logger;
@@ -25,6 +24,7 @@ sub main{
     my $db = OESS::DB->new();
 
     my @azure_cloud_accounts_config = fetch_azure_cloud_account_configs($config);
+    my $azure = OESS::Cloud::Azure->new();
 
     my ($endpoints, $error) = OESS::DB::Endpoint::fetch_all(
         db => $db,
@@ -32,15 +32,7 @@ sub main{
     );
 
     foreach my $cloud (@azure_cloud_accounts_config) {
-        my $workgroup = OESS::DB::Workgroup::fetch(db => $db, name => $cloud->{workgroup});
-        if (!defined $workgroup) {
-            warn "Could not find database record for workgroup $cloud->{workgroup}.";
-            next;
-        }
-
-        my $azure = OESS::Cloud::Azure->new();
         my $azure_connections = ($azure->expressRouteCrossConnections($cloud->{interconnect_id}));
-
         reconcile_oess_endpoints($db, $endpoints, $azure_connections);
     }
 }
