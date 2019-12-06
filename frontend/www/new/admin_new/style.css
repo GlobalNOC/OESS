@@ -6,6 +6,9 @@ margin-left:105px;
 margin-bottom:8px;
 }
 #soft_title{
+margin-top: 10;
+margin-left:0;
+margin-right:0;
 margin-bottom: 1em;
 }
 #user_search_label{
@@ -17,7 +20,7 @@ margin-bottom: 1em;
     margin-left: 25px;
 }
 #user_table_nav{
-    width: 10%;
+    width: 15%;
     margin-bottom: 5%;
 }
 .title{
@@ -29,20 +32,4 @@ tr:hover td{
 }
 .modal-backdrop{
 	z-index:1;
-}
-.navbar {
-    background-color: black !important;
-    min-height: 2.25rem !important;
-    position: relative;
-    z-index: 30;
-}
-.navbar>.container, .navbar>.container-fluid {
-    display: flex;
-    flex-wrap: nowrap !important;
-    align-items: center;
-    justify-content: space-between;
-}
-.navbar-nav {
-    display: flex;
-    flex-direction: initial !important;
 }
