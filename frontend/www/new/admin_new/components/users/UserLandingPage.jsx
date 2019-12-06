@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import UsersTable from "../user_table/UserTable.jsx";
-
+import NavBar from "../nav_bar/NavBar.jsx";
 class UserLandingPage extends React.Component {
 	
 	constructor(props){
@@ -13,6 +13,7 @@ class UserLandingPage extends React.Component {
 
 		return (
 		<div>
+	<NavBar/>
     <center>
         <div>
             <center>

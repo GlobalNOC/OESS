@@ -30,3 +30,19 @@ tr:hover td{
 .modal-backdrop{
 	z-index:1;
 }
+.navbar {
+    background-color: black !important;
+    min-height: 2.25rem !important;
+    position: relative;
+    z-index: 30;
+}
+.navbar>.container, .navbar>.container-fluid {
+    display: flex;
+    flex-wrap: nowrap !important;
+    align-items: center;
+    justify-content: space-between;
+}
+.navbar-nav {
+    display: flex;
+    flex-direction: initial !important;
+}
