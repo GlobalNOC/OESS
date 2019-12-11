@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import NavBrand from './NavBrand.jsx';
 import NavMenu from './NavMenu.jsx';
+import { testConfig } from '../.././test.jsx';
 
 export default class NavBar extends React.Component{
 	constructor(props) {
@@ -11,16 +12,15 @@ export default class NavBar extends React.Component{
 	render(){
 
 	var navbar = {};
-	navbar.brand = {linkTo: "#", text: "Cloud Connect"};
+	let path = testConfig.user;
+	navbar.brand = {linkTo: "#", src: path+'media/internet2-logo.png', text: "Cloud Connect"};
 	navbar.links = [
- 		 {linkTo: "#", text: "Discovery"},
-  		{linkTo: "#", text: "Network"},
-		{linkTo: "#", text: "Users"},
-		{linkTo: "#", text: "Workgroups"},
-		{linkTo: "#", text: "Remote Links"},
-		{linkTo: "#", text: "Remote Devices"},
-		{linkTo: "#", text: "Maintainances"},
-		{linkTo: "#", text: "Config Changes"},
+		{dropdown: true, text: "New Connections", links: [
+   			 {linkTo: "#", text: "Layer 1"},
+    			 {linkTo: "#", text: "Layer 2"}
+  		]},
+  		{linkTo: "#", text: "Explore"},
+		{linkTo: "#", text: "Workgroup"},
 	];
 
 
@@ -34,7 +34,7 @@ export default class NavBar extends React.Component{
               <span className="icon-bar"></span>
               <span className="icon-bar"></span>
             </button>
-            <NavBrand linkTo={navbar.brand.linkTo} text={navbar.brand.text} />
+            <NavBrand linkTo={navbar.brand.linkTo} src={navbar.brand.src} text={navbar.brand.text} />
           </div>
           <div className="collapse navbar-collapse" id="navbar-collapse">
             <NavMenu links={navbar.links} />
