@@ -11,7 +11,10 @@ export default class NavBrand extends React.Component{
 	
 	render(){
 		return (
-      		<a className="navbar-brand" href={this.props.linkTo}>{this.props.text}</a>
+      		<a className="navbar-brand" href={this.props.linkTo}>
+		<img className="navbar-brand-logo" src={this.props.src}/>	
+		{this.props.text}
+		</a>
     		); 
 	}
 
