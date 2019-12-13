@@ -1,8 +1,8 @@
 import React from 'react';
-import NavLinkDropdown from "./NavLinkDropdown";
+import NavLinkDropdownRight from "./NavLinkDropdownRight";
 import NavLink from "./NavLink";
 
-export default class NavMenu extends React.Component{
+export default class NavMenuRight extends React.Component{
 
 	constructor(props) {
                 super(props);
@@ -12,9 +12,16 @@ export default class NavMenu extends React.Component{
 	render(){
 		var links = this.props.links.map(function(link){
      		 if(link.dropdown) {
-        		return (
-          			<NavLinkDropdown links={link.links} text={link.text} active={link.active} />
-        		);
+        		if(link.details){
+				return (
+          				<NavLinkDropdownRight links={link.links} details={link.details} first_name={link.first_name} last_name={link.last_name} username={link.username} email={link.email} />
+        			);
+			}else{
+				return (
+                                	<NavLinkDropdownRight links={link.links} text={link.text} />
+                        	);
+			}
+			
      		 }
      		 else {
         		return (
@@ -24,7 +31,7 @@ export default class NavMenu extends React.Component{
     		});
     		return (
 			
-     			 <ul key={+new Date() + Math.random()} className="nav navbar-nav pull-right navbar-rightt">
+     			 <ul key={+new Date() + Math.random()} className="nav navbar-nav navbar-right">
         			{links}
       			</ul>
     		);

@@ -25,11 +25,12 @@ export default class NavBar extends React.Component{
 		{linkTo: path+"new/index.cgi?action=acl", text: "Workgroup"}
 	];
 	navbar.admin = [
-		{linkTo: "#", is_admin: true, text: "Admin"}
+		{linkTo: "#", is_admin: true, text: "Admin"},
+		{dropdown: true, text: "admin/admin", links: [
+                         {linkTo: "#", details: true, first_name:"admin", last_name: "admin", username:"admin", email:"rojraman@grnoc.iu.edu"},
+			 {linkTo: "#", text: "admin"}
+                ]},
 	]
-	navbar.login = [
-		
-	];
 
 
 	return(
