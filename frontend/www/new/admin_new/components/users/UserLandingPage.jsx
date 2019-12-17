@@ -2,18 +2,31 @@ import React from "react";
 import ReactDOM from "react-dom";
 import UsersTable from "../user_table/UserTable.jsx";
 import NavBar from "../nav_bar/NavBar.jsx";
+import getCurrentUser from '../../api/user_menu.jsx';
 class UserLandingPage extends React.Component {
 	
 	constructor(props){
 		super(props);
-		//add state if required
+		this.state={
+		     user: []
+		};
 	}
+
+	componentDidMount(props) {
+        	let currComponent =  this;
+       		 getCurrentUser().then(function (u) {
+            		currComponent.setState({
+                	user: u
+           	 	})
+       		 });
+    	}
+
 
 	render(){
 
 		return (
 		<div>
-	<NavBar/>
+	<NavBar data={this.state.user}/>
     <center>
         <div>
             <center>

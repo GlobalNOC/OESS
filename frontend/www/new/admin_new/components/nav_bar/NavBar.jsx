@@ -3,16 +3,18 @@ import NavBrand from './NavBrand.jsx';
 import NavMenu from './NavMenu.jsx';
 import NavMenuRight from './NavMenuRight.jsx';
 import { testConfig } from '../.././test.jsx';
-
 export default class NavBar extends React.Component{
 	constructor(props) {
         	super(props);
         	this.state = {
-		}
+            		users: []
+		};
 	}
 
-	render(){
 
+	render(){
+	//console.log(JSON.stringify(this.props));
+	var current_user = this.props.data;
 	var navbar = {};
 	let path = testConfig.user;
 	navbar.brand = {linkTo: path+"new/index.cgi", src: path+'media/internet2-logo.png', text: "Cloud Connect"};
@@ -25,9 +27,9 @@ export default class NavBar extends React.Component{
 		{linkTo: path+"new/index.cgi?action=acl", text: "Workgroup"}
 	];
 	navbar.admin = [
-		{linkTo: "#", is_admin: true, text: "Admin"},
-		{dropdown: true, text: "admin/admin", links: [
-                         {linkTo: "#", details: true, first_name:"admin", last_name: "admin", username:"admin", email:"rojraman@grnoc.iu.edu"},
+		{linkTo: "#", is_admin: current_user.is_admin, text: "Admin"},
+		{dropdown: true, text: current_user.username+"/admin", links: [
+                         {linkTo: "#", details: true, first_name:current_user.first_name, last_name: current_user.last_name, username:current_user.username, email:current_user.email},
 			 {linkTo: "#", text: "admin"}
                 ]},
 	]

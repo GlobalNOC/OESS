@@ -11,7 +11,7 @@ constructor(props) {
 
 render(){
 	let list;
- 	if(this.props.is_admin == true){
+ 	if(this.props.is_admin == "1"){
                 list = <li className="admin-link"><a href={this.props.linkTo}>Admin</a></li>;
         }
         else{
