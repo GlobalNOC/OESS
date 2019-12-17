@@ -41,3 +41,7 @@ tr:hover td{
 	margin-top: -7px;
 	width: initial;
 }
+.dropdown-menu li a{
+	word-wrap: break-word !important;
+    	white-space: normal !important;
+}

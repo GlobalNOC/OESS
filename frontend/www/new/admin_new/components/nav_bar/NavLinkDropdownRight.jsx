@@ -13,7 +13,7 @@ render(){
 	var detail_text = "";
     var links = this.props.links.map(function(link){
       if(link.details){
-        detail_text = link.first_name+" "+link.last_name +"\n"+link.username+"\n"+link.email;
+        detail_text = link.first_name+" "+link.last_name +" "+link.username+" "+link.email;
       }else{
 	  detail_text = link.text;
 	}

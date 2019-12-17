@@ -14,8 +14,12 @@ export default class NavMenuRight extends React.Component{
      		 if(link.dropdown) {
         		if(link.details){
 				return (
-          				<NavLinkDropdownRight links={link.links} details={link.details} first_name={link.first_name} last_name={link.last_name} username={link.username} email={link.email} />
-        			);
+        			<div class="dropdown-menu">
+   					 <a class="dropdown-item" href="#">{link.first_name}{link.last_name}{link.username}{link.email}</a>
+    				<div class="dropdown-divider"></div>
+    					<a class="dropdown-item" href="#">admin</a>
+  				</div>
+				);
 			}else{
 				return (
                                 	<NavLinkDropdownRight links={link.links} text={link.text} />
