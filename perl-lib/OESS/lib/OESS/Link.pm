@@ -30,6 +30,7 @@ use OESS::DB::Link;
             name           => 'node-a-to-node-b',
             remote_urn     => undef,
             status         => 'up',
+            link_state     => 'available',
             metric         => 1,
             interface_a_id => 1,
             ip_a           => '192.168.1.2',
@@ -95,6 +96,7 @@ sub from_hash {
     $self->{name} = $hash->{name};
     $self->{remote_urn} = $hash->{remote_urn};
     $self->{status} = $hash->{status};
+    $self->{link_state} = $hash->{link_state};
     $self->{metric} = $hash->{metric};
     $self->{node_a_id} = $hash->{node_a_id};
     $self->{node_a_loopback} = $hash->{node_a_loopback};
@@ -118,6 +120,7 @@ sub to_hash {
         name => $self->name,
         remote_urn => $self->remote_urn,
         status => $self->status,
+        link_state => $self->link_state,
         metric => $self->metric,
         node_a_id => $self->node_a_id,
         node_a_loopback => $self->node_a_loopback,
@@ -173,6 +176,18 @@ sub status {
         $self->{status} = $status;
     }
     return $self->{status};
+}
+
+=head2 link_state
+
+=cut
+sub link_state {
+    my $self = shift;
+    my $link_state = shift;
+    if (defined $link_state) {
+        $self->{link_state} = $link_state;
+    }
+    return $self->{link_state};
 }
 
 =head2 metric

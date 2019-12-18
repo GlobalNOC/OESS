@@ -97,6 +97,7 @@ sub fetch {
     my $q = "
         SELECT link.link_id, link.name, link.remote_urn, link.status,
                link.metric,
+               link_instantiation.link_state,
                link_instantiation.interface_a_id, link_instantiation.ip_a,
                link_instantiation.interface_z_id, link_instantiation.ip_z,
                interface_a.node_id as node_a_id,
@@ -144,6 +145,7 @@ sub fetch_history {
     my $q = "
         SELECT link.link_id, link.name, link.remote_urn, link.status,
                link.metric,
+               link_instantiation.link_state,
                link_instantiation.interface_a_id, link_instantiation.ip_a,
                link_instantiation.interface_z_id, link_instantiation.ip_z,
                interface_a.node_id as node_a_id,
@@ -237,6 +239,7 @@ sub fetch_all {
     my $q = "
         SELECT link.link_id, link.name, link.remote_urn, link.status,
                link.metric,
+               link_instantiation.link_state,
                link_instantiation.interface_a_id, link_instantiation.ip_a,
                link_instantiation.interface_z_id, link_instantiation.ip_z,
                interface_a.node_id as node_a_id,
@@ -261,18 +264,19 @@ sub fetch_all {
 
 =head2 update
 
-    my $id = OESS::DB::Link::update(
+    my ($id, $error) = OESS::DB::Link::update(
         db => $db,
         link => {
             link_id        => 1,
+            link_state     => 'active',
             interface_a_id => 100,
             ip_a           => undef,
             interface_z_id => 21,
             ip_z           => undef,
-            name           => 'Link', # Optional
-            status         => 'up',   # Optional
-            remote_urn     => undef,  # Optional
-            metric         => 553     # Optional
+            name           => 'Link',   # Optional
+            status         => 'up',     # Optional
+            remote_urn     => undef,    # Optional
+            metric         => 553       # Optional
         }
     );
 
@@ -286,6 +290,7 @@ sub update {
 
     return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
     return (undef, 'Required argument `link->link_id` is missing.') if !defined $args->{link}->{link_id};
+    return (undef, 'Required argument `link->link_state` is missing.') if !defined $args->{link}->{link_state};
     return (undef, 'Required argument `link->interface_a_id` is missing.') if !defined $args->{link}->{interface_a_id};
     return (undef, 'Required argument `link->ip_a` is missing.') if !exists $args->{link}->{ip_a};
     return (undef, 'Required argument `link->interface_z_id` is missing.') if !defined $args->{link}->{interface_z_id};
@@ -314,12 +319,11 @@ sub update {
     my $fields = join(', ', @$params);
     push @$values, $args->{link}->{link_id};
 
-    my $ok = $args->{db}->execute_query(
-        "UPDATE link SET $fields WHERE link_id=?",
-        $values
-    );
-    if (!defined $ok) {
-        return (undef, $args->{db}->get_error);
+    if (@$values > 1) {
+        my $ok = $args->{db}->execute_query("UPDATE link SET $fields WHERE link_id=?", $values);
+        if (!defined $ok) {
+            return (undef, $args->{db}->get_error);
+        }
     }
 
     my $inst_ok = $args->{db}->execute_query(
@@ -333,16 +337,17 @@ sub update {
 
     my $q2 = "
         INSERT INTO link_instantiation (
-            link_id, openflow, mpls, interface_a_id, ip_a,
+            link_id, openflow, mpls, link_state, interface_a_id, ip_a,
             interface_z_id, ip_z, start_epoch, end_epoch
         )
-        VALUES (?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
+        VALUES (?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
     ";
 
     my $link_instantiation_id = $args->{db}->execute_query($q2, [
         $args->{link}->{link_id},
         0,
         1,
+        $args->{link}->{link_state},
         $args->{link}->{interface_a_id},
         $args->{link}->{ip_a},
         $args->{link}->{interface_z_id},
@@ -352,7 +357,7 @@ sub update {
         return (undef, $args->{db}->get_error);
     }
 
-    return ($ok, undef);
+    return ($link_instantiation_id, undef);
 }
 
 1;
