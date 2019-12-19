@@ -11,9 +11,27 @@ export default class NavBar extends React.Component{
 		};
 	}
 
+	user_menu(userdata){
+		var navbarlinks = []
+		if(userdata.is_admin == "1"){
+			navbarlinks.push({linkTo: "#", is_admin: userdata.is_admin, text: "Admin"});
+		}
+		var links = []
+		links.push({linkTo: "#", details: true, first_name:userdata.first_name, last_name: userdata.last_name, username:userdata.username, email:userdata.email});
+		if(userdata.length > 0 && (userdata.workgroups).length > 0){
+			var workgroups = userdata.workgroups;
+			workgroups.forEach(function(i){
+			 	links.push({linkTo: "#", text: i.name});});	
+		navbarlinks.push({dropdown: true, text: userdata.username+"/"+userdata.workgroups[0].name, links: links});
+		}else{
+			navbarlinks.push({dropdown: true, text: userdata.username, links: links});
+		}
+		return navbarlinks;
+		
+	}
 
 	render(){
-	//console.log(JSON.stringify(this.props));
+	console.log(JSON.stringify(this.props));
 	var current_user = this.props.data;
 	var navbar = {};
 	let path = testConfig.user;
@@ -26,13 +44,16 @@ export default class NavBar extends React.Component{
   		{linkTo: path+"new/index.cgi?action=phonebook", text: "Explore"},
 		{linkTo: path+"new/index.cgi?action=acl", text: "Workgroup"}
 	];
-	navbar.admin = [
+	console.log("change it from cookie", JSON.stringify(current_user));
+	/*navbar.admin = [
 		{linkTo: "#", is_admin: current_user.is_admin, text: "Admin"},
 		{dropdown: true, text: current_user.username+"/admin", links: [
                          {linkTo: "#", details: true, first_name:current_user.first_name, last_name: current_user.last_name, username:current_user.username, email:current_user.email},
-			 {linkTo: "#", text: "admin"}
+			 {linkTo: "#", text: current_user.workgroups}
                 ]},
-	]
+	]*/
+	navbar.admin = this.user_menu(current_user);
+	console.log("data formed ",navbar.admin);
 
 
 	return(
