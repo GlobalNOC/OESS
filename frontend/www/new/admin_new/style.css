@@ -45,3 +45,7 @@ tr:hover td{
 	word-wrap: break-word !important;
     	white-space: normal !important;
 }
+.table {
+    width: 90% !important;
+    max-width: 90% !important;
+}
