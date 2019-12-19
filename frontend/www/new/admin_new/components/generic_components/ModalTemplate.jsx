@@ -5,18 +5,11 @@ import Draggable from 'react-draggable';
 import { Button } from 'reactstrap';
 import ModalDialog from 'react-bootstrap/ModalDialog';
 
-class DraggableModalDialog extends React.Component {
-    render() {
-        return <Draggable handle=".modal-title"><ModalDialog {...this.props} /> 
-   </Draggable>
-    }
-}
 
 export default class ModalTemplate extends Component {
 constructor(props) {
     super(props);
     console.log("props", props);
-    this.handleClose = this.handleClose.bind(this);
     this.state = {
       show: false,
       rowdata: null
@@ -31,31 +24,27 @@ componentWillReceiveProps(nextProps, prevState) {
  }
 
 
-  handleClose() {
-    this.setState({ show: false });
-  };
 
-  handleSave(){
-    this.setState({show: false});
-  };
 
   render() {
-    return (
-      <Modal dialogAs={DraggableModalDialog} show={this.state.show} onHide={this.handleClose}>
-        <Modal.Header closeButton>
-          <Modal.Title>User Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>edit form</Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={this.handleClose}>
-            Close
-          </Button>
-          <Button variant="primary" onClick={this.handleClose}>
-            Save Changes
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    );
-  }
-	
+
+  return(
+	<div className="modal fade" id="myModal" tabIndex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div className="modal-dialog" role="document">
+    <div className="modal-content">
+      <div className="modal-header">
+        <button type="button" className="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 className="modal-title" id="myModalLabel">Modal title</h4>
+      </div>
+      <div className="modal-body">
+        ...
+      </div>
+      <div className="modal-footer">
+        <button type="button" className="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" className="btn btn-primary">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>);
+	}	
 }

@@ -34,7 +34,7 @@ export default class TableTemplate extends React.Component {
         var keys = this.getKeys();
 	var currComponent = this;
         return items.map((row, index) => {
-            return <tr id={index} key={index} onClick={this.displaypopup.bind(this,currComponent,row)}><RenderRow key={index} data={row} keys={keys} /></tr>
+            return <tr id={index} key={index} data-target="#myModal" data-toggle="modal" onClick={this.displaypopup.bind(this,currComponent,row)}><RenderRow key={index} data={row} keys={keys} /></tr>
         })
     }
 
