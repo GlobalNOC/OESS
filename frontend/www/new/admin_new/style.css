@@ -49,3 +49,12 @@ tr:hover td{
     width: 90% !important;
     max-width: 90% !important;
 }
+.modal-label{
+    padding-right: 3px !important;
+    padding-left: 3px !important;
+}
+.modal-select{
+    width: 60% !important;
+    float: left !important;
+    margin-left: 15px !important;
+}
