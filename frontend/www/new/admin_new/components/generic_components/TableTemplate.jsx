@@ -50,7 +50,7 @@ export default class TableTemplate extends React.Component {
                         {this.getRowsData()}
                     </tbody>
                 </table>
-	<ModalTemplate isVisible={[this.state.isVisible, this.state.rowdata]} />
+	<ModalTemplate rowdata={this.state.rowdata} />
         </div>
         );
     }
