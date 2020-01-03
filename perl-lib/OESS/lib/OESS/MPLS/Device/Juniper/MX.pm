@@ -1070,14 +1070,10 @@ sub xml_configuration {
             my $has_ipv6 = 0;
             
             foreach my $bgp (@{$i->{'peers'}}){
-                #strip off the cidr                                                                                                                                                                                                                                                                                                                  #192.168.1.0/24
+                #strip off the cidr 192.168.1.0/24
                 my $peer_ip = $bgp->{'peer_ip'};
                 $peer_ip =~ s/\/\d+//g;
-                
-                if(!defined($bgp->{'md5_key'})){
-                    $bgp->{'md5_key'} = -1;
-                }
-                
+
                 my $ip = NetAddr::IP->new($bgp->{'peer_ip'});
                 my $type = $ip->version();
                 #determine if its an ipv4 or an ipv6
