@@ -531,27 +531,25 @@ sub isis_handler{
 =head2 device_handler
 
 =cut
-sub device_handler{
+sub device_handler {
     my $self =shift;
-
     $self->{'logger'}->info("Calling get_system_info!");
 
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-	my $start = [gettimeofday];
-        $self->{'rmq_client'}->get_system_info( async_callback => $self->handle_response( cb => sub {
-                                                                                              my $res = shift;
-                                                                                              if (defined $res->{'error'}) {
-                                                                                                  my $addr = $node->{'mgmt_addr'};
-                                                                                                  my $err = $res->{'error'};
-                                                                                                  $self->{'logger'}->error("Error calling get_system_info on $addr: $err");
-                                                                                                  return;
-                                                                                              }
-											      $self->{'logger'}->debug("Total Time for get_system_info " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
-                                                                                              $self->handle_system_info(node => $node->{'node_id'}, info => $res->{'results'});
-											  }));
+        my $start = [gettimeofday];
+
+        $self->{'rmq_client'}->get_system_info(async_callback => sub {
+            my $response = shift;
+            if (defined $response->{'error'}) {
+                $self->{'logger'}->error("Error calling get_system_info on $node->{'mgmt_addr'}: $response->{'error'}");
+                return;
+            }
+
+            $self->{'logger'}->debug("Time calling get_system_info on $node->{'mgmt_addr'}: " . tv_interval($start, [gettimeofday]));
+            $self->handle_system_info(node => $node->{'node_id'}, info => $response->{'results'});
+        });
     }
-    
 }
 
 =head2 vrf_stats_handler
@@ -559,7 +557,6 @@ sub device_handler{
 =cut
 sub vrf_stats_handler{
     my $self = shift;
-
     $self->{'logger'}->info("Calling get_vrf_stats!");
 
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
