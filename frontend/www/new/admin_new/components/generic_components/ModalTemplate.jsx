@@ -12,6 +12,7 @@ constructor(props) {
     console.log("props", props);
     this.handleChange = this.handleChange.bind(this);
     this.updateUser = this.updateUser.bind(this);
+    this.refreshPage = this.refreshPage.bind(this);
     this.state = {
 	firstname : "",
 	lastname : "",
@@ -39,12 +40,17 @@ ComponentDidMount(props) {
    const { firstname, lastname, email, username, usertype, userstatus, userid  } = this.props.rowdata;
    this.setState({ firstname, lastname, email, username, usertype, userstatus, userid });
 }
-
+ComponentDidUpdate(props){
+   
+}
+refreshPage() {
+    window.location.reload(false);
+}
 updateUser(event) {
         //console.log("Updating"+event);
         editUser(this.state.userid,this.state.firstname, this.state.lastname, this.state.email, this.state.usertype, this.state.userstatus, this.state.username).then(function () {
              console.log("Updated");
-	   
+	     window.location.reload(false); //To be changed from force refresh to component refresh	     	     	   
         });
     }
 
@@ -122,7 +128,7 @@ handleChange(event) {
      				 </div>
       				<div className="modal-footer">
         				<button type="button" className="btn btn-default" data-dismiss="modal">Close</button>
-        				<button onClick={this.updateUser}>Save changes</button>
+        				<button className="btn btn-default" onClick={this.updateUser} data-dismiss="modal">Save changes</button>
       				</div>
     			</div>
   		</div>
