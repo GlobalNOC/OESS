@@ -21,6 +21,7 @@ export default class TableTemplate extends React.Component {
     getHeader() {
         var keys = this.getKeys();
         return keys.map((key, index) => {
+	    if(key != "userid")
             return <th scope="col" key={key}>{key}</th>
         })
     }
@@ -58,6 +59,7 @@ export default class TableTemplate extends React.Component {
 
 const RenderRow = (props) => {
     return props.keys.map((key, index) => {
+	if(key != "userid")
         return <td key={key}>{props.data[key]}</td>
     })
 }

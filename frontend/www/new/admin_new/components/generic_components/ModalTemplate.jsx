@@ -4,19 +4,22 @@ import Modal from "react-bootstrap/Modal";
 import Draggable from 'react-draggable';
 import { Button } from 'reactstrap';
 import ModalDialog from 'react-bootstrap/ModalDialog';
-
+import editUser from '../../api/user_edit.jsx';
 
 export default class ModalTemplate extends Component {
 constructor(props) {
     super(props);
     console.log("props", props);
     this.handleChange = this.handleChange.bind(this);
+    this.updateUser = this.updateUser.bind(this);
     this.state = {
 	firstname : "",
 	lastname : "",
 	email : "",
-	username : ""	
-	
+	username : "",	
+	usertype: "",
+	userstatus: "",
+	userid: null
     };
     
   }
@@ -26,13 +29,24 @@ componentWillReceiveProps(nextProps, prevState) {
  	   firstname: nextProps.rowdata["First Name"],
 	   lastname: nextProps.rowdata["Last Name"],
 	   email: nextProps.rowdata["Email Address"],
-           username: nextProps.rowdata["Username"]
- 	 })
+           username: nextProps.rowdata["Username"],
+           usertype: nextProps.rowdata["User Type"],
+           userstatus: nextProps.rowdata["User Status"],
+ 	   userid:nextProps.rowdata["userid"] 
+	})
  }
-ComponentDidMount() {
-   const { firstname, lastname, email, username  } = this.props.rowdata;
-   this.setState({ firstname, lastname, email, username });
+ComponentDidMount(props) {
+   const { firstname, lastname, email, username, usertype, userstatus, userid  } = this.props.rowdata;
+   this.setState({ firstname, lastname, email, username, usertype, userstatus, userid });
 }
+
+updateUser(event) {
+        //console.log("Updating"+event);
+        editUser(this.state.userid,this.state.firstname, this.state.lastname, this.state.email, this.state.usertype, this.state.userstatus, this.state.username).then(function () {
+             console.log("Updated");
+	   
+        });
+    }
 
 handleChange(event) { 
         const target = event.target;
@@ -52,7 +66,7 @@ handleChange(event) {
   render() {
   var currcomponent = this;
   var rowdata = this.state.username;
-  console.log("here data", JSON.stringify(rowdata));
+  //console.log("here data", JSON.stringify(rowdata));
   
   if(rowdata){
   return(
@@ -108,7 +122,7 @@ handleChange(event) {
      				 </div>
       				<div className="modal-footer">
         				<button type="button" className="btn btn-default" data-dismiss="modal">Close</button>
-        				<button type="button" className="btn btn-primary">Save changes</button>
+        				<button onClick={this.updateUser}>Save changes</button>
       				</div>
     			</div>
   		</div>
