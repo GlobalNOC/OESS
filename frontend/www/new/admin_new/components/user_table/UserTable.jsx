@@ -45,6 +45,8 @@ export default class UsersTable extends React.Component {
                 data["Email Address"] = obj.email_address;
                 data["User Type"] = obj.type;
                 data["User Status"] = obj.status;
+		data["userid"] = obj.user_id;
+
                 users_data.push(data);
             });
             //UserTable component to create table from JSON
