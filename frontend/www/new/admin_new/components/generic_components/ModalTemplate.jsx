@@ -111,16 +111,16 @@ handleChange(event) {
                                                 </div>
 						<div className="form-group">
                                                         <label className="col-sm-2 control-label modal-label" htmlFor="usertype" >User Type</label>
-							<select className="form-control modal-select" id="usertype">
-        							<option>Normal</option>
-        							<option>Read-Only</option>
+							<select className="form-control modal-select" id="usertype" value={this.state.usertype}>
+        							<option value="normal">Normal</option>
+        							<option value="read-only">Read-Only</option>
       							</select>
                                                 </div>
 						<div className="form-group">
                                                         <label className="col-sm-2 control-label modal-label" htmlFor="status" >Status</label>
-                                                        <select className="form-control modal-select" id="status">
-                                                                <option>Active</option>
-                                                                <option>Decom</option>
+                                                        <select className="form-control modal-select" id="status" value={this.state.userstatus}>
+                                                                <option value="active">Active</option>
+                                                                <option value="decom">Decom</option>
                                                         </select>
                                                 </div>
 
