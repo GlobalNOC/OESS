@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "NODE_ENV=development parcel index.html",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "parcel build --public-url /oess/new/admin index.html"
   },
   "author": "",
   "license": "ISC",
@@ -13,7 +14,6 @@
     "@babel/runtime": "^7.7.4",
     "bootstrap": "^4.4.1",
     "dotenv": "^8.2.0",
-    "firebase": "^5.8.6",
     "jquery": "^3.4.1",
     "markdown-it": "^9.1.0",
     "moment": "^2.24.0",
@@ -22,7 +22,6 @@
     "react-bootstrap": "^1.0.0-beta.16",
     "react-dom": "^16.12.0",
     "react-draggable": "^4.1.0",
-    "react-firebaseui": "^3.1.2",
     "react-html-parser": "^2.0.2",
     "react-router-dom": "^5.1.2",
     "reactstrap": "^8.1.1",
