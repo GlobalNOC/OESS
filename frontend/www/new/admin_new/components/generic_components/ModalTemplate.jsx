@@ -67,6 +67,10 @@ handleChange(event) {
             this.setState({email: value});
 	if(name === "username")                         
             this.setState({username: value});
+	if(name === "usertype")
+	    this.setState({usertype: value});
+	if(name === "userstatus")
+	    this.setState({userstatus: value});
     }
 
   render() {
@@ -111,14 +115,14 @@ handleChange(event) {
                                                 </div>
 						<div className="form-group">
                                                         <label className="col-sm-2 control-label modal-label" htmlFor="usertype" >User Type</label>
-							<select className="form-control modal-select" id="usertype" value={this.state.usertype}>
+							<select className="form-control modal-select" name="usertype" id="usertype" value={this.state.usertype} onChange={this.handleChange}>
         							<option value="normal">Normal</option>
         							<option value="read-only">Read-Only</option>
       							</select>
                                                 </div>
 						<div className="form-group">
                                                         <label className="col-sm-2 control-label modal-label" htmlFor="status" >Status</label>
-                                                        <select className="form-control modal-select" id="status" value={this.state.userstatus}>
+                                                        <select className="form-control modal-select" name="userstatus" id="status" value={this.state.userstatus} onChange={this.handleChange}>
                                                                 <option value="active">Active</option>
                                                                 <option value="decom">Decom</option>
                                                         </select>
