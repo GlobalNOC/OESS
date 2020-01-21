@@ -370,6 +370,8 @@ sub update_db{
 
 =head2 create
 
+    my $ok = $vrf->create;
+
 =cut
 sub create{
     my $self = shift;
@@ -543,6 +545,8 @@ sub update_vrf_details{
 }
 
 =head2 decom
+
+    my $ok = $vrf->decom;
 
 =cut
 sub decom{
