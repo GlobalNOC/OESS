@@ -26,6 +26,8 @@ constructor(props) {
   }
 
 componentWillReceiveProps(nextProps, prevState) {
+
+      if(nextProps.rowdata){
  	this.setState({
  	   firstname: nextProps.rowdata["First Name"],
 	   lastname: nextProps.rowdata["Last Name"],
@@ -35,10 +37,13 @@ componentWillReceiveProps(nextProps, prevState) {
            userstatus: nextProps.rowdata["User Status"],
  	   userid:nextProps.rowdata["userid"] 
 	})
+      }
  }
 ComponentDidMount(props) {
-   const { firstname, lastname, email, username, usertype, userstatus, userid  } = this.props.rowdata;
-   this.setState({ firstname, lastname, email, username, usertype, userstatus, userid });
+      if(this.props.rowdata){
+   	   const { firstname, lastname, email, username, usertype, userstatus, userid  } = this.props.rowdata;
+   	   this.setState({ firstname, lastname, email, username, usertype, userstatus, userid });
+      }	
 }
 ComponentDidUpdate(props){
    
@@ -78,7 +83,7 @@ handleChange(event) {
   var rowdata = this.state.username;
   //console.log("here data", JSON.stringify(rowdata));
   
-  if(rowdata){
+ 
   return(
 	<div className="modal fade" id="myModal" tabIndex="-1" role="dialog" aria-labelledby="myModalLabel">
   		<div className="modal-dialog" role="document">
@@ -137,8 +142,6 @@ handleChange(event) {
     			</div>
   		</div>
 	</div>);
-	}else{
-		return null;
 	}
-	}	
+		
 }

@@ -3,12 +3,15 @@ import ReactDOM from "react-dom";
 import UsersTable from "../user_table/UserTable.jsx";
 import NavBar from "../nav_bar/NavBar.jsx";
 import getCurrentUser from '../../api/user_menu.jsx';
+import ModalTemplate from '../generic_components/ModalTemplate.jsx';
 class UserLandingPage extends React.Component {
 	
 	constructor(props){
 		super(props);
 		this.state={
-		     user: []
+		     user: [],
+		     isVisible: false,
+		     rowdata:{}
 		};
 	}
 
@@ -21,13 +24,19 @@ class UserLandingPage extends React.Component {
        		 });
     	}
 
+	displaypopup(currComponent){
+             console.log("Add user popup");
+             var rowdata = {};
+             currComponent.setState({isVisible:true, rowdata:rowdata});
+   	}
+
 
 	render(){
-
+		var currComponent = this;
 		return (
 		<div>
 	<NavBar data={this.state.user}/>
-    <center>
+        <center>
         <div>
             <center>
                 <div>
@@ -81,9 +90,10 @@ class UserLandingPage extends React.Component {
                     </ul>
                 </nav>
             </div>
-            <button type="button" className="button is-link">Add User</button>
+            <button type="button" className="button is-link" data-target="#myModal" data-toggle="modal" onClick={this.displaypopup.bind(this,currComponent)}>Add User</button>
 	</div>
     </center>
+	<ModalTemplate rowdata={this.state.rowdata} />
 </div>
 		);
 	}
