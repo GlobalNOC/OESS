@@ -18,39 +18,27 @@ use OESS::Workgroup;
 use NetAddr::IP;
 use OESS::Config;
 
-=head1 NAME
-
-OESS::VRF - VRF Interaction Module
-
-=head1 SYNOPSIS
-
-This is a module to provide a simplified object oriented way to connect to
-and interact with the OESS VRFs.
-
-Some examples:
+=head1 OESS::VRF
 
     use OESS::VRF;
 
-    my $vrf = OESS::VRF->new( vrf_id => 100, db => new OESS::Database());
-
-    my $vrf_id = $vrf->get_id();
-
-    if (! defined $vrf_id){
-        warn "Uh oh, something bad happened: " . $vrf->get_error();
-        exit(1);
-    }
+This is a module to provide a simplified object oriented way to
+connect to and interact with the OESS VRFs.
 
 =cut
 
-
-
-
-
 =head2 new
 
-    Creates a new OESS::VRF object
-    requires an OESS::Database handle
-    and either the details from get_vrf_details or a vrf_id
+    my $vrf = OESS::VRF->new(
+        db     => new OESS::DB,
+        vrf_id => 100
+    );
+    if (!defined $vrf) {
+        warn $vrf->get_error;
+    }
+
+Creates a new OESS::VRF object requires an OESS::DB handle and either
+the details from get_vrf_details or a vrf_id.
 
 =cut
 
