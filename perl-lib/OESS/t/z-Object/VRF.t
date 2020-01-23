@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 9;
+use Test::More tests => 10;
 
 use OESSDatabaseTester;
 
@@ -55,8 +55,9 @@ my $vrf = new OESS::VRF(
         last_modified_by_id => 11
     }
 );
-my $ok = $vrf->create;
-ok($ok, "Created vrf $vrf->{vrf_id}.");
+my ($id, $err) = $vrf->create;
+ok(defined $id, "Created vrf $vrf->{vrf_id}.");
+ok(!defined $err, "Created vrf $vrf->{vrf_id} without error.");
 
 my $endpoints = [
     {
@@ -130,5 +131,5 @@ foreach my $ep (@{$loaded_vrf2->endpoints}) {
     ok(@{$ep->peers} == 1, "Looked up exactly 1 Peer on Endpoint.");
 }
 
-$ok = $vrf->decom(user_id => 1);
+my $ok = $vrf->decom(user_id => 1);
 ok($ok, "VRF Decom'd");
