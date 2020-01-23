@@ -296,7 +296,6 @@ sub provision_vrf{
             $db->rollback;
             return;
         }
-        $vrf->endpoints([]);
     }
 
     # Use $peerings to validate a local address isn't specified twice

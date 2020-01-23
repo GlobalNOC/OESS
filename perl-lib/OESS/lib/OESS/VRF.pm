@@ -318,7 +318,7 @@ sub workgroup_id {
 
 or
 
-    $vrf->workgroup($workgroup);
+    $vrf->workgroup(new OESS::Workgroup(db => $db, workgroup_id => $id));
 
 =cut
 sub workgroup {
@@ -335,6 +335,9 @@ sub workgroup {
 =head2 load_workgroup
 
     my $err = $vrf->load_workgroup;
+
+load_workgroup populates C<< $self->{workgroup} >> with an
+C<OESS::Workgroup> object.
 
 =cut
 sub load_workgroup {
@@ -405,7 +408,7 @@ sub update_vrf_details{
     my $self = shift;
     my %params = @_;
 
-    $self->_fetch_from_db();
+    return 1;
 }
 
 =head2 decom
@@ -467,7 +470,23 @@ sub load_users {
     return $err;
 }
 
+=head2 created
+
+    my $unixtime = $vrf->created;
+
+=cut
+sub created {
+    my $self = shift;
+    return $self->{'created'};
+}
+
 =head2 created_by
+
+    my $created_by = $vrf->created_by;
+
+or
+
+    $vrf->created_by(new OESS::User(db => $db, user_id => $id));
 
 =cut
 sub created_by {
@@ -481,7 +500,23 @@ sub created_by {
     return $self->{created_by};
 }
 
+=head2 last_modified
+
+    my $unixtime = $vrf->last_modified;
+
+=cut
+sub last_modified {
+    my $self = shift;
+    return $self->{'last_modified'};
+}
+
 =head2 last_modified_by
+
+    my $last_modified_by = $vrf->last_modified_by;
+
+or
+
+    $vrf->last_modified_by(new OESS::User(db => $db, user_id => $id));
 
 =cut
 sub last_modified_by {
@@ -493,23 +528,6 @@ sub last_modified_by {
         $self->{last_modified_by_id} = $last_modified_by->{user_id};
     }
     return $self->{last_modified_by};
-}
-
-
-=head2 last_modified
-
-=cut
-sub last_modified {
-    my $self = shift;
-    return $self->{'last_modified'};
-}
-
-=head2 created
-
-=cut
-sub created {
-    my $self = shift;
-    return $self->{'created'};
 }
 
 =head2 local_asn
