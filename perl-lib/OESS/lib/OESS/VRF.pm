@@ -525,7 +525,7 @@ sub last_modified_by {
 
     if (defined $last_modified_by) {
         $self->{last_modified_by} = $last_modified_by;
-        $self->{last_modified_by_id} = $last_modified_by->{user_id};
+        $self->{last_modified_by_id} = $last_modified_by->user_id;
     }
     return $self->{last_modified_by};
 }

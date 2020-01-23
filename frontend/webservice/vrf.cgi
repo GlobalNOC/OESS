@@ -285,6 +285,7 @@ sub provision_vrf{
 
         $vrf->load_endpoints;
         $vrf->last_modified_by($user);
+        $vrf->update;
     } else {
         $model->{created_by_id} = $user->user_id;
         $model->{last_modified_by_id} = $user->user_id;
@@ -693,7 +694,7 @@ sub provision_vrf{
     return {results => $res};
 }
 
-sub remove_vrf{    
+sub remove_vrf {
     my $method = shift;
     my $params = shift;
     my $ref = shift;
@@ -737,12 +738,12 @@ sub remove_vrf{
         return;
     }
 
+    $vrf->decom(user_id => $user->user_id());
+
     my $res = vrf_del(method => $method, vrf_id => $vrf_id);
     $res->{'vrf_id'} = $vrf_id;
 
-    $vrf->decom(user_id => $user->user_id());
-
-    #send the update cache to the MPLS fwdctl
+    # send the update cache to the MPLS fwdctl
     _update_cache(vrf_id => $vrf_id);
 
     eval{

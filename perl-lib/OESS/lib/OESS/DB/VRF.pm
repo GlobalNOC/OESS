@@ -77,7 +77,7 @@ sub update {
     }
     if (defined $vrf->{last_modified_by_id}) {
         push @$reqs, 'last_modified_by=?';
-        push @$args, $vrf->{last_modified_id};
+        push @$args, $vrf->{last_modified_by_id};
     }
     $set .= join(', ', @$reqs);
     push @$args, $vrf->{vrf_id};
