@@ -42,104 +42,75 @@ the details from get_vrf_details or a vrf_id.
 
 =cut
 
-sub new{
+sub new {
     my $that  = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS.VRF");
-    
     my %args = (
-	details => undef,
-	vrf_id => undef,
-	db => undef,
-	just_display => 0,
+        details => undef,
+        vrf_id => undef,
+        db => undef,
+        logger => Log::Log4perl->get_logger("OESS.VRF"),
+        just_display => 0,
         link_status => undef,
         @_
-        );
-
+    );
     my $self = \%args;
-
     bless $self, $class;
 
-    $self->{'logger'} = $logger;
-
-    if (!defined $self->{'db'}) {
-        $self->{'logger'}->error("No Database Object specified");
+    if (!defined $self->{db} && !defined $self->{model}) {
+        $self->{logger}->error("Couldn't create VRF: Arguments `db` and `model` are both missing.");
         return;
     }
 
-    if(!defined($self->{'config'})){
-        $self->{'config'} = OESS::Config->new();
+    if (!defined $self->{config}) {
+        $self->{config} = new OESS::Config();
     }
 
-    if(!defined($self->{'vrf_id'}) || $self->{'vrf_id'} == -1){
-        #build from model
-        $self->_build_from_model();
-    }else{
-        $self->_fetch_from_db();
+    if (defined $self->{db} && (defined $self->{vrf_id} && $self->{vrf_id} != -1)) {
+        eval {
+            my $model = OESS::DB::VRF::fetch(db => $self->{db}, vrf_id => $self->{vrf_id});
+            $self->{model} = $model;
+        };
+        if ($@) {
+            $self->{logger}->error("Couldn't create VRF: $@");
+            warn "Couldn't create VRF: $@";
+            return;
+        }
     }
 
+    if (!defined $self->{model}) {
+        $self->{logger}->error("Couldn't create VRF. Couldn't load `model` and none provided.");
+        return;
+    }
+
+    $self->from_hash($self->{model});
     return $self;
 }
 
-=head2 _build_from_model
-
-=cut
-sub _build_from_model{
-    my $self = shift;
-
-    $self->{'name'} = $self->{'model'}->{'name'};
-    $self->{'description'} = $self->{'model'}->{'description'};
-    $self->{'prefix_limit'} = $self->{'model'}->{'prefix_limit'};
-
-    # $self->{'endpoints'} = ();
-    # #process Endpoints
-    # foreach my $ep (@{$self->{'model'}->{'endpoints'}}){
-    #     $ep->{workgroup_id} = $self->{model}->{workgroup_id};
-
-    #     my $ep_obj = OESS::Endpoint->new(db => $self->{'db'}, model => $ep, type => 'vrf');
-    #     push(@{$self->{'endpoints'}}, $ep_obj);
-    # }
-
-    #process Workgroups
-    $self->{'workgroup'} = OESS::Workgroup->new( db => $self->{'db'}, workgroup_id => $self->{'model'}->{'workgroup_id'});
-
-    #process user
-    $self->{'created_by'} = OESS::User->new( db => $self->{'db'}, user_id => $self->{'model'}->{'created_by'});
-    $self->{'last_modified_by'} = OESS::User->new(db => $self->{'db'}, user_id => $self->{'model'}->{'last_modified_by'});
-    $self->{'local_asn'} = $self->{'model'}->{'local_asn'} || $self->{'config'}->local_as();
-
-    return;
-}
-
 =head2 from_hash
+
+    my $ok = $vrf->from_hash;
 
 =cut
 sub from_hash{
     my $self = shift;
     my $hash = shift;
 
-    $self->{'endpoints'} = $hash->{'endpoints'};
-    $self->{'name'} = $hash->{'name'};
-    $self->{'description'} = $hash->{'description'};
-    $self->{'prefix_limit'} = $hash->{'prefix_limit'};
-    $self->{'workgroup'} = $hash->{'workgroup'};
-    $self->{'created_by'} = $hash->{'created_by'};
-    $self->{'last_modified_by'} = $hash->{'last_modified_by'};
     $self->{'created'} = $hash->{'created'};
+    $self->{'created_by_id'} = $hash->{'created_by_id'};
+    $self->{'description'} = $hash->{'description'};
     $self->{'last_modified'} = $hash->{'last_modified'};
-    $self->{'local_asn'} = $hash->{'local_asn'};
+    $self->{'last_modified_by_id'} = $hash->{'last_modified_by_id'};
+    $self->{'local_asn'} = $hash->{'local_asn'} || $self->{'config'}->local_as;
+    $self->{'name'} = $hash->{'name'};
+    $self->{'operational_state'} = $hash->{'operational_state'};
+    $self->{'prefix_limit'} = $hash->{'prefix_limit'};
     $self->{'state'} = $hash->{'state'};
-}
+    $self->{'vrf_id'} = $hash->{'vrf_id'};
+    $self->{'workgroup_id'} = $hash->{'workgroup_id'};
 
-=head2 _fetch_from_db
-
-=cut
-sub _fetch_from_db{
-    my $self = shift;
-
-    my $hash = OESS::DB::VRF::fetch(db => $self->{'db'}, vrf_id => $self->{'vrf_id'});
-    $self->from_hash($hash);
+    return 1;
 }
 
 =head2 to_hash
@@ -148,50 +119,46 @@ sub _fetch_from_db{
 sub to_hash{
     my $self = shift;
 
-    my $obj;
+    my $hash = {
+        created => $self->{created},
+        created_by_id => $self->{created_by_id},
+        description => $self->{description},
+        last_modified => $self->{last_modified},
+        last_modified_by_id => $self->{last_modified_by_id},
+        local_asn => $self->{local_asn},
+        name => $self->{name},
+        operational_state => $self->operational_state,
+        prefix_limit => $self->{prefix_limit} || 1000,
+        state => $self->{state},
+        vrf_id => $self->{vrf_id},
+        workgroup_id => $self->{workgroup_id}
+    };
 
-    $obj->{'name'} = $self->name();
-    $obj->{'vrf_id'} = $self->vrf_id();
-    $obj->{'description'} = $self->description();
-    my @endpoints;
-    foreach my $endpoint (@{$self->endpoints()}){
-        push(@endpoints, $endpoint->to_hash);
+    if (defined $self->{workgroup}) {
+        $hash->{workgroup} = $self->{workgroup}->to_hash;
+    }
+    if (defined $self->{created_by}) {
+        $hash->{created_by} = $self->{created_by}->to_hash;
+    }
+    if (defined $self->{last_modified_by}) {
+        $hash->{last_modified_by} = $self->{last_modified_by}->to_hash;
+    }
+    if (defined $self->{endpoints}) {
+        $hash->{endpoints} = [];
+        foreach my $ep (@{$self->{endpoints}}) {
+            push @{$hash->{endpoints}}, $ep->to_hash;
+        }
     }
 
-    $obj->{'state'} = $self->{'state'};
-    $obj->{'endpoints'} = \@endpoints;
-    $obj->{'prefix_limit'} = $self->prefix_limit();
-    $obj->{'workgroup'} = $self->workgroup()->to_hash();
-    $obj->{'created_by'} = $self->created_by()->to_hash();
-    $obj->{'last_modified_by'} = $self->last_modified_by()->to_hash();
-    $obj->{'created'} = $self->created();
-    $obj->{'last_modified'} = $self->last_modified();
-    $obj->{'local_asn'} = $self->local_asn();
-    $obj->{'operational_state'} = $self->operational_state();
-    return $obj;
+    return $hash;
 }
 
 =head2 vrf_id
 
 =cut
-sub vrf_id{
+sub vrf_id {
     my $self =shift;
     return $self->{'vrf_id'};
-}
-
-=head2 id
-
-=cut
-sub id{
-    my $self = shift;
-    my $id = shift;
-
-    if(!defined($id)){
-        return $self->{'vrf_id'};
-    }else{
-        $self->{'vrf_id'} = $id;
-        return $self->{'vrf_id'};
-    }
 }
 
 =head2 load_endpoints
@@ -326,35 +293,61 @@ sub description{
     }
 }
 
-=head2 workgroup
+=head2 workgroup_id
+
+    my $workgroup_id = $vrf->workgroup_id;
+
+or
+
+    $vrf->workgroup_id($workgroup_id);
 
 =cut
-sub workgroup{
+sub workgroup_id {
+    my $self = shift;
+    my $workgroup_id = shift;
+
+    if (defined $workgroup_id) {
+        $self->{workgroup_id} = $workgroup_id;
+    }
+    return $self->{workgroup_id};
+}
+
+=head2 workgroup
+
+    my $workgroup = $vrf->workgroup;
+
+or
+
+    $vrf->workgroup($workgroup);
+
+=cut
+sub workgroup {
     my $self = shift;
     my $workgroup = shift;
 
-    if(!defined($workgroup)){
-
-        return $self->{'workgroup'};
-    }else{
-        $self->{'workgroup'} = $workgroup;
-        return $self->{'workgroup'};
+    if (defined $workgroup) {
+        $self->{workgroup} = $workgroup;
+        $self->{workgroup_id} = $workgroup->{workgroup_id};
     }
+    return $self->{workgroup};
 }
 
-=head2 update_db
+=head2 load_workgroup
+
+    my $err = $vrf->load_workgroup;
 
 =cut
-sub update_db{
+sub load_workgroup {
     my $self = shift;
 
-    if (!defined $self->{'vrf_id'}) {
-        $self->create();
-        return 1;
-    } else {
-        return $self->_edit();
+    if (!defined $self->{db}) {
+        return "Unable to read Workgroup from database; Handle is missing";
     }
+
+    $self->{workgroup} = new OESS::Workgroup(db => $self->{db}, workgroup_id => $self->{workgroup_id});
+    return;
 }
+
 
 =head2 create
 
@@ -397,7 +390,7 @@ sub create{
     #     return 0;
     # }
 
-    my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash());
+    my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash);
     if ($vrf_id == -1) {
         $self->error("Could not add VRF to db.");
         return 0;
@@ -408,115 +401,22 @@ sub create{
 
 =head2 update
 
+    my $err = $vrf->update;
+    $db->rollback if defined $err;
+
+update saves any changes made to this VRF.
+
+Note that any changes to the underlying Endpoint or Path objects will
+not be propagated to the database by this method call.
+
 =cut
 sub update {
-    my $self  = shift;
-    my $modal = shift;
-
-    my $endpoints = {};
-    foreach my $endpoint (@{$self->{endpoints}}) {
-        my $intf = $endpoint->{interface}->{name};
-        my $node = $endpoint->{interface}->{node}->{name};
-
-        $endpoints->{$node}->{$intf} = $endpoint->{tag};
-    }
-
-    # Validate we have at least 2 endpoints
-    if (@{$modal->{endpoints}} < 2) {
-        $self->{'logger'}->error("VRF Needs at least 2 endpoints");
-        $self->error("VRF Needs at least 2 endpoints");
-        return 0;
-    }
-
-    my $new_endpoints = [];
-
-    foreach my $ep (@{$modal->{endpoints}}) {
-        my $intf = $ep->{interface};
-        my $node = $ep->{node};
-        my $tag = $ep->{tag};
-
-        if (!defined $tag) {
-            $self->error("Endpoint tag is missing.");
-            return 0;
-        }
-        if (!defined $intf) {
-            $self->error("Endpoint interface is missing.");
-            return 0;
-        }
-        if (!defined $node) {
-            $self->error("Endpoint node is missing.");
-            return 0;
-        }
-
-        # VLANs already in use will come back as invalid; If previously validated continue.
-        my $endpoint = OESS::Endpoint->new(db => $self->{db}, model => $ep, type => 'vrf');
-        my $valid_tag = $endpoint->interface()->vlan_valid(workgroup_id => $self->workgroup()->workgroup_id(), vlan => $tag);
-        my $previously_validated = defined $endpoints->{$node}->{$intf} && $endpoints->{$node}->{$intf} == $tag;
-
-        if (!$previously_validated && !$valid_tag) {
-            $self->error("Endpoint tag $tag may not be used.");
-            return 0;
-        }
-
-        foreach my $peer (@{$endpoint->peers()}){
-            my $peer_ip = NetAddr::IP->new($peer->peer_ip());
-            my $local_ip = NetAddr::IP->new($peer->local_ip());
-
-            if(!$local_ip->contains($peer_ip)){
-                $self->error("Peer and Local IPs must be in the same subnet.");
-                return 0;
-            }
-        }
-
-        push @{$new_endpoints}, $endpoint;
-    }
-
-    $self->{endpoints} = $new_endpoints;
-
-    # Maybe updated:
-    $self->{name} = $modal->{name} if (defined $modal->{name});
-    $self->{description} = $modal->{description} if (defined $modal->{description});
-    $self->{local_asn} = $modal->{local_asn} if (defined $modal->{local_asn});
-
-    # Always updated:
-    $self->{last_modified} = $modal->{last_modified} if (defined $modal->{last_modified});
-    $self->{last_modified_by} = OESS::User->new(db => $self->{'db'}, user_id => $modal->{last_modified_by}) if (defined $modal->{last_modified_by});
-
-    return 1;
-}
-
-=head2 _edit
-
-=cut
-sub _edit {
     my $self = shift;
 
-    my $vrf = $self->to_hash();
-
-    my $result = OESS::DB::VRF::update(db => $self->{db}, vrf => $vrf);
-    if (!$result) {
-        $self->{db}->rollback();
-	$self->error("Could not update VRF: $result");
-        return;
+    if (!defined $self->{db}) {
+        return "Unable to write VRF to database; Handle is missing";
     }
-
-    $result = OESS::DB::VRF::delete_endpoints(db => $self->{db}, vrf_id => $vrf->{vrf_id});
-    if (!$result) {
-        $self->{db}->rollback();
-        $self->error("Could not remove old endpoints from VRF.");
-        return;
-    }
-
-    foreach my $ep (@{$vrf->{endpoints}}) {
-        $result = OESS::DB::VRF::add_endpoint(db => $self->{db}, vrf_id => $vrf->{vrf_id}, model => $ep);
-        if (!$result) {
-            $self->{db}->rollback();
-            $self->error("Could not add endpoint to VRF.");
-            return;
-        }
-    }
-
-    return 1;
+    return OESS::DB::VRF::update(db => $self->{db}, vrf => $self->to_hash);
 }
 
 =head2 update_vrf_details
@@ -574,10 +474,27 @@ sub prefix_limit{
     return $self->{'prefix_limit'};
 }
 
+=head2 load_users
+
+    my $err = $vrf->load_users;
+
+load_users populates C<created_by> and C<last_modified_by> with
+C<OESS::User> objects.
+
+=cut
+sub load_users {
+    my $self = shift;
+    my $err = undef;
+
+    $self->{created_by} = new OESS::User(db => $self->{db}, user_id => $self->{created_by_id});
+    $self->{last_modified_by} = new OESS::User(db => $self->{db}, user_id => $self->{last_modified_by_id});
+    return $err;
+}
+
 =head2 created_by
 
 =cut
-sub created_by{
+sub created_by {
     my $self = shift;
     my $created_by = shift;
 
@@ -587,7 +504,7 @@ sub created_by{
 =head2 last_modified_by
 
 =cut
-sub last_modified_by{
+sub last_modified_by {
     my $self = shift;
     return $self->{'last_modified_by'};
 }
@@ -596,7 +513,7 @@ sub last_modified_by{
 =head2 last_modified
 
 =cut
-sub last_modified{
+sub last_modified {
     my $self = shift;
     return $self->{'last_modified'};
 }
@@ -604,7 +521,7 @@ sub last_modified{
 =head2 created
 
 =cut
-sub created{
+sub created {
     my $self = shift;
     return $self->{'created'};
 }

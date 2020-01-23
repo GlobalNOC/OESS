@@ -20,40 +20,27 @@ my $logger = Log::Log4perl->get_logger("OESS.DB.VRF");
 =head2 fetch
 
 =cut
-sub fetch{
+sub fetch {
     my %params = @_;
     my $db     = $params{'db'};
     my $status = $params{'status'} || 'active';
     my $vrf_id = $params{'vrf_id'};
 
-    my $details;
+    my $q = "
+        select vrf.created_by as created_by_id, vrf.last_modified_by as last_modified_by_id, vrf.*
+        from vrf where vrf_id = ?
+    ";
 
-    my $res = $db->execute_query("select * from vrf where vrf_id = ?", [$vrf_id]);
-    if(!defined($res) || !defined($res->[0])){
+    my $res = $db->execute_query($q, [$vrf_id]);
+    if (!defined $res || !defined $res->[0]) {
         return;
     }
+    my $details = $res->[0];
 
-    $details = $res->[0];
-
-    my $created_by = OESS::User->new( db => $db, user_id => $details->{'created_by'});
-    my $last_modified_by = OESS::User->new(db => $db, user_id => $details->{'last_modified_by'});
-    my $workgroup = OESS::Workgroup->new( db => $db, workgroup_id => $details->{'workgroup_id'});
-
-    $details->{'last_modified_by'} = $last_modified_by;
-    $details->{'created_by'} = $created_by;
-    $details->{'workgroup'} = $workgroup;
-
-    my ($endpoints, $error) = OESS::DB::Endpoint::fetch_all(db => $db, vrf_id => $vrf_id);
-    if (defined $error) {
-        warn $error;
-        $endpoints = [];
-    }
-
-    foreach my $endpoint (@$endpoints) {
-        my $ep = new OESS::Endpoint(db => $db, type => 'vrf', model => $endpoint);
-        $ep->load_peers;
-        push @{$details->{endpoints}}, $ep;
-    }
+    # These are reserved for the VRF object after load_users is
+    # called. Will be populated by OESS::User objects.
+    delete $details->{created_by};
+    delete $details->{last_modified_by};
 
     return $details;
 }
@@ -111,21 +98,11 @@ sub create{
     my $db = $params{'db'};
     my $model = $params{'model'};
 
-    my $vrf_id = $db->execute_query("insert into vrf (name, description, workgroup_id, local_asn, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$model->{'name'}, $model->{'description'},$model->{'workgroup'}->{'workgroup_id'}, $model->{'local_asn'}, $model->{'created_by'}->{'user_id'}, $model->{'last_modified_by'}->{'user_id'}]);
+    my $vrf_id = $db->execute_query("insert into vrf (name, description, workgroup_id, local_asn, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$model->{'name'}, $model->{'description'},$model->{'workgroup_id'}, $model->{'local_asn'}, $model->{'created_by_id'}, $model->{'last_modified_by_id'}]);
     if(!defined($vrf_id)){
         my $error = $db->get_error();
         $db->rollback();
         return;
-    }
-
-    foreach my $ep (@{$model->{'endpoints'}}){
-        my $res = OESS::DB::VRF::add_endpoint(db => $db, model => $ep, vrf_id => $vrf_id);
-        if(!defined($res)){
-            my $error = $db->get_error();
-            warn $error;
-            $db->rollback();
-            return;
-        }
     }
 
     return $vrf_id;

@@ -249,9 +249,15 @@ sub workgroup_id{
 
 =head2 load_users
 
+    my $err = $vrf->load_users;
+
+load_users populates C<created_by> and C<last_modified_by> with
+C<OESS::User> objects.
+
 =cut
 sub load_users {
     my $self = shift;
+    my $err = undef;
 
     # TODO User object shouldn't load workgroup info. Way too much
     # info there.
@@ -265,7 +271,7 @@ sub load_users {
         db => $self->{db},
         user_id => $self->{last_modified_by_id}
     );
-    return 1;
+    return $err;
 }
 
 =head2 add_path
@@ -1107,14 +1113,9 @@ sub update {
     my $self = shift;
 
     if (!defined $self->{db}) {
-        $self->{'logger'}->error('Unable to write db; Handle is missing.');
+        return "Unable to write L2Circuit to database; Handle is missing.";
     }
-
-    my $err = OESS::DB::Circuit::update(
-        db => $self->{db},
-        circuit => $self->to_hash
-    );
-    return $err;
+    return OESS::DB::Circuit::update(db => $self->{db}, circuit => $self->to_hash);
 }
 
 =head2 remove

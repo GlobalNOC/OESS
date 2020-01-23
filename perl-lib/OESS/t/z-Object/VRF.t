@@ -15,12 +15,21 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 8;
+use Test::More tests => 9;
 
 use OESSDatabaseTester;
 
 use OESS::DB;
 use OESS::VRF;
+
+# PURPOSE:
+#
+# Verify that calling OESS::VRF->update without loading all child
+# objects preserves all child relations. This test was put in place
+# after OESS::VRF->update_db (since removed) completely recreated its
+# Endpoints (delete followed by an add); This resulted in the Peers
+# associated with the Endpoints to be unexpectedly removed from the
+# database.
 
 OESSDatabaseTester::resetOESSDB(
     config => "$path/../conf/database.xml",
@@ -42,8 +51,8 @@ my $vrf = new OESS::VRF(
         workgroup_id   =>  $workgroup_id,
         provision_time => -1,
         remove_time    => -1,
-        created_by     => 11,
-        last_modified_by => 11
+        created_by_id  => 11,
+        last_modified_by_id => 11
     }
 );
 my $ok = $vrf->create;
@@ -109,23 +118,17 @@ foreach my $ep (@$endpoints) {
 }
 
 my $loaded_vrf = new OESS::VRF(db => $db, vrf_id => $vrf->vrf_id);
-$loaded_vrf->load_endpoints;
-foreach my $ep (@{$loaded_vrf->endpoints}) {
-    # Calling update_db without first calling load_peers would remove
-    # all peers from the vrf. Verify that peers are only removed if
-    # called via OESS::Endpoint->remove_peer.
-    #
-    # $ep->load_peers;
-}
-$loaded_vrf->update_db;
+$loaded_vrf->name('bahahaha');
+$loaded_vrf->update;
 
 my $loaded_vrf2 = new OESS::VRF(db => $db, vrf_id => $vrf->vrf_id);
+ok($loaded_vrf2->name eq 'bahahaha', 'VRF name update validated.');
+
 $loaded_vrf2->load_endpoints;
 foreach my $ep (@{$loaded_vrf2->endpoints}) {
     $ep->load_peers;
     ok(@{$ep->peers} == 1, "Looked up exactly 1 Peer on Endpoint.");
 }
-# warn Dumper($loaded_vrf2->to_hash);
 
 $ok = $vrf->decom(user_id => 1);
 ok($ok, "VRF Decom'd");
