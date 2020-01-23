@@ -166,13 +166,18 @@ sub get_vrf_details{
     }
 
     my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
-
-    if(!defined($vrf)){
+    if (!defined $vrf) {
         $method->set_error("VRF: " . $vrf_id . " was not found");
         return;
     }
+    $vrf->load_endpoints;
+    foreach my $ep (@{$vrf->endpoints}) {
+        $ep->load_peers;
+    }
+    $vrf->load_users;
+    $vrf->load_workgroup;
 
-    return {results => [$vrf->to_hash()]};
+    return { results => [ $vrf->to_hash ] };
 }
 
 sub get_vrfs{
@@ -203,15 +208,21 @@ sub get_vrfs{
         return;
     }
 
-    my $vrfs = OESS::DB::VRF::get_vrfs( db => $db, workgroup_id => $workgroup_id, state => 'active');
-
+    my $vrfs = OESS::DB::VRF::get_vrfs(db => $db, workgroup_id => $workgroup_id, state => 'active');
     my $result = [];
+
     foreach my $vrf (@$vrfs){
-        my $r = OESS::VRF->new( db => $db, vrf_id => $vrf->{'vrf_id'});
-        next if(!defined $r);
+        my $r = OESS::VRF->new(db => $db, vrf_id => $vrf->{'vrf_id'});
+        if (!defined $r) {
+            warn "VRF $vrf->{vrf_id} couldn't be loaded.";
+            next;
+        }
+        $r->load_endpoints;
+        $r->load_users;
+        $r->load_workgroup;
+
         push @$result, $r->to_hash();
     }
-
     return $result;
 }
 
@@ -242,9 +253,7 @@ sub provision_vrf{
     $model->{'name'} = $params->{'name'}{'value'};
     $model->{'provision_time'} = $params->{'provision_time'}{'value'};
     $model->{'remove_time'} = $params->{'provision_time'}{'value'};
-    $model->{'created_by'} = $user->user_id();
     $model->{'last_modified'} = $params->{'provision_time'}{'value'};
-    $model->{'last_modified_by'} = $user->user_id();
     $model->{'endpoints'} = ();
 
     # User must be in workgroup or an admin to continue
@@ -273,13 +282,17 @@ sub provision_vrf{
             $db->rollback;
             return;
         }
+
         $vrf->load_endpoints;
+        $vrf->last_modified_by($user);
     } else {
+        $model->{created_by_id} = $user->user_id;
+        $model->{last_modified_by_id} = $user->user_id;
         $model->{workgroup_id} = $params->{workgroup_id}->{value};
         $vrf = OESS::VRF->new(db => $db, model => $model);
-        my $ok = $vrf->create;
-        if (!$ok) {
-            $method->set_error("Couldn't create VRF");
+        my ($vrf_id, $vrf_err) = $vrf->create;
+        if (defined $vrf_err) {
+            $method->set_error("Couldn't create VRF: $vrf_err");
             $db->rollback;
             return;
         }

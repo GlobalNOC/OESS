@@ -351,52 +351,28 @@ sub load_workgroup {
 
 =head2 create
 
-    my $ok = $vrf->create;
+    my ($id, $err) = $vrf->create;
+    if (defined $err) {
+        warn $err;
+    }
 
 =cut
-sub create{
+sub create {
     my $self = shift;
 
-    #need to validate endpoints
-    # foreach my $ep (@{$self->endpoints()}){
-    #     if(!defined($ep) || !defined($ep->interface())){
-    #         $self->{'logger'}->error("No Endpoint specified");
-    #         $self->error("No Endpoint specified");
-    #         return 0;
-    #     }
-
-    #     # if( !$ep->interface()->vlan_valid( workgroup_id => $self->workgroup()->workgroup_id(), vlan => $ep->tag() )){
-    #     #     $self->{'logger'}->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
-    #     #     $self->error("VLAN: " . $ep->tag() . " is not allowed for workgroup on interface: " . $ep->interface()->name());
-    #     #     return 0;
-    #     # }
-
-    #     #validate IP addresses for peerings
-    #     foreach my $peer (@{$ep->peers()}){
-    #         my $peer_ip = NetAddr::IP->new($peer->peer_ip());
-    #         my $local_ip = NetAddr::IP->new($peer->local_ip());
-    #         if(!$local_ip->contains($peer_ip)){
-    #             $self->{'logger'}->error("Peer and Local IPs are not in the same subnet...");
-    #             $self->error("Peer and Local IPs are not in the same subnet...");
-    #             return 0;
-    #         }
-    #     }
-    # }
-
-    # #validate that we have at least 2 endpoints
-    # if(scalar($self->endpoints()) < 2){
-    #     $self->{'logger'}->error("VRF Needs at least 2 endpoints");
-    #     $self->error("VRF Needs at least 2 endpoints");
-    #     return 0;
-    # }
-
-    my $vrf_id = OESS::DB::VRF::create(db => $self->{'db'}, model => $self->to_hash);
-    if ($vrf_id == -1) {
-        $self->error("Could not add VRF to db.");
-        return 0;
+    if (!defined $self->{db}) {
+        $self->{'logger'}->error("Database handle is missing.");
+        return (undef, "Database handle is missing.");
     }
-    $self->{'vrf_id'} = $vrf_id;
-    return 1;
+
+    my ($id, $err) = OESS::DB::VRF::create(db => $self->{db}, model => $self->to_hash);
+    if (defined $err) {
+        $self->{logger}->error($err);
+        return (undef, $err);
+    }
+    $self->{vrf_id} = $id;
+
+    return ($id, undef);
 }
 
 =head2 update
@@ -498,7 +474,11 @@ sub created_by {
     my $self = shift;
     my $created_by = shift;
 
-    return $self->{'created_by'};
+    if (defined $created_by) {
+        $self->{created_by} = $created_by;
+        $self->{created_by_id} = $created_by->{user_id};
+    }
+    return $self->{created_by};
 }
 
 =head2 last_modified_by
@@ -506,7 +486,13 @@ sub created_by {
 =cut
 sub last_modified_by {
     my $self = shift;
-    return $self->{'last_modified_by'};
+    my $last_modified_by = shift;
+
+    if (defined $last_modified_by) {
+        $self->{last_modified_by} = $last_modified_by;
+        $self->{last_modified_by_id} = $last_modified_by->{user_id};
+    }
+    return $self->{last_modified_by};
 }
 
 

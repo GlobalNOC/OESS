@@ -75,9 +75,9 @@ sub update {
         push @$reqs, 'last_modified=?';
         push @$args, $vrf->{last_modified};
     }
-    if (defined $vrf->{last_modified_by}->{user_id}) {
+    if (defined $vrf->{last_modified_by_id}) {
         push @$reqs, 'last_modified_by=?';
-        push @$args, $vrf->{last_modified_by}->{user_id};
+        push @$args, $vrf->{last_modified_id};
     }
     $set .= join(', ', @$reqs);
     push @$args, $vrf->{vrf_id};
@@ -99,13 +99,11 @@ sub create{
     my $model = $params{'model'};
 
     my $vrf_id = $db->execute_query("insert into vrf (name, description, workgroup_id, local_asn, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$model->{'name'}, $model->{'description'},$model->{'workgroup_id'}, $model->{'local_asn'}, $model->{'created_by_id'}, $model->{'last_modified_by_id'}]);
-    if(!defined($vrf_id)){
-        my $error = $db->get_error();
-        $db->rollback();
-        return;
+    if (!defined $vrf_id) {
+        return (undef, $db->get_error);
     }
 
-    return $vrf_id;
+    return ($vrf_id, undef);
 }
 
 =head2 delete_endpoints
