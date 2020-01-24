@@ -251,7 +251,7 @@ sub remove_endpoint {
 =head2 endpoints
 
 =cut
-sub endpoints{
+sub endpoints {
     my $self = shift;
     my $eps = shift;
 
