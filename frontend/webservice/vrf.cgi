@@ -636,8 +636,6 @@ sub provision_vrf{
                 if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                     # We do nothing here as the QinQ tags have already
                     # been selected and will not change for updates.
-                } else {
-                    $ep->update_unit;
                 }
 
                 my $update_err = $ep->update_db;
