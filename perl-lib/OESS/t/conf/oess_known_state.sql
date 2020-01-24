@@ -1052,7 +1052,7 @@ CREATE TABLE `vrf_ep` (
 
 LOCK TABLES `vrf_ep` WRITE;
 /*!40000 ALTER TABLE `vrf_ep` DISABLE KEYS */;
-INSERT INTO `vrf_ep` VALUES (2,0,3,123,2,391,'active',0,9000),(3,3,3,3,3,1,'active',1,9000);
+INSERT INTO `vrf_ep` VALUES (2,NULL,3,1000,2,391,'active',3,9000),(3,3,3,50,3,1,'active',5001,9000);
 /*!40000 ALTER TABLE `vrf_ep` ENABLE KEYS */;
 UNLOCK TABLES;
 
