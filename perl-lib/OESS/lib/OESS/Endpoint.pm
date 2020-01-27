@@ -740,10 +740,17 @@ sub update_db_circuit{
 
 =head2 update_db
 
+    my $err = $ep->update_db;
+
 =cut 
 sub update_db {
     my $self = shift;
     my $error = undef;
+
+    my $validation_err = $self->_validate;
+    if (defined $validation_err) {
+        return $validation_err;
+    }
 
     my $hash = $self->to_hash;
 
@@ -911,6 +918,12 @@ sub create {
         return (undef, "Couldn't create Endpoint: Couldn't find an available Unit.");
     }
 
+    my $validation_err = $self->_validate;
+    if (defined $validation_err) {
+        $self->{'logger'}->error("Couldn't create Endpoint: $validation_err");
+        return (undef, "Couldn't create Endpoint: $validation_err");
+    }
+
     if (defined $args->{circuit_id}) {
         my $ep_data = $self->to_hash;
         $ep_data->{circuit_id} = $args->{circuit_id};
@@ -1024,6 +1037,28 @@ sub remove {
     else {
         return 'Unknown Endpoint type specified.';
     }
+
+    return;
+}
+
+=head2 _validate
+
+    my $err = $ep->_validate;
+
+_validate indicates to the user if any values are known to be
+invalid. Returns a C<string> describing incompatibility or C<undef> on
+success. Automatically called on C<< $self->create >> and C<<
+$self->update >>.
+
+=cut
+sub _validate {
+    my $self = shift;
+
+    if (defined $self->{inner_tag}) {
+        return 'Endpoint->{inner_tag} must be 1 to 4094 inclusive.' if ($self->{inner_tag} < 1 || $self->{inner_tag} > 4094);
+    }
+
+    return 'Endpoint->{tag} must be 1 to 4095 inclusive.' if ($self->{tag} < 1 || $self->{tag} > 4095);
 
     return;
 }
