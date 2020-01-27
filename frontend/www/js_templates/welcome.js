@@ -110,7 +110,7 @@ async function loadEntityList() {
     <div style="width: 30px; background-color: ${color}; margin: -10px 15px -10px -15px;">
     </div>
     <div style="flex: 1;">
-      <h4>${entity.name}</h4>
+      <h4>${entity.description}</h4>
       <div style="display: flex;">
         <p style="padding-right: 15px; margin-bottom: 0px;"><b>Owner:</b> ${entity.workgroup.name}</p>
         <p style="padding-right: 15px; margin-bottom: 0px;"><b>Created on:</b> ${createdOn.toDateString()}</p>

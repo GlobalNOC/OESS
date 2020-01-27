@@ -235,18 +235,6 @@ sub state{
     return $self->{'state'};
 }
 
-=head2 workgroup_id
-
-=cut
-sub workgroup_id{
-    my $self = shift;
-    my $workgroup_id = shift;
-    if (defined $workgroup_id) {
-        $self->{'workgroup_id'} = $workgroup_id;
-    }
-    return $self->{'workgroup_id'};
-}
-
 =head2 load_users
 
     my $err = $vrf->load_users;
@@ -341,6 +329,45 @@ sub load_paths {
 sub paths {
     my $self = shift;
     return $self->{paths};
+}
+
+=head2 workgroup_id
+
+    my $workgroup_id = $vrf->workgroup_id;
+
+or
+
+    $vrf->workgroup_id($workgroup_id);
+
+=cut
+sub workgroup_id {
+    my $self = shift;
+    my $workgroup_id = shift;
+
+    if (defined $workgroup_id) {
+        $self->{workgroup_id} = $workgroup_id;
+    }
+    return $self->{workgroup_id};
+}
+
+=head2 workgroup
+
+    my $workgroup = $vrf->workgroup;
+
+or
+
+    $vrf->workgroup(new OESS::Workgroup(db => $db, workgroup_id => $id));
+
+=cut
+sub workgroup {
+    my $self = shift;
+    my $workgroup = shift;
+
+    if (defined $workgroup) {
+        $self->{workgroup} = $workgroup;
+        $self->{workgroup_id} = $workgroup->{workgroup_id};
+    }
+    return $self->{workgroup};
 }
 
 =head2 load_workgroup
