@@ -345,13 +345,21 @@ sub paths {
 
 =head2 load_workgroup
 
+    my $err = $vrf->load_workgroup;
+
+load_workgroup populates C<< $self->{workgroup} >> with an
+C<OESS::Workgroup> object.
+
 =cut
 sub load_workgroup {
     my $self = shift;
-    $self->{workgroup} = OESS::DB::Workgroup::fetch(
-        db => $self->{db},
-        workgroup_id => $self->{workgroup_id}
-    );
+
+    if (!defined $self->{db}) {
+        return "Unable to read Workgroup from database; Handle is missing";
+    }
+
+    $self->{workgroup} = new OESS::Workgroup(db => $self->{db}, workgroup_id => $self->{workgroup_id});
+    return;
 }
 
 =head2 to_hash
