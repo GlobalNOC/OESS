@@ -422,7 +422,7 @@ sub to_hash {
     }
 
     if (defined $self->{workgroup}) {
-        $hash->{workgroup} = $self->{workgroup};
+        $hash->{workgroup} = $self->{workgroup}->to_hash;
     }
 
     if (defined $self->{paths}) {
