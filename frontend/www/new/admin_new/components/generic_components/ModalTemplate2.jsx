@@ -4,12 +4,12 @@ import Modal from "react-bootstrap/Modal";
 import Draggable from 'react-draggable';
 import { Button } from 'reactstrap';
 import ModalDialog from 'react-bootstrap/ModalDialog';
-import editUser from '../../api/user_edit.jsx';
+import addUser from '../../api/user_add.jsx';
 
-export default class ModalTemplate extends Component {
+export default class ModalTemplate2 extends Component {
 constructor(props) {
     super(props);
-    console.log("props", props);
+    console.log( " Add props", props);
     this.handleChange = this.handleChange.bind(this);
     this.updateUser = this.updateUser.bind(this);
     this.refreshPage = this.refreshPage.bind(this);
@@ -27,7 +27,7 @@ constructor(props) {
 
 componentWillReceiveProps(nextProps, prevState) {
 
-      if(nextProps.rowdata){
+      /*if(nextProps.rowdata){
  	this.setState({
  	   firstname: nextProps.rowdata["First Name"],
 	   lastname: nextProps.rowdata["Last Name"],
@@ -37,14 +37,14 @@ componentWillReceiveProps(nextProps, prevState) {
            userstatus: nextProps.rowdata["User Status"],
  	   userid:nextProps.rowdata["userid"] 
 	})
-      }
+      }*/
  }
-ComponentDidMount(props) {
+/*ComponentDidMount(props) {
       if(this.props.rowdata){
    	   const { firstname, lastname, email, username, usertype, userstatus, userid  } = this.props.rowdata;
    	   this.setState({ firstname, lastname, email, username, usertype, userstatus, userid });
       }	
-}
+}*/
 ComponentDidUpdate(props){
    
 }
@@ -53,8 +53,9 @@ refreshPage() {
 }
 updateUser(event) {
         //console.log("Updating"+event);
-        editUser(this.state.userid,this.state.firstname, this.state.lastname, this.state.email, this.state.usertype, this.state.userstatus, this.state.username).then(function () {
-             console.log("Updated");
+    console.log('adding user');
+        addUser(this.state.userid,this.state.firstname, this.state.lastname, this.state.email, this.state.usertype, this.state.userstatus, this.state.username).then(function () {
+             console.log("Added");
 	    // window.location.reload(false); //To be changed from force refresh to component refresh	     	     	   
         });
     }
@@ -80,12 +81,12 @@ handleChange(event) {
 
   render() {
   var currcomponent = this;
-  var rowdata = this.state.username;
+ // var rowdata = this.state.username;
   //console.log("here data", JSON.stringify(rowdata));
   
  
   return(
-	<div className="modal fade" id="myModal" tabIndex="-1" role="dialog" aria-labelledby="myModalLabel">
+	<div className="modal fade" id="myModal2" tabIndex="-1" role="dialog" aria-labelledby="myModalLabel">
   		<div className="modal-dialog" role="document">
     			<div className="modal-content">
       				<div className="modal-header">
