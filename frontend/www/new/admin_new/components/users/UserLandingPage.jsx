@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import UsersTable from "../user_table/UserTable.jsx";
 import NavBar from "../nav_bar/NavBar.jsx";
 import getCurrentUser from '../../api/user_menu.jsx';
-import ModalTemplate from '../generic_components/ModalTemplate.jsx';
+import ModalTemplate2 from '../generic_components/ModalTemplate2.jsx';
 class UserLandingPage extends React.Component {
 	
 	constructor(props){
@@ -90,10 +90,10 @@ class UserLandingPage extends React.Component {
                     </ul>
                 </nav>
             </div>
-            <button type="button" className="button is-link" data-target="#myModal" data-toggle="modal" onClick={this.displaypopup.bind(this,currComponent)}>Add User</button>
+            <button type="button" className="button is-link" data-target="#myModal2" data-toggle="modal">Add User</button>
 	</div>
     </center>
-	<ModalTemplate rowdata={this.state.rowdata} />
+	<ModalTemplate2/>
 </div>
 		);
 	}
