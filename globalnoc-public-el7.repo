@@ -1,0 +1,6 @@
+[globalnoc-public-el7]
+name=GlobalNOC Public el7 - $basearch
+baseurl=https://repo-public.grnoc.iu.edu/repo/7/$basearch
+enabled=1
+gpgcheck=1
+gpgkey=https://repo-public.grnoc.iu.edu/repo/RPM-GPG-KEY-GRNOC7
