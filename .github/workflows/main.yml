@@ -11,5 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Testing
     steps:
+      - name: Copy repo to /github/workspace
+        uses: actions/checkout@v2
       - name: Run perl-OESS tests
         uses: jonstout/OESS@master
