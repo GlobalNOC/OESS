@@ -3345,6 +3345,10 @@ function setup_discovery_tab(){
 			return;
 		    }
 
+          if (!ip.match(/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/)) {
+            alert("You must specify a valid IPv4 Address.");
+            return;
+          }
                     if (name.match(/:/) || name.match(/\s/)){
                         alert("You may not have spaces or colons in the name.");
                         return;
