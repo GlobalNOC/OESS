@@ -2455,7 +2455,7 @@ sub add_mpls_switch{
     if (defined $err) {
         return send_json($err);
     }
-    
+
     my $name = $args->{'name'}{'value'};
     my $short_name = $args->{'short_name'}{'value'};
     my $ip_address = $args->{'ip_address'}{'value'};
@@ -2465,6 +2465,12 @@ sub add_mpls_switch{
     my $vendor = $args->{'vendor'}{'value'};
     my $model = $args->{'model'}{'value'};
     my $sw_ver = $args->{'sw_ver'}{'value'};
+
+    if ($ip_address !~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/) {
+        $method->set_error("ip_address $ip_address is an invalid IPv4 Address.");
+        return;
+    }
+
     require OESS::RabbitMQ::Client;
     my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
                                           timeout  => 60 );
