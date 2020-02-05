@@ -55,7 +55,7 @@ updateUser(event) {
         //console.log("Updating"+event);
         editUser(this.state.userid,this.state.firstname, this.state.lastname, this.state.email, this.state.usertype, this.state.userstatus, this.state.username).then(function () {
              console.log("Updated");
-	    // window.location.reload(false); //To be changed from force refresh to component refresh	     	     	   
+	     window.location.reload(false); //To be changed from force refresh to component refresh	     	     	   
         });
     }
 

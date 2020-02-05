@@ -56,7 +56,7 @@ updateUser(event) {
     console.log('adding user');
         addUser(this.state.userid,this.state.firstname, this.state.lastname, this.state.email, this.state.usertype, this.state.userstatus, this.state.username).then(function () {
              console.log("Added");
-	    // window.location.reload(false); //To be changed from force refresh to component refresh	     	     	   
+	     window.location.reload(false); //To be changed from force refresh to component refresh	     	     	   
         });
     }
 
