@@ -270,10 +270,10 @@ class EndpointSelectionModal2 {
     let spacer = '';
 
     if (parent) {
-      let elem = document.createElement('button');
-      elem.setAttribute('type', 'button');
+      let elem = document.createElement('a');
+      elem.setAttribute('href', '#');
       elem.setAttribute('class', 'list-group-item active');
-      elem.innerHTML = `<span class="glyphicon glyphicon-menu-up"></span>&nbsp;&nbsp; ${entity.name}`;
+      elem.innerHTML = `<span class="glyphicon glyphicon-menu-left"></span>&nbsp;&nbsp; ${entity.name}`;
       elem.addEventListener('click', function(e) {
         parent.index = index;
         this.populateEntityForm(parent);
@@ -287,8 +287,8 @@ class EndpointSelectionModal2 {
       for (let i = 0; i < entity.children.length; i++) {
         let child = entity.children[i];
 
-        let elem = document.createElement('button');
-        elem.setAttribute('type', 'button');
+        let elem = document.createElement('a');
+        elem.setAttribute('href', '#');
         elem.setAttribute('class', 'list-group-item');
         elem.innerHTML = `${spacer}${child.name} <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>`;
         elem.addEventListener('click', function(e) {
@@ -300,23 +300,44 @@ class EndpointSelectionModal2 {
       }
     }
 
-    // Once the user has selected a leaf entity it's expected that we
-    // display all its associated ports.
-    if ('children' in entity && entity.children.length === 0) {
-      for (let i = 0; i < entity.interfaces.length; i++) {
-        let child = entity.interfaces[i];
+    // Display all interfaces of the selected Entity. If the Entity
+    // describes a cloud interconnect, disable the Interfaces as they
+    // will be auto-selected according to the prescribed procedure.
+    for (let i = 0; i < entity.interfaces.length; i++) {
+      let child = entity.interfaces[i];
 
-        let elem = document.createElement('button');
-        elem.setAttribute('type', 'button');
-        elem.setAttribute('class', 'list-group-item');
-        elem.innerHTML = `${spacer}<b>${child.node}</b> ${child.name}`;
-        elem.addEventListener('click', function(e) {
-          selectedInterface = child.name;
-          selectedNode = child.node;
-        });
-
-        list.appendChild(elem);
+      let checked = 'checked';
+      let disabled = '';
+      let notAllow = '';
+      if (child.cloud_interconnect_type !== null && child.cloud_interconnect_type !== '') {
+        checked = '';
+        disabled = 'disabled';
+        notAllow = 'cursor: not-allowed;';
       }
+
+      let elem = document.createElement('li');
+      elem.setAttribute('class', `list-group-item ${disabled}`);
+      elem.innerHTML = `
+        <div class="radio" style="margin: 0; padding: 0;">
+          <label style="width: 100%; ${notAllow}">
+            <input type="radio"
+                   name="optionsRadios"
+                   id="${child.node} ${child.name}"
+                   value="${child.node} ${child.name}"
+                   ${checked}
+                   ${disabled}
+            />
+            <b>${child.node}</b> ${child.name}
+          </label>
+        </div>`;
+      elem.addEventListener('click', function(e) {
+        selectedInterface = child.name;
+        selectedNode = child.node;
+      });
+
+      selectedInterface = child.name;
+      selectedNode = child.node;
+      list.appendChild(elem);
     }
 
     // VLAN Select
