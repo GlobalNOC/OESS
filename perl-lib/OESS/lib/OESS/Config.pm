@@ -113,7 +113,7 @@ sub mpls_enabled {
 =cut
 sub mpls_fwdctl_enabled {
     my $self = shift;
-    return 1 if (!defined $self->{'config'}->{'process'}->{'fwdctl'});
+    return 1 if (!defined $self->{'config'}->{'process'}->{'mpls_fwdctl'});
     return ($self->{'config'}->{'process'}->{'mpls_fwdctl'}->{'status'} eq 'enabled') ? 1 : 0;
 }
 
@@ -122,7 +122,7 @@ sub mpls_fwdctl_enabled {
 =cut
 sub mpls_discovery_enabled {
     my $self = shift;
-    return 1 if (!defined $self->{'config'}->{'process'}->{'discovery'});
+    return 1 if (!defined $self->{'config'}->{'process'}->{'mpls_discovery'});
     return ($self->{'config'}->{'process'}->{'mpls_discovery'}->{'status'} eq 'enabled') ? 1 : 0;
 }
 
