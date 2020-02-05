@@ -60,6 +60,7 @@ async function provisionCircuit(workgroupID, description, endpoints, start=-1, e
     } else {
       e['interface'] = endpoint.interface;
       e['node']      = endpoint.node;
+      e['entity']    = endpoint.entity;
     }
 
     form.append('endpoint', JSON.stringify(e));

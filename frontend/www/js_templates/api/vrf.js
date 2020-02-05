@@ -66,6 +66,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     } else {
       e['interface'] = endpoint.interface;
       e['node']      = endpoint.node;
+      e['entity']    = endpoint.entity;
     }
 
     if (endpoint.peers.length < 1) {
