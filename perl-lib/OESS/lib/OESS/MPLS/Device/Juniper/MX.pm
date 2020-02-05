@@ -267,7 +267,7 @@ sub unlock {
 
 =head2 get_system_information
 
-    my $info = get_system_information();
+    my ($info, $err) = get_system_information();
 
 get_system_information returns an object containing information about
 the connected device.
@@ -287,17 +287,14 @@ B<Result>
 sub get_system_information{
     my $self = shift;
 
-    if(!$self->connected()){
-	$self->{'logger'}->error("Not currently connected to device");
-	return;
+    if (!$self->connected) {
+        return (undef, "Not currently connected to device");
     }
 
     my $reply = $self->{'jnx'}->get_system_information();
-
-    if ($self->{'jnx'}->has_error){
+    if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
-        $self->{'logger'}->error("Error fetching system information: " . $error->{'error_message'});
-        return;
+        return (undef, "Error fetching system information: $error->{error_message}");
     }
 
     my $system_info = $self->{'jnx'}->get_dom();
@@ -325,8 +322,7 @@ sub get_system_information{
     if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
         $self->set_error($error->{'error_message'});
-        $self->{'logger'}->error("Error fetching interface information: " . $error->{'error_message'});
-        return;
+        return (undef, "Error fetching interface information: $error->{error_message}");
     }
 
     my $interfaces = $self->{'jnx'}->get_dom();
@@ -385,13 +381,19 @@ sub get_system_information{
 		}
 	    }
 	}
-
-	
     }
 
     $self->{'loopback_addr'} = $loopback_addr;
     $self->{'major_rev'} = $major_rev;
-    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
+
+    my $result = {
+        host_name     => $host_name,
+        loopback_addr => $loopback_addr,
+        os_name       => $os_name,
+        model         => $model,
+        version       => $version,
+    };
+    return ($result, undef);
 }
 
 =head2 get_routed_lsps
@@ -1748,7 +1750,12 @@ sub verify_connection{
         return 0;
     }
 
-    my $sysinfo = $self->get_system_information();
+    my ($sysinfo, $err) = $self->get_system_information();
+    if (defined $err) {
+        $self->{'logger'}->error("Couldn't get system information: $err");
+        return 0;
+    }
+
     foreach my $fw (@{$self->{'supported_firmware'}}) {
         if ($sysinfo->{'os_name'} eq $fw->{'make'} && $sysinfo->{'model'} eq $fw->{'model'} && $sysinfo->{'version'} eq $fw->{'number'} && $sysinfo->{'major_rev'} eq $fw->{'major_rev'}) {
             return 1;
