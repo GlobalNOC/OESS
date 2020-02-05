@@ -78,7 +78,7 @@ sub from_hash{
     $self->{'peer_ip'} = $hash->{'peer_ip'};
     $self->{'peer_asn'} = $hash->{'peer_asn'};
     $self->{'vrf_ep_id'} = $hash->{'vrf_ep_id'};
-    $self->{'md5_key'} = $hash->{'md5_key'};
+    $self->{'md5_key'} = (!defined $hash->{'md5_key'}) ? '' : $hash->{'md5_key'};
     $self->{'local_ip'} = $hash->{'local_ip'};
 
     if ($self->{'local_ip'} =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
