@@ -58,39 +58,9 @@ class UserLandingPage extends React.Component {
             </center>
             <br/>
             <br/>
-            <div id="user_table_nav">
-                <nav aria-label="Page navigation example">
-                    <ul className="pagination">
+            
 
-                        <li className="page-item">
-                            <a className="page-link" href="#" aria-label="First">
-                                <span aria-hidden="true">&laquo;</span>
-                                <span className="sr-only">First</span>
-                            </a>
-                        </li>
-                        <li className="page-item">
-                            <a className="page-link" href="#" aria-label="Previous">
-                                <span aria-hidden="true">&lsaquo;</span>
-                                <span className="sr-only">Previous</span>
-                            </a>
-                        </li>
-                        <li className="page-item"><a className="page-link" href="#">1</a></li>
-                        <li className="page-item">
-                            <a className="page-link" href="#" aria-label="Next">
-                                <span aria-hidden="true">&rsaquo;</span>
-                                <span className="sr-only">Next</span>
-                            </a>
-                        </li>
-                        <li className="page-item">
-                            <a className="page-link" href="#" aria-label="Last">
-                                <span aria-hidden="true">&raquo;</span>
-                                <span className="sr-only">Last</span>
-                            </a>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
-            <button type="button" className="button is-link" data-target="#myModal2" data-toggle="modal">Add User</button>
+		<button type="button" className="button is-link" data-target="#myModal2" data-toggle="modal">Add User</button>
 	</div>
     </center>
 	<ModalTemplate2/>
