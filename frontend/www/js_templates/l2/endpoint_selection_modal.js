@@ -528,7 +528,7 @@ class EndpointSelectionModal2 {
 
       endpoint.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;
       endpoint.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
-      endpoint.cloud_account_id = cloudAccountInput.value;
+      endpoint.cloud_account_id = (cloudAccountInput.value) ? cloudAccountInput.value.trim() : '';
       endpoint.entity = entity.name;
       endpoint.name = selectedInterface;
       endpoint.node = selectedNode;
