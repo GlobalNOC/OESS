@@ -182,7 +182,7 @@ sub to_hash{
     $obj->{'description'} = $self->{'description'};
     $obj->{'inner_tag'} = $self->inner_tag();
     $obj->{'tag'} = $self->tag();
-    $obj->{'bandwidth'} = $self->bandwidth();
+    $obj->{'bandwidth'} = $self->{'bandwidth'};
     $obj->{cloud_account_id} = $self->cloud_account_id();
     $obj->{cloud_connection_id} = $self->cloud_connection_id();
     # cloud_interconnect_id omitted from hash to ensure hidden
@@ -591,6 +591,10 @@ sub tag{
 =cut
 sub bandwidth{
     my $self = shift;
+    my $bandwidth = shift;
+    if (defined $bandwidth) {
+        $self->{'bandwidth'} = $bandwidth;
+    }
     return $self->{'bandwidth'};
 }
 

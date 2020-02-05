@@ -9,9 +9,11 @@ use Data::Dumper;
 use JSON;
 use Log::Log4perl;
 use XML::Simple;
-use GRNOC::WebService::Client;
-use OESS::Config;
+
 use OESS::Cloud::Azure;
+use OESS::Config;
+use OESS::DB;
+use OESS::DB::Endpoint;
 use OESS::Endpoint;
 
 my $logger;
@@ -19,27 +21,28 @@ my $logger;
 sub main{
     my $logger = Log::Log4perl->get_logger('OESS.Cloud.Azure.Syncer');
     my $config = OESS::Config->new();
-    my $client = connect_to_ws($config);
+    my $db = OESS::DB->new();
 
-    my @azure_cloud_accounts_config = fetch_azure_cloud_account_configs($client, $config);
+    my @azure_cloud_accounts_config = fetch_azure_cloud_account_configs($config);
+    my $azure = OESS::Cloud::Azure->new();
+
+    my ($endpoints, $error) = OESS::DB::Endpoint::fetch_all(
+        db => $db,
+        cloud_interconnect_type => 'azure-express-route'
+    );
+
     foreach my $cloud (@azure_cloud_accounts_config) {
-        my $workgroup_name = $cloud->{workgroup};
-        my $workgroup_id = fetch_workgroup_id_from_name($client, $config, $workgroup_name);
-        if(!defined($workgroup_id)) {
-            warn "Could not find workgroup id for workgroup $workgroup_name";
-            next;
-        }
-        $client->set_url($config->base_url() . "/services/vrf.cgi");
-        my $vrfs = $client->get_vrfs(workgroup_id => $workgroup_id);
-        if (!($cloud->{interconnect_type} eq 'azure-express-route')) {
-            next;
-        }
-        my $azure = OESS::Cloud::Azure->new();
         my $azure_connections = ($azure->expressRouteCrossConnections($cloud->{interconnect_id}));
-        reconcile_oess_vrfs($config, $vrfs, $azure_connections, $client);
+        reconcile_oess_endpoints($db, $endpoints, $azure_connections);
     }
 }
 
+=head2 get_connection_by_id
+
+get_connection_by_id gets the Azure CrossConnection associated to an
+OESS Endpoint's C<cloud_connection_id>.
+
+=cut
 sub get_connection_by_id {
     my $connections = shift;
     my $id = shift;
@@ -51,87 +54,41 @@ sub get_connection_by_id {
     return undef;
 }
 
-sub update_oess_vrf {
-    my $vrf = shift;
-    my $client = shift;
-    my %params;
-    $params{'skip_cloud_provisioning'} = 1;
-    $params{'vrf_id'} = $vrf->{'vrf_id'};
-    $params{'name'} = $vrf->{'name'};
-    $params{'workgroup_id'} = $vrf->{'workgroup'}->{'workgroup_id'};
-    $params{'description'} = $vrf->{'description'};
-    $params{'prefix_limit'} = $vrf->{'prefix_limit'};
-    $params{'local_asn'} = $vrf->{'local_asn'};
 
-    $params{'endpoint'} = ();
-    foreach my $ep (@{$vrf->{'endpoints'}}){
-        my @peerings;
-        foreach my $p (@{$ep->{'peers'}}){
-            push(@peerings,{ peer_ip => $p->{'peer_ip'},
-                             asn => $p->{'peer_asn'},
-                             md5_key => $p->{'md5_key'},
-                             local_ip => $p->{'local_ip'}});
-        }
-        push(@{$params{'endpoint'}},encode_json({ interface => $ep->{'interface'}->{'name'}, 
-                                                  node => $ep->{'node'}->{'name'},
-                                                  tag => $ep->{'tag'},
-                                                  bandwidth => $ep->{'bandwidth'},
-                                                  inner_tag => $ep->{'inner_tag'},
-                                                  peers => \@peerings}));
-    
-        
-    }
-    
-    my $res = $client->provision(%params);
-    warn Dumper($res);
-}
+=head2 reconcile_oess_endpoints
 
-sub reconcile_oess_vrfs {
-    my $config = shift;
-    my $vrfs = shift;
+reconcile_oess_endpoints looks up the bandwidth as defined via the
+Azure ExpressRoute portal and ensures that OESS has the same value.
+
+=cut
+sub reconcile_oess_endpoints {
+    my $db = shift;
+    my $endpoints = shift;
     my $azure_connections = shift;
-    my $client = shift;
 
-    foreach my $vrf (@$vrfs) {
-        my $update_needed = 0;
-        foreach my $endpoint (@{$vrf->{endpoints}}) {
-            my $connection_id = $endpoint->{interface}->{cloud_interconnect_id};  
-            next if ( !defined( $connection_id ) );
-            my $azure_connection = get_connection_by_id($azure_connections, $connection_id);
-            next if(!defined($azure_connection));
+    foreach my $endpoint (@$endpoints) {
+        my $azure_connection = get_connection_by_id(
+            $azure_connections,
+            $endpoint->{cloud_connection_id}
+        );
+        next if (!defined $azure_connection);
 
-            # For now, just ensure the bandwidth is synced:
-            my $cloud_bandwidth = $azure_connection->{properties}->{bandwidthInMbps};
-            if (!$cloud_bandwidth || $endpoint->{bandwidth} eq $cloud_bandwidth) {
-                next;
-            }
-            $endpoint->{bandwidth} = $cloud_bandwidth;
-            $update_needed = 1;
+        my $cloud_bandwidth = $azure_connection->{properties}->{bandwidthInMbps};
+        if (!$cloud_bandwidth || $endpoint->{bandwidth} eq $cloud_bandwidth) {
+            next;
         }
 
-        if ($update_needed) {
-            update_oess_vrf($vrf, $client);  
-        }  
-    }
-}
+        my $ep = new OESS::Endpoint(db => $db, model => $endpoint);
+        $ep->bandwidth($cloud_bandwidth);
 
-sub fetch_workgroup_id_from_name {
-    my $client = shift;
-    my $config = shift;
-    my $workgroup_name = shift;
-    $client->set_url( $config->base_url() . "/services/data.cgi");
-    my $res = $client->get_workgroups();
-    my $workgroups = $res->{'results'};
-    foreach my $wg (@$workgroups){
-        if($wg->{'name'} eq $workgroup_name){
-            return $wg->{'workgroup_id'};
+        my $error = $ep->update_db;
+        if (defined $error) {
+            warn $error;
         }
     }
-    return undef;
 }
 
 sub fetch_azure_cloud_account_configs{
-    my $client = shift;
     my $config = shift;
     my @results = ();
 
@@ -148,22 +105,6 @@ sub fetch_azure_cloud_account_configs{
         }
     }
     return @results;
-}
-
-sub connect_to_ws {
-    my $config = shift;
-
-    my $creds = $config->get_cloud_config();
-    my $client = GRNOC::WebService::Client->new(
-        url     => $config->base_url() . "services/vrf.cgi",
-        uid     => $creds->{'user'},
-        passwd  => $creds->{'password'},
-        realm   => $creds->{'realm'},
-        debug   => 0,
-        timeout => 120
-        ) or die "Cannot connect to webservice";
-
-    return $client;
 }
 
 main();
