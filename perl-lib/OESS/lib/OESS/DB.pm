@@ -141,10 +141,21 @@ sub execute_query{
 
 =head2 start_transaction
 
+    my $error = $db->start_transaction;
+    die $error if defined $error;
+
 =cut
 sub start_transaction{
     my $self = shift;
-    $self->{'dbh'}->begin_work() or $self->{'logger'}->error("Error: " . $self->{'dbh'}->errstr);
+
+    my $ok = $self->{dbh}->begin_work;
+    return if $ok;
+
+    my $error = $self->{dbh}->errstr;
+    # Logging statement left for legacy cases.
+    $self->{logger}->error("Error: $error");
+
+    return $error;
 }
 
 =head2 commit

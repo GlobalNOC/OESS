@@ -38,6 +38,8 @@ use GRNOC::WebService;
 use OESS::Database;
 use OESS::DB;
 use OESS::DB::ACL;
+use OESS::DB::Interface;
+use OESS::DB::Link;
 
 use OESS::ACL;
 use OESS::Endpoint;
@@ -2314,30 +2316,73 @@ sub deny_link {
 
 sub decom_link {
     my ($method, $args) = @_;
-    
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
-    if (defined $err) {
-        return send_json($err);
+
+    my ($user, $error) = authorization(admin => 1, read_only => 0);
+    if (defined $error) {
+        return send_json($error);
     }
 
-    my $results = {};
+    my $terror = $db2->start_transaction;
+    if (defined $terror) {
+        $method->set_error("$terror");
+        return;
+    }
 
-    my $link_id = $args->{'link_id'}{'value'};
+    my ($link, $lerror) = OESS::DB::Link::fetch(db => $db2, link_id => $args->{link_id}->{value});
+    if (defined $lerror) {
+        $method->set_error("$lerror");
+        return;
+    }
+    if ($link->{link_state} eq 'decom' || $link->{link_state} eq 'available') {
+        $method->set_error("Link has already been decom'd or hasn't yet been approved.");
+        $db2->rollback;
+        return;
+    }
 
-    my $result = $db->decom_link( link_id => $link_id );
+    my $link_state;
+    if ($link->{status} eq 'down') {
+        # Set role of associated interfaces to unknown.
+        my $ok1 = OESS::DB::Interface::update(db => $db2, interface => {
+            interface_id => $link->{interface_a_id},
+            role         => 'unknown'
+        });
+        my $ok2 = OESS::DB::Interface::update(db => $db2, interface => {
+            interface_id => $link->{interface_z_id},
+            role         => 'unknown'
+        });
+        if (!$ok1 || !$ok2) {
+            $method->set_error("Couldn't update link endpoints.");
+            $db2->rollback;
+            return;
+        }
 
-    if ( !defined $result ) {
-        $results->{'results'} = [
-            {
-                "error"   => $db->get_error(),
-                "success" => 0
-            }
-        ];
+        # Set link_state to 'decom'.
+        $link_state = 'decom';
     } else {
-        $results->{'results'} = [ { "success" => 1 } ];
+        # Set link_state to 'available'; This resets the link to the
+        # discovered / unapproved state.
+        $link_state = 'available';
     }
 
-    return $results;
+    my ($ok, $err) = OESS::DB::Link::update(
+        db   => $db2,
+        link => {
+            link_id => $link->{link_id},
+            link_state => $link_state,
+            interface_a_id => $link->{interface_a_id},
+            interface_z_id => $link->{interface_z_id},
+            ip_a => $link->{ip_a},
+            ip_z => $link->{ip_z}
+        }
+    );
+    if (defined $err) {
+        $method->set_error($err);
+        $db2->rollback;
+        return;
+    }
+
+    $db2->commit;
+    return { results => [{ success => 1 }] };
 }
 
 sub get_pending_links {
