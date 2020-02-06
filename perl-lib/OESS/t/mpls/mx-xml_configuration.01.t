@@ -30,6 +30,10 @@ my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></grou
       <unit>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
+        <family>
+          <inet><mtu>9000</mtu></inet>
+          <inet6><mtu>9000</mtu></inet6>
+        </family>
         <encapsulation>vlan-vpls</encapsulation>
         
         <vlan-id>2004</vlan-id>
@@ -45,6 +49,10 @@ my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></grou
       <unit>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
+        <family>
+          <inet><mtu>8080</mtu></inet>
+          <inet6><mtu>8080</mtu></inet6>
+        </family>
         <encapsulation>vlan-vpls</encapsulation>
         
         <vlan-id>2004</vlan-id>
@@ -109,13 +117,15 @@ my $conf = $device->xml_configuration(
                 interface => 'ge-0/0/1',
                 unit => 2004,
                 tag => 2004,
-                bandwidth => 50
+                bandwidth => 50,
+                mtu => 9000
             },
             {
                 interface => 'ge-0/0/2',
                 unit => 2004,
                 tag => 2004,
-                bandwidth => 0
+                bandwidth => 0,
+                mtu => 8080
             }
         ],
         paths => [],
