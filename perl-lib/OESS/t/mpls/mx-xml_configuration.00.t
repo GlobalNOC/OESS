@@ -26,10 +26,6 @@ my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></grou
       <unit>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
-        <family>
-          <inet><mtu>9000</mtu></inet>
-          <inet6><mtu>9000</mtu></inet6>
-        </family>
         <encapsulation>vlan-vpls</encapsulation>
         
         <vlan-id>2004</vlan-id>
@@ -45,10 +41,6 @@ my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></grou
       <unit>
         <name>2004</name>
         <description>OESS-L2VPLS-3012</description>
-        <family>
-          <inet><mtu>9000</mtu></inet>
-          <inet6><mtu>9000</mtu></inet6>
-        </family>
         <encapsulation>vlan-vpls</encapsulation>
         
         <vlan-id>2004</vlan-id>
