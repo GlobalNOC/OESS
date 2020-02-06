@@ -288,7 +288,11 @@
 	  <protocol>direct</protocol>
 	</from>
 	<then>
-	  <accept/>
+          <community>
+         	<add/>
+              	<community-name>OESS-L3VPN-[% vrf_id %]-BGP</community-name>
+          </community>
+          <accept/>
 	</then>
       </term>
     </policy-statement>
