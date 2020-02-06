@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 use strict;
 use warnings;
 
@@ -8,6 +9,10 @@ use OESS::MPLS::Device::Juniper::MX;
 
 use Test::More tests => 1;
 
+# Purpose:
+#
+# Verify that class-of-service is added to layer2 connections when
+# non-zero bandwidth is defined on an Endpoint.
 
 my $device = OESS::MPLS::Device::Juniper::MX->new(
     config => '/etc/oess/database.xml',
@@ -16,9 +21,6 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
     name => 'vmx-r0.testlab.grnoc.iu.edu',
     node_id => 1
 );
-
-my $mock = OESS::Mock->new;
-$device->{jnx} = $mock;
 
 my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></groups><groups><name>OESS</name>
   <interfaces>
@@ -54,6 +56,17 @@ my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></grou
     </interface>
     
   </interfaces>
+  <class-of-service>
+    <interfaces>
+      <interface>
+        <name>ge-0/0/1</name>
+        <unit>
+          <name>2004</name>
+          <shaping-rate><rate>50m</rate></shaping-rate>
+        </unit>
+      </interface>
+    </interfaces>
+  </class-of-service>
   <routing-instances>
     <instance>
       <name>OESS-L2VPLS-3012</name>
@@ -95,12 +108,14 @@ my $conf = $device->xml_configuration(
             {
                 interface => 'ge-0/0/1',
                 unit => 2004,
-                tag => 2004
+                tag => 2004,
+                bandwidth => 50
             },
             {
                 interface => 'ge-0/0/2',
                 unit => 2004,
-                tag => 2004
+                tag => 2004,
+                bandwidth => 0
             }
         ],
         paths => [],

@@ -1029,9 +1029,12 @@ sub xml_configuration {
         $vars->{'interfaces'} = [];
         foreach my $i (@{$ckt->{'interfaces'}}) {
             push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
+                                              cloud_interconnect_type => $i->{'cloud_interconnect_type'},
+                                              mtu => $i->{'mtu'},
                                               inner_tag => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
-                                              unit => $i->{'unit'}
+                                              unit => $i->{'unit'},
+                                              bandwidth => $i->{'bandwidth'}
                                             });
         }
         $vars->{'paths'} = $ckt->{'paths'};
