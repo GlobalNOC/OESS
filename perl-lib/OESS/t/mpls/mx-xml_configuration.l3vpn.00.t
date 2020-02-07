@@ -264,6 +264,10 @@ my $exp_xml = '<configuration>
             <protocol>direct</protocol>
           </from>
           <then>
+            <community>
+              <add/>
+              <community-name>OESS-L3VPN-3012-BGP</community-name>
+            </community>
             <accept/>
           </then>
         </term>
