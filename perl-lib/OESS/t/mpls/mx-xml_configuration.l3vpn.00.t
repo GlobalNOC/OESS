@@ -12,7 +12,7 @@ use OESS::MPLS::Device::Juniper::MX;
 
 # Purpose:
 #
-# Validate correct generation of L2VPN L2Connection template.
+# Validate correct generation of L3VPN L3Connection template.
 
 
 my $exp_xml = '<configuration>
