@@ -7,10 +7,6 @@
       <unit>
         <name>[% interface.unit %]</name>
         <description>OESS-EVPN-[% circuit_id %]</description>
-        <family>
-          <inet><mtu>[% interface.mtu %]</mtu></inet>
-          <inet6><mtu>[% interface.mtu %]</mtu></inet6>
-        </family>
         <encapsulation>vlan-bridge</encapsulation>
         [% IF interface.defined('inner_tag') %]
         <vlan-tags>
