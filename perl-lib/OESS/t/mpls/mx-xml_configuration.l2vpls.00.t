@@ -12,7 +12,7 @@ use OESS::MPLS::Device::Juniper::MX;
 
 # Purpose:
 #
-# Validate correct generation of L2VPN L2Connection template.
+# Validate correct generation of L2VPLS L2Connection template.
 
 
 my $exp_xml = '<configuration>
@@ -24,11 +24,8 @@ my $exp_xml = '<configuration>
         <name>ge-0/0/1</name>
         <unit>
           <name>2004</name>
-          <description>OESS-L2VPN-3012</description>
-          <family>
-            <ccc><mtu>9000</mtu></ccc>
-          </family>
-          <encapsulation>vlan-ccc</encapsulation>
+          <description>OESS-L2VPLS-3012</description>
+          <encapsulation>vlan-vpls</encapsulation>
           <vlan-tags>
             <outer>2004</outer>
             <inner>30</inner>
@@ -42,8 +39,8 @@ my $exp_xml = '<configuration>
         <name>ge-0/0/2</name>
         <unit>
           <name>2004</name>
-          <description>OESS-L2VPN-3012</description>
-          <encapsulation>vlan-ccc</encapsulation>
+          <description>OESS-L2VPLS-3012</description>
+          <encapsulation>vlan-vpls</encapsulation>
           <vlan-id>2004</vlan-id>
           <output-vlan-map>
             <swap/>
@@ -64,39 +61,37 @@ my $exp_xml = '<configuration>
       </interfaces>
     </class-of-service>
 
-  <routing-instances>
-    <instance>
-      <name>OESS-L2VPN-3012</name>
-      <instance-type>l2vpn</instance-type>
-      <interface>
-        <name>ge-0/0/1.2004</name>
-      </interface>
-      <interface>
-        <name>ge-0/0/2.2004</name>
-      </interface>
-      <route-distinguisher>
-        <rd-type>11537:3012</rd-type>
-      </route-distinguisher>
-      <vrf-target>
-        <community>target:11537:3012</community>
-      </vrf-target>
-      <protocols>
-      <l2vpn>
-        <encapsulation-type>ethernet-vlan</encapsulation-type>
-        <site>
-          <name>vmx-r0.testlab.grnoc.iu.edu-3012</name>
-          <site-identifier>1</site-identifier>
-          <interface>
-            <name>ge-0/0/1.2004</name>
-          </interface>
-          <interface>
-            <name>ge-0/0/2.2004</name>
-          </interface>
-        </site>
-      </l2vpn>
-      </protocols>
-    </instance>
-  </routing-instances>
+    <routing-instances>
+      <instance>
+        <name>OESS-L2VPLS-3012</name>
+        <instance-type>vpls</instance-type>
+        <interface>
+          <name>ge-0/0/1.2004</name>
+        </interface>
+        <interface>
+          <name>ge-0/0/2.2004</name>
+        </interface>
+
+        <route-distinguisher>
+          <rd-type>11537:3012</rd-type>
+        </route-distinguisher>
+
+        <vrf-target>
+          <community>target:11537:3012</community>
+        </vrf-target>
+
+        <protocols>
+          <vpls>
+            <site-range>65534</site-range>
+            <no-tunnel-services/>
+            <site>
+              <name>vmx-r0.testlab.grnoc.iu.edu-3012</name>
+              <site-identifier>1</site-identifier>
+            </site>
+          </vpls>
+        </protocols>
+      </instance>
+    </routing-instances>
   </groups>
   <apply-groups>OESS</apply-groups>
 </configuration>';
@@ -118,23 +113,21 @@ my $conf = $device->xml_configuration(
                 tag => 2004,
                 inner_tag => 30, # CHECK: QinQ
                 bandwidth => 50, # CHECK: class-of-service added
-                mtu => 9000      # CHECK: family > ccc > mtu added
+                mtu => 9000      # CHECK: mtu omitted
             },
             {
                 interface => 'ge-0/0/2',
                 unit => 2004,
                 tag => 2004,
                 bandwidth => 0,  # CHECK: class-of-service omitted
-                mtu => 0         # CHECK: family > ccc > mtu omitted
+                mtu => 8080      # CHECK: mtu omitted
             }
         ],
         paths => [],
         circuit_id => 3012,
         site_id => 1,
         state => 'active',
-        dest => '192.168.1.200',
-        a_side => 100,
-        ckt_type => 'L2VPN'
+        ckt_type => 'L2VPLS'
     }],
     [],
     '<groups operation="delete"><name>OESS</name></groups>'
