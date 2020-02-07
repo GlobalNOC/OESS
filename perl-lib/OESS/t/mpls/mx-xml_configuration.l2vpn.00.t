@@ -24,7 +24,7 @@ my $exp_xml = '<configuration>
         <name>ge-0/0/1</name>
         <unit>
           <name>2004</name>
-          <description>OESS-L2CCC-3012</description>
+          <description>OESS-L2VPN-3012</description>
           <family>
             <ccc><mtu>9000</mtu></ccc>
           </family>
@@ -42,7 +42,7 @@ my $exp_xml = '<configuration>
         <name>ge-0/0/2</name>
         <unit>
           <name>2004</name>
-          <description>OESS-L2CCC-3012</description>
+          <description>OESS-L2VPN-3012</description>
           <encapsulation>vlan-ccc</encapsulation>
           <vlan-id>2004</vlan-id>
           <output-vlan-map>
@@ -64,45 +64,39 @@ my $exp_xml = '<configuration>
       </interfaces>
     </class-of-service>
 
-    <protocols>
-      <mpls>
-        <label-switched-path>
-          <name>OESS-L2CCC-100-200-LSP-3012</name>
-          <apply-groups>L2CCC-LSP-ATTRIBUTES</apply-groups>
-          <to/>
-          <primary>
-            <name>OESS-L2CCC-100-200-LSP-3012-PRIMARY</name>
-          </primary>
-          <secondary>
-            <name>OESS-L2CCC-100-200-LSP-3012-TERTIARY</name>
-            <standby/>
-          </secondary>
-        </label-switched-path>
-        <path>
-          <name>OESS-L2CCC-100-200-LSP-3012-PRIMARY</name>
-          <path-list>
-            <name>192.186.1.150</name>
-            <strict/>
-          </path-list>
-          <path-list>
-            <name>192.168.1.200</name>
-            <strict/>
-          </path-list>
-        </path>
-        <path>
-          <name>OESS-L2CCC-100-200-LSP-3012-TERTIARY</name>
-        </path>
-      </mpls>
-      <connections>
-        <remote-interface-switch>
-          <name>OESS-L2CCC-3012</name>
-          <interface>ge-0/0/1.2004</interface>
-          <interface>ge-0/0/2.2004</interface>
-          <transmit-lsp>OESS-L2CCC-100-200-LSP-3012</transmit-lsp>
-          <receive-lsp>OESS-L2CCC-200-100-LSP-3012</receive-lsp>
-        </remote-interface-switch>
-      </connections>
-    </protocols>
+  <routing-instances>
+    <instance>
+      <name>OESS-L2VPN-3012</name>
+      <instance-type>l2vpn</instance-type>
+      <interface>
+        <name>ge-0/0/1.2004</name>
+      </interface>
+      <interface>
+        <name>ge-0/0/2.2004</name>
+      </interface>
+      <route-distinguisher>
+        <rd-type>11537:3012</rd-type>
+      </route-distinguisher>
+      <vrf-target>
+        <community>target:11537:3012</community>
+      </vrf-target>
+      <protocols>
+      <l2vpn>
+        <encapsulation-type>ethernet-vlan</encapsulation-type>
+        <site>
+          <name>vmx-r0.testlab.grnoc.iu.edu-3012</name>
+          <site-identifier>1</site-identifier>
+          <interface>
+            <name>ge-0/0/1.2004</name>
+          </interface>
+          <interface>
+            <name>ge-0/0/2.2004</name>
+          </interface>
+        </site>
+      </l2vpn>
+      </protocols>
+    </instance>
+  </routing-instances>
   </groups>
   <apply-groups>OESS</apply-groups>
 </configuration>';
@@ -134,28 +128,13 @@ my $conf = $device->xml_configuration(
                 mtu => 0         # CHECK: family > ccc > mtu omitted
             }
         ],
-        paths => [
-            {
-                name => 'PRIMARY',
-                dest_node => 200,
-                mpls_path_type => 'strict',
-                path => [
-                    '192.186.1.150',
-                    '192.168.1.200'
-                ]
-            },
-            {
-                name => 'TERTIARY',
-                dest_node => 200,
-                mpls_path_type => 'loose'
-            }
-        ],
+        paths => [],
         circuit_id => 3012,
         site_id => 1,
         state => 'active',
         dest => '192.168.1.200',
         a_side => 100,
-        ckt_type => 'L2CCC'
+        ckt_type => 'L2VPN'
     }],
     [],
     '<groups operation="delete"><name>OESS</name></groups>'
