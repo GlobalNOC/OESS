@@ -50,9 +50,6 @@ sub upgrade{
     my $str;
     my $sth;
 
-    $sth = $dbh->prepare("UPDATE circuit_edge_interface_membership SET mtu=1500 WHERE end_epoch=-1 and mtu=0") or die "Unable to prepare mtu cleanup on circuit_edge_interface_membership\n";
-    $sth->execute() or die "Unable to cleanup mtu on circuit_edge_interface_membership\n";
-
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
