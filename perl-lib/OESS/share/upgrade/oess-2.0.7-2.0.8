@@ -50,6 +50,20 @@ sub upgrade{
     my $str;
     my $sth;
 
+    # Set default bandwidth of all Endpoints to non-null integer zero.
+    $sth = $dbh->prepare("UPDATE vrf_ep SET bandwidth=0 WHERE state='active' and bandwidth is NULL") or die "Unable to prepare bandwidth cleanup on vrf_ep\n";
+    $sth->execute() or die "Unable to cleanup bandwidth on vrf_ep\n";
+
+    $sth = $dbh->prepare("ALTER TABLE `vrf_ep` MODIFY `bandwidth` int(10) DEFAULT 0") or die "Unable to prepare update bandwidth column on vrf_ep\n";
+    $sth->execute() or die "Unable to update bandwidth column on vrf_ep\n";
+
+    $sth = $dbh->prepare("UPDATE circuit_edge_interface_membership SET bandwidth=0 WHERE end_epoch=-1 and bandwidth is NULL") or die "Unable to prepare bandwidth cleanup on circuit_edge_interface_membership\n";
+    $sth->execute() or die "Unable to cleanup bandwidth on circuit_edge_interface_membership\n";
+
+    $sth = $dbh->prepare("ALTER TABLE `circuit_edge_interface_membership` MODIFY `bandwidth` int(10) DEFAULT 0") or die "Unable to prepare update bandwidth column on circuit_edge_interface_membership\n";
+    $sth->execute() or die "Unable to update bandwidth column on circuit_edge_interface_membership\n";
+
+    # Update oess version.
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";
