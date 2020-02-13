@@ -892,7 +892,7 @@ sub add_vrf{
         return FWDCTL_FAILURE;
     }
 
-    $self->{'logger'}->error("VRF: " . Dumper($vrf));
+    $self->{'logger'}->debug("VRF: " . Dumper($vrf));
 
     my $vars = {};
     $vars->{'vrf_name'} = $vrf->{'name'};
@@ -912,8 +912,6 @@ sub add_vrf{
             $peer_ip =~ s/\/\d+//g;
 
             my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
-            warn "Version: " . $type . "\n";
-            $self->{'logger'}->error("IP Address type: " . $type);
             #determine if its an ipv4 or an ipv6
             if($type == 4){
                 $has_ipv4 = 1;
@@ -959,7 +957,7 @@ sub add_vrf{
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
     $vars->{'local_as'} = $vrf->{'local_asn'};
-    $self->{'logger'}->error("VARS: " . Dumper($vars));
+    $self->{'logger'}->debug("VARS: " . Dumper($vars));
 
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$output);
@@ -1083,7 +1081,6 @@ sub xml_configuration {
                 my $type = $ip->version();
                 #determine if its an ipv4 or an ipv6
                 if($type == 4){
-                    $self->{'logger'}->error("Processing IPv4 peer");
                     $has_ipv4 = 1;
                     $vars->{'has_ipv4'} = 1;
                     push(@bgp_v4, { asn => $bgp->{'peer_asn'},
@@ -1094,7 +1091,6 @@ sub xml_configuration {
                          });
                     
                 }else{
-                    $self->{'logger'}->error("Processing IPv6 peer");
                     $has_ipv6 = 1;
                     $vars->{'has_ipv6'} = 1;
                     push(@bgp_v6, { asn => $bgp->{'peer_asn'},
@@ -1477,8 +1473,6 @@ sub diff {
         return FWDCTL_FAILURE;
     }
 
-    $self->{'logger'}->info("Calling MX.diff");
-
     my @circuits;
     foreach my $ckt_id (keys (%{$circuits})){
 	push(@circuits, $circuits->{$ckt_id});
@@ -1523,7 +1517,7 @@ sub diff {
         return FWDCTL_BLOCKED;
     }
 
-    $self->{'logger'}->info("Diff requires no approval. Starting installation.");
+    $self->{'logger'}->info("Auto diff was initiated. Starting installation.");
 
     return $self->_edit_config(config => $configuration);
 }
