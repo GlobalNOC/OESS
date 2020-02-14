@@ -69,9 +69,20 @@ sub get {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if (!$user->is_admin && !$user->in_workgroup($args->{workgroup_id}->{value})) {
+    $user->load_workgroups;
+
+    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id}->{value});
+    if (!defined $workgroup && !$user->is_admin) {
         $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
         return;
+    }
+
+    # If user is an admin and an admin workgroup is selected clear out
+    # the workgroup_id; This returns all Connections. Otherwise filter
+    # by the passed in workgroup_id. An invalid workgroup_id will
+    # simply return nothing.
+    if (defined $workgroup && $workgroup->type eq 'admin') {
+        $args->{workgroup_id}->{value} = undef;
     }
 
     my $circuits = [];

@@ -446,6 +446,11 @@ sub get_vrfs{
     my @where_str;
     my @where_val;
 
+    if (defined $params{vrf_id}) {
+        push @where_val, $params{vrf_id};
+        push @where_str, "vrf.vrf_id=?";
+    }
+
     if(defined($params{'state'})){
         push(@where_val,$params{'state'});
         push(@where_str,"vrf.state = ?");
