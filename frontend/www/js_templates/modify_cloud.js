@@ -14,7 +14,7 @@ class GlobalState extends Component {
 
   async selectConnection(id) {
     if (id != -1) {
-      this.connection = await getVRF(id);
+      this.connection = await getVRF(session.data.workgroup_id, id);
 
       // Hack to display vrf_id using Object build for Layer2 Conns
       this.connection.circuit_id = this.connection.vrf_id;
