@@ -352,8 +352,6 @@ sub _init_paths{
 sub int_handler{
     my $self = shift;
 
-    $self->{'logger'}->info("Calling get_interfaces!");
-
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
 	my $start = [gettimeofday];
@@ -386,8 +384,6 @@ sub path_handler {
         # Only lookup Paths when network type is set to vpn-mpls.
         return 1;
     }
-
-    $self->{'logger'}->info("Calling get_routed_lsps and get_lsp_paths!");
 
     my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     if (!defined $nodes) {
@@ -463,8 +459,6 @@ sub lsp_handler{
         return 1;
     }
 
-    $self->{'logger'}->info("Calling get_LSPs!");
-
     my %nodes;
 
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
@@ -499,8 +493,6 @@ sub lsp_handler{
 sub isis_handler{
     my $self = shift;
 
-    $self->{'logger'}->info("Calling get_isis_adjacencies!");
-
     my %nodes;
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$nodes{$node->{'short_name'}} = {'pending' => 1};
@@ -533,7 +525,6 @@ sub isis_handler{
 =cut
 sub device_handler {
     my $self =shift;
-    $self->{'logger'}->info("Calling get_system_info!");
 
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
         $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
@@ -557,7 +548,6 @@ sub device_handler {
 =cut
 sub vrf_stats_handler{
     my $self = shift;
-    $self->{'logger'}->info("Calling get_vrf_stats!");
 
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
@@ -731,7 +721,7 @@ sub handle_links{
             my $intf_z = $intfs->{$adj_a->{'remote_ip'}};
 
             if (!defined $adjs->{$node_z}) {
-                $self->{logger}->error("Couldn't find $node_z in adjacencies hash. A device's short name may be incorrectly set or may not be connected to OESS.");
+                $self->{logger}->warn("Couldn't find $node_z in adjacencies hash. A device's short name may be incorrectly set or may not be connected to OESS.");
                 next;
             }
 

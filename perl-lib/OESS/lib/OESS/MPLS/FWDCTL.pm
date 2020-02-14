@@ -851,7 +851,7 @@ sub addVrf{
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
 
     $self->{'logger'}->error("addVrf: VRF ID required") && $self->{'logger'}->logconfess() if(!defined($vrf_id));
-    $self->{'logger'}->info("addVrf: MPLS addVrf: $vrf_id");
+    $self->{'logger'}->info("Adding VRF $vrf_id");
 
     my $vrf = $self->get_vrf_object( $vrf_id );
     if(!defined($vrf)){
@@ -859,13 +859,11 @@ sub addVrf{
         $self->{'logger'}->error($err);
         return &$error($err);
     }
-$self->{'logger'}->info("called get_vrf_obj");
 
     # The VRF may be cached. If so we must reload from DB. This causes
     # a single load for cached VRFs and a double load for VRFs not
     # cached.
     $vrf->update_vrf_details();
-$self->{'logger'}->info("called update_vrf_details");
 
     if($vrf->state() eq 'decom'){
         my $err = "addVrf: Adding a decom'd vrf is not allowed";
@@ -874,7 +872,6 @@ $self->{'logger'}->info("called update_vrf_details");
     }
 
     $self->_write_cache();
-$self->{'logger'}->info("called _write_cache");
 
     #get all the DPIDs involved and remove the flows
 
@@ -895,16 +892,13 @@ $self->{'logger'}->info("called _write_cache");
         $self->{'logger'}->error($self->{'db2'}->get_error());
     }
 
-
-    $self->{'logger'}->info("Provisioning L3VPN.");
-
     my $cv = AnyEvent->condvar;
     my $node_errors = {};
 
     $cv->begin(
         sub {
             if (!%$node_errors) {
-                $self->{'logger'}->info("L3VPN successfully provisioned.");
+                $self->{'logger'}->info("Added VRF.");
                 return &$success({status => $result});
             }
 
@@ -926,7 +920,7 @@ $self->{'logger'}->info("called _write_cache");
                     });
             }
 
-            return &$error("Failed to provision L3VPN.");
+            return &$error("Failed to add VRF.");
         }
     );
 
@@ -1009,9 +1003,6 @@ sub delVrf{
         $self->{'logger'}->error($self->{'db2'}->get_error());
 
     }
-
-
-    $self->{'logger'}->info("removing VRF.");
 
     my $cv  = AnyEvent->condvar;
     my $err = '';
