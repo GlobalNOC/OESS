@@ -3306,12 +3306,12 @@ function setup_discovery_tab(){
 	    $('#new_mpls_vendor').on('change', function(){
 		    var vendor = $('#new_mpls_vendor').val();
 		    if(vendor == 'Juniper'){
-			var options = {"MX": "MX"};
+			var options = {"MX": "MX", "QFX": "QFX"};
 			var $el = $("#new_mpls_model");
 			$el.empty();
-			$.each(options, function(value, key){
-				$el.append($("<option></option>").attr("value", value).text(key));
-			    });
+		        $.each(options, function(value, key){
+			   $el.append($("<option></option>").attr("value", value).text(key));
+			});
 		    }else if( vendor == 'Brocade'){
 
 		    }
@@ -3345,10 +3345,11 @@ function setup_discovery_tab(){
 			return;
 		    }
 
-          if (!ip.match(/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/)) {
-            alert("You must specify a valid IPv4 Address.");
-            return;
-          }
+		    if (!ip.match(/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/)) {
+		        alert("You must specify a valid IPv4 Address.");
+		        return;
+                    }
+
                     if (name.match(/:/) || name.match(/\s/)){
                         alert("You may not have spaces or colons in the name.");
                         return;
@@ -3375,23 +3376,22 @@ function setup_discovery_tab(){
 		var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_mpls_switch&name=" + encodeURIComponent(name) + "&short_name=" + encodeURIComponent(short_name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&ip_address=" + encodeURIComponent(ip) + "&port=" + encodeURIComponent(port) + "&vendor=" + encodeURIComponent(vendor) + "&model=" + encodeURIComponent(model) + "&sw_ver=" + encodeURIComponent(sw_ver));
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    
-            ds.responseSchema = {
-              resultsList: "results",
-              fields: [{key: "success"}],
-              metaFields: {
-                error: "error",
-                error_text: "error_text"
-              }
-            };
+                    ds.responseSchema = {
+                      resultsList: "results",
+                      fields: [{key: "success"}],
+                      metaFields: { 
+                        error: "error", 
+                        error_text: "error_text" 
+                      } 
+                    };
 		    
-            ds.sendRequest("", {success: function(req, resp) {
-              if (resp.meta.error) {
-                alert(`Error creating Switch: ${resp.meta.error_text}`);
-                add_button.set("disabled", false);
-                add_button.set("label", "Add Switch");
-                return;
-              }
-
+                    ds.sendRequest("", {success: function(req, resp) {
+                      if (resp.meta.error) { 
+                        alert(`Error creating Switch: ${resp.meta.error_text}`); 
+                        add_button.set("disabled", false); 
+                        add_button.set("label", "Add Switch"); 
+                        return; 
+                      }
 				add_button.set("disabled", false);
 				add_button.set("label", "Add MPLS Device");
 
