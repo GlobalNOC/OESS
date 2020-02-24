@@ -852,7 +852,7 @@ sub addVrf{
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
 
     $self->{'logger'}->error("addVrf: VRF ID required") && $self->{'logger'}->logconfess() if(!defined($vrf_id));
-    $self->{'logger'}->info("addVrf: MPLS addVrf: $vrf_id");
+    $self->{'logger'}->info("Adding VRF $vrf_id");
 
     my $vrf = OESS::VRF->new(vrf_id => $vrf_id, db => $self->{'db2'});
     if (!defined $vrf) {
@@ -860,6 +860,7 @@ sub addVrf{
         $self->{'logger'}->error($err);
         return &$error($err);
     }
+
     $vrf->load_endpoints;
     foreach my $ep (@{$vrf->endpoints}) {
         $ep->load_peers;
@@ -893,16 +894,13 @@ sub addVrf{
         $self->{'logger'}->error($self->{'db2'}->get_error());
     }
 
-
-    $self->{'logger'}->info("Provisioning L3VPN $vrf_id.");
-
     my $cv = AnyEvent->condvar;
     my $node_errors = {};
 
     $cv->begin(
         sub {
             if (!%$node_errors) {
-                $self->{'logger'}->info("L3VPN successfully provisioned.");
+                $self->{'logger'}->info("Added VRF.");
                 return &$success({status => $result});
             }
 
@@ -924,7 +922,7 @@ sub addVrf{
                     });
             }
 
-            return &$error("Failed to provision L3VPN.");
+            return &$error("Failed to add VRF.");
         }
     );
 
@@ -1005,9 +1003,6 @@ sub delVrf{
         my $state = $vrf->state();
         $self->{'logger'}->error($self->{'db2'}->get_error());
     }
-
-
-    $self->{'logger'}->info("Removing L3VPN $vrf_id.");
 
     my $cv  = AnyEvent->condvar;
     my $err = '';

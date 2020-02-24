@@ -16,6 +16,7 @@ use OESS::Cloud;
 use OESS::Config;
 use OESS::DB;
 use OESS::DB::Entity;
+use OESS::User;
 use OESS::VRF;
 
 
@@ -30,36 +31,38 @@ my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
 my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.event',
                                               timeout  => 15 );
 
-sub register_ro_methods{
-
-    my $method = GRNOC::WebService::Method->new( 
+sub register_ro_methods {
+    my $method = GRNOC::WebService::Method->new(
         name => "get_vrf_details",
-        description => "returns the VRF details of a specified VRF",
+        description => "Returns the Layer3 Connection identified by vrf_id.",
         callback => sub { get_vrf_details(@_) }
-        );
-
-    $method->add_input_parameter( name => 'vrf_id',
-                                  pattern => $GRNOC::WebService::Regex::INTEGER,
-                                  required => 1,
-                                  description => 'VRF ID to fetch details' 
-        );
-
+    );
+    $method->add_input_parameter(
+        name => 'vrf_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => 'Identifier Layer3 Connection to return.'
+    );
+    $method->add_input_parameter(
+        name => 'workgroup_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => 'Identifier of Workgroup used to fetch Layer3 Connections.'
+    );
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
         name => 'get_vrfs',
-        description => 'returns the list of VRFs',
-        callback => sub { get_vrfs(@_) } );
-
-    $method->add_input_parameter( name => 'workgroup_id',
-                                  pattern => $GRNOC::WebService::Regex::INTEGER,
-                                  required => 1,
-                                  description => 'Workgroup ID to fetch the list of VRFs');
-
+        description => 'Returns a list of Layer3 Connections.',
+        callback => sub { get_vrfs(@_) }
+    );
+    $method->add_input_parameter(
+        name => 'workgroup_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 1,
+        description => 'Identifier of Workgroup used to fetch Layer3 Connections.'
+    );
     $svc->register_method($method);
-    
-
-
 }
 
 sub register_rw_methods{
@@ -165,9 +168,41 @@ sub get_vrf_details{
         return;
     }
 
-    my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
+    my $user = new OESS::User(db => $db, username =>  $ENV{REMOTE_USER});
+    if (!defined $user) {
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+        return;
+    }
+    $user->load_workgroups;
+
+    my $workgroup = $user->get_workgroup(workgroup_id => $params->{workgroup_id}->{value});
+    if (!defined $workgroup && !$user->is_admin) {
+        $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
+        return;
+    }
+
+    # If user is an admin and an admin workgroup is selected clear out
+    # the workgroup_id; This returns all Connections. Otherwise filter
+    # by the passed in workgroup_id. An invalid workgroup_id will
+    # simply return nothing.
+    if (defined $workgroup && $workgroup->type eq 'admin') {
+        $params->{workgroup_id}->{value} = undef;
+    }
+
+    my $vrfs = OESS::DB::VRF::get_vrfs(
+        db => $db,
+        state => 'active',
+        vrf_id => $vrf_id,
+        workgroup_id => $params->{workgroup_id}->{value}
+    );
+    if (!defined $vrfs || !defined $vrfs->[0]) {
+        $method->set_error("VRF: $vrf_id was not found.");
+        return;
+    }
+
+    my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrfs->[0]->{vrf_id});
     if (!defined $vrf) {
-        $method->set_error("VRF: " . $vrf_id . " was not found");
+        $method->set_error("VRF: $vrf_id was not found.");
         return;
     }
     $vrf->load_endpoints;
@@ -185,42 +220,45 @@ sub get_vrfs{
     my $params = shift;
     my $ref = shift;
 
-    my $workgroup_id = $params->{'workgroup_id'}{'value'};
-
     if ($config->network_type ne 'vpn-mpls') {
         $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
         return;
     }
 
-    #verify user is in workgroup
-    my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
+    my $user = new OESS::User(db => $db, username =>  $ENV{REMOTE_USER});
+    if (!defined $user) {
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+        return;
+    }
+    $user->load_workgroups;
 
-    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
-
-    if(!defined($user)){
-        $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in OESS");
+    my $workgroup = $user->get_workgroup(workgroup_id => $params->{workgroup_id}->{value});
+    if (!defined $workgroup && !$user->is_admin) {
+        $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
         return;
     }
 
-    #first validate the user is in the workgroup
-    if(!$user->in_workgroup( $workgroup_id) && !$user->is_admin()){
-        $method->set_error("User is not in workgroup");
-        return;
+    # If user is an admin and an admin workgroup is selected clear out
+    # the workgroup_id; This returns all Connections. Otherwise filter
+    # by the passed in workgroup_id. An invalid workgroup_id will
+    # simply return nothing.
+    if (defined $workgroup && $workgroup->type eq 'admin') {
+        $params->{workgroup_id}->{value} = undef;
     }
 
-    my $vrfs = OESS::DB::VRF::get_vrfs(db => $db, workgroup_id => $workgroup_id, state => 'active');
+    my $vrfs = OESS::DB::VRF::get_vrfs(
+        db => $db,
+        workgroup_id => $params->{workgroup_id}->{value},
+        state => 'active'
+    );
+
     my $result = [];
-
-    foreach my $vrf (@$vrfs){
-        my $r = OESS::VRF->new(db => $db, vrf_id => $vrf->{'vrf_id'});
-        if (!defined $r) {
-            warn "VRF $vrf->{vrf_id} couldn't be loaded.";
-            next;
-        }
+    foreach my $vrf (@$vrfs) {
+        my $r = OESS::VRF->new(db => $db, vrf_id => $vrf->{vrf_id});
+        next if (!defined $r);
         $r->load_endpoints;
         $r->load_users;
         $r->load_workgroup;
-
         push @$result, $r->to_hash();
     }
     return $result;

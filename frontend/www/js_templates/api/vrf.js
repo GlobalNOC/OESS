@@ -100,8 +100,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
   return parseInt(data.results.vrf_id);
 }
 
-async function getVRF(vrfID) {
-  let url = `[% path %]services/vrf.cgi?method=get_vrf_details&vrf_id=${vrfID}`;
+async function getVRF(workgroupID, vrfID) {
+  let url = `[% path %]services/vrf.cgi?method=get_vrf_details&vrf_id=${vrfID}&workgroup_id=${workgroupID}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});

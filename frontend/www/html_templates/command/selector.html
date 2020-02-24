@@ -5,14 +5,14 @@
 <div class="row">
   <div class="col-md-6 form-group">
     <label>Command</label>
-    <select id="command-select" class="form-control" onchange="renderCommandParams()"></select>
+    <select id="command-select" class="form-control" onchange="commandSelectChangeHandler(this)"></select>
   </div>
 </div>
 
 <div class="row">
   <div id="command-node-selector" class="col-md-6 form-group">
     <label>Switch</label>
-    <select id="command-node" class="form-control" onchange="renderCommandParams()">
+    <select id="command-node" class="form-control" onchange="nodeSelectChangeHandler(this)">
     </select>
   </div>
 </div>
@@ -20,7 +20,7 @@
 <div class="row">
   <div id="command-intf-selector" class="col-md-6 form-group">
     <label>Interface</label>
-    <select id="command-intf" class="form-control" onchange="renderCommandParams()">
+    <select id="command-intf" class="form-control" onchange="intfSelectChangeHandler()">
     </select>
   </div>
 </div>
@@ -28,7 +28,7 @@
 <div class="row">
   <div id="command-unit-selector" class="col-md-6 form-group">
     <label>VLAN</label>
-    <select id="command-unit" class="form-control" onchange="renderCommandParams()">
+    <select id="command-unit" class="form-control" onchange="unitSelectChangeHandler()">
     </select>
   </div>
 </div>
@@ -36,7 +36,7 @@
 <div class="row">
   <div id="command-peer-selector" class="col-md-6 form-group">
     <label>Peer</label>
-    <select id="command-peer" class="form-control" onchange="renderCommandParams()">
+    <select id="command-peer" class="form-control" onchange="">
     </select>
   </div>
 </div>
