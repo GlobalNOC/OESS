@@ -3376,16 +3376,16 @@ function setup_discovery_tab(){
 		var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_mpls_switch&name=" + encodeURIComponent(name) + "&short_name=" + encodeURIComponent(short_name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&ip_address=" + encodeURIComponent(ip) + "&port=" + encodeURIComponent(port) + "&vendor=" + encodeURIComponent(vendor) + "&model=" + encodeURIComponent(model) + "&sw_ver=" + encodeURIComponent(sw_ver));
 		    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
 		    
-                    ds.responseSchema = {       ds.responseSchema = {
-                      resultsList: "results",    resultsList: "results",
-                      fields: [{key: "success"}],    fields: [{key: "success"}]
+                    ds.responseSchema = {
+                      resultsList: "results",
+                      fields: [{key: "success"}],
                       metaFields: {       };
                         error: "error", 
                         error_text: "error_text" 
                       } 
                     };
 		    
-                    ds.sendRequest("", {success: function(req, resp) {       ds.sendRequest("", {success: function(req, resp){
+                    ds.sendRequest("", {success: function(req, resp) {
                       if (resp.meta.error) { 
                         alert(`Error creating Switch: ${resp.meta.error_text}`); 
                         add_button.set("disabled", false); 
