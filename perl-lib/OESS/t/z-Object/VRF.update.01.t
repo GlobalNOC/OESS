@@ -19,6 +19,7 @@ use Test::More tests => 3;
 
 use OESSDatabaseTester;
 
+use OESS::Config;
 use OESS::DB;
 use OESS::VRF;
 
@@ -36,15 +37,17 @@ OESSDatabaseTester::resetOESSDB(
     dbdump => "$path/../conf/oess_known_state.sql"
 );
 
+my $test_config = new OESS::Config(config_filename => "$path/../conf/database.xml");
+
 my $db = new OESS::DB(
    config => "$path/../conf/database.xml"
 );
 
-my $vrf = new OESS::VRF(db => $db, vrf_id => 3);
+my $vrf = new OESS::VRF(config => $test_config, db => $db, vrf_id => 3);
 $vrf->name('updated name');
 $vrf->update;
 
-my $vrf2 = new OESS::VRF(db => $db, vrf_id => 3);
+my $vrf2 = new OESS::VRF(config => $test_config, db => $db, vrf_id => 3);
 $vrf2->load_endpoints;
 
 ok($vrf2->name eq 'updated name', 'VRF has expected name.');

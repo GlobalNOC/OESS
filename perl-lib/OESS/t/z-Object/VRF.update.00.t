@@ -19,6 +19,7 @@ use Test::More tests => 10;
 
 use OESSDatabaseTester;
 
+use OESS::Config;
 use OESS::DB;
 use OESS::VRF;
 
@@ -36,6 +37,8 @@ OESSDatabaseTester::resetOESSDB(
     dbdump => "$path/../conf/oess_known_state.sql"
 );
 
+my $test_config = new OESS::Config(config_filename => "$path/../conf/database.xml");
+
 my $db = new OESS::DB(
    config => "$path/../conf/database.xml"
 );
@@ -43,8 +46,9 @@ my $db = new OESS::DB(
 my $workgroup_id = 31;
 
 my $vrf = new OESS::VRF(
-    db    => $db,
-    model => {
+    config => $test_config,
+    db     => $db,
+    model  => {
         name           => 'Test_4',
         description    => 'Test_4',
         local_asn      =>  1,
@@ -118,11 +122,11 @@ foreach my $ep (@$endpoints) {
     }
 }
 
-my $loaded_vrf = new OESS::VRF(db => $db, vrf_id => $vrf->vrf_id);
+my $loaded_vrf = new OESS::VRF(config => $test_config, db => $db, vrf_id => $vrf->vrf_id);
 $loaded_vrf->name('bahahaha');
 $loaded_vrf->update;
 
-my $loaded_vrf2 = new OESS::VRF(db => $db, vrf_id => $vrf->vrf_id);
+my $loaded_vrf2 = new OESS::VRF(config => $test_config, db => $db, vrf_id => $vrf->vrf_id);
 ok($loaded_vrf2->name eq 'bahahaha', 'VRF name update validated.');
 
 $loaded_vrf2->load_endpoints;

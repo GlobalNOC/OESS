@@ -19,6 +19,7 @@ use Test::More tests => 17;
 
 use OESSDatabaseTester;
 
+use OESS::Config;
 use OESS::DB;
 use OESS::VRF;
 
@@ -32,6 +33,8 @@ OESSDatabaseTester::resetOESSDB(
     config => "$path/../conf/database.xml",
     dbdump => "$path/../conf/oess_known_state.sql"
 );
+
+my $test_config = new OESS::Config(config_filename => "$path/../conf/database.xml");
 
 my $db = new OESS::DB(
    config => "$path/../conf/database.xml"
@@ -69,7 +72,7 @@ my $model = {
     ]
 };
 
-my $vrf = new OESS::VRF(db => $db, model => $model);
+my $vrf = new OESS::VRF(config => $test_config, db => $db, model => $model);
 
 my ($id, $err) = $vrf->create;
 ok(defined $id, "Created vrf $vrf->{vrf_id}.");
