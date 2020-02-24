@@ -1,19 +1,8 @@
-#user_search_div{
-display: inline-flex;
-float:left;
-text-align:left;
-margin-left:105px;
-margin-bottom:8px;
-}
 #soft_title{
 margin-top: 10;
 margin-left:0;
 margin-right:0;
 margin-bottom: 1em;
-}
-#user_search_label{
-    margin-right: 1em;
-    text-align: center;
 }
 .user_table{
     width: 90%;
@@ -57,4 +46,8 @@ tr:hover td{
     width: 60% !important;
     float: left !important;
     margin-left: 15px !important;
+}
+
+#user_search_div > * {
+    margin: 0 2px;
 }

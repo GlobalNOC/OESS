@@ -11,12 +11,23 @@ import NavSeparator from './NavSeparator';
 import "./navbar.css";
 
 export default class NavBar extends React.Component{
+  constructor(props) {
+    super(props);
+  }
+
   render() {
+    console.log(this.props);
+
     let path = testConfig.user;
+
     let adminLink = null;
     if (this.props.data.is_admin == "1") {
       adminLink = <NavLink linkTo={`${path}/new/admin`} text="Admin" />;
     }
+
+    let workgroupLinks = this.props.data.workgroups.map((workgroup, i) => {
+      return <NavLink linkTo={'#'} key={i} text={workgroup.name} onClick={this.props.setWorkgroup} />;
+    });
 
 	return(
       <nav className="navbar navbar-inverse oess-navbar">
@@ -43,14 +54,14 @@ export default class NavBar extends React.Component{
             </ul>
             <ul className="nav navbar-nav navbar-right">
               {adminLink}
-              <NavDropdown text={`${this.props.data.username} / ${'workgroup'}`} user={this.props.data}>
+              <NavDropdown text={`${this.props.data.username} / ${this.props.workgroup.name}`} user={this.props.data}>
                 <NavLink linkTo={"#"}>
                   <b>{this.props.data.first_name} {this.props.data.last_name}</b><br/>
                   {this.props.data.username}<br/>
                   {this.props.data.email}
                 </NavLink>
                 <NavSeparator />
-                <NavLink linkTo={`#`} text="Test" />
+                {workgroupLinks}
               </NavDropdown>
             </ul>
           </div>

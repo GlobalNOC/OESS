@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "NODE_ENV=development parcel index.html",
+    "dev": "NODE_ENV=development parcel serve --public-url /1234 src/index.html",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "parcel build --public-url /oess/new/admin index.html"
   },
