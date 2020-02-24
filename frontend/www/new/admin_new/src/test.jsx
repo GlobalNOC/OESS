@@ -1,3 +1,3 @@
 export const testConfig= {
-	'user': 'https://rojraman-dev.grnoc.iu.edu/oess/',
+	'user': 'https://jonstout-dev7.grnoc.iu.edu/oess/',
 }
