@@ -205,6 +205,12 @@ sub get_vrf_details{
         $method->set_error("VRF: $vrf_id was not found.");
         return;
     }
+    $vrf->load_endpoints;
+    foreach my $ep (@{$vrf->endpoints}) {
+        $ep->load_peers;
+    }
+    $vrf->load_users;
+    $vrf->load_workgroup;
 
     return { results => [ $vrf->to_hash ] };
 }
@@ -250,9 +256,11 @@ sub get_vrfs{
     foreach my $vrf (@$vrfs) {
         my $r = OESS::VRF->new(db => $db, vrf_id => $vrf->{vrf_id});
         next if (!defined $r);
+        $r->load_endpoints;
+        $r->load_users;
+        $r->load_workgroup;
         push @$result, $r->to_hash();
     }
-
     return $result;
 }
 
@@ -283,9 +291,7 @@ sub provision_vrf{
     $model->{'name'} = $params->{'name'}{'value'};
     $model->{'provision_time'} = $params->{'provision_time'}{'value'};
     $model->{'remove_time'} = $params->{'provision_time'}{'value'};
-    $model->{'created_by'} = $user->user_id();
     $model->{'last_modified'} = $params->{'provision_time'}{'value'};
-    $model->{'last_modified_by'} = $user->user_id();
     $model->{'endpoints'} = ();
 
     # User must be in workgroup or an admin to continue
@@ -314,17 +320,21 @@ sub provision_vrf{
             $db->rollback;
             return;
         }
+
         $vrf->load_endpoints;
+        $vrf->last_modified_by($user);
+        $vrf->update;
     } else {
+        $model->{created_by_id} = $user->user_id;
+        $model->{last_modified_by_id} = $user->user_id;
         $model->{workgroup_id} = $params->{workgroup_id}->{value};
         $vrf = OESS::VRF->new(db => $db, model => $model);
-        my $ok = $vrf->create;
-        if (!$ok) {
-            $method->set_error("Couldn't create VRF");
+        my ($vrf_id, $vrf_err) = $vrf->create;
+        if (defined $vrf_err) {
+            $method->set_error("Couldn't create VRF: $vrf_err");
             $db->rollback;
             return;
         }
-        $vrf->endpoints([]);
     }
 
     # Use $peerings to validate a local address isn't specified twice
@@ -664,8 +674,6 @@ sub provision_vrf{
                 if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                     # We do nothing here as the QinQ tags have already
                     # been selected and will not change for updates.
-                } else {
-                    $ep->update_unit;
                 }
 
                 my $update_err = $ep->update_db;
@@ -722,7 +730,7 @@ sub provision_vrf{
     return {results => $res};
 }
 
-sub remove_vrf{    
+sub remove_vrf {
     my $method = shift;
     my $params = shift;
     my $ref = shift;
@@ -766,12 +774,12 @@ sub remove_vrf{
         return;
     }
 
+    $vrf->decom(user_id => $user->user_id());
+
     my $res = vrf_del(method => $method, vrf_id => $vrf_id);
     $res->{'vrf_id'} = $vrf_id;
 
-    $vrf->decom(user_id => $user->user_id());
-
-    #send the update cache to the MPLS fwdctl
+    # send the update cache to the MPLS fwdctl
     _update_cache(vrf_id => $vrf_id);
 
     eval{

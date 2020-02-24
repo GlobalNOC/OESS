@@ -564,6 +564,21 @@ sub add_vrf_peers{
 
 =head2 find_available_unit
 
+    my $unit = $ep->find_available_unit(
+      db            => $db,
+      interface_id  => $id,
+      inner_tag     => 200,
+      tag           => 5,
+      circuit_ep_id => 1,   # Optional
+      vrf_ep_id     => 1    # Optional
+    );
+
+find_available_unit selects a unit to be used in a network
+configuration for VLAN C<(STag,CTag)>. If VLAN is already in use
+C<undef> will be returned. If C<circuit_ep_id> or C<vrf_ep_id> are
+provided and a VLAN conflict associated with these Endpoints occurs,
+the unit already in use for the VLAN will be returned.
+
 =cut
 sub find_available_unit{
     my $args = {
@@ -580,60 +595,83 @@ sub find_available_unit{
         return;
     }
 
-    if (!defined $args->{inner_tag}) {
-        my $l3query = "
-            select unit, vrf_ep_id
-            from vrf_ep
-            where unit=? and state='active' and interface_id=?
-        ";
-        my $l3units = $args->{db}->execute_query(
-            $l3query,
-            [$args->{tag}, $args->{interface_id}]
-        );
-        if (@$l3units > 0) {
-            my $l3unit = $l3units->[0]; # If the selected unit is already used by this Endpoint then OK.
-            if ($l3unit->{vrf_ep_id} eq $args->{vrf_ep_id} && $l3unit->{unit} eq $args->{tag}) {
-                return $args->{tag};
-            }
-            return;
-        }
+    my $l3q = "select * from vrf_ep where state='active' and interface_id=? and tag=?";
+    my $l3a = [$args->{interface_id}, $args->{tag}];
+    if (defined $args->{inner_tag}) {
+        $l3q .= " and inner_tag=?";
+        push @$l3a, $args->{inner_tag};
+    } else {
+        $l3q .= " and inner_tag is NULL";
+    }
 
-        my $l2query = "
-            select unit, circuit_edge_id as circuit_ep_id
-            from circuit_edge_interface_membership
-            where unit=? and end_epoch=-1 and interface_id=?
-        ";
-        my $l2units = $args->{db}->execute_query(
-            $l2query,
-            [$args->{tag}, $args->{interface_id}]
-        );
-        if (@$l2units > 0) {
-            my $l2unit = $l2units->[0]; # If the selected unit is already used by this Endpoint then OK.
-            if ($l2unit->{circuit_ep_id} eq $args->{circuit_ep_id} && $l2unit->{unit} eq $args->{tag}) {
-                return $args->{tag};
-            }
+    my $l3r = $args->{db}->execute_query($l3q, $l3a);
+    if (@$l3r > 0) {
+        if (defined $args->{vrf_ep_id} && $l3r->[0]->{vrf_ep_id} == $args->{vrf_ep_id}) {
+            return $l3r->[0]->{unit};
+        } else {
             return;
         }
+    }
+
+    my $l2q = "
+        select circuit_edge_interface_membership.circuit_edge_id as circuit_ep_id,
+        circuit_edge_interface_membership.extern_vlan_id as tag,
+        circuit_edge_interface_membership.*
+        from circuit_edge_interface_membership
+        where end_epoch=-1 and interface_id=? and extern_vlan_id=? and circuit_id in (
+            select circuit.circuit_id
+            from circuit
+            join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
+                 and circuit.circuit_state!='decom'
+                 and circuit_instantiation.circuit_state!='decom'
+                 and circuit_instantiation.end_epoch=-1
+        )
+    ";
+    my $l2a = [$args->{interface_id}, $args->{tag}];
+    if (defined $args->{inner_tag}) {
+        $l2q .= " and inner_tag=?";
+        push @$l2a, $args->{inner_tag};
+    } else {
+        $l2q .= " and inner_tag is NULL";
+    }
+
+    my $l2r = $args->{db}->execute_query($l2q, $l2a);
+    if (@$l2r > 0) {
+        if (defined $args->{circuit_ep_id} && $l2r->[0]->{circuit_ep_id} == $args->{circuit_ep_id}) {
+            return $l2r->[0]->{unit};
+        } else {
+            return;
+        }
+    }
+
+    # At this point VLAN and QinQ lookup has failed for both l2 and l3
+    # connections; There is no VLAN or QinQ tag conflicts on
+    # $args->{interface_id}.
+
+    if (!defined $args->{inner_tag}) {
+        # TODO Since it's possible that the VLAN->UNIT mapping has
+        # gotten out of sync, before returning this tag we must verify
+        # the unit is not already in use; If it is we fail.
         return $args->{tag};
     }
 
     # To preserve backwards compatibility with existing VLANs we find
     # an available unit >= 5000.
     my $used_vrf_units = $args->{db}->execute_query(
-        "select unit from vrf_ep where unit >= 5000 and state = 'active' and interface_id = ?",
+        "select unit from vrf_ep where unit >= 5000 and state='active' and interface_id=?",
         [$args->{interface_id}]
     );
 
     my $circuit_units_q = "
         select unit
         from circuit_edge_interface_membership
-        where interface_id = ? and end_epoch = -1 and circuit_id in (
+        where interface_id=? and end_epoch=-1 and circuit_id in (
             select circuit.circuit_id
             from circuit
             join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
-                 and circuit.circuit_state = 'active'
-                 and circuit_instantiation.circuit_state = 'active'
-                 and circuit_instantiation.end_epoch = -1
+                 and circuit.circuit_state!='decom'
+                 and circuit_instantiation.circuit_state!='decom'
+                 and circuit_instantiation.end_epoch=-1
         )";
     my $used_circuit_units = $args->{db}->execute_query($circuit_units_q, [$args->{interface_id}]);
 
