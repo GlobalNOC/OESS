@@ -3379,7 +3379,7 @@ function setup_discovery_tab(){
                     ds.responseSchema = {
                       resultsList: "results",
                       fields: [{key: "success"}],
-                      metaFields: {       };
+                      metaFields: { 
                         error: "error", 
                         error_text: "error_text" 
                       } 
