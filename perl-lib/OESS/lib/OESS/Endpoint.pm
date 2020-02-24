@@ -756,6 +756,19 @@ sub update_db {
         return $validation_err;
     }
 
+    my $unit = OESS::DB::Endpoint::find_available_unit(
+        db            => $self->{db},
+        interface_id  => $self->{interface_id},
+        tag           => $self->{tag},
+        inner_tag     => $self->{inner_tag},
+        circuit_ep_id => $self->{circuit_ep_id},
+        vrf_ep_id     => $self->{vrf_endpoint_id}
+    );
+    if (!defined $unit) {
+        return "Couldn't update Endpoint: Couldn't find an available Unit.";
+    }
+    $self->{unit} = $unit;
+
     my $hash = $self->to_hash;
 
     if ($self->type() eq 'vrf' || defined $self->{vrf_endpoint_id}) {
@@ -775,35 +788,6 @@ sub update_db {
     }
 
     return $error;
-}
-
-=head2 update_unit
-
-    my $error = $endpoint->update_unit;
-    die $error if (defined $error);
-
-Updates the unit of this Endpoint based on $self->{tag} and
-$self->{inner_tag}. Used to reselect a unit in the case that an
-Endpoint goes from a traditional VLAN to a qnq tagged VLAN.
-
-=cut
-sub update_unit {
-    my $self = shift;
-
-    my $unit = OESS::DB::Endpoint::find_available_unit(
-        db => $self->{db},
-        interface_id => $self->{interface_id},
-        tag => $self->{tag},
-        inner_tag => $self->{inner_tag},
-        circuit_ep_id => $self->{circuit_ep_id},
-        vrf_ep_id => $self->{vrf_endpoint_id}
-    );
-    if (!defined $unit) {
-        return "Couldn't update Endpoint: Couldn't find an available Unit.";
-    }
-
-    $self->{unit} = $unit;
-    return;
 }
 
 =head2 move_endpoints
@@ -912,15 +896,16 @@ sub create {
     }
 
     my $unit = OESS::DB::Endpoint::find_available_unit(
-        db => $self->{db},
-        interface_id => $self->{'interface_id'},
-        tag => $self->tag,
-        inner_tag => $self->inner_tag
+        db            => $self->{db},
+        interface_id  => $self->{interface_id},
+        tag           => $self->{tag},
+        inner_tag     => $self->{inner_tag}
     );
     if (!defined $unit) {
         $self->{'logger'}->error("Couldn't create Endpoint: Couldn't find an available Unit.");
         return (undef, "Couldn't create Endpoint: Couldn't find an available Unit.");
     }
+    $self->{unit} = $unit;
 
     my $validation_err = $self->_validate;
     if (defined $validation_err) {
@@ -931,7 +916,6 @@ sub create {
     if (defined $args->{circuit_id}) {
         my $ep_data = $self->to_hash;
         $ep_data->{circuit_id} = $args->{circuit_id};
-        $ep_data->{unit} = $unit;
 
         my $circuit_ep_id = OESS::DB::Endpoint::add_circuit_edge_membership(
             db => $self->{db},
@@ -944,7 +928,6 @@ sub create {
 
         $self->{circuit_ep_id} = $circuit_ep_id;
         $self->{circuit_id} = $args->{circuit_id};
-        $self->{unit} = $unit;
 
         my ($cloud_conn_ep_id, $err) = OESS::DB::Endpoint::update_cloud(
             db => $self->{db},
@@ -959,7 +942,6 @@ sub create {
     } elsif (defined $args->{vrf_id}) {
         my $ep_data = $self->to_hash;
         $ep_data->{vrf_id} = $args->{vrf_id};
-        $ep_data->{unit} = $unit;
 
         my ($vrf_ep_id, $vrf_ep_err) = OESS::DB::Endpoint::add_vrf_ep(
             db => $self->{db},
@@ -972,7 +954,6 @@ sub create {
 
         $self->{vrf_endpoint_id} = $vrf_ep_id;
         $self->{vrf_id} = $args->{vrf_id};
-        $self->{unit} = $unit;
 
         my ($cloud_conn_ep_id, $err) = OESS::DB::Endpoint::update_cloud(
             db => $self->{db},

@@ -402,11 +402,6 @@ sub provision {
                     $ep->{inner_tag} = undef;
                 }
 
-                # Azure endpoints use qnq which require us to reselect
-                # a unit. The initial unit was the selected vlan.
-                # my $update_err = $ep->update_unit;
-                # die $update_err if (defined $update_err);
-
                 my $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }
@@ -631,8 +626,6 @@ sub update {
                 if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                     $ep->{unit} = $ep->{tag};
                     $ep->{inner_tag} = undef;
-                } else {
-                    $ep->update_unit;
                 }
 
                 my $update_err = $ep->update_db;

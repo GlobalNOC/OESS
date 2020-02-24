@@ -260,6 +260,7 @@ sub convert_graph_to_mpls{
 
 sub _write_cache{
     my $self = shift;
+    $self->{'logger'}->info("called _write_cache");
 
     my %switches;
 
@@ -853,34 +854,35 @@ sub addVrf{
     $self->{'logger'}->error("addVrf: VRF ID required") && $self->{'logger'}->logconfess() if(!defined($vrf_id));
     $self->{'logger'}->info("Adding VRF $vrf_id");
 
-    my $vrf = $self->get_vrf_object( $vrf_id );
-    if(!defined($vrf)){
-        my $err = "addVrf: Couldn't load vrf object";
+    my $vrf = OESS::VRF->new(vrf_id => $vrf_id, db => $self->{'db2'});
+    if (!defined $vrf) {
+        my $err = "Unable to load VRF $vrf_id.";
         $self->{'logger'}->error($err);
         return &$error($err);
     }
 
-    # The VRF may be cached. If so we must reload from DB. This causes
-    # a single load for cached VRFs and a double load for VRFs not
-    # cached.
-    $vrf->update_vrf_details();
+    $vrf->load_endpoints;
+    foreach my $ep (@{$vrf->endpoints}) {
+        $ep->load_peers;
+    }
+    $vrf->load_users;
+    $vrf->load_workgroup;
 
-    if($vrf->state() eq 'decom'){
+    if ($vrf->state eq 'decom') {
         my $err = "addVrf: Adding a decom'd vrf is not allowed";
         $self->{'logger'}->error($err);
         return &$error($err);
     }
 
+    # Ensure local cache is updated with latest VRF.
+    $self->{vrfs}->{$vrf_id} = $vrf;
     $self->_write_cache();
 
-    #get all the DPIDs involved and remove the flows
-
-    my $endpoints = $vrf->endpoints();
     my %nodes;
-    foreach my $ep (@$endpoints){
+    foreach my $ep (@{$vrf->endpoints}) {
         $self->{'logger'}->debug("EP: " . Dumper($ep));
         $self->{'logger'}->info("addVrf: Node: " . $ep->node() . " is involved in the vrf");
-        $nodes{$ep->node()}= 1;
+        $nodes{$ep->node()} = 1;
     }
 
     my $result = FWDCTL_SUCCESS;
@@ -956,8 +958,6 @@ sub delVrf{
     my $p_ref = shift;
     my $state_ref = shift;
 
-
-
     my $success = $m_ref->{'success_callback'};
     my $error = $m_ref->{'error_callback'};
 
@@ -966,42 +966,42 @@ sub delVrf{
     $self->{'logger'}->error("delVrf: VRF ID required") && $self->{'logger'}->logconfess() if(!defined($vrf_id));
     $self->{'logger'}->info("Removing VRF $vrf_id.");
 
-    my $vrf = $self->get_vrf_object( $vrf_id );
-    if(!defined($vrf)){
-        my $err = "delVrf: Couldn't load vrf object";
+    my $vrf = OESS::VRF->new(vrf_id => $vrf_id, db => $self->{'db2'});
+    if (!defined $vrf) {
+        my $err = "Unable to load VRF $vrf_id.";
+        $self->{'logger'}->error($err);
+        return &$error($err);
+    }
+    $vrf->load_endpoints;
+    foreach my $ep (@{$vrf->endpoints}) {
+        $ep->load_peers;
+    }
+    $vrf->load_users;
+    $vrf->load_workgroup;
+
+    if ($vrf->state eq 'decom') {
+        my $err = "delVrf: Removing a decom'd vrf is not allowed";
         $self->{'logger'}->error($err);
         return &$error($err);
     }
 
-    $vrf->update_vrf_details();
-    if($vrf->state() eq 'decom'){
-        my $err = "delVrf: removing a decom'd vrf is not allowed";
-        $self->{'logger'}->error($err);
-        return &$error($err);
-    }
-
+    $self->{vrfs}->{$vrf_id} = $vrf;
     $self->_write_cache();
 
-    #get all the DPIDs involved and remove the flows
-
-    my $endpoints = $vrf->endpoints();
     my %nodes;
-    foreach my $ep (@$endpoints){
+    foreach my $ep (@{$vrf->endpoints}) {
         $self->{'logger'}->debug("EP: " . Dumper($ep));
         $self->{'logger'}->debug("delVrf: Node: " . $ep->node . " is involved in the vrf");
         $nodes{$ep->node}= 1;
-
     }
 
     my $result = FWDCTL_SUCCESS;
 
     if ($vrf->state() eq "deploying" || $vrf->state() eq "scheduled") {
         $self->{'logger'}->error("delVrf: Wrong circuit state was encountered");
-        
+
         my $state = $vrf->state();
-
         $self->{'logger'}->error($self->{'db2'}->get_error());
-
     }
 
     my $cv  = AnyEvent->condvar;
@@ -1016,7 +1016,7 @@ sub delVrf{
         $self->{'logger'}->info("Removed VRF.");
         return &$success({status => $result});
     });
-    
+
     foreach my $node (keys %nodes){
         $cv->begin();
 
@@ -1347,31 +1347,28 @@ sub get_diff_text {
 =head2 get_vrf_object
 
 =cut
-
 sub get_vrf_object{
     my $self = shift;
     my $vrf_id = shift;
-    
 
     my $vrf = $self->{'vrfs'}->{$vrf_id};
-    
-    if(!defined($vrf)){
-        $vrf = OESS::VRF->new( vrf_id => $vrf_id, db => $self->{'db2'});
-        if(!defined($vrf)){
+    if (!defined $vrf) {
+        $vrf = OESS::VRF->new(vrf_id => $vrf_id, db => $self->{'db2'});
+        if (!defined $vrf) {
             $self->{'logger'}->error("Unable to create VRF Object for VRF: " . $vrf_id);
             return;
         }
-        
+        $vrf->load_endpoints;
+        foreach my $ep (@{$vrf->endpoints}) {
+            $ep->load_peers;
+        }
+        $vrf->load_users;
+        $vrf->load_workgroup;
+
         $self->{'vrfs'}->{$vrf->vrf_id()} = $vrf;
-
     }
-    
-    if(!defined($vrf)){
-        $self->logger->error("Error creating VRF object: " . $vrf_id);
-    }
-    
-    return $vrf;    
 
+    return $vrf;
 }
 
 
