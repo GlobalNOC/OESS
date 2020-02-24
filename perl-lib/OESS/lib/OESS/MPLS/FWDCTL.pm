@@ -434,7 +434,7 @@ sub _write_cache{
 
             $self->{'logger'}->debug("Adding Circuit: " . $ckt->name() . " to cache for node: " . $ep_a->{'node'});
 
-            if(scalar(@$paths) == 0){
+            if(scalar(@$paths) == 0 && $self->{'config'}->network_type ne 'evpn-vxlan'){
                 # All observed endpoints are on the same node; Use VPLS.
                 $ckt_type = "L2VPLS";
             }
