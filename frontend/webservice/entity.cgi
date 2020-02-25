@@ -281,12 +281,12 @@ sub update_entity{
 
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
     if (!defined $entity) {
-        $method->set_error("Unable to find entity: " . $params->{'entity_id'}{'value'} . " in the Database");
+        $method->set_error("Unable to find entity: " . $params->{'entity_id'}{'value'} . " in the Database.");
         return;
     }
 
     if (!_may_modify_entity($username, $entity)) {
-        $method->set_error('Entity may not be modified by current user');
+        $method->set_error('Entity may not be modified by current user.');
         return;
     }
 
@@ -314,7 +314,7 @@ sub add_interface {
 
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
     if (!defined $entity) {
-        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db");
+        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db.");
         return;
     }
 
@@ -341,13 +341,13 @@ sub remove_interface {
 
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
     if (!defined $entity) {
-        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db");
+        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db.");
         return;
     }
 
     my $interface = OESS::Interface->new(db => $db, interface_id => $params->{interface_id}{value});
     if (!defined $interface) {
-        $method->set_error("Unable to find interface $params->{'interface_id'}{'value'} in the db");
+        $method->set_error("Unable to find interface $params->{'interface_id'}{'value'} in the db.");
         return;
     }
 
@@ -368,12 +368,12 @@ sub add_user {
 
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
     if (!defined $entity) {
-        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db");
+        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db.");
         return;
     }
 
     if (!_may_modify_entity($username, $entity)) {
-        $method->set_error('Entity may not be modified by current user');
+        $method->set_error('Entity may not be modified by current user.');
         return;
     }
 
@@ -400,18 +400,18 @@ sub remove_user {
 
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
     if (!defined $entity) {
-        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db");
+        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db.");
         return;
     }
 
     if (!_may_modify_entity($username, $entity)) {
-        $method->set_error('Entity may not be modified by current user');
+        $method->set_error('Entity may not be modified by current user.');
         return;
     }
 
     my $user = OESS::User->new(db => $db, user_id => $params->{user_id}{value});
     if (!defined $user) {
-        $method->set_error("Unable to find user $params->{'user_id'}{'value'} in the db");
+        $method->set_error("Unable to find user $params->{'user_id'}{'value'} in the db.");
         return;
     }
 
@@ -501,7 +501,7 @@ sub get_entity_children{
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'entity_id'}{'value'});
 
     if(!defined($entity)){
-        $method->set_error("Unable to find entity: " . $params->{'entity_id'}{'value'} . " in the Database");
+        $method->set_error("Unable to find entity: " . $params->{'entity_id'}{'value'} . " in the Database.");
         return;
     }
 
@@ -554,12 +554,12 @@ sub get_entity{
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'entity_id'}{'value'});
 
     if(!defined($entity)){
-        $method->set_error("Entity was not found in the database");
+        $method->set_error("Entity was not found in the database.");
         return;
     }
 
     if(!$user->in_workgroup( $workgroup_id) && !$user->is_admin()){
-        $method->set_error("User not in workgroup");
+        $method->set_error("User not in workgroup.");
         return;
     }
 
@@ -662,7 +662,6 @@ sub get_entity{
     my @allowed_vs = keys %vlans;
     $res->{'allowed_vlans'} = \@allowed_vs;
     return {results => $res};
-    
 }
 
 sub get_valid_users{
@@ -670,13 +669,13 @@ sub get_valid_users{
     my $params = shift;
 
     my $entity_id = $params->{'entity_id'}{'value'};
-    my $users = $db->execute_query("SELECT user_id from user_entity_membership WHERE entity_id =$entity_id"); 
+    my $users = $db->execute_query("SELECT user_id from user_entity_membership WHERE entity_id =$entity_id");
     my @res;
     my @users;
     foreach my $var  (@$users){
         push(@res, $var->{'user_id'});
-    }    
-    return {results => \@res}; 
+    }
+    return {results => \@res};
 }
 
 sub add_child_entity {
@@ -685,7 +684,7 @@ sub add_child_entity {
 
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'current_entity_id'}{'value'});
     if (!defined $entity) {
-        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db");
+        $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db.");
         return;
     }
 
@@ -697,8 +696,8 @@ sub add_child_entity {
 		user_id => $params->{'user_id'}{'value'}
               ); 
     if (!defined $child_id){
-        $method->set_error("Unable to add child"); 
-	return;
+        $method->set_error("Unable to add child.");
+        return;
     }
     return { results => [ { success => 1, child_entity_id => $child_id } ] };
 }
