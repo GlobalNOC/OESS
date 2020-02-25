@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
       {
         user_list.classList.toggle("show");
       }
-});
+  });
 
   let search = new EntitySearch(document.querySelector('#entity-search-container'));
   search.onselect = (e) => {
@@ -198,23 +198,23 @@ async function loadEntityList(parentEntity=null) {
     entityContacts.innerHTML = '';
     let contact_ids = [];
     entity.contacts.forEach(function(contact) {
-            var user_id = contact.user_id;
-            contact_ids.push(user_id);
-	    let p = document.createElement('p');
-	    p.className = 'entity-contact';
+      var user_id = contact.user_id;
+      contact_ids.push(user_id);
+      let p = document.createElement('p');
+      p.className = 'entity-contact';
 
-	    let name = document.createElement('b');
-	    name.innerHTML = contact.first_name + " " + contact.last_name;
-            p.appendChild(name);
+      let name = document.createElement('b');
+      name.innerHTML = contact.first_name + " " + contact.last_name;
+      p.appendChild(name);
 
-            if (valid_users.includes( user.user_id)){
-	      p.innerHTML += `<sup class ='entity-contact' style='cursor:pointer' onclick='x_onclick(${user_id}, ${entity.entity_id})'>  &#10006</sup>`;
-            }
-	    p.innerHTML += '<br/>' + contact.email + '<br/>';
-	    entityContacts.appendChild(p)
+      if (user.is_admin == 1 || valid_users.includes( user.user_id)){
+        p.innerHTML += `<sup class ='entity-contact' style='cursor:pointer' onclick='x_onclick(${user_id}, ${entity.entity_id})'>  &#10006</sup>`;
+      }
+      p.innerHTML += '<br/>' + contact.email + '<br/>';
+      entityContacts.appendChild(p);
     });
 
-    if (valid_users.includes(user.user_id)){
+    if (user.is_admin == 1 || valid_users.includes(user.user_id)){
           edit_entity_btn.style.display = 'block';
           edit_entity_btn.onclick = function(){
             window.location.href = `[% path %]new/index.cgi?action=edit_entity&entity_id=${entityID}`;
