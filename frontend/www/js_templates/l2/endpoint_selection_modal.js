@@ -309,7 +309,7 @@ class EndpointSelectionModal2 {
       let checked = 'checked';
       let disabled = '';
       let notAllow = '';
-      if (child.cloud_interconnect_type !== null && child.cloud_interconnect_type !== '') {
+      if (child.cloud_interconnect_type !== null && child.cloud_interconnect_type !== '' && child.cloud_interconnect_type !== 'aws-hosted-connection') {
         checked = '';
         disabled = 'disabled';
         notAllow = 'cursor: not-allowed;';
