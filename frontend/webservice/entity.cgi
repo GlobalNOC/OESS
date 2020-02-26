@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I /home/aragusa/OESS/perl-lib/OESS/lib
+#!/usr/bin/perl
 
 use strict;
 use warnings;
@@ -11,11 +11,10 @@ use OESS::DB::User;
 use OESS::Entity;
 use OESS::VRF;
 
-#register web service dispatcher
-my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
+
+my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 my $db = OESS::DB->new();
 my $username = $ENV{'REMOTE_USER'};
-#my $is_admin = $db->get_user_admin_status( 'username' => $username );
 
 
 sub register_ro_methods{
@@ -318,6 +317,11 @@ sub add_interface {
         return;
     }
 
+    if (!_may_modify_entity($username, $entity)) {
+        $method->set_error('Entity may not be modified by current user.');
+        return;
+    }
+
     my $interface = OESS::Interface->new(db => $db, interface_id => $params->{interface_id}{value});
     if (!defined $interface) {
         $method->set_error("Unable to find interface $params->{'interface_id'}{'value'} in the db.");
@@ -342,6 +346,11 @@ sub remove_interface {
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{entity_id}{value});
     if (!defined $entity) {
         $method->set_error("Unable to find entity $params->{'entity_id'}{'value'} in the db.");
+        return;
+    }
+
+    if (!_may_modify_entity($username, $entity)) {
+        $method->set_error('Entity may not be modified by current user.');
         return;
     }
 
@@ -688,6 +697,11 @@ sub add_child_entity {
         return;
     }
 
+    if (!_may_modify_entity($username, $entity)) {
+        $method->set_error('Entity may not be modified by current user.');
+        return;
+    }
+
    my $child_id = $entity->create_child_entity(
                 name =>  $params->{name}{value},
                 description =>  $params->{description}{value},
@@ -717,7 +731,7 @@ sub _may_modify_entity {
     # Else, if the user is an admin, they may modify the entity:
     my $user = OESS::User->new(db => $db, user_id => $user_id);
     return 0 if !defined($user);
-    return $user->is_admin();
+    return $user->is_admin && $user->type ne 'read-only';
 }
 
 sub main{
