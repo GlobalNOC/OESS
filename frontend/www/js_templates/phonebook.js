@@ -207,14 +207,14 @@ async function loadEntityList(parentEntity=null) {
       name.innerHTML = contact.first_name + " " + contact.last_name;
       p.appendChild(name);
 
-      if (user.is_admin == 1 || valid_users.includes( user.user_id)){
+      if ((user.is_admin == 1 && user.type != 'read-only') || valid_users.includes( user.user_id)){
         p.innerHTML += `<sup class ='entity-contact' style='cursor:pointer' onclick='x_onclick(${user_id}, ${entity.entity_id})'>  &#10006</sup>`;
       }
       p.innerHTML += '<br/>' + contact.email + '<br/>';
       entityContacts.appendChild(p);
     });
 
-    if (user.is_admin == 1 || valid_users.includes(user.user_id)){
+    if ((user.is_admin == 1 && user.type != 'read-only') || valid_users.includes(user.user_id)){
           edit_entity_btn.style.display = 'block';
           edit_entity_btn.onclick = function(){
             window.location.href = `[% path %]new/index.cgi?action=edit_entity&entity_id=${entityID}`;
