@@ -140,7 +140,7 @@ sub create_device_object{
     switch($host_info->{'vendor'}){
         case "Juniper" {
             my $dev;
-            if ($host_info->{'model'} =~ /mx/i) {
+            if ($host_info->{'model'} =~ /mx/i || $host_info->{'model'} =~ /qfx/i) {
                 if ($self->{'config_obj'}->network_type eq 'evpn-vxlan') {
                     $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
                     $dev = OESS::MPLS::Device::Juniper::VXLAN->new( %$host_info );
