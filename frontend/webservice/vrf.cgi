@@ -762,6 +762,9 @@ sub remove_vrf {
         $method->set_error("Unable to find VRF: " . $vrf_id);
         return {success => 0};
     }
+    $vrf->load_endpoints;
+    $vrf->load_workgroup;
+    $vrf->load_users;
 
     my $result;
     if(!$user->in_workgroup( $wg) && !$user->is_admin()){
@@ -777,10 +780,10 @@ sub remove_vrf {
         return;
     }
 
-    $vrf->decom(user_id => $user->user_id());
-
     my $res = vrf_del(method => $method, vrf_id => $vrf_id);
     $res->{'vrf_id'} = $vrf_id;
+
+    $vrf->decom(user_id => $user->user_id());
 
     # send the update cache to the MPLS fwdctl
     _update_cache(vrf_id => $vrf_id);
