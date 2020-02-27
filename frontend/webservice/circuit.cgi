@@ -275,12 +275,15 @@ sub provision {
         my $entity;
         my $interface;
 
-        if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
+        if (defined $ep->{node} && defined $ep->{interface}) {
             $interface = new OESS::Interface(
                 db => $db,
                 name => $ep->{interface},
                 node => $ep->{node}
             );
+        }
+        if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
+            # Continue
         } else {
             $entity = new OESS::Entity(db => $db, name => $ep->{entity});
             $interface = $entity->select_interface(
@@ -486,12 +489,15 @@ sub update {
             my $entity;
             my $interface;
 
-            if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
+            if (defined $ep->{node} && defined $ep->{interface}) {
                 $interface = new OESS::Interface(
                     db => $db,
                     name => $ep->{interface},
                     node => $ep->{node}
                 );
+            }
+            if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
+                # Continue
             } else {
                 $entity = new OESS::Entity(db => $db, name => $ep->{entity});
                 $interface = $entity->select_interface(
@@ -501,7 +507,6 @@ sub update {
                     cloud_account_id => $ep->{cloud_account_id}
                 );
             }
-
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
                 return;
