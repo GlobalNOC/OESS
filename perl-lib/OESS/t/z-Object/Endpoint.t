@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 16;
+use Test::More tests => 20;
 
 use OESSDatabaseTester;
 
@@ -89,6 +89,8 @@ ok($ep2->circuit_ep_id == $ep3->circuit_ep_id, 'CircuitEndpointID transfered');
 # === move_vrf_endpoint =======
 # =============================
 
+# interface 391 actually uses vlan 3 so check that move_endpoints
+# fails
 my $ep4 = new OESS::Endpoint(db => $db, vrf_endpoint_id => 3, type => 'vrf');
 
 OESS::Endpoint::move_endpoints(
@@ -100,11 +102,31 @@ OESS::Endpoint::move_endpoints(
 my $ep5 = new OESS::Endpoint(db => $db, vrf_endpoint_id => 3, type => 'vrf');
 
 ok($ep4->interface_id == 1, 'InterfaceID updated correctly');
-ok($ep5->interface_id == 391, 'Initial InterfaceID as correctly');
+ok($ep5->interface_id == 1, 'Initial InterfaceID as correctly');
 
 ok($ep4->node_id == 1, 'NodeID updated correctly');
-ok($ep5->node_id == 11, 'Initial NodeID as correctly');
+ok($ep5->node_id == 1, 'Initial NodeID as correctly');
 
-ok($ep4->mtu == $ep5->mtu, 'MTU transfered');
-ok($ep4->bandwidth == $ep5->bandwidth, 'Bandwidth transfered');
-ok($ep4->vrf_endpoint_id == $ep5->vrf_endpoint_id, 'VRFEndpointID transfered');
+# update the endpoint using vlan 3 on interface 391 to check that
+# move_endpoints works
+my $ep6 = new OESS::Endpoint(db => $db, vrf_endpoint_id => 2, type => 'vrf');
+$ep6->tag(2);
+$ep6->update_db;
+
+OESS::Endpoint::move_endpoints(
+    db => $db,
+    orig_interface_id => 1,
+    new_interface_id  => 391
+);
+
+my $ep7 = new OESS::Endpoint(db => $db, vrf_endpoint_id => 3, type => 'vrf');
+
+ok($ep4->interface_id == 1, 'InterfaceID updated correctly');
+ok($ep7->interface_id == 391, 'Initial InterfaceID as correctly');
+
+ok($ep4->node_id == 1, 'NodeID updated correctly');
+ok($ep7->node_id == 11, 'Initial NodeID as correctly');
+
+ok($ep4->mtu == $ep7->mtu, 'MTU transfered');
+ok($ep4->bandwidth == $ep7->bandwidth, 'Bandwidth transfered');
+ok($ep4->vrf_endpoint_id == $ep7->vrf_endpoint_id, 'VRFEndpointID transfered');

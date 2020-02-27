@@ -595,10 +595,10 @@ sub find_available_unit{
         return;
     }
 
-    my $l3q = "select * from vrf_ep where state='active' and interface_id=? and tag=?";
+    my $l3q = "select vrf_ep.* from vrf_ep join vrf on vrf_ep.vrf_id=vrf.vrf_id and vrf.state!='decom' where vrf_ep.interface_id=? and vrf_ep.tag=? group by vrf_ep_id";
     my $l3a = [$args->{interface_id}, $args->{tag}];
     if (defined $args->{inner_tag}) {
-        $l3q .= " and inner_tag=?";
+        $l3q .= " and vrf_ep.inner_tag=?";
         push @$l3a, $args->{inner_tag};
     } else {
         $l3q .= " and inner_tag is NULL";
