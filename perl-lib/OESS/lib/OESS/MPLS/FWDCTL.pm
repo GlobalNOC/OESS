@@ -269,6 +269,7 @@ sub _write_cache{
         my $vrf = $self->get_vrf_object($vrf_id);
         if (!defined $vrf) {
             $self->{'logger'}->error("VRF $vrf_id could't be loaded or written to cache.");
+            next;
         }
 
         my $eps = $vrf->endpoints();
@@ -1013,6 +1014,7 @@ sub delVrf{
             return &$error($err);
         }
 
+        delete $self->{'vrfs'}->{$vrf_id};
         $self->{'logger'}->info("Removed VRF.");
         return &$success({status => $result});
     });
