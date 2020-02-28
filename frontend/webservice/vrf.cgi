@@ -743,6 +743,8 @@ sub remove_vrf {
         return;
     }
 
+    $db->start_transaction;
+
     my $model = {};
     my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
@@ -780,20 +782,20 @@ sub remove_vrf {
         return;
     }
 
-    my $res = vrf_del(method => $method, vrf_id => $vrf_id);
-    $res->{'vrf_id'} = $vrf_id;
+    my $res = vrf_del(method => $method, vrf_id => $vrf->vrf_id);
 
-    $vrf->decom(user_id => $user->user_id());
+    $vrf->decom(user_id => $user->user_id);
+    $db->commit;
 
-    # send the update cache to the MPLS fwdctl
-    _update_cache(vrf_id => $vrf_id);
+    _update_cache(vrf_id => $vrf->vrf_id);
 
-    eval{
-        my $vrf_details = $vrf->to_hash();
-        $log_client->vrf_notification(type => 'removed',
-                                      reason => 'Removed by ' . $ENV{'REMOTE_USER'},
-                                      vrf => $vrf->vrf_id(),
-                                      no_reply  => 1);
+    eval {
+        $log_client->vrf_notification(
+            type     => "removed",
+            reason   => "Removed by $ENV{REMOTE_USER}",
+            vrf      => $vrf->vrf_id,
+            no_reply => 1
+        );
     };
 
     return {results => $res};
