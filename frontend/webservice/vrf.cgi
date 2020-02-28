@@ -257,6 +257,9 @@ sub get_vrfs{
         my $r = OESS::VRF->new(db => $db, vrf_id => $vrf->{vrf_id});
         next if (!defined $r);
         $r->load_endpoints;
+        foreach my $ep (@{$r->endpoints}) {
+            $ep->load_peers;
+        }
         $r->load_users;
         $r->load_workgroup;
         push @$result, $r->to_hash();
