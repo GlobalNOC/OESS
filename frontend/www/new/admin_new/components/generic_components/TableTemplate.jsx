@@ -5,7 +5,8 @@ export default class TableTemplate extends React.Component {
 
     constructor(props) {
         super(props);
-        this.getHeader = this.getHeader.bind(this);
+        console.log("creating table ",this.props);
+	this.getHeader = this.getHeader.bind(this);
         this.getRowsData = this.getRowsData.bind(this);
         this.getKeys = this.getKeys.bind(this);
 	this.state={
