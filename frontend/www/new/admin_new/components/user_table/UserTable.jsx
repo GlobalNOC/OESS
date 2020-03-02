@@ -117,28 +117,24 @@ export default class UsersTable extends React.Component {
 
                         		<li className="page-item" name="first" onClick={this.pageUpdate}>
                             			<a name = "first" onClick={this.pageUpdate} className="page-link" aria-label="First">
-                                			<span aria-hidden="true">&laquo;</span>
-                                			<span className="sr-only">First</span>
-                            			</a>
+                            			&laquo;
+						</a>
                         		</li>
                         		<li className="page-item" name="previous" onClick={this.pageUpdate}>
                             			<a name="previous" onClick= {this.pageUpdate} className="page-link" aria-label="Previous">
-                                			<span aria-hidden="true">&lsaquo;</span>
-                                			<span className="sr-only">Previous</span>
-                           			 </a>
+                           			&lsaquo; 
+						</a>
                         		</li>
                         		<li className="page-item" name="page-number"><a className="page-link" href="#">{this.state.curr_page}</a></li>
                         		<li className="page-item" name="next" onClick={this.pageUpdate}>
                             			<a name="next" onClick= {this.pageUpdate} className="page-link" aria-label="Next">
-                                			<span aria-hidden="true">&rsaquo;</span>
-                                			<span className="sr-only">Next</span>
-                            			</a>
+                            			&rsaquo;
+						</a>
                         		</li>
                         		<li className="page-item" name="last" onClick={this.pageUpdate}>
                             			<a name="last" onClick= {this.pageUpdate} className="page-link" aria-label="Last">
-                                			<span aria-hidden="true">&raquo;</span>
-                                			<span className="sr-only">Last</span>
-                            			</a>
+                            			&raquo;
+						</a>
                         		</li>
                     		</ul>
                 		</nav>
