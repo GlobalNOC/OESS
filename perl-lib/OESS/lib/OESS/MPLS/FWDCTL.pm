@@ -205,15 +205,17 @@ sub build_cache{
 
     foreach my $vrf (@$vrfs){
 	$logger->error("Updating Cache for VRF: " . $vrf->{'vrf_id'});
-	
-	$vrf = OESS::VRF->new(db => $db2, vrf_id => $vrf->{'vrf_id'});
 
-        if(!defined($vrf)){
-            warn "Unable to process VRF: " . $vrf->{'vrf_id'} . "\n";
-            $logger->error("Unable to process VRF: " . $vrf->{'vrf_id'});
-
-            next;
-        }
+    $vrf = OESS::VRF->new(db => $db2, vrf_id => $vrf->{'vrf_id'});
+    if (!defined $vrf) {
+        warn "Unable to process VRF: " . $vrf->{'vrf_id'} . "\n";
+        $logger->error("Unable to process VRF: " . $vrf->{'vrf_id'});
+        next;
+    }
+    $vrf->load_endpoints;
+    foreach my $ep (@{$vrf->endpoints}) {
+        $ep->load_peers;
+    }
 
 	$vrfs{ $vrf->vrf_id() } = $vrf;
     }
