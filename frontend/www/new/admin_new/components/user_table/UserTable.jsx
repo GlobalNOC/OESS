@@ -40,7 +40,7 @@ export default class UsersTable extends React.Component {
 	const target = event.target;
 	const name = target.name;
 	const curr= this.state.curr_page;
-	const max_page = this.state.users.length / this.state.offset;
+	const max_page = Math.ceil(this.state.users.length / this.state.offset);
 	if(name == "first"){
 		this.setState({curr_page: 1});
 	}
