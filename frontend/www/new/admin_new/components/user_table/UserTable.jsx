@@ -30,7 +30,6 @@ export default class UsersTable extends React.Component {
                 users: u
             })
         });
-	//console.log("Total data ",this.state.users.length);
     }
 
     componentDidUpdate() {
@@ -38,12 +37,10 @@ export default class UsersTable extends React.Component {
     }
 
     pageUpdate(event){
-	//console.log(event);
 	const target = event.target;
 	const name = target.name;
-	//const value = event.value;
-	//console.log("clicked", name);
 	const curr= this.state.curr_page;
+	const max_page = this.state.users.length / this.state.offset;
 	if(name == "first"){
 		this.setState({curr_page: 1});
 	}
@@ -53,13 +50,12 @@ export default class UsersTable extends React.Component {
 	    } 
 	}
 	if(name == "next"){
-	     if(curr < 10){
+	     if(curr <max_page){
 		this.setState({curr_page: curr + 1});
 	     }
 	}
 	if(name == "last"){
-		// total result / offset --> num of pages ; now set to last number
-		this.setState({curr_page: 2 });
+		this.setState({curr_page: max_page });
 	}	
     }
 	
@@ -68,7 +64,6 @@ export default class UsersTable extends React.Component {
         var currcomp = this;
 	if (this.state.users[0].user_id != "") {
             var users_data = [];
-	    console.log("Total data ",this.state.users.length);
             /*this.state.users.forEach(function (obj) {
                 var data = {};
                 data["First Name"] = obj.first_name;
@@ -83,13 +78,11 @@ export default class UsersTable extends React.Component {
             });*/
 	    var rowstart = 0;
 	    if(this.state.curr_page != 1){
-		rowstart = this.state.offset* (this.state.curr_page-1)+1;	
+		rowstart = this.state.offset* (this.state.curr_page-1);	
 	    }
 	    var obj  = this.state.users;
-	    console.log("rowstart = "+rowstart+" obj - "+obj);
 	    for(var i= rowstart ; i< this.state.curr_page * this.state.offset ; i++){
 		var userinfo = {};
-		console.log("Reached line 91 i = "+i);
 		if(obj[i] != null || obj[i] != undefined){
 			userinfo["First Name"] = obj[i].first_name;
 			userinfo["Last Name"] = obj[i].family_name;
@@ -101,22 +94,13 @@ export default class UsersTable extends React.Component {
 
                 	users_data.push(userinfo);
 	    	}else{
-		  console.log("breaking i = "+i);
 		  break;
 		}
-		console.log("Reached line 106 i = "+i);
 	    }
-	    console.log("user_data "+JSON.stringify(users_data));
 
 	    if(users_data.length == 0){
 		var userinfo = {};
-		//userinfo["First Name"] ="";
-		//userinfo["Last Name"] ="";
 		userinfo["User info"] ="Data Not Available";
-		//userinfo["Email Address"] ="";
-		//userinfo["User Type"] ="";
-		//userinfo["User Status"] ="";
-		//userinfo["userid"] = "";
 		users_data.push(userinfo);
 	    }
             //UserTable component to create table from JSON
