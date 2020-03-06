@@ -1,6 +1,6 @@
 FROM centos:7
 COPY globalnoc-public-el7.repo /etc/yum.repos.d/globalnoc-public-el7.repo
-COPY perl-lib/OESS /
+COPY perl-lib/OESS/entrypoint.sh /
 RUN yum makecache
 RUN yum -y install epel-release
 RUN yum -y install perl mariadb-server

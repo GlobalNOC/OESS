@@ -58,7 +58,7 @@ cmp_deeply($acls ,
             'workgroup_id' => 11,
             'interface_id' => 391,
             'interface_acl_id' => 11,
-            'end' => undef,
+            'end' => 1,
             'eval_position' => 10,
             'entity_id' => 7,
             'allow_deny' => 'deny',
@@ -141,7 +141,7 @@ cmp_deeply($acls, [
             'workgroup_id' => '11',
             'allow_deny' => 'deny',
             'entity_id' => '7',
-            'end' => undef,
+            'end' => 1,
             'start' => 1
           },
           {

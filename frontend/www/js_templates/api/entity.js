@@ -122,12 +122,10 @@ async function add_entity(entityID, entity_name, desctiption, logo_url, entity_u
     try {
       const resp = await fetch(url, {method: 'get', credentials: 'include'});
       const data = await resp.json();
-      if ('error' in data) {
-        throw data.error_text;
-      }
+      if ('error' in data) throw data.error_text;
       return data.results[0];
     } catch(error) {
-      console.log('Failure occurred in add_entity:', error);
+      console.error('Failure occurred in add_entity:', error);
       return null;
     }    
 }
@@ -143,11 +141,10 @@ async function add_user(user_id, entityID){
     try {
       const resp = await fetch(url, {method: 'get', credentials: 'include'});
       const data = await resp.json();
-      console.log(data);
+      if ('error' in data) throw data.error_text;
       return data.results[0];
-    }catch(error) {
-      console.log('Failure occurred in deleteVRF.');
-      console.log(error);
+    } catch(error) {
+      console.error('Failure occurred in add_user:', error);
       return null;
     }
  }
@@ -164,11 +161,10 @@ async function remove_user(user_id, entityID){
     try {
       const resp = await fetch(url, {method: 'get', credentials: 'include'});
       const data = await resp.json();
-      console.log(data);
+      if ('error' in data) throw data.error_text;
       return data.results[0];
-    }catch(error) {
-      console.log('Failure occurred in deleteVRF.');
-      console.log(error);
+    } catch(error) {
+      console.error('Failure occurred in remove_user:', error);
       return null;
     }
 }

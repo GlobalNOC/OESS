@@ -221,7 +221,7 @@ $mock->new_sub(
 </rpc-reply>')
 );
 
-my $result = $device->get_system_information();
+my ($result, undef) = $device->get_system_information();
 
 my $err = $mock->sub_called(
 name  => 'get_system_information',

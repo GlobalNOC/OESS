@@ -5,6 +5,8 @@ use warnings;
 
 package OESS::User;
 
+use Data::Dumper;
+
 use OESS::DB::User;
 use OESS::Workgroup;
 
@@ -127,6 +129,35 @@ sub load_workgroups {
     $self->{workgroups} = [];
     foreach my $data (@$datas){
         push @{$self->{workgroups}}, OESS::Workgroup->new(db => $self->{db}, model => $data);
+    }
+
+    return;
+}
+
+=head2 get_workgroup
+
+    my $wg = $user->get_workgroup(
+        workgroup_id => 100
+    );
+
+get_workgroup returns the Workgroup identified by C<workgroup_id>.
+
+=cut
+sub get_workgroup {
+    my $self = shift;
+    my $args = {
+        workgroup_id => undef,
+        @_
+    };
+
+    if (!defined $args->{workgroup_id}) {
+        return;
+    }
+
+    foreach my $workgroup (@{$self->{workgroups}}) {
+        if ($workgroup->workgroup_id == $args->{workgroup_id}) {
+            return $workgroup;
+        }
     }
 
     return;

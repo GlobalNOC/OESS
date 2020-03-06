@@ -97,8 +97,6 @@ sub _process_paths{
     }
 
     foreach my $circuit_id (keys %{$circuit_lsps}) {
-        $self->{'logger'}->error("Checking paths for circuit $circuit_id.");
-
         my $links = {};
 
         foreach my $lsp (@{$circuit_lsps->{$circuit_id}}) {

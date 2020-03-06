@@ -8,24 +8,77 @@ use OESS::Interface;
 
 package OESS::DB::Workgroup;
 
-=head2 fetch
+=head1 OESS::DB::Workgroup
+
+    use OESS::DB::Workgroup;
 
 =cut
-sub fetch{
-    my %params = @_;
-    my $db = $params{'db'};
-    my $workgroup_id = $params{'workgroup_id'};
-    
-    my $wg = $db->execute_query("select * from workgroup where workgroup_id = ?",[$workgroup_id]);
-    if(!defined($wg) || !defined($wg->[0])){
+
+=head2 fetch
+
+    my $wg = OESS::DB::Workgroup::fetch(
+        db           => new OESS::DB,
+        name         => 'admin',      # Optional
+        workgroup_id => 1             # Optional
+    );
+
+fetch returns the database record for workgroup C<workgroup_id>.
+
+=cut
+sub fetch {
+    my $args = {
+        db           => undef,
+        name         => undef,
+        workgroup_id => undef,
+        @_
+    };
+
+    my $wg;
+
+    if (defined $args->{workgroup_id}) {
+        my $q = "select * from workgroup where workgroup_id=?";
+        $wg = $args->{db}->execute_query($q, [$args->{workgroup_id}]);
+    } else {
+        my $q = "select * from workgroup where name=?";
+        $wg = $args->{db}->execute_query($q, [$args->{name}]);
+    }
+    if (!defined $wg || !defined $wg->[0]) {
         return;
     }
-    
+
     my @ints;
-    my $interfaces = $db->execute_query("select interface_id from interface where workgroup_id = ?",[$workgroup_id]);
-    $wg->[0]->{'interfaces'} = $interfaces;
-    
+    my $interfaces = $args->{db}->execute_query(
+        "select interface_id from interface where workgroup_id = ?",
+        [$wg->[0]->{workgroup_id}]
+    );
+    if (!defined $interfaces) {
+        $interfaces = [];
+    }
+    $wg->[0]->{interfaces} = $interfaces;
+
     return $wg->[0];
+}
+
+=head2 fetch_all
+
+    my ($workgroups, $error) = OESS::DB::Workgroup::fetch_all(
+        db => new OESS::DB
+    );
+
+fetch_all returns a list of all workgroups.
+
+=cut
+sub fetch_all {
+    my $args = {
+        db => undef,
+        @_
+    };
+
+    my $res = $args->{db}->execute_query("select * from workgroup", []);
+    if (!defined $res) {
+        return (undef, $args->{db}->get_error);
+    }
+    return ($res, undef);
 }
 
 =head2 get_users_in_workgroup

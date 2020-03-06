@@ -1,5 +1,5 @@
-name: OESS Test
-description: Run OESS test actions
+name: OESS Testing
+description: Run oess tests
 runs:
   using: docker
   image: Dockerfile

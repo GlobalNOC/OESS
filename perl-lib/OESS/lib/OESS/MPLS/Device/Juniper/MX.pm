@@ -267,7 +267,7 @@ sub unlock {
 
 =head2 get_system_information
 
-    my $info = get_system_information();
+    my ($info, $err) = get_system_information();
 
 get_system_information returns an object containing information about
 the connected device.
@@ -287,17 +287,14 @@ B<Result>
 sub get_system_information{
     my $self = shift;
 
-    if(!$self->connected()){
-	$self->{'logger'}->error("Not currently connected to device");
-	return;
+    if (!$self->connected) {
+        return (undef, "Not currently connected to device");
     }
 
     my $reply = $self->{'jnx'}->get_system_information();
-
-    if ($self->{'jnx'}->has_error){
+    if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
-        $self->{'logger'}->error("Error fetching system information: " . $error->{'error_message'});
-        return;
+        return (undef, "Error fetching system information: $error->{error_message}");
     }
 
     my $system_info = $self->{'jnx'}->get_dom();
@@ -325,8 +322,7 @@ sub get_system_information{
     if ($self->{'jnx'}->has_error) {
         my $error = $self->{'jnx'}->get_first_error();
         $self->set_error($error->{'error_message'});
-        $self->{'logger'}->error("Error fetching interface information: " . $error->{'error_message'});
-        return;
+        return (undef, "Error fetching interface information: $error->{error_message}");
     }
 
     my $interfaces = $self->{'jnx'}->get_dom();
@@ -385,13 +381,19 @@ sub get_system_information{
 		}
 	    }
 	}
-
-	
     }
 
     $self->{'loopback_addr'} = $loopback_addr;
     $self->{'major_rev'} = $major_rev;
-    return {model => $model, version => $version, os_name => $os_name, host_name => $host_name, loopback_addr => $loopback_addr};
+
+    my $result = {
+        host_name     => $host_name,
+        loopback_addr => $loopback_addr,
+        os_name       => $os_name,
+        model         => $model,
+        version       => $version,
+    };
+    return ($result, undef);
 }
 
 =head2 get_routed_lsps
@@ -890,7 +892,7 @@ sub add_vrf{
         return FWDCTL_FAILURE;
     }
 
-    $self->{'logger'}->error("VRF: " . Dumper($vrf));
+    $self->{'logger'}->debug("VRF: " . Dumper($vrf));
 
     my $vars = {};
     $vars->{'vrf_name'} = $vrf->{'name'};
@@ -910,8 +912,6 @@ sub add_vrf{
             $peer_ip =~ s/\/\d+//g;
 
             my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
-            warn "Version: " . $type . "\n";
-            $self->{'logger'}->error("IP Address type: " . $type);
             #determine if its an ipv4 or an ipv6
             if($type == 4){
                 $has_ipv4 = 1;
@@ -957,7 +957,7 @@ sub add_vrf{
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
     $vars->{'local_as'} = $vrf->{'local_asn'};
-    $self->{'logger'}->error("VARS: " . Dumper($vars));
+    $self->{'logger'}->debug("VARS: " . Dumper($vars));
 
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$output);
@@ -1027,9 +1027,12 @@ sub xml_configuration {
         $vars->{'interfaces'} = [];
         foreach my $i (@{$ckt->{'interfaces'}}) {
             push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
+                                              cloud_interconnect_type => $i->{'cloud_interconnect_type'},
+                                              mtu => $i->{'mtu'},
                                               inner_tag => $i->{'inner_tag'},
                                               tag  => $i->{'tag'},
-                                              unit => $i->{'unit'}
+                                              unit => $i->{'unit'},
+                                              bandwidth => $i->{'bandwidth'}
                                             });
         }
         $vars->{'paths'} = $ckt->{'paths'};
@@ -1070,19 +1073,14 @@ sub xml_configuration {
             my $has_ipv6 = 0;
             
             foreach my $bgp (@{$i->{'peers'}}){
-                #strip off the cidr                                                                                                                                                                                                                                                                                                                  #192.168.1.0/24
+                #strip off the cidr 192.168.1.0/24
                 my $peer_ip = $bgp->{'peer_ip'};
                 $peer_ip =~ s/\/\d+//g;
-                
-                if(!defined($bgp->{'md5_key'})){
-                    $bgp->{'md5_key'} = -1;
-                }
-                
+
                 my $ip = NetAddr::IP->new($bgp->{'peer_ip'});
                 my $type = $ip->version();
                 #determine if its an ipv4 or an ipv6
                 if($type == 4){
-                    $self->{'logger'}->error("Processing IPv4 peer");
                     $has_ipv4 = 1;
                     $vars->{'has_ipv4'} = 1;
                     push(@bgp_v4, { asn => $bgp->{'peer_asn'},
@@ -1093,7 +1091,6 @@ sub xml_configuration {
                          });
                     
                 }else{
-                    $self->{'logger'}->error("Processing IPv6 peer");
                     $has_ipv6 = 1;
                     $vars->{'has_ipv6'} = 1;
                     push(@bgp_v6, { asn => $bgp->{'peer_asn'},
@@ -1476,8 +1473,6 @@ sub diff {
         return FWDCTL_FAILURE;
     }
 
-    $self->{'logger'}->info("Calling MX.diff");
-
     my @circuits;
     foreach my $ckt_id (keys (%{$circuits})){
 	push(@circuits, $circuits->{$ckt_id});
@@ -1522,7 +1517,7 @@ sub diff {
         return FWDCTL_BLOCKED;
     }
 
-    $self->{'logger'}->info("Diff requires no approval. Starting installation.");
+    $self->{'logger'}->info("Auto diff was initiated. Starting installation.");
 
     return $self->_edit_config(config => $configuration);
 }
@@ -1752,7 +1747,12 @@ sub verify_connection{
         return 0;
     }
 
-    my $sysinfo = $self->get_system_information();
+    my ($sysinfo, $err) = $self->get_system_information();
+    if (defined $err) {
+        $self->{'logger'}->error("Couldn't get system information: $err");
+        return 0;
+    }
+
     foreach my $fw (@{$self->{'supported_firmware'}}) {
         if ($sysinfo->{'os_name'} eq $fw->{'make'} && $sysinfo->{'model'} eq $fw->{'model'} && $sysinfo->{'version'} eq $fw->{'number'} && $sysinfo->{'major_rev'} eq $fw->{'major_rev'}) {
             return 1;

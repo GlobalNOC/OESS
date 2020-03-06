@@ -6,6 +6,11 @@
       <unit>
         <name>[% interface.unit %]</name>
         <description>OESS-L2CCC-[% circuit_id %]</description>
+        [% IF interface.mtu %]
+        <family>
+          <ccc><mtu>[% interface.mtu %]</mtu></ccc>
+        </family>
+        [% END %]
         <encapsulation>vlan-ccc</encapsulation>
         [% IF interface.defined('inner_tag') %]
         <vlan-tags>
@@ -42,6 +47,7 @@
     <mpls>
       <label-switched-path>
         <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]</name>
+
         <apply-groups>L2CCC-LSP-ATTRIBUTES</apply-groups>
         <to>[% dest %]</to>
         [% FOREACH path IN paths %]
@@ -52,7 +58,7 @@
           [% ELSE %]
         <secondary>
           <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
-	  <standby />
+      <standby />
         </secondary>
           [% END %]
         [% END %]

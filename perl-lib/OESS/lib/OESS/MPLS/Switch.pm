@@ -140,7 +140,7 @@ sub create_device_object{
     switch($host_info->{'vendor'}){
         case "Juniper" {
             my $dev;
-            if ($host_info->{'model'} =~ /mx/i) {
+            if ($host_info->{'model'} =~ /mx/i || $host_info->{'model'} =~ /qfx/i) {
                 if ($self->{'config_obj'}->network_type eq 'evpn-vxlan') {
                     $self->{'logger'}->debug("create_device_object: " . Dumper($host_info));
                     $dev = OESS::MPLS::Device::Juniper::VXLAN->new( %$host_info );
@@ -299,11 +299,12 @@ sub _register_rpc_methods{
                                             description => "returns the current connected state of the device");
     $dispatcher->register_method($method);
 
-    $method = GRNOC::RabbitMQ::Method->new( name        => "get_system_info",
-					    callback    => sub {
-						$self->get_system_info();
-					    },
-					    description => "returns the system information");
+    $method = GRNOC::RabbitMQ::Method->new(
+        name        => "get_system_info",
+        async       => 1,
+        callback    => sub { $self->get_system_info(@_); },
+        description => "returns the system information"
+    );
     $dispatcher->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name        => "diff",
@@ -457,12 +458,20 @@ sub add_vlan{
 =head2 get_system_info
 
 =cut
-sub get_system_info{
+sub get_system_info {
     my $self = shift;
-    my $m_ref = shift;
-    my $p_ref = shift;
+    my $method = shift;
+    my $params = shift;
 
-    return $self->{'device'}->get_system_information();
+    my $success = $method->{'success_callback'};
+    my $error   = $method->{'error_callback'};
+
+    my ($info, $err) = $self->{'device'}->get_system_information();
+    if (defined $err) {
+        $self->{'logger'}->error($err);
+        return &$error($err);
+    }
+    return &$success($info);
 }
 
 

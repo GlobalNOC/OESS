@@ -69,9 +69,20 @@ sub get {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if (!$user->is_admin && !$user->in_workgroup($args->{workgroup_id}->{value})) {
+    $user->load_workgroups;
+
+    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id}->{value});
+    if (!defined $workgroup && !$user->is_admin) {
         $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
         return;
+    }
+
+    # If user is an admin and an admin workgroup is selected clear out
+    # the workgroup_id; This returns all Connections. Otherwise filter
+    # by the passed in workgroup_id. An invalid workgroup_id will
+    # simply return nothing.
+    if (defined $workgroup && $workgroup->type eq 'admin') {
+        $args->{workgroup_id}->{value} = undef;
     }
 
     my $circuits = [];
@@ -264,12 +275,15 @@ sub provision {
         my $entity;
         my $interface;
 
-        if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
+        if (defined $ep->{node} && defined $ep->{interface}) {
             $interface = new OESS::Interface(
                 db => $db,
                 name => $ep->{interface},
                 node => $ep->{node}
             );
+        }
+        if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
+            # Continue
         } else {
             $entity = new OESS::Entity(db => $db, name => $ep->{entity});
             $interface = $entity->select_interface(
@@ -391,11 +405,6 @@ sub provision {
                     $ep->{inner_tag} = undef;
                 }
 
-                # Azure endpoints use qnq which require us to reselect
-                # a unit. The initial unit was the selected vlan.
-                # my $update_err = $ep->update_unit;
-                # die $update_err if (defined $update_err);
-
                 my $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }
@@ -480,12 +489,15 @@ sub update {
             my $entity;
             my $interface;
 
-            if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
+            if (defined $ep->{node} && defined $ep->{interface}) {
                 $interface = new OESS::Interface(
                     db => $db,
                     name => $ep->{interface},
                     node => $ep->{node}
                 );
+            }
+            if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
+                # Continue
             } else {
                 $entity = new OESS::Entity(db => $db, name => $ep->{entity});
                 $interface = $entity->select_interface(
@@ -495,7 +507,6 @@ sub update {
                     cloud_account_id => $ep->{cloud_account_id}
                 );
             }
-
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
                 return;
@@ -620,8 +631,6 @@ sub update {
                 if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                     $ep->{unit} = $ep->{tag};
                     $ep->{inner_tag} = undef;
-                } else {
-                    $ep->update_unit;
                 }
 
                 my $update_err = $ep->update_db;

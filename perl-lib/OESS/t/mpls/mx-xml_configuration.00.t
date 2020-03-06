@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 use strict;
 use warnings;
 
@@ -16,9 +17,6 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
     name => 'vmx-r0.testlab.grnoc.iu.edu',
     node_id => 1
 );
-
-my $mock = OESS::Mock->new;
-$device->{jnx} = $mock;
 
 my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></groups><groups><name>OESS</name>
   <interfaces>
@@ -95,12 +93,14 @@ my $conf = $device->xml_configuration(
             {
                 interface => 'ge-0/0/1',
                 unit => 2004,
-                tag => 2004
+                tag => 2004,
+                mtu => 9000
             },
             {
                 interface => 'ge-0/0/2',
                 unit => 2004,
-                tag => 2004
+                tag => 2004,
+                mtu => 9000
             }
         ],
         paths => [],
