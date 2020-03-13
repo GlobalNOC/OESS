@@ -649,26 +649,6 @@ sub find_available_unit{
         $l2a = [$args->{interface_id}, $args->{tag}, $args->{inner_tag}, $args->{tag}];
     }
 
-    # my $l2q = "
-    #     select circuit_edge_interface_membership.circuit_edge_id as circuit_ep_id,
-    #     circuit_edge_interface_membership.extern_vlan_id as tag,
-    #     circuit_edge_interface_membership.*
-    #     from circuit_edge_interface_membership
-    #     where end_epoch=-1 and interface_id=? and extern_vlan_id=? and circuit_id in (
-    #         select circuit.circuit_id
-    #         from circuit
-    #         join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
-    #              and circuit.circuit_state!='decom'
-    #              and circuit_instantiation.circuit_state!='decom'
-    #              and circuit_instantiation.end_epoch=-1
-    #     )
-    # ";
-    # my $l2a = [$args->{interface_id}, $args->{tag}];
-    # if (defined $args->{inner_tag}) {
-    #     $l2q .= " and inner_tag=?";
-    #     push @$l2a, $args->{inner_tag};
-    # }
-
     my $l2r = $args->{db}->execute_query($l2q, $l2a);
     if (@$l2r > 0) {
         if (defined $args->{circuit_ep_id} && $l2r->[0]->{circuit_ep_id} == $args->{circuit_ep_id}) {
