@@ -598,10 +598,11 @@ sub find_available_unit{
     my $l3q = "select vrf_ep.* from vrf_ep join vrf on vrf_ep.vrf_id=vrf.vrf_id and vrf.state!='decom' where vrf_ep.interface_id=? and vrf_ep.tag=? group by vrf_ep_id";
     my $l3a = [$args->{interface_id}, $args->{tag}];
     if (defined $args->{inner_tag}) {
-        $l3q .= " and vrf_ep.inner_tag=?";
-        push @$l3a, $args->{inner_tag};
-    } else {
-        $l3q .= " and inner_tag is NULL";
+        $l3q = "select vrf_ep.* from vrf_ep join vrf on vrf_ep.vrf_id=vrf.vrf_id and vrf.state!='decom'
+                where vrf_ep.interface_id=? and (
+                  (vrf_ep.tag=? and vrf_ep.inner_tag=?) or (vrf_ep.tag=? and vrf_ep.inner_tag is NULL)
+                ) group by vrf_ep_id";
+        $l3a = [$args->{interface_id}, $args->{tag}, $args->{inner_tag}, $args->{tag}];
     }
 
     my $l3r = $args->{db}->execute_query($l3q, $l3a);
@@ -618,21 +619,34 @@ sub find_available_unit{
         circuit_edge_interface_membership.extern_vlan_id as tag,
         circuit_edge_interface_membership.*
         from circuit_edge_interface_membership
-        where end_epoch=-1 and interface_id=? and extern_vlan_id=? and circuit_id in (
+        where end_epoch=-1 and interface_id=? and circuit_id in (
             select circuit.circuit_id
             from circuit
             join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
                  and circuit.circuit_state!='decom'
                  and circuit_instantiation.circuit_state!='decom'
                  and circuit_instantiation.end_epoch=-1
-        )
+        ) and extern_vlan_id=?
     ";
     my $l2a = [$args->{interface_id}, $args->{tag}];
     if (defined $args->{inner_tag}) {
-        $l2q .= " and inner_tag=?";
-        push @$l2a, $args->{inner_tag};
-    } else {
-        $l2q .= " and inner_tag is NULL";
+        $l2q = "
+          select circuit_edge_interface_membership.circuit_edge_id as circuit_ep_id,
+          circuit_edge_interface_membership.extern_vlan_id as tag,
+          circuit_edge_interface_membership.*
+          from circuit_edge_interface_membership
+          where end_epoch=-1 and interface_id=? and circuit_id in (
+              select circuit.circuit_id
+              from circuit
+              join circuit_instantiation on circuit.circuit_id=circuit_instantiation.circuit_id
+                   and circuit.circuit_state!='decom'
+                   and circuit_instantiation.circuit_state!='decom'
+                   and circuit_instantiation.end_epoch=-1
+          ) and (
+              (extern_vlan_id=? and inner_tag=?) or (extern_vlan_id=? and inner_tag is NULL)
+          )
+        ";
+        $l2a = [$args->{interface_id}, $args->{tag}, $args->{inner_tag}, $args->{tag}];
     }
 
     my $l2r = $args->{db}->execute_query($l2q, $l2a);
