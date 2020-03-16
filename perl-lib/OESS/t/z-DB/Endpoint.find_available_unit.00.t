@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 5;
+use Test::More tests => 7;
 
 use OESSDatabaseTester;
 
@@ -97,3 +97,17 @@ my $unit4 = OESS::DB::Endpoint::find_available_unit(
     tag => 201
 );
 ok($unit4 == 201, 'Unit returned for available VLAN.');
+
+my $unit5 = OESS::DB::Endpoint::find_available_unit(
+    db => $db,
+    interface_id => 391,
+    tag => 601
+);
+ok($unit5 == 601, "Unit returned for available VLAN which was previously decom'd l2 endpoint.");
+
+my $unit6 = OESS::DB::Endpoint::find_available_unit(
+    db => $db,
+    interface_id => 391,
+    tag => 40
+);
+ok($unit6 == 40, "Unit returned for available VLAN which was previously decom'd l3 endpoint.");
