@@ -1,0 +1,30 @@
+---
+layout: api
+---
+<article class="post">
+  <header class="post-header">
+    <h1 class="post-title">{{ page.title | escape }}</h1>
+  </header>
+
+  <div class="post-content">
+    {{ content }}
+
+    {% for cgi_method in site.data.api.vrf %}
+    {% assign method = cgi_method[1] %}
+
+      <br/>
+      <hr/>
+      <br/>
+
+      <h2>{{ method.name }}</h2>
+      <p>{{ method.description }}</p>
+
+      {% for input_param in method.input_params %}
+      {% assign param = input_param[1] %}
+        <h4>{{ param.name }} {% if param.required == 1 %}<i style="font-size: .75em">required</i>{% endif %}</h4>
+        <p>{{ param.description }}</p>
+      {% endfor %}
+
+    {% endfor %}
+  </div>
+</article>

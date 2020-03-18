@@ -1,0 +1,15 @@
+pages:
+  # - title: Frontend
+  #   url: /frontend
+
+  - title: Administration
+    url: /frontend/administration.html
+
+  - title: Provisioning
+    url: /frontend/provisioning.html
+
+  - title: Explore
+    url: /frontend/explore.html
+
+  - title: Workgroup
+    url: /frontend/workgroup.html
