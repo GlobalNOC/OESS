@@ -204,7 +204,7 @@ sub circuit_vlans_in_use{
 
 =head2 update
 
-    OESS::DB::Interface::update(
+    my $err = OESS::DB::Interface::update(
         db => $db,
         interface => {
             interface_id            => 1,
@@ -219,16 +219,19 @@ sub circuit_vlans_in_use{
             workgroup_id            => 1                        # Optional
         }
     );
+    die $err if defined $err;
 
 =cut
 sub update {
     my $args = {
-        db  => undef,
-        interface => {},
+        db        => undef,
+        interface => undef,
         @_
     };
 
-    return if !defined $args->{interface}->{interface_id};
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `interface` is missing.' if !defined $args->{interface};
+    return 'Required argument `interface->interface_id` is missing.' if !defined $args->{interface}->{interface_id};
 
     my $params = [];
     my $values = [];
@@ -273,10 +276,14 @@ sub update {
     my $fields = join(', ', @$params);
     push @$values, $args->{interface}->{interface_id};
 
-    return $args->{db}->execute_query(
+    my $ok = $args->{db}->execute_query(
         "UPDATE interface SET $fields WHERE interface_id=?",
         $values
     );
+    if (!defined $ok) {
+        return $args->{db}->get_error;
+    }
+    return;
 }
 
 =head2 get_available_internal_vlan
