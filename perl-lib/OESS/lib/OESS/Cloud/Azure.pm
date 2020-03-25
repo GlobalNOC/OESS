@@ -78,6 +78,7 @@ sub new {
 
     $self->{creds} = XML::Simple::XMLin($self->{config});
     $self->{connections} = {};
+    $self->{resource_groups} = {};
 
     foreach my $conn (@{$self->{creds}->{cloud}->{connection}}) {
         if ($conn->{interconnect_type} ne 'azure-express-route') {
@@ -113,6 +114,7 @@ sub new {
         $conn->{http}->default_header(Authorization => "Bearer $conn->{access_token}");
 
         $self->{connections}->{$conn->{interconnect_id}} = $conn;
+        $self->{resource_groups}->{$conn->{interconnect_id}} = $conn->{resource_group};
     }
 
     return $self;
@@ -432,8 +434,12 @@ sub allExpressRouteCrossConnections {
 
 =head2 get_cross_connection_by_id
 
-get_cross_connection_by_id very slowly gets an Azure CrossConnection
-by ID (Microsoft doesn't provide a better method of doing this).
+    my ($conn, $err) = get_cross_connection_by_id($interconnect_id, $service_key);
+    die $err if defined $err;
+
+get_cross_connection_by_id gets an Azure CrossConnection by Service
+Key. The C<interconnect_id> is required to lookup the correct Azure
+ResourceGroup and auth'd web client.
 
 The result includes C<properties.primaryAzurePort> and
 C<properties.secondaryAzurePort>. These may be used to lookup the
@@ -447,23 +453,16 @@ sub get_cross_connection_by_id {
 
     my $conn = $self->{connections}->{$interconnect_id};
     my $sub  = $conn->{subscription_id};
+    my $resource_group = $self->{resource_groups}->{$interconnect_id};
 
     my $api_response = $conn->{http}->get(
-        "https://management.azure.com/subscriptions/$sub/providers/Microsoft.Network/expressRouteCrossConnections/?api-version=2018-12-01"
+        "https://management.azure.com/subscriptions/$sub/resourceGroups/$resource_group/providers/Microsoft.Network/expressRouteCrossConnections/$service_key?api-version=2018-12-01"
     );
     my $api_data = decode_json($api_response->content);
-
-    foreach my $v (@{$api_data->{value}}) {
-        if ($v->{name} eq $service_key) {
-            $api_response = $conn->{http}->get(
-                "https://management.azure.com/$v->{id}/?api-version=2018-12-01"
-            );
-            $api_data = decode_json($api_response->content);
-            return $api_data;
-        }
+    if (defined $api_data->{error}) {
+        return (undef, $api_data->{error}->{message});
     }
-
-    return undef;
+    return ($api_data, undef);
 }
 
 return 1;
