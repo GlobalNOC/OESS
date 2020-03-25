@@ -202,6 +202,116 @@ sub circuit_vlans_in_use{
     return \@tags;
 }
 
+=head2 create
+
+    my ($id, $err) = OESS::DB::Interface::create(
+        db    => $db,
+        model => {
+            cloud_interconnect_id   => undef,      # Optional
+            cloud_interconnect_type => undef,      # Optional
+            description             => 'BACKBONE',
+            mpls_vlan_tag_range     => '1-4095',   # Optional
+            name                    => 'ae0',
+            node_id                 => 100,
+            operational_state       => 'up',
+            role                    => 'unknown',  # Optional
+            vlan_tag_range          => '-1',       # Optional
+            workgroup_id            => 100,        # Optional
+            speed                   => 10000,      # Optional
+            mtu                     => 9000        # Optional
+        }
+    );
+
+MariaDB [oess]> desc interface;
++-------------------------+------------------------------------+------+-----+-----------+----------------+
+| Field                   | Type                               | Null | Key | Default   | Extra          |
++-------------------------+------------------------------------+------+-----+-----------+----------------+
+| interface_id            | int(10)                            | NO   | PRI | NULL      | auto_increment |
+| name                    | varchar(255)                       | NO   |     | NULL      |                |
+| port_number             | int(10)                            | YES  |     | NULL      |                |
+| description             | varchar(255)                       | NO   |     | NULL      |                |
+| cloud_interconnect_type | varchar(255)                       | YES  |     | NULL      |                |
+| cloud_interconnect_id   | varchar(255)                       | YES  |     | NULL      |                |
+| operational_state       | enum('unknown','up','down')        | NO   |     | unknown   |                |
+| role                    | enum('unknown','trunk','customer') | NO   |     | unknown   |                |
+| node_id                 | int(10)                            | NO   | MUL | NULL      |                |
+| vlan_tag_range          | varchar(255)                       | YES  |     | -1,1-4095 |                |
+| mpls_vlan_tag_range     | varchar(255)                       | YES  |     | NULL      |                |
+| workgroup_id            | int(10)                            | YES  | MUL | NULL      |                |
++-------------------------+------------------------------------+------+-----+-----------+----------------+
+12 rows in set (0.00 sec)
+
+MariaDB [oess]> desc interface_instantiation;
++---------------+-----------------------------+------+-----+---------+-------+
+| Field         | Type                        | Null | Key | Default | Extra |
++---------------+-----------------------------+------+-----+---------+-------+
+| interface_id  | int(10)                     | NO   | PRI | NULL    |       |
+| end_epoch     | int(10)                     | NO   | PRI | NULL    |       |
+| admin_state   | enum('unknown','up','down') | NO   |     | unknown |       |
+| start_epoch   | int(10)                     | NO   |     | NULL    |       |
+| capacity_mbps | int(10)                     | NO   |     | NULL    |       |
+| mtu_bytes     | int(10)                     | NO   |     | NULL    |       |
++---------------+-----------------------------+------+-----+---------+-------+
+6 rows in set (0.00 sec)
+
+=cut
+sub create {
+    my $args = {
+        db    => undef,
+        model => undef,
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `modal` is missing.' if !defined $args->{modal};
+    return 'Required argument `modal->description` is missing.' if !defined $args->{modal}->{description};
+    return 'Required argument `modal->name` is missing.' if !defined $args->{modal}->{name};
+    return 'Required argument `modal->node_id` is missing.' if !defined $args->{modal}->{node_id};
+    return 'Required argument `modal->operational_state` is missing.' if !defined $args->{modal}->{operational_state};
+    return 'Required argument `modal->role` is missing.' if !defined $args->{modal}->{role};
+
+    $args->{model}->{cloud_interconnect_id} = (exists $args->{model}->{cloud_interconnect_id}) ? $args->{model}->{cloud_interconnect_id} : undef;
+    $args->{model}->{cloud_interconnect_type} = (exists $args->{model}->{cloud_interconnect_type}) ? $args->{model}->{cloud_interconnect_type} : undef;
+    $args->{model}->{mpls_vlan_tag_range} = (exists $args->{model}->{mpls_vlan_tag_range}) ? $args->{model}->{mpls_vlan_tag_range} : '1-4095';
+    $args->{model}->{role} = (exists $args->{model}->{role}) ? $args->{model}->{role} : 'unknown';
+    $args->{model}->{vlan_tag_range} = (exists $args->{model}->{vlan_tag_range}) ? $args->{model}->{vlan_tag_range} : '-1';
+    $args->{model}->{workgroup_id} = (exists $args->{model}->{workgroup_id}) ? $args->{model}->{workgroup_id} : undef;
+    $args->{model}->{speed} = (exists $args->{model}->{speed}) ? $args->{model}->{speed} : 10000;
+    $args->{model}->{mtu} = (exists $args->{model}->{mtu}) ? $args->{model}->{mtu} : 9000;
+
+    my $q1 = "INSERT into interface (name, port_number, description, cloud_interconnect_id, cloud_interconnect_type, operational_state, role, node_id, vlan_tag_range, mpls_vlan_tag_range, workgroup_id)
+              VALUES (?,NULL,?,?,?,?,?,?,?,?,?)";
+    my $interface_id = $args->{db}->execute_query($q1, [
+        $args->{model}->{name},
+        $args->{model}->{description},
+        $args->{model}->{cloud_interconnect_id},
+        $args->{model}->{cloud_interconnect_type},
+        $args->{model}->{operational_state},
+        $args->{model}->{role},
+        $args->{model}->{node_id},
+        $args->{model}->{vlan_tag_range},
+        $args->{model}->{mpls_vlan_tag_range},
+        $args->{model}->{workgroup_id}
+    ]);
+    if (!defined $interface_id) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $q2 = "INSERT INTO interface_instantiation (interface_id, end_epoch, start_epoch, admin_state, capacity_mbps, mtu_bytes)
+              VALUES (?, -1, unix_timestamp(now()), ?, ?, ?)";
+    my $ok = $args->{db}->execute_query($q2, [
+        $interface_id,
+        $args->{model}->{admin_state},
+        $args->{model}->{speed},
+        $args->{model}->{mtu}
+    ]);
+    if (!defined $ok) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    return ($interface_id, undef);
+}
+
 =head2 update
 
     my $err = OESS::DB::Interface::update(
