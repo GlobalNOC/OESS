@@ -7,6 +7,7 @@ package OESS::Entity;
 
 use Log::Log4perl;
 
+use OESS::Cloud::Azure;
 use OESS::DB::Endpoint;
 use OESS::DB::Entity;
 use OESS::User;
@@ -241,6 +242,8 @@ sub select_interface {
         $self->{logger}->warn('Interface selection may not return accurate results as database object not defined.');
     }
 
+    my $azure = new OESS::Cloud::Azure();
+
     # Get number of Endpoints using the provided azure service key.
     # If cloud_account_id is already in use on another endpoint we'll
     # want to select the interface associated with the secondary azure
@@ -280,12 +283,16 @@ sub select_interface {
                 return undef;
             }
 
-            if ($intf->cloud_interconnect_id =~ /PRI/ && $cloud_account_ep_count == 0) {
-                # Only select if interface contains 'PRI'
+            my ($conn, $err) = $azure->get_cross_connection_by_id($intf->cloud_interconnect_id, $args->{cloud_account_id});
+            if (defined $err) {
+                $self->{logger}->error($err);
+                next;
+            }
+
+            if ($cloud_account_ep_count == 0 && $intf->cloud_interconnect_id eq $conn->{properties}->{primaryAzurePort}) {
                 warn 'Selecting primary Azure port.';
             }
-            elsif ($intf->cloud_interconnect_id =~ /SEC/ && $cloud_account_ep_count == 1) {
-                # Only select if interface contains 'SEC'
+            elsif ($cloud_account_ep_count == 1 && $intf->cloud_interconnect_id eq $conn->{properties}->{secondaryAzurePort}) {
                 warn 'Selecting secondary Azure port.';
             }
             else {
