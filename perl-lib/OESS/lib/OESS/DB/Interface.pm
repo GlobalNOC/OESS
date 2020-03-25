@@ -221,7 +221,7 @@ sub circuit_vlans_in_use{
             mpls_vlan_tag_range     => '1-4095',   # Optional
             name                    => 'ae0',
             node_id                 => 100,
-            operational_state       => 'unknown',  # Optional
+            operational_state       => 'up',
             role                    => 'unknown',  # Optional
             vlan_tag_range          => '-1',       # Optional
             workgroup_id            => 100,        # Optional
