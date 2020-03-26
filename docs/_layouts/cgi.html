@@ -7,6 +7,8 @@ layout: api
   </header>
 
   <div class="post-content">
+    {{ content }}
+
     {% assign cgi_module = site.data.api[page.name] %}
 
     {% for cgi_method in cgi_module %}
