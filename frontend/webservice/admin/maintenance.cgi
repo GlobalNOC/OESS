@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl
 #
 ##----- NDDI OESS maintenance.cgi
 ##-----
@@ -61,9 +61,14 @@ sub main {
 	exit(1);
     }
 
-    my $user = $db->get_user_by_id(user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0];
+    my $user = $db->get_user_by_id(user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}));
+    if (!defined $user) {
+        send_json({"error" => "Unable to lookup user."});
+        exit(1);
+    }
+    $user = $user->[0];
     if ($user->{'status'} eq 'decom') {
-	send_json("error");
+	send_json({"error" => "Unable to lookup user."});
 	exit(1);
     }
 

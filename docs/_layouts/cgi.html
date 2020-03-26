@@ -7,10 +7,10 @@ layout: api
   </header>
 
   <div class="post-content">
-    {{ content }}
+    {% assign cgi_module = site.data.api[page.name] %}
 
-    {% for cgi_method in site.data.api.vrf %}
-    {% assign method = cgi_method[1] %}
+    {% for cgi_method in cgi_module %}
+      {% assign method = cgi_method[1] %}
 
       <br/>
       <hr/>
@@ -24,7 +24,6 @@ layout: api
         <h4>{{ param.name }} {% if param.required == 1 %}<i style="font-size: .75em">required</i>{% endif %}</h4>
         <p>{{ param.description }}</p>
       {% endfor %}
-
     {% endfor %}
   </div>
 </article>
