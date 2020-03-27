@@ -4,22 +4,47 @@ title: Provisioning
 layout: frontend
 ---
 
-From the provisioning page, OESS will guide you through several steps,
-the culmination of which is a working circuit.
+From the provisioning page, users are able to create network
+connections by providing some basic details about their desired
+connections and then selecting the networks they wish to connect with.
 
 ## Details
 
-**img**
+Each connection is identified by its description and is provisioned
+according the schedule defined by the user.
+
+![connection-details](/assets/img/frontend/provisioning/connection-details.png)
 
 ## Endpoints
 
-On the same page where you set the circuit's description, you also
-choose the circuit's endpoints. A circuit must have at least two
+Once the user has provided a description of the connection and
+determined when it shall be provisioned, the user may select the
+networks they wish to connect with. Click the New Endpoint button and
+a modal which contains a hierarchical view of the available networks
+will be displayed. Navigate the hierarchy to find your desired
+endpoints and then click Add Endpoint.
+
+<center>
+    <img src="/assets/img/frontend/provisioning/new-endpoint-selected.png" width="50%"/>
+</center>
+
+### Peers
+
+When creating a Layer 3 Connection an additional button will appear
+after adding an endpoint. Click the New Peering button and a modal
+which allows for the defnitiion of a BGP peering will be
+defined. Enter the required details and then press Adding Peering.
+
+<center>
+    <img src="/assets/img/frontend/provisioning/new-peering.png" width="50%"/>
+</center>
+
+### Public Cloud Providers
+
+OESS supports provisiong connections to AWS, Microsoft Azure, and
+Google Cloud Platform. As provisioning for each cloud is slightly
+different, use the videos in this section to setup your cloud enabled
 endpoints.
-
-**img**
-
-### Cloud Provider Endpoints
 
 #### AWS Hosted Connection
 
@@ -31,6 +56,12 @@ endpoints.
 
 #### Google Partner Interconnect
 
-## BGP Peers
+## Saving the Connection
 
-**img**
+Once you've defined the connection's details and created at least two
+endpoints you may save your connection. Click the save button in the
+upper right corner of the page. After a few moments the connection
+will be provisioned and you will be redirected to the connection's
+details page.
+
+![connection-details-3](/assets/img/frontend/provisioning/connection-details-3.png)
