@@ -4,72 +4,49 @@ title: Frontend
 permalink: /frontend/
 ---
 
-This section describes how to use the OESS web interface to create
-layer-2 circuits across the configured OpenFlow and/or MPLS
-infrastructure. It assumes that you have already installed and
-configured OESS, that nodes have been configured in OESS and links
-discovered, and that workgroups and users have been defined.
+This section describes how to use the OESS web interface. It assumes
+that you have already installed and configured OESS, that nodes have
+been configured in OESS and links discovered, and that workgroups and
+users have been defined.
 
 ## Logging In
 
-Upon successful login, you will be presented with a page to choose
-which workgroup you will work as; the page also lists current features
-and known issues. In all parts of the UI, if you run into issues you
-can select the Feedback button to email the developers. If your
-account has been granted administration rights, you will also see an
-Admin button on the upper right.
+After the user has logged in, they will be forwarded to the user's
+homepage. From this page the user may view all Connections to which
+they have access, modify or delete existing Connections, change the
+user's selected workgroup, and create new Connections.
 
-**img**
+![user-homepage](/assets/img/frontend/user-homepage.png)
 
-## Creating a Connection
+## Network Connections
 
-To create a new connection, select the connection type from the `New
-Connection` dropdown menu in the site navigation bar. From there, the
-system will guide you through several steps, the culmination of which
-is a working circuit.
+The connections that the user has access to are listed on the user
+homepage. By selecting the down arrow on a listed connection the user
+is shown a more detailed view of the connection. Selecting the trash
+icon will delete the connection. The user will be prompted for
+verification prior to the removal. Selecting the eye icon will forward
+the user to the connection's details page. From this page the user is
+given even more options which are
+described [here](/frontend/provisioning).
 
-## Explore
+## Workgroup Selection
 
-Use this section of the site to browse destination networks and their
-relationships with eachother.
+Each user belongs to one or more workgroups. To change the selected
+workgroup, click the workgroup selection dropdown in the rightmost
+corner of the navigation bar and select the desired workgroup. If the
+user account has been granted administration rights, all workgroups
+will be listed and available for selection; These users will also see
+a link to the admin section next to the workgroup selection dropdown.
 
-**img**
+## New Connections
 
-## Workgroups
+To create a new connection, click the new connection dropdown in the
+navigation bar and select either "Layer 2" or "Layer 3". From there,
+you will be redirected to the the Connection Creation
+page. See [here](/frontend/provisioning) for a detailed look at
+creating a new connection.
 
-Each user belongs to one or more workgroups. A workgroup allows a
-group of users to jointly manage a set of resources - a workgroup may
-own network interfaces and circuits (also called VLANs in a couple of
-places in OESS). Once a workgroup is selected, you can then select
-from one of six options: view the Active VLANS, view the current
-Network Status, view the Available Resources (the interfaces (and VLAN
-tags thereupon) the workgroup may use when creating circuits), get a
-list of other Users in the workgroup, perform Actions such as creating
-a new circuit, or manage the ACL rules for the interfaces the
-workgroup owns.
+## Troubleshooting
 
-**img**
-
-The Active VLANS tab lets you see all the circuits your workgroup
-owns, as well as other circuits using your workgroup's interfaces (the
-latter show up in gray text). Search allows you to filter based on the
-contents of the circuit descriptions. The table also can be filtered
-to contain only circuits with endpoints on a particular node or that
-have paths that go over a particular node. Clicking on a row in this
-table will take you to the Circuit Details for that circuit, where you
-can look at live traffic or edit the circuit.
-
-## Circuit Details
-
-The Circuit Details page is where you go to examine or change a
-particular circuit. It shows the circuit's description, its endpoints,
-and its metadata. When you first go to the page, you'll see the
-circuit's path through the network and live network Utilization. The
-History tab shows the history of the circuit and who has edited it in
-the past. Scheduled Events shows any actions that have been scheduled
-for the future, such as edits and removals. The Circuit Layout tab
-shows a text representation of the circuit design, and for
-OpenFlow-based circuits, the Raw Circuit Layout tab displays the
-OpenFlow rules used to construct the circuit.
-
-**img**
+If you encounter an issue you may use the Feedback link in the site
+footer to email the developers.
