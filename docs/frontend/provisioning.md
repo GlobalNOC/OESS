@@ -48,11 +48,15 @@ endpoints.
 
 #### AWS Hosted Connection
 
+<center>
 <iframe width="560" height="315" src="https://www.youtube.com/embed/J-L-JtDdKfE" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</center>
 
 #### Microsoft ExpressRoute
 
+<center>
 <iframe width="560" height="315" src="https://www.youtube.com/embed/LAcFWk_OiKY" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</center>
 
 #### Google Partner Interconnect
 
