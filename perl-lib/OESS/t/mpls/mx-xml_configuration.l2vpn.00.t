@@ -25,9 +25,6 @@ my $exp_xml = '<configuration>
         <unit>
           <name>2004</name>
           <description>OESS-L2VPN-3012</description>
-          <family>
-            <ccc><mtu>9000</mtu></ccc>
-          </family>
           <encapsulation>vlan-ccc</encapsulation>
           <vlan-tags>
             <outer>2004</outer>
