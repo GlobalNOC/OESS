@@ -221,17 +221,6 @@ my $expected_config = '<configuration><groups><name>OESS</name>
     </interface>
     
   </interfaces>
-  <class-of-service>
-    <interfaces>
-      <interface>
-        <name>ge-0/0/2</name>
-        <unit>
-          <name>2004</name>
-          <shaping-rate><rate>50m</rate></shaping-rate>
-        </unit>
-      </interface>
-    </interfaces>
-  </class-of-service>
   <routing-instances>
     <instance>
       <name>OESS-L2VPLS-3012</name>

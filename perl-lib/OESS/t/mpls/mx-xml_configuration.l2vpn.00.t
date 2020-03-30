@@ -52,18 +52,6 @@ my $exp_xml = '<configuration>
       </interface>
     </interfaces>
 
-    <class-of-service>
-      <interfaces>
-        <interface>
-          <name>ge-0/0/1</name>
-          <unit>
-            <name>2004</name>
-            <shaping-rate><rate>50m</rate></shaping-rate>
-          </unit>
-        </interface>
-      </interfaces>
-    </class-of-service>
-
   <routing-instances>
     <instance>
       <name>OESS-L2VPN-3012</name>

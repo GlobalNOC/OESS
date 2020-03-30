@@ -184,16 +184,6 @@ my $expected_config = "<configuration><groups><name>OESS</name>
     </interface>
     
   </interfaces>
-  <class-of-service>
-    <interfaces>
-      <interface>
-        <name>ge-0/0/2</name>
-        <unit operation=\'delete\'>
-          <name>2004</name>
-        </unit>
-      </interface>
-    </interfaces>
-  </class-of-service>
   
   <protocols>
     <mpls>
