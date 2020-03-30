@@ -5,11 +5,14 @@ pages:
   - title: Administration
     url: /frontend/administration.html
 
-  - title: Provisioning
-    url: /frontend/provisioning.html
-
   - title: Explore
     url: /frontend/explore.html
+
+  - title: Glossary
+    url: /frontend/glossary.html
+
+  - title: Provisioning
+    url: /frontend/provisioning.html
 
   - title: Workgroup
     url: /frontend/workgroup.html
