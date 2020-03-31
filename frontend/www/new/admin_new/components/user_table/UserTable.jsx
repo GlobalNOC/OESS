@@ -8,7 +8,8 @@ export default class UsersTable extends React.Component {
     constructor(props) {
         super(props);
 	this.pageUpdate = this.pageUpdate.bind(this);
-        this.state = {
+        this.getUsersFromAPI = this.getUsersFromAPI.bind(this);
+	this.state = {
             users: [{
                 "auth_name": [],
                 "email_address": "",
@@ -23,13 +24,25 @@ export default class UsersTable extends React.Component {
         };
     }
 
-    componentDidMount(props) {
+    getUsersFromAPI(){
+
 	let currComponent =  this;
-	getUsers().then(function (u) { 	     
+        getUsers().then(function (u) {
             currComponent.setState({
                 users: u
             })
         });
+    }
+
+    componentDidMount(props) {
+	/*let currComponent =  this;
+	getUsers().then(function (u) { 	     
+            currComponent.setState({
+                users: u
+            })
+        });*/
+
+	this.getUsersFromAPI();	
     }
 
     componentDidUpdate() {
@@ -109,7 +122,7 @@ export default class UsersTable extends React.Component {
             // from total result, get current page to offset * per page, set to data and send to the component 
             return (
 		    <div>
-			<TableTemplate data={users_data} />
+			<TableTemplate data={users_data} dataRefresh={()=>{this.getUsersFromAPI}} />
 			
 			<div id="user_table_nav">
                 		<nav aria-label="Page navigation example">

@@ -11,8 +11,10 @@ class UserLandingPage extends React.Component {
 		this.state={
 		     user: [],
 		     isVisible: false,
-		     rowdata:{}
+		     rowdata:{},
+		     searchquery:""
 		};
+		this.updateSearchQuery = this.updateSearchQuery.bind(this);
 	}
 
 	componentDidMount(props) {
@@ -30,6 +32,16 @@ class UserLandingPage extends React.Component {
              currComponent.setState({isVisible:true, rowdata:rowdata});
    	}
 
+	updateSearchQuery(event)
+	{
+	
+		const target = event.target;
+        	const name = target.name;
+        	var value = target.value;
+
+        	if(event.key === 'Enter')
+			this.setState({searchquery:value});
+	}
 
 	render(){
 		var currComponent = this;
@@ -48,13 +60,13 @@ class UserLandingPage extends React.Component {
             <br/>
             <div id="user_search_div">
                 <label htmlFor="user_search" id="user_search_label">Search</label>
-                <input type="text" className="form-control" size="25" id="user_search"/>
+                <input type="search" name="user_search"  className="form-control" size="25" id="user_search" onKeyDown={this.updateSearchQuery}/>
             </div>
             <br/>
             <br/>
             <p id="soft_title"> Existing Users</p>
             <center>
-		<UsersTable/>
+		<UsersTable query={this.seachquery}/>
             </center>
             <br/>
             <br/>
