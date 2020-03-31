@@ -9,6 +9,7 @@ export default class UsersTable extends React.Component {
         super(props);
 	this.pageUpdate = this.pageUpdate.bind(this);
         this.getUsersFromAPI = this.getUsersFromAPI.bind(this);
+	this.searchquery = this.props.query;
 	this.state = {
             users: [{
                 "auth_name": [],
@@ -94,6 +95,9 @@ export default class UsersTable extends React.Component {
 		rowstart = this.state.offset* (this.state.curr_page-1);	
 	    }
 	    var obj  = this.state.users;
+	    if(this.searchquery != ""){
+	    	console.log(this.searchquery);
+	    }
 	    for(var i= rowstart ; i< this.state.curr_page * this.state.offset ; i++){
 		var userinfo = {};
 		if(obj[i] != null || obj[i] != undefined){

@@ -66,7 +66,7 @@ class UserLandingPage extends React.Component {
             <br/>
             <p id="soft_title"> Existing Users</p>
             <center>
-		<UsersTable query={this.seachquery}/>
+		<UsersTable query={this.state.searchquery}/>
             </center>
             <br/>
             <br/>
