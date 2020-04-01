@@ -1010,7 +1010,7 @@ CREATE TABLE `vrf` (
   KEY `workgroup_id` (`workgroup_id`),
   KEY `created_by` (`created_by`),
   KEY `last_modified_by` (`last_modified_by`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1019,7 +1019,7 @@ CREATE TABLE `vrf` (
 
 LOCK TABLES `vrf` WRITE;
 /*!40000 ALTER TABLE `vrf` DISABLE KEYS */;
-INSERT INTO `vrf` VALUES (1,'Test','Test',21,'active',1,1,0,1,7),(2,'Test_2','Test_2',21,'active',1,881,0,881,7),(3,'Test_3','Test_3 get_vrfs',241,'active',1,881,0,881,7);
+INSERT INTO `vrf` VALUES (1,'Test','Test',21,'active',1,1,0,1,7),(2,'Test_2','Test_2',21,'active',1,881,0,881,7),(3,'Test_3','Test_3 get_vrfs',241,'active',1,881,0,881,7),(4,'Test_4','vlan tagged decomd',21,'decom',1,881,1,881,7),(5,'Test_5','qinq tagged decomd',21,'decom',1,881,1,881,7);
 /*!40000 ALTER TABLE `vrf` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1043,7 +1043,7 @@ CREATE TABLE `vrf_ep` (
   PRIMARY KEY (`vrf_ep_id`),
   KEY `vrf_id` (`vrf_id`),
   KEY `interface_id` (`interface_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1052,7 +1052,7 @@ CREATE TABLE `vrf_ep` (
 
 LOCK TABLES `vrf_ep` WRITE;
 /*!40000 ALTER TABLE `vrf_ep` DISABLE KEYS */;
-INSERT INTO `vrf_ep` VALUES (2,NULL,3,1000,2,391,'active',3,9000),(3,3,3,50,3,1,'active',5001,9000);
+INSERT INTO `vrf_ep` VALUES (2,NULL,3,1000,2,391,'active',3,9000),(3,3,3,50,3,1,'active',5001,9000),(4,NULL,40,50,4,391,'decom',40,9000),(5,NULL,40,50,4,1,'decom',40,9000),(6,21,20,50,5,391,'decom',5000,9000),(7,21,20,50,5,1,'decom',5000,9000);
 /*!40000 ALTER TABLE `vrf_ep` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1185,4 +1185,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-10-01  0:44:58
+-- Dump completed on 2020-03-16 15:43:43

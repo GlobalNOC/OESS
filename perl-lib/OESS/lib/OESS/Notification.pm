@@ -179,7 +179,10 @@ sub vrf_notification{
         $self->{'log'}->error("No VRF was specified");
         return;
     }
-    
+    $vrf->load_endpoints;
+    $vrf->load_users;
+    $vrf->load_workgroup;
+
     my $subject = "OESS Notification: VRF '" . $vrf->{'description'} . "' ";
     #no bulk notifications for MPLS VRFs
     switch($p_ref->{'type'}{'value'}){

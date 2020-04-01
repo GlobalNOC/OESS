@@ -6,11 +6,6 @@
       <unit>
         <name>[% interface.unit %]</name>
         <description>OESS-L2CCC-[% circuit_id %]</description>
-        [% IF interface.mtu %]
-        <family>
-          <ccc><mtu>[% interface.mtu %]</mtu></ccc>
-        </family>
-        [% END %]
         <encapsulation>vlan-ccc</encapsulation>
         [% IF interface.defined('inner_tag') %]
         <vlan-tags>
