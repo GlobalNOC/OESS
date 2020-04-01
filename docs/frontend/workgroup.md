@@ -4,36 +4,58 @@ title: Workgroup
 layout: frontend
 ---
 
+Each user belongs to one or more workgroups. A workgroup allows a
+group of users to jointly manage Device Interfaces and network
+Connections (sometimes called VLANs or Circuits).
+
 ## Interface ACLs
 
-Within OESS an ACL is nothing more than a combination of the
-following:
+The ACL section displays a list of all of the interfaces owned by the
+user's selected workgroup. This section allows you to view the current
+ACL rules applied to a given interface. These rules can be added,
+edited, removed, and reordered.
 
-- Interface
-- VLAN Range
-- Associated Workgroup
-- Entity
+To view the ACL rules currently applied to a given interface, click on
+the row for that interface in the Interfaces owned by this Workgroup
+table. An Interface ACL table containing the rules will be
+displayed. Each rule allows or denies a workgroup (or all workgroups)
+the right to use a range of VLAN tags as circuit endpoints. The rules
+are executed top to bottom, using first-match-wins semantics.
 
-For now let's ignore the Entity and focus on the first three
-components of an ACL. When combined, `Interface`, `VLAN Range`, and
-`Workgroup` define a set of VLANs which may be used for provisioning
-purposes.
+![interface-acls](/assets/img/frontend/workgroup/interface-acls.png)
 
-Consider the following example ACLs:
+### Adding an ACL Rule
 
-State | Workgroup | Interface | Low | High
---- | --- | --- | ---
-Allow | Alpha | rtsw-1.example.net - xe-7/0/1 | 100 | 199
-Allow | Bravo | rtsw-1.example.net - xe-7/0/1 | 200 | 299
+To add an ACL rule, click the Add ACL button. A dialog box will be
+displayed containing the following fields:
 
-In this example workgroup `Alpha` may provision an Endpoint on
-Interface `xe-7/0/1`, using VLANs `100 - 199` inclusive. Attempting to
-provision an Endpoint on any other VLAN outside the designated range
-by workgroup `Alpha` would **not** be permitted. Workgroup `Bravo` has
-a similar restriction, except that its restricted to VLANs `200 -
-299`.
+- Workgroup: The workgroup that the rule should be applied to; as a
+  special case, a rule can also apply to All workgroups.
+- Entity: The searchable name which identifies this set of network
+  resources.
+- Permission: Whether this rule should allow or deny the workgroup
+  access to the specified range of VLAN tags
+- VLAN Range: The range of VLAN tags that this rule should apply to
+  (the second field can be left blank to apply the rule to a single
+  tag)
+- Notes: Any notes that the user may wish to be add about the rule
+                
+Once the fields have been filled out, click the Create ACL button.
 
-Turning lastly to the Entity, it's best to think of an Entity as a
-single Network Destination.
+### Editing an ACL Rule
 
-![simple entity](/assets/img/frontend/workgroup/simple_entity.png)
+To edit an ACL rule, click the edit icon button on the desired ACL. A
+dialog box identical to the Add Interface ACL dialog will appear with
+the current values filled out. Modify the fields and click the Save
+changes button to apply the changes (or Close to discard the changes).
+
+### Removing an ACL Rule
+
+To remove an ACL rule, click the delete icon button on the desired
+ACL. A confirmation dialog box will appear. Click OK to remove the
+rule.
+
+### Reordering ACL Rules
+
+To reorder the existing ACL rules, click up or down icon buttons on
+the desired ACL.
