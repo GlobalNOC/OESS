@@ -97,51 +97,6 @@ administrator to configure the profile of the device, and verify that
 the device is suppose to be part of the network.  This prevents
 unintended devices from becoming a part of the OESS network.
 
-### OpenFlow
-
-The first step in adding a switch to OESS, is to configure the switch
-so that its controller points to the OESS controller IP address.  Once
-the connection is established between the switch and the controller
-the device will appear in the Admin->Discovery section. Clicking the
-device will open the Device Details panel, and allow you to confirm
-the device.
-
-**img**
-
-To confirm the device will require a few parameters are needed:
-
-The Name of the device specifies the name as it will appear in the
-OESS UI, in most cases the fully qualified domain name is probably
-what should be entered.
-
-The Latitude and Longitude fields are used to specify the location of the device.
-
-The VLAN Range field contains the allowed vlan's used on all trunk
-interfaces on that node.  This is specifically used when slicing the
-network or when using hybrid mode.  This range does not affect end
-interfaces.
-
-Default Foward LLDP to controller controls whether or not to send the
-forward LLDP rule to the switch. Without this your switch will not
-auto discover properly.  Use this only if you know what you are doing.
-
-Default Drop Rule is installed to prevent all flows that are currently
-not matching from being punted to the controller (as per openflow 1.0
-spec).
-
-Maximum Number of Flow Mods specifies the maximum number of flows that
-can be installed on a switch.  FWDCTL will prevent any flows over this
-limit from being installed. (useful when slicing)
-
-Send Bulk Flow Rules specifies if the switch is capable of rate
-limiting internally or of a Barrier message must be sent between each
-flow rule.
-
-**img**
-
-Once all of these have been selected properly click the "Confirm
-Device" button at the bottom of the popup to approve the device.
-
 ### NETCONF
 
 Devices that speak NETCONF must be added manually using the Add MPLS
@@ -163,26 +118,11 @@ used by OESS to connect to the device.
 
 After entering the above paramerters, click Add MPLS Device.
 
-### Dual Stack
-
-It's possible to run both OpenFlow and NETCONF at the same time. Under
-the Network tab, select your desired OpenFlow device. Under the Update
-Device dialog box, enable the MPLS Enabled check box. Provide the MPLS
-related field values as described under the NETCONF section, and then
-click Update Device.
-
-**img**
-
 ## Switch Diffs
 
 Diffing is the process of comparing the OESS's expected state of the
-network against the actual network. This happens on a regular interval
-for both OpenFlow and NETCONF enabled devices.
-
-### OpenFlow
-
-All diffing, as it relates to OpenFlow, is handled by OESS. There is
-no way for the user to influence this behavior.
+network against the actual network. This happens on a regular
+interval.
 
 ### NETCONF
 
