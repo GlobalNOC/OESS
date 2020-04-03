@@ -13,7 +13,9 @@ called "Admin".  The Admin button is available from all pages inside
 of the OESS application, and is the gateway to make system level
 modifications.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/access-admin.png" />
+</center>
 
 ## Adding a new user
 
@@ -28,7 +30,9 @@ Usernames are `,` seperated.  The email address is where circuit
 notifications are sent for all circuit events (create, remove, edit,
 failover, down, restoration)
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/add-user.png" />
+</center>
 
 ## Adding a new workgroup
 
@@ -50,7 +54,9 @@ Admin - Can see and edit any circuit on the network
 
 Demo - Can not provision on the network at all
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/add-workgroup.png" />
+</center>
 
 ## Replacing Node / DPID Change
 
@@ -102,7 +108,9 @@ unintended devices from becoming a part of the OESS network.
 Devices that speak NETCONF must be added manually using the Add MPLS
 switch button.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/add-netconf-device.png" />
+</center>
 
 Name takes the hostname of the device that will be displayed to the
 user.
@@ -133,7 +141,9 @@ preconfigured threshold. In these cases an administrator must navigate
 to the Config Changes section of the admin interface, and manually
 approve the diff for the nodes marked Pending Approval.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/approve-device-diffs.png" />
+</center>
 
 ## Insert a node in the middle
 
@@ -168,7 +178,9 @@ list contains all of the users currently part of the workgroup.  The
 right list contains the list of all the edge interfaces the workgroup
 is currently allowed to provision on.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/manage-workgroup.png" />
+</center>
 
 ### Adding Users
                             
@@ -178,7 +190,9 @@ the user to add to the workgroup (if the user does not exist see the
 add a user to OESS section). Clicking the user in the table adds the
 user to the Users list.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/add-users.png" />
+</center>
 
 ### Adding Interfaces
                             
@@ -193,19 +207,27 @@ OpenFlow, and the second using NETCONF. Be sure to include both
 interfaces if you wish to enable provisioning of OpenFlow and NETCONF
 circuits.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/add-interfaces.png" />
+</center>
 
 ### Removing Users
 
 To remove a user from a workgroup click the remove button next to
 their name in the user table.
-                            
+
+<center>
+    <img src="/assets/img/frontend/administration/remove-users.png" />
+</center>
+
 ### Removing interfaces
 
 To remove an interface from a workgroup click the remove button next
 to the interface in the Owned Interfaces table.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/remove-interfaces.png" />
+</center>
                             
 ### Editing Workgroup
                             
@@ -214,11 +236,15 @@ button. Clicking this button displays a dialog that allows you to edit
 the Name, External ID, Node MAC Address Limit, Circuit Limit, and
 Circuit Endpoint Limit of a workgroup.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/edit-workgroup.png" />
+</center>
 
 ## Link Weights / Metrics
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/edit-link.png" />
+</center>
 
 By default, a circuit's shortest path is determined by the hop count
 between the A and Z endpoints. However, this behaviour can be altered
@@ -229,7 +255,9 @@ section, click the Network tab and click the circuit to be
 modified. Enter the desired value in the metric field and then click
 the "Update Link" button.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/select-link.png" />
+</center>
 
 If there are multiple links between two nodes clicking the line
 representing the links will cause the Select Link panel to
@@ -243,14 +271,18 @@ To manage interface ACL rules from the admin section, click on the
 Network Tab. Click on the node in the map that contains the interface
 whose ACL rules you wish to modify.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/manage-acls.png" />
+</center>
 
 A dialog box that contains the node's informatin will appear. At the
 bottom of the dialog is a table of all the interfaces contained within
 the node. Click the "View ACLs" button in the last column of the table
 to open a dialog that contains the interface's ACL information.
 
-**img**
+<center>
+    <img src="/assets/img/frontend/administration/edit-acl.png" />
+</center>
 
 From here you can follow the Using the Frontend-ACL documentation for
 information on how to add, edit, remove, and reorder ACL rules.
@@ -265,56 +297,5 @@ node to set its restrictions.  For example if you have protected vlans
 the nodes to 1-19,31-4095.  If a switch does not support untagged when
 in hybrid mode, the discovery vlan can be set by editing the
 /etc/oess/database.xml file and adding
-`<discovery_vlan>XXX</discovery_vlan>` to the configuration. Once
-this is done restart OESS for this change to take effect.
-
-## Circuit Loops
-
-In OESS 1.1.8+ the Circuit loop feature allows you to loop all traffic
-that is recieved on a node, back to the source.  This disrupts traffic
-forwarding on that circuit.
-
-Enabling this is fairly simple select the circuit you want to loop and
-then click the Loop Circuit button.  This will take you to a page that
-provides many warnings that you will distrupt traffic forwarding for
-this circuit if you continue.  You must then select a node in the path
-to loop all traffic at.
-
-Once you select a node and confirm that you wish to do this, OESS will
-install flows that send all traffic recieved on that node for that
-circuit back at the source of the traffic.  This may be useful to test
-a link in a path.
-
-When you loop a circuit you will see a purple circuit indicating the
-node that was looped, and the circuit status will be looped.
-
-**img**
-
-## Link / Node Maintenances
-
-Link and Node maintenances performe a "Soft" down of a link or in the
-case of Nodes all links attached to the node.  This proactivly causes
-circuits to "fail over" to their backup path if one is configured.  It
-will then prevent the circuits from restoring to primary and prevent
-notifications for flapping links/nodes.  Putting a node or link into
-maintenance mode does not disrupt forwarding for circuits that have no
-backup path or can not be moved to an alternate path.  There is a
-momentary disruption while circuits do change paths.
-
-Upon completion of the maintenance, the engineer clicks the "Complete
-Maintenance" button and OESS will signal link up events, and restore
-circuits to the primary path.
-
-To put a Link or Node into maintenance mode, goto the admin section of
-OESS, and click the network tab.  Click on the link or node you want
-to put into maintenance mode.  At the bottom of the popup will be a
-button that says "put device/link into maintenance".
-
-**img**
-
-You can see what devices / links are in maintenance mode by going to
-the Maintenance tab on the admin section.  This is where you can see
-what maintenances are currently happening, and complete them if they
-are ready to be completed.
-
-**img**
+`<discovery_vlan>XXX</discovery_vlan>` to the configuration. Once this
+is done restart OESS for this change to take effect.
