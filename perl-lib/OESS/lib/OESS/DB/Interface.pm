@@ -85,7 +85,6 @@ sub fetch{
         admin_state => $interface->{admin_state},
         node_id => $interface->{node_id}
     };
-
 }
 
 =head2 get_interface
@@ -221,7 +220,7 @@ sub circuit_vlans_in_use{
             mpls_vlan_tag_range     => '1-4095',   # Optional
             name                    => 'ae0',
             node_id                 => 100,
-            operational_state       => 'up',
+            operational_state       => 'unknown',  # Optional
             role                    => 'unknown',  # Optional
             vlan_tag_range          => '-1',       # Optional
             workgroup_id            => 100,        # Optional
