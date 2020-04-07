@@ -235,23 +235,17 @@ sub state{
     return $self->{'state'};
 }
 
-=head2 workgroup_id
-
-=cut
-sub workgroup_id{
-    my $self = shift;
-    my $workgroup_id = shift;
-    if (defined $workgroup_id) {
-        $self->{'workgroup_id'} = $workgroup_id;
-    }
-    return $self->{'workgroup_id'};
-}
-
 =head2 load_users
+
+    my $err = $vrf->load_users;
+
+load_users populates C<created_by> and C<last_modified_by> with
+C<OESS::User> objects.
 
 =cut
 sub load_users {
     my $self = shift;
+    my $err = undef;
 
     # TODO User object shouldn't load workgroup info. Way too much
     # info there.
@@ -265,7 +259,7 @@ sub load_users {
         db => $self->{db},
         user_id => $self->{last_modified_by_id}
     );
-    return 1;
+    return $err;
 }
 
 =head2 add_path
@@ -337,15 +331,62 @@ sub paths {
     return $self->{paths};
 }
 
+=head2 workgroup_id
+
+    my $workgroup_id = $vrf->workgroup_id;
+
+or
+
+    $vrf->workgroup_id($workgroup_id);
+
+=cut
+sub workgroup_id {
+    my $self = shift;
+    my $workgroup_id = shift;
+
+    if (defined $workgroup_id) {
+        $self->{workgroup_id} = $workgroup_id;
+    }
+    return $self->{workgroup_id};
+}
+
+=head2 workgroup
+
+    my $workgroup = $vrf->workgroup;
+
+or
+
+    $vrf->workgroup(new OESS::Workgroup(db => $db, workgroup_id => $id));
+
+=cut
+sub workgroup {
+    my $self = shift;
+    my $workgroup = shift;
+
+    if (defined $workgroup) {
+        $self->{workgroup} = $workgroup;
+        $self->{workgroup_id} = $workgroup->{workgroup_id};
+    }
+    return $self->{workgroup};
+}
+
 =head2 load_workgroup
+
+    my $err = $vrf->load_workgroup;
+
+load_workgroup populates C<< $self->{workgroup} >> with an
+C<OESS::Workgroup> object.
 
 =cut
 sub load_workgroup {
     my $self = shift;
-    $self->{workgroup} = OESS::DB::Workgroup::fetch(
-        db => $self->{db},
-        workgroup_id => $self->{workgroup_id}
-    );
+
+    if (!defined $self->{db}) {
+        return "Unable to read Workgroup from database; Handle is missing";
+    }
+
+    $self->{workgroup} = new OESS::Workgroup(db => $self->{db}, workgroup_id => $self->{workgroup_id});
+    return;
 }
 
 =head2 to_hash
@@ -381,7 +422,7 @@ sub to_hash {
     }
 
     if (defined $self->{workgroup}) {
-        $hash->{workgroup} = $self->{workgroup};
+        $hash->{workgroup} = $self->{workgroup}->to_hash;
     }
 
     if (defined $self->{paths}) {
@@ -1107,14 +1148,9 @@ sub update {
     my $self = shift;
 
     if (!defined $self->{db}) {
-        $self->{'logger'}->error('Unable to write db; Handle is missing.');
+        return "Unable to write L2Circuit to database; Handle is missing.";
     }
-
-    my $err = OESS::DB::Circuit::update(
-        db => $self->{db},
-        circuit => $self->to_hash
-    );
-    return $err;
+    return OESS::DB::Circuit::update(db => $self->{db}, circuit => $self->to_hash);
 }
 
 =head2 remove

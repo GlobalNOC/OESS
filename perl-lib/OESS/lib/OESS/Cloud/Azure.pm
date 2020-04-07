@@ -77,7 +77,9 @@ sub new {
     my $self = bless $args, $class;
 
     $self->{creds} = XML::Simple::XMLin($self->{config});
+    $self->{base_url} = {};
     $self->{connections} = {};
+    $self->{resource_groups} = {};
 
     foreach my $conn (@{$self->{creds}->{cloud}->{connection}}) {
         if ($conn->{interconnect_type} ne 'azure-express-route') {
@@ -89,6 +91,7 @@ sub new {
         my $interconnect_id = $conn->{interconnect_id};
         my $subscription_id = $conn->{subscription_id};
         my $tenant_id       = $conn->{tenant_id};
+        my $base_url        = $conn->{base_url} || 'https://management.azure.com';
 
         my $ua = LWP::UserAgent->new();
         my $response = $ua->post(
@@ -97,7 +100,7 @@ sub new {
               grant_type => 'client_credentials',
               client_id => $client_id,
               client_secret => $client_secret,
-              resource => 'https://management.azure.com/'
+              resource => "$base_url/"
           }
         );
         if (!$response->is_success) {
@@ -113,6 +116,8 @@ sub new {
         $conn->{http}->default_header(Authorization => "Bearer $conn->{access_token}");
 
         $self->{connections}->{$conn->{interconnect_id}} = $conn;
+        $self->{resource_groups}->{$conn->{interconnect_id}} = $conn->{resource_group};
+        $self->{base_url}->{$conn->{interconnect_id}} = $base_url;
     }
 
     return $self;
@@ -138,11 +143,12 @@ sub resourceGroups {
 
     my $conn = $self->{connections}->{$interconnect_id};
     my $sub  = $conn->{subscription_id};
+    my $base_url = $self->{base_url}->{$interconnect_id};
 
     my $http = $self->{connection}->{http};
 
     my $api_response = $conn->{http}->get(
-        "https://management.azure.com/subscriptions/$sub/resourceGroups?api-version=2014-04-01"
+        "$base_url/subscriptions/$sub/resourceGroups?api-version=2014-04-01"
     );
 
     my $api_data = decode_json($api_response->content);
@@ -167,9 +173,10 @@ sub expressRouteCrossConnections {
     my $conn = $self->{connections}->{$interconnect_id};
     my $sub  = $conn->{subscription_id};
     my $group = $conn->{resource_group};
+    my $base_url = $self->{base_url}->{$interconnect_id};
 
     my $api_response = $conn->{http}->get(
-        "https://management.azure.com/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/?api-version=2018-12-01"
+        "$base_url/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/?api-version=2018-12-01"
     );
 
     my $api_data = decode_json($api_response->content);
@@ -194,9 +201,10 @@ sub expressRouteCrossConnection {
     my $conn = $self->{connections}->{$interconnect_id};
     my $sub = $conn->{subscription_id};
     my $group = $conn->{resource_group};
+    my $base_url = $self->{base_url}->{$interconnect_id};
 
     my $resp = $conn->{http}->get(
-        "https://management.azure.com/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$service_key?api-version=2018-12-01"
+        "$base_url/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$service_key?api-version=2018-12-01"
     );
     return decode_json($resp->content);
 }
@@ -243,8 +251,9 @@ sub set_cross_connection_state_to_provisioned {
     my $conn = $self->{connections}->{$args->{interconnect_id}};
     my $sub = $conn->{subscription_id};
     my $group = $conn->{resource_group};
+    my $base_url = $self->{base_url}->{$args->{interconnect_id}};
 
-    my $url = "https://management.azure.com/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}?api-version=2018-12-01";
+    my $url = "$base_url/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}?api-version=2018-12-01";
 
     my $payload = {
         id => "/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}",
@@ -252,27 +261,30 @@ sub set_cross_connection_state_to_provisioned {
             bandwidthInMbps => $args->{bandwidth},
             serviceProviderProvisioningState => 'Provisioned',
             peeringLocation => $args->{peering_location},
-            expressRouteCircuit => { id => $args->{circuit_id} },
-            peerings => [
-                {
-                    name => 'AzurePrivatePeering',
-                    properties => {
-                        peerASN => $args->{local_asn},
-                        primaryPeerAddressPrefix => $args->{primary_prefix},
-                        secondaryPeerAddressPrefix => $args->{secondary_prefix},
-                        vlanId => $args->{vlan},
-                        state => 'Enabled',
-                        # NOTE: private ipv6 peerings not supported by azure
-                        # ipv6PeeringConfig => {
-                        #     primaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::/126",
-                        #     secondaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::4/126"
-                        # }
-                    }
-                }
-            ]
+            expressRouteCircuit => { id => $args->{circuit_id} }
         },
         location => $args->{region}
     };
+
+    if (defined $args->{peering}) {
+        $payload->{properties}->{peerings} = [
+            {
+                name => 'AzurePrivatePeering',
+                properties => {
+                    peerASN => $args->{peering}->{local_asn},
+                    primaryPeerAddressPrefix => $args->{peering}->{primary_prefix},
+                    secondaryPeerAddressPrefix => $args->{peering}->{secondary_prefix},
+                    vlanId => $args->{peering}->{vlan},
+                    state => 'Enabled',
+                    # NOTE: private ipv6 peerings not supported by azure
+                    # ipv6PeeringConfig => {
+                    #     primaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::/126",
+                    #     secondaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::4/126"
+                    # }
+                }
+            }
+        ];
+    }
 
     my $req = HTTP::Request->new("PUT", $url);
     $req->header("Content-Type" => "application/json");
@@ -323,8 +335,9 @@ sub set_cross_connection_state_to_not_provisioned {
     my $conn = $self->{connections}->{$args->{interconnect_id}};
     my $sub = $conn->{subscription_id};
     my $group = $conn->{resource_group};
+    my $base_url = $self->{base_url}->{$args->{interconnect_id}};
 
-    my $url = "https://management.azure.com/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}?api-version=2018-12-01";
+    my $url = "$base_url/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}?api-version=2018-12-01";
 
     my $payload = {
         id => "/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}",
@@ -343,6 +356,13 @@ sub set_cross_connection_state_to_not_provisioned {
     $req->content(encode_json($payload));
 
     my $resp = $conn->{http}->request($req);
+    if (defined $resp->{error}) {
+        foreach my $detail (@{$resp->{error}->{details}}) {
+            $self->{logger}->error($detail->{message});
+            return;
+        }
+    }
+
     return decode_json($resp->content);
 }
 
@@ -382,7 +402,9 @@ sub subscriptions {
     my $interconnect_id = shift;
 
     my $conn = $self->{connections}->{$interconnect_id};
-    my $api_response = $conn->{http}->get("https://management.azure.com/subscriptions/?api-version=2018-11-01");
+    my $base_url = $self->{base_url}->{$interconnect_id};
+
+    my $api_response = $conn->{http}->get("$base_url/subscriptions/?api-version=2018-11-01");
 
     my $api_data = decode_json($api_response->content);
     return $api_data->{value};
@@ -397,8 +419,9 @@ sub expressRouteSimpleGet {
     my $path = shift;
 
     my $conn = $self->{connections}->{$interconnect_id};
+    my $base_url = $self->{base_url}->{$interconnect_id};
 
-    my $resp = $conn->{http}->get("https://management.azure.com/$path?api-version=2018-08-01");
+    my $resp = $conn->{http}->get("$base_url/$path?api-version=2018-08-01");
     return decode_json($resp->content);
 }
 
@@ -411,9 +434,10 @@ sub allExpressRouteCrossConnections {
 
     my $conn = $self->{connections}->{$interconnect_id};
     my $sub  = $conn->{subscription_id};
+    my $base_url = $self->{base_url}->{$interconnect_id};
 
     my $api_response = $conn->{http}->get(
-        "https://management.azure.com/subscriptions/$sub/providers/Microsoft.Network/expressRouteCrossConnections/?api-version=2018-12-01"
+        "$base_url/subscriptions/$sub/providers/Microsoft.Network/expressRouteCrossConnections/?api-version=2018-12-01"
     );
 
     my $api_data = decode_json($api_response->content);
@@ -422,8 +446,12 @@ sub allExpressRouteCrossConnections {
 
 =head2 get_cross_connection_by_id
 
-get_cross_connection_by_id very slowly gets an Azure CrossConnection
-by ID (Microsoft doesn't provide a better method of doing this).
+    my ($conn, $err) = get_cross_connection_by_id($interconnect_id, $service_key);
+    die $err if defined $err;
+
+get_cross_connection_by_id gets an Azure CrossConnection by Service
+Key. The C<interconnect_id> is required to lookup the correct Azure
+ResourceGroup and auth'd web client.
 
 The result includes C<properties.primaryAzurePort> and
 C<properties.secondaryAzurePort>. These may be used to lookup the
@@ -437,23 +465,17 @@ sub get_cross_connection_by_id {
 
     my $conn = $self->{connections}->{$interconnect_id};
     my $sub  = $conn->{subscription_id};
+    my $resource_group = $self->{resource_groups}->{$interconnect_id};
+    my $base_url = $self->{base_url}->{$interconnect_id};
 
     my $api_response = $conn->{http}->get(
-        "https://management.azure.com/subscriptions/$sub/providers/Microsoft.Network/expressRouteCrossConnections/?api-version=2018-12-01"
+        "$base_url/subscriptions/$sub/resourceGroups/$resource_group/providers/Microsoft.Network/expressRouteCrossConnections/$service_key?api-version=2018-12-01"
     );
     my $api_data = decode_json($api_response->content);
-
-    foreach my $v (@{$api_data->{value}}) {
-        if ($v->{name} eq $service_key) {
-            $api_response = $conn->{http}->get(
-                "https://management.azure.com/$v->{id}/?api-version=2018-12-01"
-            );
-            $api_data = decode_json($api_response->content);
-            return $api_data;
-        }
+    if (defined $api_data->{error}) {
+        return (undef, $api_data->{error}->{message});
     }
-
-    return undef;
+    return ($api_data, undef);
 }
 
 return 1;

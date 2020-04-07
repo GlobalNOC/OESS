@@ -270,10 +270,10 @@ class EndpointSelectionModal2 {
     let spacer = '';
 
     if (parent) {
-      let elem = document.createElement('button');
-      elem.setAttribute('type', 'button');
+      let elem = document.createElement('a');
+      elem.setAttribute('href', '#');
       elem.setAttribute('class', 'list-group-item active');
-      elem.innerHTML = `<span class="glyphicon glyphicon-menu-up"></span>&nbsp;&nbsp; ${entity.name}`;
+      elem.innerHTML = `<span class="glyphicon glyphicon-menu-left"></span>&nbsp;&nbsp; ${entity.name}`;
       elem.addEventListener('click', function(e) {
         parent.index = index;
         this.populateEntityForm(parent);
@@ -287,8 +287,8 @@ class EndpointSelectionModal2 {
       for (let i = 0; i < entity.children.length; i++) {
         let child = entity.children[i];
 
-        let elem = document.createElement('button');
-        elem.setAttribute('type', 'button');
+        let elem = document.createElement('a');
+        elem.setAttribute('href', '#');
         elem.setAttribute('class', 'list-group-item');
         elem.innerHTML = `${spacer}${child.name} <span class="glyphicon glyphicon-menu-right" style="float: right;"></span>`;
         elem.addEventListener('click', function(e) {
@@ -300,23 +300,44 @@ class EndpointSelectionModal2 {
       }
     }
 
-    // Once the user has selected a leaf entity it's expected that we
-    // display all its associated ports.
-    if ('children' in entity && entity.children.length === 0) {
-      for (let i = 0; i < entity.interfaces.length; i++) {
-        let child = entity.interfaces[i];
+    // Display all interfaces of the selected Entity. If the Entity
+    // describes a cloud interconnect, disable the Interfaces as they
+    // will be auto-selected according to the prescribed procedure.
+    for (let i = 0; i < entity.interfaces.length; i++) {
+      let child = entity.interfaces[i];
 
-        let elem = document.createElement('button');
-        elem.setAttribute('type', 'button');
-        elem.setAttribute('class', 'list-group-item');
-        elem.innerHTML = `${spacer}<b>${child.node}</b> ${child.name}`;
-        elem.addEventListener('click', function(e) {
-          selectedInterface = child.name;
-          selectedNode = child.node;
-        });
-
-        list.appendChild(elem);
+      let checked = 'checked';
+      let disabled = '';
+      let notAllow = '';
+      if (child.cloud_interconnect_type !== null && child.cloud_interconnect_type !== '' && child.cloud_interconnect_type !== 'aws-hosted-connection') {
+        checked = '';
+        disabled = 'disabled';
+        notAllow = 'cursor: not-allowed;';
       }
+
+      let elem = document.createElement('li');
+      elem.setAttribute('class', `list-group-item ${disabled}`);
+      elem.innerHTML = `
+        <div class="radio" style="margin: 0; padding: 0;">
+          <label style="width: 100%; ${notAllow}">
+            <input type="radio"
+                   name="optionsRadios"
+                   id="${child.node} ${child.name}"
+                   value="${child.node} ${child.name}"
+                   ${checked}
+                   ${disabled}
+            />
+            <b>${child.node}</b> ${child.name}
+          </label>
+        </div>`;
+      elem.addEventListener('click', function(e) {
+        selectedInterface = child.name;
+        selectedNode = child.node;
+      });
+
+      selectedInterface = child.name;
+      selectedNode = child.node;
+      list.appendChild(elem);
     }
 
     // VLAN Select
@@ -377,8 +398,12 @@ class EndpointSelectionModal2 {
     let cloudAccountFormGroup = this.parent.querySelector('.entity-cloud-account');
     let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
     let cloudAccountInput = this.parent.querySelector('.entity-cloud-account-id');
+    let cloudGatewayFormGroup = this.parent.querySelector('.form-group.entity-cloud-gateway-type');
+    let cloudGatewayTypeSelector = this.parent.querySelector('.form-control.entity-cloud-gateway-type');
+    let vlanHelp = this.parent.querySelector('.entity-vlans-help');
 
     cloudAccountFormGroup.style.display = 'none';
+    cloudGatewayFormGroup.style.display = 'none';
     cloudAccountInput.value = null;
 
     if (entity.cloud_interconnect_type !== null) {
@@ -390,10 +415,17 @@ class EndpointSelectionModal2 {
       } else if (entity.cloud_interconnect_type === 'azure-express-route') {
         cloudAccountLabel.innerText = 'ExpressRoute Service Key';
         cloudAccountInput.setAttribute('placeholder', '00000000-0000-0000-0000-000000000000');
+        vlanHelp.dataset.content = '<b>Layer 2</b>: sTag of the QinQ Tagged Interface connecting to Microsoft Azure; This value will be overridden by Microsoft after provisioning.<br/><b>Layer 3</b>: cTag of the QinQ Tagged Interface connecting to Microsoft Azure. The sTag is selected by Microsoft and cannot be specified.';
+      } else if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
+        cloudAccountLabel.innerText = 'AWS Account Owner';
+        cloudAccountInput.setAttribute('placeholder', '012301230123');
+        cloudGatewayFormGroup.style.display = 'block';
       } else {
         cloudAccountLabel.innerText = 'AWS Account Owner';
         cloudAccountInput.setAttribute('placeholder', '012301230123');
       }
+    } else {
+      vlanHelp.dataset.content = "Ethernet frame header of the Tagged Interface connecting to the selected Network Entity.";
     }
 
     // Max Bandwidth
@@ -409,6 +441,9 @@ class EndpointSelectionModal2 {
         [300, '300 Mb/s'],
         [400, '400 Mb/s'],
         [500, '500 Mb/s'],
+        [1000, '1 Gb/s'],
+        [2000, '2 Gb/s'],
+        [5000, '5 Gb/s']
       ];
     } else if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
       bandwidthOptions = [
@@ -466,6 +501,11 @@ class EndpointSelectionModal2 {
     if (endpoint !== undefined && endpoint !== null && 'jumbo' in endpoint) {
       if (endpoint.jumbo == 1 || endpoint.jumbo == true) {
         jumboCheckbox.checked = true;
+        if (endpoint.mtu > 8500) {
+          cloudGatewayTypeSelector.value = 'private';
+        } else {
+          cloudGatewayTypeSelector.value = 'transit';
+        }
       } else {
         jumboCheckbox.checked = false;
       }
@@ -476,15 +516,26 @@ class EndpointSelectionModal2 {
       console.log('endpoint:', endpoint);
       console.log('entity:', entity);
 
+      let cloudGatewayType = null;
+      if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
+        cloudGatewayType = cloudGatewayTypeSelector.options[cloudGatewayTypeSelector.selectedIndex].value;
+        if (jumboCheckbox.checked) {
+          endpoint.mtu = (cloudGatewayType === 'transit') ? 8500 : 9001;
+        } else {
+          endpoint.mtu = 1500;
+        }
+      }
+
       endpoint.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;
       endpoint.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
-      endpoint.cloud_account_id = cloudAccountInput.value;
+      endpoint.cloud_account_id = (cloudAccountInput.value) ? cloudAccountInput.value.trim() : '';
       endpoint.entity = entity.name;
       endpoint.name = selectedInterface;
       endpoint.node = selectedNode;
       endpoint.interface = selectedInterface;
       endpoint.jumbo = jumboCheckbox.checked;
       endpoint.cloud_interconnect_type = entity.cloud_interconnect_type;
+      endpoint.cloud_gateway_type = cloudGatewayType;
 
       state.updateEndpoint(endpoint);
       $('#add-endpoint-modal2').modal('hide');

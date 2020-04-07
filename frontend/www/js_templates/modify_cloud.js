@@ -14,7 +14,7 @@ class GlobalState extends Component {
 
   async selectConnection(id) {
     if (id != -1) {
-      this.connection = await getVRF(id);
+      this.connection = await getVRF(session.data.workgroup_id, id);
 
       // Hack to display vrf_id using Object build for Layer2 Conns
       this.connection.circuit_id = this.connection.vrf_id;
@@ -161,6 +161,10 @@ class GlobalState extends Component {
     window.location.href = 'index.cgi';
   }
 }
+
+$(function () {
+  $('[data-toggle="popover"]').popover();
+});
 
 let state = new GlobalState();
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal');

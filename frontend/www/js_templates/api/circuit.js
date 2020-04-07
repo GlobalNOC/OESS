@@ -51,11 +51,16 @@ async function provisionCircuit(workgroupID, description, endpoints, start=-1, e
       jumbo:            (endpoint.jumbo) ? 1 : 0
     };
 
+    if (endpoint.cloud_gateway_type !== null) {
+      e['cloud_gateway_type'] = endpoint.cloud_gateway_type;
+    }
+
     if ('entity_id' in endpoint && endpoint.name === 'TBD' && endpoint.interface === 'TBD') {
       e['entity'] = endpoint.entity;
     } else {
       e['interface'] = endpoint.interface;
       e['node']      = endpoint.node;
+      e['entity']    = endpoint.entity;
     }
 
     form.append('endpoint', JSON.stringify(e));

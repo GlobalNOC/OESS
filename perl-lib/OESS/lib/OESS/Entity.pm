@@ -7,6 +7,8 @@ package OESS::Entity;
 
 use Log::Log4perl;
 
+use OESS::Cloud::Azure;
+use OESS::DB::Endpoint;
 use OESS::DB::Entity;
 use OESS::User;
 
@@ -229,14 +231,34 @@ sub to_hash{
 sub select_interface {
     my $self = shift;
     my $args = {
-        inner_tag               => undef,
-        tag                     => undef,
-        workgroup_id            => undef,
+        inner_tag        => undef,
+        tag              => undef,
+        workgroup_id     => undef,
         cloud_account_id => undef,
-        # cloud_interconnect_id   => undef,
-        # cloud_interconnect_type => undef,
         @_
     };
+
+    if (!defined $self->{db}) {
+        $self->{logger}->warn('Interface selection may not return accurate results as database object not defined.');
+    }
+
+    my $azure = new OESS::Cloud::Azure();
+
+    # Get number of Endpoints using the provided azure service key.
+    # If cloud_account_id is already in use on another endpoint we'll
+    # want to select the interface associated with the secondary azure
+    # port. If the cloud_account_id is already in use on both the
+    # primary and secondary the service key may no longer be used.
+    my $cloud_account_ep_count = 0;
+    if (defined $args->{cloud_account_id} && $args->{cloud_account_id} ne '' && defined $self->{db}) {
+        my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $self->{db}, cloud_account_id => $args->{cloud_account_id});
+        if (defined $eps_err) {
+            $self->{logger}->error($eps_err);
+            return undef;
+        }
+        $cloud_account_ep_count = (defined $eps) ? scalar @$eps : 0;
+        warn "$cloud_account_ep_count Endpoints used with this cloud_account_id";
+    }
 
     foreach my $intf (@{$self->{interfaces}}) {
         if (defined $intf->cloud_interconnect_type && $intf->cloud_interconnect_type eq 'gcp-partner-interconnect') {
@@ -255,12 +277,35 @@ sub select_interface {
             }
         }
 
+        if (defined $intf->cloud_interconnect_type && $intf->cloud_interconnect_type eq 'azure-express-route') {
+            if (!defined $args->{cloud_account_id}) {
+                warn 'Azure Service key was not provided.';
+                return undef;
+            }
+
+            my ($conn, $err) = $azure->get_cross_connection_by_id($intf->cloud_interconnect_id, $args->{cloud_account_id});
+            if (defined $err) {
+                $self->{logger}->error($err);
+                next;
+            }
+
+            if ($cloud_account_ep_count == 0 && $intf->cloud_interconnect_id eq $conn->{properties}->{primaryAzurePort}) {
+                warn 'Selecting primary Azure port.';
+            }
+            elsif ($cloud_account_ep_count == 1 && $intf->cloud_interconnect_id eq $conn->{properties}->{secondaryAzurePort}) {
+                warn 'Selecting secondary Azure port.';
+            }
+            else {
+                next;
+            }
+        }
+
         my $ok = $intf->vlan_valid(
             vlan => $args->{tag},
             workgroup_id => $args->{workgroup_id}
         );
         if ($ok) {
-            # TODO register and selected vlans as being in use so that
+            # Register selected vlans as being in use so that
             # successive calls to the same entity with the same vlan
             # yield different interfaces.
 

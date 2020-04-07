@@ -69,9 +69,20 @@ sub get {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if (!$user->is_admin && !$user->in_workgroup($args->{workgroup_id}->{value})) {
+    $user->load_workgroups;
+
+    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id}->{value});
+    if (!defined $workgroup && !$user->is_admin) {
         $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
         return;
+    }
+
+    # If user is an admin and an admin workgroup is selected clear out
+    # the workgroup_id; This returns all Connections. Otherwise filter
+    # by the passed in workgroup_id. An invalid workgroup_id will
+    # simply return nothing.
+    if (defined $workgroup && $workgroup->type eq 'admin') {
+        $args->{workgroup_id}->{value} = undef;
     }
 
     my $circuits = [];
@@ -264,12 +275,15 @@ sub provision {
         my $entity;
         my $interface;
 
-        if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
+        if (defined $ep->{node} && defined $ep->{interface}) {
             $interface = new OESS::Interface(
                 db => $db,
                 name => $ep->{interface},
                 node => $ep->{node}
             );
+        }
+        if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
+            # Continue
         } else {
             $entity = new OESS::Entity(db => $db, name => $ep->{entity});
             $interface = $entity->select_interface(
@@ -279,12 +293,12 @@ sub provision {
                 cloud_account_id => $ep->{cloud_account_id}
             );
         }
-
         if (!defined $interface) {
             $method->set_error("Couldn't create Circuit: Cannot find a valid Interface for $ep->{entity}.");
             $db->rollback;
             return;
         }
+
         my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
         if (!$valid_bandwidth) {
             $method->set_error("Couldn't create Circuit: Specified bandwidth is invalid for $ep->{entity}.");
@@ -303,7 +317,11 @@ sub provision {
         $ep->{cloud_interconnect_type} = $interface->cloud_interconnect_type;
 
         if ($ep->{cloud_interconnect_type} eq 'aws-hosted-connection') {
-            $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+            if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq 'transit') {
+                $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 8500 : 1500;
+            } else {
+                $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+            }
         } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
             $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
         } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
@@ -325,42 +343,6 @@ sub provision {
             return;
         }
         $circuit->add_endpoint($endpoint);
-
-        if ($interface->cloud_interconnect_type eq 'azure-express-route') {
-            my $interface2 = $entity->select_interface(
-                inner_tag    => $endpoint->{inner_tag},
-                tag          => $endpoint->{tag},
-                workgroup_id => $args->{workgroup_id}->{value},
-                cloud_account_id => $ep->{cloud_account_id}
-            );
-            if (!defined $interface2) {
-                $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
-                $db->rollback;
-                return;
-            }
-
-            # Populate Endpoint modal with selected Interface details.
-            $ep->{type}         = 'circuit';
-            $ep->{entity_id}    = $entity->{entity_id};
-            $ep->{interface}    = $interface2->{name};
-            $ep->{interface_id} = $interface2->{interface_id};
-            $ep->{node}         = $interface2->{node}->{name};
-            $ep->{node_id}      = $interface2->{node}->{node_id};
-            $ep->{cloud_interconnect_id}   = $interface2->cloud_interconnect_id;
-            $ep->{cloud_interconnect_type} = $interface2->cloud_interconnect_type;
-
-            my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
-            my ($ep2_id, $ep2_err) = $endpoint2->create(
-                circuit_id => $circuit->circuit_id,
-                workgroup_id => $args->{workgroup_id}->{value}
-            );
-            if (defined $ep2_err) {
-                $method->set_error("Couldn't create Circuit: $ep2_err");
-                $db->rollback;
-                return;
-            }
-            $circuit->add_endpoint($endpoint2);
-        }
     }
 
     if (defined $args->{link}->{value}) {
@@ -415,12 +397,15 @@ sub provision {
             OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints);
 
             foreach my $ep (@{$circuit->endpoints}) {
-                # Azure endpoints use qnq which require us to reselect
-                # a unit. The initial unit was the selected vlan.
-                my $update_err = $ep->update_unit;
-                die $update_err if (defined $update_err);
+                # It's expected that layer2 connections to azure pass
+                # all QnQ tagged traffic directly to the customer
+                # edge; All inner tagged traffic should be passed.
+                if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                    $ep->{unit} = $ep->{tag};
+                    $ep->{inner_tag} = undef;
+                }
 
-                $update_err = $ep->update_db;
+                my $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }
         };
@@ -504,12 +489,15 @@ sub update {
             my $entity;
             my $interface;
 
-            if (defined $ep->{node} && defined $ep->{interface} && (!defined $ep->{cloud_account_id} || $ep->{cloud_account_id} eq '')) {
+            if (defined $ep->{node} && defined $ep->{interface}) {
                 $interface = new OESS::Interface(
                     db => $db,
                     name => $ep->{interface},
                     node => $ep->{node}
                 );
+            }
+            if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
+                # Continue
             } else {
                 $entity = new OESS::Entity(db => $db, name => $ep->{entity});
                 $interface = $entity->select_interface(
@@ -519,7 +507,6 @@ sub update {
                     cloud_account_id => $ep->{cloud_account_id}
                 );
             }
-
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
                 return;
@@ -535,7 +522,11 @@ sub update {
             $ep->{cloud_interconnect_type} = $interface->cloud_interconnect_type;
 
             if ($ep->{cloud_interconnect_type} eq 'aws-hosted-connection') {
-                $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq 'transit') {
+                    $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 8500 : 1500;
+                } else {
+                    $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
+                }
             } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
                 $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
             } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
@@ -554,49 +545,6 @@ sub update {
             $circuit->add_endpoint($endpoint);
             push @$add_endpoints, $endpoint;
 
-            if ($interface->cloud_interconnect_type eq 'azure-express-route') {
-                my $interface2 = $entity->select_interface(
-                    inner_tag    => $endpoint->{inner_tag},
-                    tag          => $endpoint->{tag},
-                    workgroup_id => $args->{workgroup_id}->{value},
-                    cloud_account_id => $ep->{cloud_account_id}
-                );
-                if (!defined $interface2) {
-                    $method->set_error("Cannot find a valid Interface for $endpoint->{entity}.");
-                    $db->rollback;
-                    return;
-                }
-                my $valid_bandwidth = $interface2->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
-                if (!$valid_bandwidth) {
-                    $method->set_error("Couldn't create VRF: Specified bandwidth is invalid for $ep->{entity}.");
-                    $db->rollback;
-                    return;
-                }
-
-                # Populate Endpoint modal with selected Interface details.
-                $ep->{type}         = 'circuit';
-                $ep->{entity_id}    = $entity->{entity_id};
-                $ep->{interface}    = $interface2->{name};
-                $ep->{interface_id} = $interface2->{interface_id};
-                $ep->{node}         = $interface2->{node}->{name};
-                $ep->{node_id}      = $interface2->{node}->{node_id};
-                $ep->{cloud_interconnect_id}   = $interface2->cloud_interconnect_id;
-                $ep->{cloud_interconnect_type} = $interface2->cloud_interconnect_type;
-
-                my $endpoint2 = new OESS::Endpoint(db => $db, model => $ep);
-                my ($ep2_id, $ep2_err) = $endpoint2->create(
-                    circuit_id => $circuit->circuit_id,
-                    workgroup_id => $args->{workgroup_id}->{value}
-                );
-                if (defined $ep2_err) {
-                    $method->set_error("Couldn't create Circuit: $ep2_err");
-                    $db->rollback;
-                    return;
-                }
-                $circuit->add_endpoint($endpoint2);
-                push @$add_endpoints, $endpoint2;
-            }
-
         } else {
             my $endpoint = $circuit->get_endpoint(
                 circuit_ep_id => $ep->{circuit_ep_id}
@@ -605,7 +553,22 @@ sub update {
             $endpoint->bandwidth($ep->{bandwidth});
             $endpoint->inner_tag($ep->{inner_tag});
             $endpoint->tag($ep->{tag});
-            $endpoint->mtu($ep->{mtu});
+
+            if ($endpoint->cloud_interconnect_type eq 'aws-hosted-connection') {
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq 'transit') {
+                    $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 8500 : 1500);
+                } else {
+                    $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
+                }
+            } elsif ($endpoint->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+                $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
+            } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-inerconnect') {
+                $endpoint->mtu(1440);
+            } elsif ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
+                $endpoint->mtu(1500);
+            } else {
+                $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9000 : 1500);
+            }
 
             my $err = $endpoint->update_db;
             if (defined $err) {
@@ -662,7 +625,14 @@ sub update {
             OESS::Cloud::setup_endpoints($circuit->description, $add_endpoints);
 
             foreach my $ep (@{$circuit->endpoints}) {
-                $ep->update_unit;
+                # It's expected that layer2 connections to azure pass
+                # all QnQ tagged traffic directly to the customer
+                # edge; All inner tagged traffic should be passed.
+                if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                    $ep->{unit} = $ep->{tag};
+                    $ep->{inner_tag} = undef;
+                }
+
                 my $update_err = $ep->update_db;
                 die $update_err if (defined $update_err);
             }

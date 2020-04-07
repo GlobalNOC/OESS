@@ -78,7 +78,7 @@ sub _build_from_model {
     $self->{allow_deny} = $self->{model}->{allow_deny};
     $self->{eval_position} = $self->{model}->{eval_position};
     $self->{start} = $self->{model}->{start};
-    $self->{end} = $self->{model}->{end};
+    $self->{end} = (defined $self->{model}->{end}) ? $self->{model}->{end} : $self->{model}->{start};
     $self->{notes} = $self->{model}->{notes};
     $self->{entity_id} = $self->{model}->{entity_id};
 
@@ -139,7 +139,7 @@ sub from_hash {
     $self->{allow_deny} = $hash->{allow_deny};
     $self->{eval_position} = $hash->{eval_position};
     $self->{start} = $hash->{start};
-    $self->{end} = $hash->{end};
+    $self->{end} = (defined $hash->{end}) ? $hash->{end} : $hash->{start};
     $self->{notes} = $hash->{notes};
     $self->{entity_id} = $hash->{entity_id};
 
@@ -161,7 +161,7 @@ sub to_hash {
     $hash->{allow_deny} = $self->{allow_deny};
     $hash->{eval_position} = $self->{eval_position};
     $hash->{start} = $self->{start};
-    $hash->{end} = $self->{end};
+    $hash->{end} = (defined $self->{end}) ? $self->{end} : $self->{start};
     $hash->{notes} = $self->{notes};
     $hash->{entity_id} = $self->{entity_id};
 

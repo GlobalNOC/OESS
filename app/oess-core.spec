@@ -1,6 +1,6 @@
 Name:		oess-core
-Version:	2.0.6
-Release:	2%{?dist}
+Version:	2.0.9
+Release:	1%{?dist}
 Summary:	The core OESS service providers
 
 Group:		Network
@@ -20,7 +20,7 @@ Requires: /bin/bash
 Requires: /usr/bin/perl
 Requires: perl(base), perl(constant), perl(strict), perl(warnings)
 
-Requires: perl-OESS >= 2.0.6
+Requires: perl-OESS >= 2.0.9
 
 Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
 Requires: perl(CPAN), perl(CPAN::Shell)

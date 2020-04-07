@@ -1,0 +1,6 @@
+name: OESS Testing
+description: Run oess tests
+runs:
+  using: docker
+  image: Dockerfile
+  args:  []

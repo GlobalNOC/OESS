@@ -74,6 +74,9 @@ class GlobalState extends Component {
   }
 }
 
+$(function () {
+  $('[data-toggle="popover"]').popover();
+});
 
 let state = new GlobalState();
 

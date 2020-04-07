@@ -46,6 +46,7 @@ my ($ok, $update_err) = OESS::DB::Link::update(
     db => $db,
     link => {
         link_id => 1,
+        link_state => 'active',
         name => 'Link lolz',
         ip_z => undef,
         metric => 666,

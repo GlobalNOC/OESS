@@ -18,7 +18,7 @@
         <family>
           [% IF interface.has_ipv4 %]
           <inet>
-            <mtu>[% interface.mtu %]</mtu>
+            [% IF interface.mtu %]<mtu>[% interface.mtu %]</mtu>[% END %]
             [% FOREACH peer IN interface.v4_peers %]
             <address>
               <name>[% peer.local_ip %]</name>
@@ -28,7 +28,7 @@
           [% END %]
           [% IF interface.has_ipv6 %]
           <inet6>
-            <mtu>[% interface.mtu %]</mtu>
+            [% IF interface.mtu %]<mtu>[% interface.mtu %]</mtu>[% END %]
             [% FOREACH peer IN interface.v6_peers %]
             <address>
               <name>[% peer.local_ip %]</name>
@@ -166,7 +166,7 @@
               <description>OESS-L3VPN-[% vrf_id %]</description>
               <import>OESS-L3VPN-[% vrf_id %]-IN</import>
 
-              [% IF peer.key != -1 %]
+              [% IF peer.key %]
               <authentication-key>[% peer.key %]</authentication-key>
               [% END %]
 
@@ -288,7 +288,11 @@
 	  <protocol>direct</protocol>
 	</from>
 	<then>
-	  <accept/>
+          <community>
+         	<add/>
+              	<community-name>OESS-L3VPN-[% vrf_id %]-BGP</community-name>
+          </community>
+          <accept/>
 	</then>
       </term>
     </policy-statement>

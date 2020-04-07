@@ -57,11 +57,16 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       cloud_account_id: endpoint.cloud_account_id
     };
 
+    if (endpoint.cloud_gateway_type !== null) {
+      e['cloud_gateway_type'] = endpoint.cloud_gateway_type;
+    }
+
     if ('entity_id' in endpoint && endpoint.name === 'TBD' && endpoint.node === 'TBD') {
       e['entity'] = endpoint.entity;
     } else {
       e['interface'] = endpoint.interface;
       e['node']      = endpoint.node;
+      e['entity']    = endpoint.entity;
     }
 
     if (endpoint.peers.length < 1) {
@@ -95,8 +100,8 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
   return parseInt(data.results.vrf_id);
 }
 
-async function getVRF(vrfID) {
-  let url = `[% path %]services/vrf.cgi?method=get_vrf_details&vrf_id=${vrfID}`;
+async function getVRF(workgroupID, vrfID) {
+  let url = `[% path %]services/vrf.cgi?method=get_vrf_details&vrf_id=${vrfID}&workgroup_id=${workgroupID}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});

@@ -51,13 +51,13 @@ ok(defined($db) && defined($acl), 'Sanity-check: can instantiate OESS::DB and OE
 cmp_deeply(
     $acl,
     [
-        acl_row(10,  21, 'allow', 100, undef, undef, 45811, 3, 'ima note'),
-        acl_row(20,  31, 'allow', 101, undef, undef, 45811, 4, 'ima note'),
+        acl_row(10,  21, 'allow', 100, 100, undef, 45811, 3, 'ima note'),
+        acl_row(20,  31, 'allow', 101, 101, undef, 45811, 4, 'ima note'),
         acl_row(22, 241, 'allow',   1,  4095, undef, 45811, 19, ''),
-        acl_row(30, 101, 'allow', 102, undef, undef, 45811, 5, 'ima note'),
-        acl_row(40,  61, 'allow', 103, undef, undef, 45811, 6, 'ima note'),
-        acl_row(50,  71, 'allow', 104, undef, undef, 45811, 7, 'ima note'),
-        acl_row(60,  81, 'allow', 105, undef, undef, 45811, 8, 'ima note')
+        acl_row(30, 101, 'allow', 102, 102, undef, 45811, 5, 'ima note'),
+        acl_row(40,  61, 'allow', 103, 103, undef, 45811, 6, 'ima note'),
+        acl_row(50,  71, 'allow', 104, 104, undef, 45811, 7, 'ima note'),
+        acl_row(60,  81, 'allow', 105, 105, undef, 45811, 8, 'ima note')
     ],
     'OESS::DB::ACL::fetch_all > OESS::ACL > to_hash: returns the right information, in the right order'
 );
