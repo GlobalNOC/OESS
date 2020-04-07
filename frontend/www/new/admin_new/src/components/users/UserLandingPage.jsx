@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import UsersTable from "../user_table/UserTable.jsx";
-import NavBar from "../nav_bar/NavBar.jsx";
 import getCurrentUser from '../../api/user_menu.jsx';
 import ModalTemplate2 from '../generic_components/ModalTemplate2.jsx';
 
@@ -12,62 +11,10 @@ class UserLandingPage extends React.Component {
   constructor(props){
 	super(props);
 	this.state={
-	  user: null,
-      workgroup: null,
 	  isVisible: false,
 	  rowdata:{}
 	};
-
-    this.setWorkgroup = this.setWorkgroup.bind(this);
   }
-
-  async componentDidMount(props) {
-    let user = await getCurrentUser();
-
-    let json = sessionStorage.getItem('data');
-    if (!json) {
-      let obj = {
-        username:       user.username,
-        workgroup_id:   user.workgroups[0].workgroup_id,
-        workgroup_name: user.workgroups[0].name,
-        workgroup_type: user.workgroups[0].type
-      };
-      sessionStorage.data = encodeURIComponent(JSON.stringify(obj));
-    }
-    else {
-      let data = JSON.parse(decodeURIComponent(json));
-
-      for (let i = 0; i < user.workgroups.length; i++) {
-        if (data.workgroup_id == user.workgroups[i].workgroup_id) {
-          let obj = {
-            username:       user.username,
-            workgroup_id:   user.workgroups[i].workgroup_id,
-            workgroup_name: user.workgroups[i].name,
-            workgroup_type: user.workgroups[i].type
-          };
-
-          sessionStorage.data = encodeURIComponent(JSON.stringify(obj));
-          break;
-        }
-      }
-    }
-
-    json = sessionStorage.getItem('data');
-    let data = JSON.parse(decodeURIComponent(json));
-    this.setState({user: user, workgroup: {name: data.workgroup_name, workgroup_id: data.workgroup_id}});
-  }
-
-  setWorkgroup(workgroup) {
-    let json = sessionStorage.getItem('data');
-    let data = JSON.parse(decodeURIComponent(json));
-    data.workgroup_name = workgroup.name;
-    data.workgroup_id = workgroup.workgroup_id;
-    data.workgroup_type = workgroup.type;
-    sessionStorage.data = encodeURIComponent(JSON.stringify(data));
-
-    this.setState({workgroup: {name: data.workgroup_name, workgroup_id: data.workgroup_id}});
-  }
-
 
   displaypopup(currComponent){
     var rowdata = {};
@@ -75,10 +22,6 @@ class UserLandingPage extends React.Component {
   }
 
   render() {
-    if (this.state.user === null) {
-      return null;
-    }
-
     var currComponent = this;
     return (
       <Page>
