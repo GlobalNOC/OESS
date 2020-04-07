@@ -5,6 +5,8 @@ import NavBar from "../nav_bar/NavBar.jsx";
 import getCurrentUser from '../../api/user_menu.jsx';
 import ModalTemplate2 from '../generic_components/ModalTemplate2.jsx';
 
+import { Page } from '../generic_components/Page.jsx';
+
 class UserLandingPage extends React.Component {
 	
   constructor(props){
@@ -79,33 +81,35 @@ class UserLandingPage extends React.Component {
 
     var currComponent = this;
     return (
-      <div>
-        <NavBar data={this.state.user} workgroup={this.state.workgroup} setWorkgroup={this.setWorkgroup} />
-
+      <Page>
         <div>
+
           <div>
-            <p className="title"><b>Users</b></p>
-            <p className="subtitle">Add or remove users</p>
-          </div>
-          <br/>
-          <br/>
-
-          <form id="user_search_div" className="form-inline">
-            <div className="form-group">
-              <input type="text" className="form-control" id="user_search" placeholder="Username"/>
+            <div>
+              <p className="title"><b>Users</b></p>
+              <p className="subtitle">Add or remove users</p>
             </div>
-            <button type="button" className="btn btn-primary" data-target="#myModal2" data-toggle="modal">Search</button>
-            <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
-          </form>
+            <br/>
+            <br/>
 
-          <p id="soft_title"> Existing Users</p>
-          <UsersTable/>
-          <br/>
-          <br/>
+            <form id="user_search_div" className="form-inline">
+              <div className="form-group">
+                <input type="text" className="form-control" id="user_search" placeholder="Username"/>
+              </div>
+              <button type="button" className="btn btn-primary" data-target="#myModal2" data-toggle="modal">Search</button>
+              <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
+            </form>
+
+            <p id="soft_title"> Existing Users</p>
+            <UsersTable/>
+            <br/>
+            <br/>
+          </div>
+
+          <ModalTemplate2/>
+
         </div>
-
-        <ModalTemplate2/>
-      </div>
+      </Page>
     );
   }
 }
