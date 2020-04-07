@@ -30,21 +30,39 @@ class UserLandingPage extends React.Component {
         workgroup_name: user.workgroups[0].name,
         workgroup_type: user.workgroups[0].type
       };
-
       sessionStorage.data = encodeURIComponent(JSON.stringify(obj));
+    }
+    else {
+      let data = JSON.parse(decodeURIComponent(json));
+
+      for (let i = 0; i < user.workgroups.length; i++) {
+        if (data.workgroup_id == user.workgroups[i].workgroup_id) {
+          let obj = {
+            username:       user.username,
+            workgroup_id:   user.workgroups[i].workgroup_id,
+            workgroup_name: user.workgroups[i].name,
+            workgroup_type: user.workgroups[i].type
+          };
+
+          sessionStorage.data = encodeURIComponent(JSON.stringify(obj));
+          break;
+        }
+      }
     }
 
     json = sessionStorage.getItem('data');
     let data = JSON.parse(decodeURIComponent(json));
-
     this.setState({user: user, workgroup: {name: data.workgroup_name, workgroup_id: data.workgroup_id}});
   }
 
-  setWorkgroup(e) {
+  setWorkgroup(workgroup) {
     let json = sessionStorage.getItem('data');
     let data = JSON.parse(decodeURIComponent(json));
-    data.workgroup_name = e.target.text;
+    data.workgroup_name = workgroup.name;
+    data.workgroup_id = workgroup.workgroup_id;
+    data.workgroup_type = workgroup.type;
     sessionStorage.data = encodeURIComponent(JSON.stringify(data));
+
     this.setState({workgroup: {name: data.workgroup_name, workgroup_id: data.workgroup_id}});
   }
 
