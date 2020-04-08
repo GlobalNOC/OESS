@@ -1,3 +1,14 @@
+.oess-page-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.oess-content-container {
+    flex: 1;
+    padding: 0 2em;
+}
+
 #soft_title{
 margin-top: 10;
 margin-left:0;

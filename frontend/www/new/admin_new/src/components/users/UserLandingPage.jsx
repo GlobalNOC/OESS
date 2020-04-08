@@ -6,6 +6,8 @@ import ModalTemplate2 from '../generic_components/ModalTemplate2.jsx';
 import { PageContextProvider } from '../../contexts/PageContext.jsx';
 import NavBar from "../nav_bar/NavBar.jsx";
 
+import "../../style.css";
+
 class UserLandingPage extends React.Component {
 	
   constructor(props){
@@ -25,31 +27,30 @@ class UserLandingPage extends React.Component {
     var currComponent = this;
     return (
       <PageContextProvider>
-        <NavBar />
+        <div className="oess-page-container">
+          <NavBar />
 
-        <div>
-          <div>
-            <p className="title"><b>Users</b></p>
-            <p className="subtitle">Add or remove users</p>
-          </div>
-          <br/>
-          <br/>
-
-          <form id="user_search_div" className="form-inline">
-            <div className="form-group">
-              <input type="text" className="form-control" id="user_search" placeholder="Username"/>
+          <div className="oess-content-container">
+            <div>
+              <p className="title"><b>Users</b></p>
+              <p className="subtitle">Add, remove, or update users.</p>
             </div>
-            <button type="button" className="btn btn-primary" data-target="#myModal2" data-toggle="modal">Search</button>
-            <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
-          </form>
+            <br />
 
-          <p id="soft_title"> Existing Users</p>
-          <UsersTable />
-          <br/>
-          <br/>
+            <form id="user_search_div" className="form-inline">
+              <div className="form-group">
+                <input type="text" className="form-control" id="user_search" placeholder="Username"/>
+              </div>
+              <button type="button" className="btn btn-primary" data-target="#myModal2" data-toggle="modal">Search</button>
+              <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
+            </form>
+            <br />
+
+            <UsersTable />
+          </div>
+
+          <ModalTemplate2 />
         </div>
-
-        <ModalTemplate2 />
       </PageContextProvider>
     );
   }
