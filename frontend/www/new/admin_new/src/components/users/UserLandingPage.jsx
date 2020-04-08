@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 import UsersTable from "../user_table/UserTable.jsx";
 import getCurrentUser from '../../api/user_menu.jsx';
+import { AdminNavBar } from "../nav_bar/AdminNavBar.jsx";
 import ModalTemplate2 from '../generic_components/ModalTemplate2.jsx';
 import { PageContextProvider } from '../../contexts/PageContext.jsx';
 import NavBar from "../nav_bar/NavBar.jsx";
@@ -34,13 +35,7 @@ class UserLandingPage extends React.Component {
           </div>
 
           <div className="oess-side-navigation">
-            <ul className="nav nav-pills nav-stacked">
-              <li role="presentation"><a href="#">Devices</a></li>
-              <li role="presentation"><a href="#">Links</a></li>
-              <li role="presentation"><a href="#">Remote</a></li>
-              <li role="presentation" className="active"><a href="#">Users</a></li>
-              <li role="presentation"><a href="workgroups.html">Workgroups</a></li>
-            </ul>
+            <AdminNavBar />
           </div>
 
           <div className="oess-page-content">

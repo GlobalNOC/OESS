@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 
 import getCurrentUser from '../api/user_menu.jsx';
 
+import { AdminNavBar } from "../components/nav_bar/AdminNavBar.jsx";
 import ModalTemplate2 from '../components/generic_components/ModalTemplate2.jsx';
 import NavBar from "../components/nav_bar/NavBar.jsx";
 import UsersTable from "../components/user_table/UserTable.jsx";
@@ -28,6 +29,12 @@ class Workgroups extends React.Component {
 
   render() {
     var currComponent = this;
+
+    // https://developer.mozilla.org/en-US/docs/Web/API/URL_API
+    let url = new URL(document.location.href);
+    let workgroup_id = url.searchParams.get('workgroup_id');
+    console.log(url.pathname);
+
     return (
       <PageContextProvider>
 
@@ -37,13 +44,7 @@ class Workgroups extends React.Component {
           </div>
 
           <div className="oess-side-navigation">
-            <ul className="nav nav-pills nav-stacked">
-              <li role="presentation"><a href="#">Devices</a></li>
-              <li role="presentation"><a href="#">Links</a></li>
-              <li role="presentation"><a href="#">Remote</a></li>
-              <li role="presentation"><a href="index.html">Users</a></li>
-              <li role="presentation" className="active"><a href="#">Workgroups</a></li>
-            </ul>
+            <AdminNavBar />
           </div>
 
           <div className="oess-page-content">
