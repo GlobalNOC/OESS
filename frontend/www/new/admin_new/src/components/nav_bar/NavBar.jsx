@@ -8,6 +8,8 @@ import NavDropdown from './NavDropdown';
 import NavLink from './NavLink';
 import NavSeparator from './NavSeparator';
 
+import { PageContext } from '../../contexts/PageContext';
+
 import "./navbar.css";
 
 export default class NavBar extends React.Component{
@@ -16,18 +18,24 @@ export default class NavBar extends React.Component{
   }
 
   render() {
+    let user = this.context.user;
+    let workgroup = this.context.workgroup;
+
     console.log(this.props);
 
     let path = testConfig.user;
 
     let adminLink = null;
-    if (this.props.data.is_admin == "1") {
+    if (user.is_admin == "1") {
       adminLink = <NavLink linkTo={`${path}new/admin`} text="Admin" />;
     }
 
-    let workgroupLinks = this.props.data.workgroups.map((workgroup, i) => {
-      return <NavLink linkTo={'#'} key={i} text={workgroup.name} onClick={() => this.props.setWorkgroup(workgroup)} />;
+    let workgroupLinks = user.workgroups.map((workgroup, i) => {
+      return <NavLink linkTo={'#'} key={i} text={workgroup.name} onClick={() => this.context.setWorkgroup(workgroup)} />;
     });
+
+    console.log('pagecontext:', this.context);
+
 
 	return(
       <nav className="navbar navbar-inverse oess-navbar">
@@ -45,7 +53,7 @@ export default class NavBar extends React.Component{
 
           <div className="collapse navbar-collapse" id="navbar-collapse">
             <ul className="nav navbar-nav">
-              <NavDropdown text="New Connection" user={this.props.data}>
+              <NavDropdown text="New Connection" user={user}>
                 <NavLink linkTo={`${path}new/index.cgi?action=provision_l2vpn`} text="Layer 2" />
                 <NavLink linkTo={`${path}new/index.cgi?action=provision_cloud`} text="Layer 3" />
               </NavDropdown>
@@ -54,11 +62,11 @@ export default class NavBar extends React.Component{
             </ul>
             <ul className="nav navbar-nav navbar-right">
               {adminLink}
-              <NavDropdown text={`${this.props.data.username} / ${this.props.workgroup.name}`} user={this.props.data}>
+              <NavDropdown text={`${user.username} / ${workgroup.name}`} user={user}>
                 <NavLink linkTo={"#"}>
-                  <b>{this.props.data.first_name} {this.props.data.last_name}</b><br/>
-                  {this.props.data.username}<br/>
-                  {this.props.data.email}
+                  <b>{user.first_name} {user.last_name}</b><br/>
+                  {user.username}<br/>
+                  {user.email}
                 </NavLink>
                 <NavSeparator />
                 {workgroupLinks}
@@ -71,3 +79,4 @@ export default class NavBar extends React.Component{
     );
   }
 }
+NavBar.contextType = PageContext;

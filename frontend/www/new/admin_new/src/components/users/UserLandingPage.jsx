@@ -3,8 +3,8 @@ import ReactDOM from "react-dom";
 import UsersTable from "../user_table/UserTable.jsx";
 import getCurrentUser from '../../api/user_menu.jsx';
 import ModalTemplate2 from '../generic_components/ModalTemplate2.jsx';
-
-import { Page } from '../generic_components/Page.jsx';
+import { PageContextProvider } from '../../contexts/PageContext.jsx';
+import NavBar from "../nav_bar/NavBar.jsx";
 
 class UserLandingPage extends React.Component {
 	
@@ -24,35 +24,33 @@ class UserLandingPage extends React.Component {
   render() {
     var currComponent = this;
     return (
-      <Page>
+      <PageContextProvider>
+        <NavBar />
+
         <div>
-
           <div>
-            <div>
-              <p className="title"><b>Users</b></p>
-              <p className="subtitle">Add or remove users</p>
-            </div>
-            <br/>
-            <br/>
-
-            <form id="user_search_div" className="form-inline">
-              <div className="form-group">
-                <input type="text" className="form-control" id="user_search" placeholder="Username"/>
-              </div>
-              <button type="button" className="btn btn-primary" data-target="#myModal2" data-toggle="modal">Search</button>
-              <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
-            </form>
-
-            <p id="soft_title"> Existing Users</p>
-            <UsersTable/>
-            <br/>
-            <br/>
+            <p className="title"><b>Users</b></p>
+            <p className="subtitle">Add or remove users</p>
           </div>
+          <br/>
+          <br/>
 
-          <ModalTemplate2/>
+          <form id="user_search_div" className="form-inline">
+            <div className="form-group">
+              <input type="text" className="form-control" id="user_search" placeholder="Username"/>
+            </div>
+            <button type="button" className="btn btn-primary" data-target="#myModal2" data-toggle="modal">Search</button>
+            <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
+          </form>
 
+          <p id="soft_title"> Existing Users</p>
+          <UsersTable />
+          <br/>
+          <br/>
         </div>
-      </Page>
+
+        <ModalTemplate2 />
+      </PageContextProvider>
     );
   }
 }

@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from "react";
 
-import NavBar from "../nav_bar/NavBar.jsx";
-
-import getCurrentUser from '../../api/user_menu.jsx';
+import getCurrentUser from '../api/user_menu.jsx';
 
 
-const Page = (props) => {
+export const PageContext = React.createContext({
+  user:         null,
+  workgroup:    null,
+  setWorkgroup: () => {}
+});
+
+
+export const PageContextProvider = (props) => {
   const [user, setUser] = useState(null);
   const [workgroup, setWorkgroup] = useState(null);
 
@@ -70,13 +75,8 @@ const Page = (props) => {
   }
 
   return (
-    <div>
-      <NavBar data={user} workgroup={workgroup} setWorkgroup={(data) => {
-          setWorkgroup({ name: data.name, workgroup_id: data.workgroup_id });
-        }} />
+    <PageContext.Provider value={{ user, workgroup, setWorkgroup }}>
       {props.children}
-    </div>
+    </PageContext.Provider>
   );
 };
-
-export { Page };
