@@ -27,10 +27,23 @@ class UserLandingPage extends React.Component {
     var currComponent = this;
     return (
       <PageContextProvider>
-        <div className="oess-page-container">
-          <NavBar />
 
-          <div className="oess-content-container">
+        <div className="oess-page-container">
+          <div className="oess-page-navigation">
+            <NavBar />
+          </div>
+
+          <div className="oess-side-navigation">
+            <ul className="nav nav-pills nav-stacked">
+              <li role="presentation"><a href="#">Devices</a></li>
+              <li role="presentation"><a href="#">Links</a></li>
+              <li role="presentation"><a href="#">Remote</a></li>
+              <li role="presentation" className="active"><a href="#">Users</a></li>
+              <li role="presentation"><a href="#">Workgroups</a></li>
+            </ul>
+          </div>
+
+          <div className="oess-page-content">
             <div>
               <p className="title"><b>Users</b></p>
               <p className="subtitle">Add, remove, or update users.</p>
@@ -47,9 +60,8 @@ class UserLandingPage extends React.Component {
             <br />
 
             <UsersTable />
+            <ModalTemplate2 />
           </div>
-
-          <ModalTemplate2 />
         </div>
       </PageContextProvider>
     );
