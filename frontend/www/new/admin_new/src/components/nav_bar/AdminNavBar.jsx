@@ -5,16 +5,16 @@ export const AdminNavBar = () => {
   let url = new URL(document.location.href);
 
   let links = [
-    { name: 'Devices',    url: '/devices.html' },
-    { name: 'Links',      url: '/links.html' },
-    { name: 'Remote',     url: '/remote.html' },
-    { name: 'Users',      url: '/index.html' },
-    { name: 'Workgroups', url: '/workgroups.html' }
+    { name: 'Devices',    url: 'devices.html' },
+    { name: 'Links',      url: 'links.html' },
+    { name: 'Remote',     url: 'remote.html' },
+    { name: 'Users',      url: 'index.html' },
+    { name: 'Workgroups', url: 'workgroups.html' }
   ];
 
   let sideNavLinks = links.map((link, i) => {
     let classNames = '';
-    if (link.url == url.pathname) {
+    if (url.pathname.includes(link.url)) {
       classNames = 'active';
       link.url = '#';
     }
