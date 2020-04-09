@@ -698,6 +698,8 @@ sub update_cache {
     my $node_id =  $p_ref->{'node_id'}{'value'};
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
 
+    my $conn = undef;
+
     if ((!defined($circuit_id) || $circuit_id == -1 ) && (!defined($vrf_id) || $vrf_id == -1)) {
         $self->{'logger'}->debug("Updating Cache for entire network.");
 
@@ -720,20 +722,18 @@ sub update_cache {
     } elsif(defined($circuit_id) && $circuit_id != -1) {
         $self->{'logger'}->debug("Updating cache for circuit $circuit_id.");
 
-        my $ckt = $self->get_ckt_object($circuit_id);
-        if (!defined $ckt) {
+        $conn = $self->get_ckt_object($circuit_id);
+        if (!defined $conn) {
             return &$error("Couldn't create circuit object for circuit $circuit_id");
         }
         $self->{'logger'}->info("Updated cache for circuit $circuit_id.");
-    }else{
+    } else {
         $self->{'logger'}->debug("Updating cache for vrf $vrf_id.");
 
-        my $vrf = $self->get_vrf_object($vrf_id);
-        if (!defined $vrf) {
+        $conn = $self->get_vrf_object($vrf_id);
+        if (!defined $conn) {
             return &$error("Couldn't create vrf object for vrf $vrf_id");
         }
-
-        $vrf->update_vrf_details();
         $self->{'logger'}->info("Updated cache for vrf $vrf_id.");
     }
 
@@ -750,22 +750,42 @@ sub update_cache {
         }
     );
 
-    foreach my $id (keys %{$self->{'children'}}){
-        if (defined $node_id && $node_id != $id) {
-            next;
-        }
-        my $addr = $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
-        $condvar->begin();
+    if (defined $conn) {
+        # Targeted Cache Update
+        foreach my $ep (@{$conn->endpoints}) {
+            my $addr = $self->{node_by_id}->{$ep->node_id}->{mgmt_addr};
 
-        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$addr";
-        $self->{'fwdctl_events'}->update_cache(
-            async_callback => sub {
-                my $result = shift;
-                $condvar->end();
+            $condvar->begin;
+            $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$addr";
+            $self->{fwdctl_events}->update_cache(
+                async_callback => sub {
+                    my $result = shift;
+                    $condvar->end;
+                }
+            );
+        }
+        $condvar->end;
+
+    } else {
+        # Global Cache Update
+        foreach my $id (keys %{$self->{'children'}}){
+            if (defined $node_id && $node_id != $id) {
+                next;
             }
-        );
+            my $addr = $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+            $condvar->begin();
+
+            $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$addr";
+            $self->{'fwdctl_events'}->update_cache(
+                async_callback => sub {
+                    my $result = shift;
+                    $condvar->end();
+                }
+            );
+        }
+        $condvar->end();
+
     }
-    $condvar->end();
 }
 
 =head2 check_child_status
@@ -1350,57 +1370,62 @@ sub get_diff_text {
 
 =head2 get_vrf_object
 
+    my $conn = $fwdctl->get_vrf_object(1000);
+
+get_vrf_object looks up C<$ckt_id> from the database, stores the
+created object in memory, and returns it. On failure C<undef> is
+returned.
+
 =cut
-sub get_vrf_object{
+sub get_vrf_object {
     my $self = shift;
     my $vrf_id = shift;
 
-    my $vrf = $self->{'vrfs'}->{$vrf_id};
+    my $vrf = OESS::VRF->new(vrf_id => $vrf_id, db => $self->{'db2'});
     if (!defined $vrf) {
-        $vrf = OESS::VRF->new(vrf_id => $vrf_id, db => $self->{'db2'});
-        if (!defined $vrf) {
-            $self->{'logger'}->error("Unable to create VRF Object for VRF: " . $vrf_id);
-            return;
-        }
-        $vrf->load_endpoints;
-        foreach my $ep (@{$vrf->endpoints}) {
-            $ep->load_peers;
-        }
-        $vrf->load_users;
-        $vrf->load_workgroup;
-
-        $self->{'vrfs'}->{$vrf->vrf_id()} = $vrf;
+        $self->{'logger'}->error("Error occured creating Layer3 Connection: " . $vrf_id);
+        return;
     }
 
+    $vrf->load_endpoints;
+    foreach my $ep (@{$vrf->endpoints}) {
+        $ep->load_peers;
+    }
+    $vrf->load_users;
+    $vrf->load_workgroup;
+
+    $self->{'vrfs'}->{$vrf->vrf_id} = $vrf;
     return $vrf;
 }
 
-
 =head2 get_ckt_object
 
-returns a ckt object for the requested circuit
+    my $conn = $fwdctl->get_ckt_object(1000);
+
+get_ckt_object looks up C<$ckt_id> from the database, stores the
+created object in memory, and returns it. On failure C<undef> is
+returned.
 
 =cut
-
-sub get_ckt_object{
+sub get_ckt_object {
     my $self =shift;
     my $ckt_id = shift;
 
     my $ckt = OESS::L2Circuit->new(circuit_id => $ckt_id, db => $self->{'db2'});
     if (!defined $ckt) {
-        $self->{'logger'}->error("Error occured creating circuit: " . $ckt_id);
+        $self->{'logger'}->error("Error occured creating Layer2 Connection: " . $ckt_id);
         return;
     }
 
     if ($ckt->{'type'} ne 'mpls') {
         $self->{'logger'}->error("Circuit $ckt_id is not of type MPLS.");
-        return undef;
+        return;
     }
 
     $ckt->load_endpoints;
     $ckt->load_paths;
-    $self->{'circuit'}->{$ckt->circuit_id} = $ckt;
 
+    $self->{'circuit'}->{$ckt->circuit_id} = $ckt;
     return $ckt;
 }
 
