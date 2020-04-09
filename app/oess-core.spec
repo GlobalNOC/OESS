@@ -171,6 +171,9 @@ rm -rf $RPM_BUILD_ROOT
 %doc
 
 %post
+/usr/bin/getent group _oess || /usr/sbin/groupadd -r _oess
+/usr/bin/getent passwd _oess || /usr/sbin/useradd -r -m -s /bin/bash -g _oess _oess
+
 mkdir -p /var/run/oess/
 mkdir -p /var/log/oess/
 chmod a+rw /var/log/oess/
