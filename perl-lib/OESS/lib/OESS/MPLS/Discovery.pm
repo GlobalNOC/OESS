@@ -265,6 +265,7 @@ sub make_baby{
     $args{'name'} = $node->{'name'};
     $args{'use_cache'} = 0;
     $args{'topic'} = "MPLS.Discovery.Switch";
+    $args{'type'} = 'discovery';
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
 use warnings;

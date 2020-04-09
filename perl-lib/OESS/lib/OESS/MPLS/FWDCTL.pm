@@ -656,6 +656,7 @@ sub make_baby {
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
     $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
     $args{'topic'} = "MPLS.FWDCTL.Switch";
+    $args{'type'} = 'fwdctl';
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
 use warnings;
