@@ -22,6 +22,7 @@ export default class UsersTable extends React.Component {
             }],
 	    offset: 5,
 	    curr_page: 1,
+	    search_query:"",
         };
     }
 
@@ -45,10 +46,23 @@ export default class UsersTable extends React.Component {
 
 	this.getUsersFromAPI();	
     }
+    componentWillReceiveProps(nextProps, prevState) {
+	if(nextProps.query){
+		this.setState({
+			search_query:nextProps.query,
+		})
+	}else{
+		this.setState({
+                        search_query:"",
+                })	
+	}
+
+    }
 
     componentDidUpdate() {
         //to-do
         console.log("Component updated with props ",this.props.query); 
+	//this.setState({search_query:this.props.query});
     }
 
     pageUpdate(event){
