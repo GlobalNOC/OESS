@@ -9,6 +9,7 @@ export default class UsersTable extends React.Component {
         super(props);
 	this.pageUpdate = this.pageUpdate.bind(this);
         this.getUsersFromAPI = this.getUsersFromAPI.bind(this);
+	this.searchFilter = this.searchFilter.bind(this);
 	this.searchquery = this.props.query;
 	this.state = {
             users: [{
@@ -87,32 +88,34 @@ export default class UsersTable extends React.Component {
 		this.setState({curr_page: max_page });
 	}	
     }
+
+    searchFilter(){
+	var obj = this.state.users;
+	if(this.state.search_query != ""){
+                var filtered_obj = []
+                for(var i=0; i<obj.length ; i++){
+                        if(obj[i].auth_name[0].includes(this.state.search_query)){
+                                filtered_obj.push(obj[i]);
+                        }
+                }
+		return filtered_obj;
+        }else{
+		return obj;
+	}
+    }
 	
     render() {
         //Render Table if atleast 1 user data is available
         var currcomp = this;
 	if (this.state.users[0].user_id != "") {
             var users_data = [];
-            /*this.state.users.forEach(function (obj) {
-                var data = {};
-                data["First Name"] = obj.first_name;
-                data["Last Name"] = obj.family_name;
-                data["Username"] = obj.auth_name[0];
-                data["Email Address"] = obj.email_address;
-                data["User Type"] = obj.type;
-                data["User Status"] = obj.status;
-		data["userid"] = obj.user_id;
-
-                users_data.push(data);
-            });*/
 	    var rowstart = 0;
 	    if(this.state.curr_page != 1){
 		rowstart = this.state.offset* (this.state.curr_page-1);	
 	    }
-	    var obj  = this.state.users;
-	    if(this.searchquery != ""){
-	    	console.log(this.searchquery);
-	    }
+	    
+	    var obj  = this.searchFilter();
+	   
 	    for(var i= rowstart ; i< this.state.curr_page * this.state.offset ; i++){
 		var userinfo = {};
 		if(obj[i] != null || obj[i] != undefined){
@@ -129,7 +132,7 @@ export default class UsersTable extends React.Component {
 		  break;
 		}
 	    }
-
+	   
 	    if(users_data.length == 0){
 		var userinfo = {};
 		userinfo["User info"] ="Data Not Available";
