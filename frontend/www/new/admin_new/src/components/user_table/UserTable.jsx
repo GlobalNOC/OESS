@@ -21,7 +21,7 @@ export default class UsersTable extends React.Component {
                 "first_name": ""
             }],
 	    offset: 5,
-	    curr_page: 1
+	    curr_page: 1,
         };
     }
 
@@ -47,7 +47,8 @@ export default class UsersTable extends React.Component {
     }
 
     componentDidUpdate() {
-        //to-do 
+        //to-do
+        console.log("Component updated with props ",this.props.query); 
     }
 
     pageUpdate(event){

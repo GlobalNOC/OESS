@@ -13,15 +13,24 @@ class UserLandingPage extends React.Component {
 	
   constructor(props){
 	super(props);
+	this.updateSearchQuery = this.updateSearchQuery.bind(this);
 	this.state={
 	  isVisible: false,
-	  rowdata:{}
+	  rowdata:{},
+	  search_query:'',
 	};
   }
 
   displaypopup(currComponent){
     var rowdata = {};
     this.setState({isVisible:true, rowdata:rowdata});
+  }
+
+  updateSearchQuery(event){
+	const target = event.target;
+        const name = target.name;
+        var value = document.getElementById("user_search").value;
+	this.setState({search_query:value});
   }
 
   render() {
@@ -45,16 +54,17 @@ class UserLandingPage extends React.Component {
             </div>
             <br />
 
-            <form id="user_search_div" className="form-inline">
-              <div className="form-group">
+             
+              <form id="user_search_div" className="form-inline">
+		<div className="form-group">
                 <input type="text" className="form-control" id="user_search" placeholder="Username"/>
-              </div>
-              <button type="button" className="btn btn-primary" data-target="#myModal2" data-toggle="modal">Search</button>
+            	</div>
+              <button type="button" className="btn btn-primary" onClick={this.updateSearchQuery}>Search</button>
               <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
-            </form>
+             </form>
             <br />
 
-            <UsersTable />
+            <UsersTable  query={this.state.search_query} />
             <ModalTemplate2 />
           </div>
         </div>
