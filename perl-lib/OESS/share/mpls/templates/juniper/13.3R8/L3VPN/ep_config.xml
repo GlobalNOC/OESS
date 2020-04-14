@@ -6,6 +6,7 @@
       <unit>
         <name>[% interface.unit %]</name>
         <description>OESS-L3VPN-[% vrf_id %]</description>
+
         [% IF interface.defined('inner_tag') %]
         <vlan-tags>
           <outer>[% interface.tag %]</outer>
@@ -14,37 +15,36 @@
         [% ELSE %]
         <vlan-id>[% interface.tag %]</vlan-id>
         [% END %]
-        [% IF interface.has_ipv4 or interface.has_ipv6 %]
+
         <family>
-          [% IF interface.has_ipv4 %]
+          [% FOREACH peer IN interface.peers %]
+          [% IF peer.ip_version == 'ipv4' %]
           <inet>
             [% IF interface.mtu %]<mtu>[% interface.mtu %]</mtu>[% END %]
-            [% FOREACH peer IN interface.v4_peers %]
             <address>
               <name>[% peer.local_ip %]</name>
             </address>
-            [% END %]
           </inet>
           [% END %]
-          [% IF interface.has_ipv6 %]
+
+          [% IF peer.ip_version == 'ipv6' %]
           <inet6>
             [% IF interface.mtu %]<mtu>[% interface.mtu %]</mtu>[% END %]
-            [% FOREACH peer IN interface.v6_peers %]
             <address>
               <name>[% peer.local_ip %]</name>
-              </address>
-            [% END %]
+            </address>
           </inet6>
           [% END %]
+          [% END %]
         </family>
-        [% END %]
+
       </unit>
     </interface>
     [% END %]
   </interfaces>
 
   [% FOREACH interface IN interfaces %]
-    [% IF interface.bandwidth > 0 %]
+  [% IF interface.bandwidth > 0 %]
   <class-of-service>
     <interfaces>
       <interface>
@@ -58,7 +58,7 @@
       </interface>
     </interfaces>
   </class-of-service>
-    [% END %]
+  [% END %]
   [% END %]
 
   <routing-instances>
@@ -67,78 +67,79 @@
       <instance-type>vrf</instance-type>
       [% FOREACH interface IN interfaces %]
       <interface>
-	<name>[% interface.interface %].[% interface.unit %]</name>
+        <name>[% interface.interface %].[% interface.unit %]</name>
       </interface>
       [% END %]
       <route-distinguisher>
-	<rd-type>[% switch.loopback %]:[% vrf_id %]</rd-type>
+        <rd-type>[% switch.loopback %]:[% vrf_id %]</rd-type>
       </route-distinguisher>
       <vrf-import>OESS-L3VPN-[% vrf_id %]-IMPORT</vrf-import>
       <vrf-export>OESS-L3VPN-[% vrf_id %]-EXPORT</vrf-export>
       <vrf-table-label></vrf-table-label>
       <routing-options>
-	<router-id>[% switch.loopback %]</router-id>
-	<autonomous-system>
-	  <as-number>[% local_as %]</as-number>
-	  <independent-domain></independent-domain>
-	</autonomous-system>
+        <router-id>[% switch.loopback %]</router-id>
+        <autonomous-system>
+          <as-number>[% local_asn %]</as-number>
+          <independent-domain></independent-domain>
+        </autonomous-system>
       </routing-options>
       <protocols>
-	<bgp>
-	  <log-updown/>
-          [% IF has_ipv4 %]
-	  <group>
-	    <name>OESS-L3VPN-[% vrf_id %]-BGP</name>
-	    <family>
-	      <inet>
-		<unicast>
-		  <prefix-limit>
-		    <maximum>[% prefix_limit %]</maximum>
-		    <teardown>
-		      <limit-threshold>90</limit-threshold>
-		      <idle-timeout>
-			<timeout>30</timeout>
-		      </idle-timeout>
-		    </teardown>
-		  </prefix-limit>
-		</unicast>
-	      </inet>
+        <bgp>
+          <log-updown/>
+
+          <group>
+            <name>OESS-L3VPN-[% vrf_id %]-BGP</name>
+            <family>
+              <inet>
+                <unicast>
+                  <prefix-limit>
+                    <maximum>[% prefix_limit %]</maximum>
+                    <teardown>
+                      <limit-threshold>90</limit-threshold>
+                      <idle-timeout>
+                        <timeout>30</timeout>
+                      </idle-timeout>
+                    </teardown>
+                  </prefix-limit>
+                </unicast>
+              </inet>
             </family>
+
             <local-as>
-              <as-number>[% local_as %]</as-number>
+              <as-number>[% local_asn %]</as-number>
             </local-as>
+
             [% FOREACH interface IN interfaces %]
-               [% FOREACH peer IN interface.v4_peers %]
-            <neighbor>
-              <name>[% peer.peer_ip %]</name>
-              <description>OESS-L3VPN-[% vrf_id %]</description>
-              <import>OESS-L3VPN-[% vrf_id %]-IN</import>
+              [% FOREACH peer IN interface.peers %]
+                [% IF peer.ip_version == 'ipv4' %]
+                <neighbor>
+                  <name>[% peer.peer_ip FILTER remove('/\d+') %]</name>
+                  <description>OESS-L3VPN-[% vrf_id %]</description>
+                  <import>OESS-L3VPN-[% vrf_id %]-IN</import>
 
-              [% IF peer.key %]
-              <authentication-key>[% peer.key %]</authentication-key>
-              [% END %]
+                  [% IF peer.md5_key %]<authentication-key>[% peer.md5_key %]</authentication-key>[% END %]
 
-              [% IF peer.bfd == 1 %]
-              <bfd-liveness-detection>
-                <minimum-interval>1000</minimum-interval>
-                <multiplier>3</multiplier>
-              </bfd-liveness-detection>
-              [% END %]
+                  [% IF peer.bfd == 1 %]
+                  <bfd-liveness-detection>
+                    <minimum-interval>1000</minimum-interval>
+                    <multiplier>3</multiplier>
+                  </bfd-liveness-detection>
+                  [% END %]
 
-              [% IF interface.cloud_interconnect_type == 'gcp-partner-interconnect' %]
-              <multihop>
-                <ttl>4</ttl>
-              </multihop>
-              [% END %]
+                  [% IF interface.cloud_interconnect_type == 'gcp-partner-interconnect' %]
+                  <multihop>
+                    <ttl>4</ttl>
+                  </multihop>
+                  [% END %]
 
-              <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
-              <peer-as>[% peer.asn %]</peer-as>
-            </neighbor>
+                  <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
+                  <peer-as>[% peer.peer_asn %]</peer-as>
+                </neighbor>
+                [% END %]
               [% END %]
             [% END %]
           </group>
-          [% END %]
-          [% IF has_ipv6 %]
+
           <group>
             <name>OESS-L3VPN-[% vrf_id %]-BGP-V6</name>
             <family>
@@ -155,66 +156,69 @@
                   </prefix-limit>
                 </unicast>
               </inet6>
-	    </family>
-	    <local-as>
-	      <as-number>[% local_as %]</as-number>
-	    </local-as>
+            </family>
+
+            <local-as>
+              <as-number>[% local_asn %]</as-number>
+            </local-as>
+
             [% FOREACH interface IN interfaces %]
-              [% FOREACH peer IN interface.v6_peers %]
-            <neighbor>
-              <name>[% peer.peer_ip %]</name>
-              <description>OESS-L3VPN-[% vrf_id %]</description>
-              <import>OESS-L3VPN-[% vrf_id %]-IN</import>
+              [% FOREACH peer IN interface.peers %]
+                [% IF peer.ip_version == 'ipv6' %]
+                <neighbor>
+                  <name>[% peer.peer_ip FILTER remove('/\d+') %]</name>
+                  <description>OESS-L3VPN-[% vrf_id %]</description>
+                  <import>OESS-L3VPN-[% vrf_id %]-IN</import>
 
-              [% IF peer.key %]
-              <authentication-key>[% peer.key %]</authentication-key>
-              [% END %]
+                  [% IF peer.md5_key %]<authentication-key>[% peer.md5_key %]</authentication-key>[% END %]
 
-              <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
-              <peer-as>[% peer.asn %]</peer-as>
-            </neighbor>
+                  <export>OESS-L3VPN-[% vrf_id %]-OUT</export>
+                  <peer-as>[% peer.peer_asn %]</peer-as>
+                </neighbor>
+                [% END %]
               [% END %]
-	    [% END %]
-	  </group>
-          [% END %]
-	</bgp>
+            [% END %]
+          </group>
+
+        </bgp>
       </protocols>
     </instance>
   </routing-instances>
+
   <policy-options>
     <policy-statement>
       <name>OESS-L3VPN-[% vrf_id %]-EXPORT</name>
       <term>
-	<name>direct</name>
-	<from>
-	  <protocol>direct</protocol>
-	</from>
-	<then>
-	  <community>
-	    <add/>
-	    <community-name>OESS-L3VPN-[% vrf_id %]</community-name>
-	  </community>
-	  <accept/>
-	</then>
+	    <name>direct</name>
+	    <from>
+	      <protocol>direct</protocol>
+	    </from>
+	    <then>
+	      <community>
+	        <add/>
+	        <community-name>OESS-L3VPN-[% vrf_id %]</community-name>
+	      </community>
+	      <accept/>
+	    </then>
       </term>
       <term>
-	<name>bgp</name>
-	<from>
-	  <protocol>bgp</protocol>
-	</from>
-	<then>
-	  <community>
-	    <add/>
-	    <community-name>OESS-L3VPN-[% vrf_id %]</community-name>
-	  </community>
-	  <accept/>
-	</then>
+	    <name>bgp</name>
+	    <from>
+	      <protocol>bgp</protocol>
+	    </from>
+	    <then>
+	      <community>
+	        <add/>
+	        <community-name>OESS-L3VPN-[% vrf_id %]</community-name>
+	      </community>
+	      <accept/>
+	    </then>
       </term>
       <term>
-	<name>reject</name>
-	<then>
-	  <reject/>
-	</then>
+	    <name>reject</name>
+	    <then>
+	      <reject/>
+	    </then>
       </term>
     </policy-statement>
     <policy-statement>
@@ -238,71 +242,71 @@
     <policy-statement>
       <name>OESS-L3VPN-[% vrf_id %]-IN</name>
       <term>
-	<name>remove-comms-rt</name>
-	<then>
-	  <community>
-	    <delete/>
-	    <community-name>I2CLOUD-EXTENDED-TARGET</community-name>
-	  </community>
-	  <next>term</next>
-	</then>
+	    <name>remove-comms-rt</name>
+	    <then>
+	      <community>
+	        <delete/>
+	        <community-name>I2CLOUD-EXTENDED-TARGET</community-name>
+	      </community>
+	      <next>term</next>
+	    </then>
       </term>
       <term>
-	<name>import-bgp</name>
-	<from>
-	  <protocol>bgp</protocol>
-	</from>
-	<then>
-	  <community>
-	    <add/>
-	    <community-name>OESS-L3VPN-[% vrf_id %]-BGP</community-name>
-	  </community>
-	  <accept/>
-	</then>
+	    <name>import-bgp</name>
+	    <from>
+	      <protocol>bgp</protocol>
+	    </from>
+	    <then>
+	      <community>
+	        <add/>
+	        <community-name>OESS-L3VPN-[% vrf_id %]-BGP</community-name>
+	      </community>
+	      <accept/>
+	    </then>
       </term>
     </policy-statement>
     <policy-statement>
       <name>OESS-L3VPN-[% vrf_id %]-OUT</name>
       <term>
-	<name>remove-comms-rt</name>
-	<then>
-	  <community>
-	    <delete/>
-	    <community-name>I2CLOUD-EXTENDED-TARGET</community-name>
-	  </community>
-	  <next>term</next>
-	</then>
+	    <name>remove-comms-rt</name>
+	    <then>
+	      <community>
+	        <delete/>
+	        <community-name>I2CLOUD-EXTENDED-TARGET</community-name>
+	      </community>
+	      <next>term</next>
+	    </then>
       </term>
       <term>
-	<name>export-bgp</name>
-	<from>
-	  <protocol>bgp</protocol>
-	</from>
-	<then>
-	  <accept/>
-	</then>
+	    <name>export-bgp</name>
+	    <from>
+	      <protocol>bgp</protocol>
+	    </from>
+	    <then>
+	      <accept/>
+	    </then>
       </term>
       <term>
-	<name>export-direct</name>
-	<from>
-	  <protocol>direct</protocol>
-	</from>
-	<then>
+	    <name>export-direct</name>
+	    <from>
+	      <protocol>direct</protocol>
+	    </from>
+	    <then>
           <community>
          	<add/>
-              	<community-name>OESS-L3VPN-[% vrf_id %]-BGP</community-name>
+            <community-name>OESS-L3VPN-[% vrf_id %]-BGP</community-name>
           </community>
           <accept/>
-	</then>
+	    </then>
       </term>
     </policy-statement>
     <community>
       <name>OESS-L3VPN-[% vrf_id %]</name>
-      <members>target:[% local_as %]:[% vrf_id %]</members>
+      <members>target:[% local_asn %]:[% vrf_id %]</members>
     </community>
     <community>
       <name>OESS-L3VPN-[% vrf_id %]-BGP</name>
-      <members>[% local_as %]:[% vrf_id %]</members>
+      <members>[% local_asn %]:[% vrf_id %]</members>
     </community>
   </policy-options>
 </groups></configuration>

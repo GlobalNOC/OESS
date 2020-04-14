@@ -302,7 +302,8 @@ my $conf = $device->add_vrf_xml({
                     peer_ip => '192.168.2.3/31',
                     md5_key => 'md5key',
                     bfd => 0,
-                    peer_asn => 666
+                    peer_asn => 666,
+                    ip_version => 'ipv4'
                 }
             ]
         },
@@ -318,7 +319,8 @@ my $conf = $device->add_vrf_xml({
                     peer_ip => 'fd97:ab53:51b7:017b::5/127',
                     md5_key => undef,
                     bfd => 1,
-                    peer_asn => 777
+                    peer_asn => 777,
+                    ip_version => 'ipv6'
                 }
             ]
         }

@@ -888,72 +888,16 @@ sub add_vrf_xml {
     my $self = shift;
     my $vrf = shift;
 
-    my $vars = {};
-    $vars->{'vrf_name'} = $vrf->{'name'};
-    $vars->{'interfaces'} = ();
-
-    foreach my $i (@{$vrf->{'interfaces'}}) {
-
-        my @bgp_v4;
-        my @bgp_v6;
-        my $has_ipv4=0;
-        my $has_ipv6=0;
-
-        foreach my $bgp (@{$i->{'peers'}}){
-            #strip off the cidr
-            #192.168.1.0/24
-            my $peer_ip = $bgp->{'peer_ip'};
-            $peer_ip =~ s/\/\d+//g;
-
-            my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
-            #determine if its an ipv4 or an ipv6
-            if($type == 4){
-                $has_ipv4 = 1;
-                $vars->{'has_ipv4'} = 1;
-                push(@bgp_v4, { asn => $bgp->{'peer_asn'},
-                                bfd => $bgp->{'bfd'},
-                                local_ip => $bgp->{'local_ip'},
-                                peer_ip => $peer_ip,
-                                key => $bgp->{'md5_key'}
-                            });
-
-            }else{
-                $has_ipv6 = 1;
-                $vars->{'has_ipv6'} = 1;
-                push(@bgp_v6, { asn => $bgp->{'peer_asn'},
-                                bfd => $bgp->{'bfd'},
-                                local_ip => $bgp->{'local_ip'},
-                                peer_ip => $peer_ip,
-                                key => $bgp->{'md5_key'}
-                     });
-            }
-        }
-
-        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                          type => $i->{'type'},
-                                          mtu  => $i->{'mtu'},
-                                          inner_tag => $i->{'inner_tag'},
-                                          tag  => $i->{'tag'},
-                                          unit => $i->{'unit'},
-                                          bandwidth => $i->{'bandwidth'},
-                                          v4_peers => \@bgp_v4,
-                                          has_ipv4 => $has_ipv4,
-                                          has_ipv6 => $has_ipv6,
-                                          v6_peers => \@bgp_v6 });
-    }
-    $vars->{'vrf_id'} = $vrf->{'vrf_id'};
-    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-    $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
-    $vars->{'local_as'} = $vrf->{'local_asn'};
-
     my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$output);
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vrf, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
+        warn $self->{tt}->error;
         return;
     }
     if (!defined $output) {
         $self->{'logger'}->error('Unknown error occurred while generating add_vrf_xml.');
+        warn 'Unknown error occurred while generating add_vrf_xml.';
         return;
     }
     return $output;
@@ -1130,7 +1074,7 @@ sub xml_configuration {
         $self->{'logger'}->debug("VARS: " . Dumper($vars));
         
         if($vrf->{'state'} eq 'active'){
-            $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$xml);
+            $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vrf, \$xml);
         }
         
         $xml =~ s/<configuration><groups><name>OESS<\/name>//g;
