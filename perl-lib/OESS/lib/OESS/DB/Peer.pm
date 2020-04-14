@@ -18,6 +18,7 @@ use Data::Dumper;
         model => {
             circuit_ep_id     => 7,                # Optional
             vrf_ep_id         => 7,                # Optional
+            ip_version        => 'ipv4',           # Optional - Derived from local_ip
             local_ip          => '192.168.1.2/31',
             peer_asn          => 1200
             peer_ip           => '192.168.1.3/31',
@@ -39,7 +40,7 @@ sub create {
     return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
 
     my $q1 = "
-        INSERT INTO vrf_ep_peer (circuit_ep_id, vrf_ep_id, local_ip, peer_asn, peer_ip, md5_key, operational_state, state, bfd)
+        INSERT INTO vrf_ep_peer (circuit_ep_id, vrf_ep_id, local_ip, peer_asn, peer_ip, md5_key, operational_state, state, bfd, ip_version)
         VALUES (?,?,?,?,?,?,?,?,?)
     ";
 
@@ -47,6 +48,14 @@ sub create {
     $args->{model}->{vrf_ep_id} = (exists $args->{model}->{vrf_ep_id}) ? $args->{model}->{vrf_ep_id} : undef;
     $args->{model}->{operational_state} = (defined $args->{model}->{operational_state} && $args->{model}->{operational_state} eq 'up') ? 1 : 0;
     $args->{model}->{bfd} = (defined $args->{model}->{bfd}) ? $args->{model}->{bfd} : 0;
+
+    if (!defined $args->{model}->{ip_version}) {
+        if ($args->{model}->{local_ip} =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
+            $args->{model}->{ip_version} = 'ipv4';
+        } else {
+            $args->{model}->{ip_version} = 'ipv6';
+        }
+    }
 
     my $peer_id = $args->{db}->execute_query($q1, [
         $args->{model}->{circuit_ep_id},
@@ -57,7 +66,8 @@ sub create {
         $args->{model}->{md5_key},
         $args->{model}->{operational_state},
         'active',
-        $args->{model}->{bfd}
+        $args->{model}->{bfd},
+        $args->{model}->{ip_version}
     ]);
     if (!defined $peer_id) {
         return (undef, $args->{db}->get_error);
@@ -88,7 +98,8 @@ C<circuit_ep_id>.
         peer_ip           => '192.168.1.3/31',
         md5_key           => undef,
         operational_state => 'up',
-        bfd               => 0
+        bfd               => 0,
+        ip_version        => 'ipv4'
     }
 
 =cut
@@ -120,7 +131,7 @@ sub fetch_all {
     my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : '';
 
     my $q = "
-        SELECT vrf_ep_peer_id, circuit_ep_id, vrf_ep_id,
+        SELECT vrf_ep_peer_id, circuit_ep_id, vrf_ep_id, ip_version,
                local_ip, peer_asn, peer_ip, md5_key, operational_state, bfd
         FROM vrf_ep_peer
         $where

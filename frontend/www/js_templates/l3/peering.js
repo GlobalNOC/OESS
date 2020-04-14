@@ -19,7 +19,7 @@ class Peering2 {
     key = (key === null) ? '(unauthenticated)': key;
 
     this.element.querySelector('.operational-state').innerHTML = stateDisplay;
-    this.element.querySelector('.ip-version').innerHTML = `IPv${peering.ip_version}`;
+    this.element.querySelector('.ip-version').innerHTML = (peering.ip_version == 'ipv4') ? 'IPv4' : 'IPv6';
     this.element.querySelector('.peer-asn').innerHTML = peering.peer_asn;
     this.element.querySelector('.peer-ip').innerHTML = peering.peer_ip;
     this.element.querySelector('.key').innerHTML = key;

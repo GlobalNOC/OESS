@@ -81,10 +81,12 @@ sub from_hash{
     $self->{'md5_key'} = (!defined $hash->{'md5_key'}) ? '' : $hash->{'md5_key'};
     $self->{'local_ip'} = $hash->{'local_ip'};
 
-    if ($self->{'local_ip'} =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
-        $self->{'ip_version'} = 4;
-    } else {
-        $self->{'ip_version'} = 6;
+    if (!defined $hash->{'ip_version'}) {
+        if ($self->{'local_ip'} =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
+            $self->{'ip_version'} = 'ipv4';
+        } else {
+            $self->{'ip_version'} = 'ipv6';
+        }
     }
 
     $self->{'operational_state'} = $hash->{'operational_state'};
@@ -132,6 +134,14 @@ sub local_ip{
         $self->{'local_ip'} = $ip;
     }
     return $self->{'local_ip'};
+}
+
+=head2 ip_version
+
+=cut
+sub ip_version{
+    my $self = shift;
+    return $self->{'ip_version'};
 }
 
 =head2 peer_asn
