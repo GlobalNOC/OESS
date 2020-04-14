@@ -881,31 +881,25 @@ sub add_vlan{
     return $self->_edit_config(config => $output);
 }
 
-=head2 add_vrf
+=head2 add_vrf_xml
 
 =cut
-sub add_vrf{
+sub add_vrf_xml {
     my $self = shift;
     my $vrf = shift;
-
-    if(!$self->connected()){
-        return FWDCTL_FAILURE;
-    }
-
-    $self->{'logger'}->debug("VRF: " . Dumper($vrf));
 
     my $vars = {};
     $vars->{'vrf_name'} = $vrf->{'name'};
     $vars->{'interfaces'} = ();
 
     foreach my $i (@{$vrf->{'interfaces'}}) {
-	
-	my @bgp_v4;
+
+        my @bgp_v4;
         my @bgp_v6;
         my $has_ipv4=0;
         my $has_ipv6=0;
 
-	foreach my $bgp (@{$i->{'peers'}}){
+        foreach my $bgp (@{$i->{'peers'}}){
             #strip off the cidr
             #192.168.1.0/24
             my $peer_ip = $bgp->{'peer_ip'};
@@ -921,7 +915,7 @@ sub add_vrf{
                                 local_ip => $bgp->{'local_ip'},
                                 peer_ip => $peer_ip,
                                 key => $bgp->{'md5_key'}
-                     });
+                            });
 
             }else{
                 $has_ipv6 = 1;
@@ -932,13 +926,7 @@ sub add_vrf{
                                 peer_ip => $peer_ip,
                                 key => $bgp->{'md5_key'}
                      });
-            }            
-        }
-
-
-        if ($self->unit_name_available($i->{'interface'}, $i->{'unit'}) == 0) {
-            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
-            return FWDCTL_FAILURE;
+            }
         }
 
         push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
@@ -957,15 +945,34 @@ sub add_vrf{
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
     $vars->{'local_as'} = $vrf->{'local_asn'};
-    $self->{'logger'}->debug("VARS: " . Dumper($vars));
 
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
+        return;
+    }
+    if (!defined $output) {
+        $self->{'logger'}->error('Unknown error occurred while generating add_vrf_xml.');
+        return;
+    }
+    return $output;
+}
+
+=head2 add_vrf
+
+=cut
+sub add_vrf{
+    my $self = shift;
+    my $vrf = shift;
+
+    if(!$self->connected()){
         return FWDCTL_FAILURE;
     }
 
+    $self->{'logger'}->debug("VRF: " . Dumper($vrf));
+
+    my $output = $self->add_vrf_xml($vrf);
     if (!defined $output) {
         return FWDCTL_FAILURE;
     }
