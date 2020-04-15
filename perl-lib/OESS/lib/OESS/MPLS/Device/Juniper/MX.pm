@@ -747,6 +747,48 @@ sub get_vrf_stats{
     });
 }
 
+=head2 remove_vlan_xml
+
+=cut
+sub remove_vlan_xml {
+    my $self = shift;
+    my $ckt = shift;
+
+    my $vars = {};
+    $vars->{'circuit_name'} = $ckt->{'circuit_name'};
+    $vars->{'interfaces'} = [];
+    foreach my $i (@{$ckt->{'interfaces'}}) {
+        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
+                                          inner_tag => $i->{'inner_tag'},
+                                          bandwidth => $i->{'bandwidth'} || 0,
+                                          tag => $i->{'tag'},
+                                          unit => $i->{'unit'}
+                                        });
+    }
+    $vars->{'circuit_id'} = $ckt->{'circuit_id'};
+    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
+    $vars->{'site_id'} = $ckt->{'site_id'};
+    $vars->{'paths'} = $ckt->{'paths'};
+    $vars->{'a_side'} = $ckt->{'a_side'};
+    $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
+    $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
+
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        warn $self->{'tt'}->error();
+        return;
+    }
+    if (!defined $output) {
+        $self->{'logger'}->error('Unknown error occurred while generating remove_vlan_xml.');
+        warn 'Unknown error occurred while generating remove_vlan_xml.';
+        return;
+    }
+    return $output;
+}
+
+
 =head2 remove_vlan
 
     my $ok = remove_vlan(
@@ -774,10 +816,24 @@ sub remove_vlan{
     my $self = shift;
     my $ckt = shift;
 
-    if(!$self->connected()){
+    if (!$self->connected()) {
         $self->{'logger'}->error("Not currently connected to device");
         return;
     }
+
+    my $output = $self->remove_vlan_xml($ckt);
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
+    }
+    return $self->_edit_config(config => $output);
+}
+
+=head2 add_vlan_xml
+
+=cut
+sub add_vlan_xml {
+    my $self = shift;
+    my $ckt = shift;
 
     my $vars = {};
     $vars->{'circuit_name'} = $ckt->{'circuit_name'};
@@ -786,25 +842,37 @@ sub remove_vlan{
         push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
                                           inner_tag => $i->{'inner_tag'},
                                           bandwidth => $i->{'bandwidth'} || 0,
-                                          tag => $i->{'tag'},
+                                          tag  => $i->{'tag'},
                                           unit => $i->{'unit'}
-                                        });
+                                      });
     }
+    $vars->{'paths'} = $ckt->{'paths'};
+    $vars->{'destination_ip'} = $ckt->{'destination_ip'};
     $vars->{'circuit_id'} = $ckt->{'circuit_id'};
     $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
     $vars->{'site_id'} = $ckt->{'site_id'};
-    $vars->{'paths'} = $ckt->{'paths'};
     $vars->{'a_side'} = $ckt->{'a_side'};
-    $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-    $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
-    my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output);
-    if (!$ok) {
-        $self->{'logger'}->error($self->{'tt'}->error());
+    $ckt->{'switch'}->{'name'} = $self->{'name'};
+    $ckt->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
+    if ($ckt->{'ckt_type'} eq 'L2CCC') {
+        $ckt->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
+        $ckt->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
     }
 
-    return $self->_edit_config( config => $output );
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $ckt, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        warn $self->{'tt'}->error();
+        return;
+    }
+    if (!defined $output) {
+        $self->{'logger'}->error('Unknown error occurred while generating add_vlan_xml.');
+        warn 'Unknown error occurred while generating add_vlan_xml.';
+        return;
+    }
+    return $output;
 }
 
 =head2 add_vlan
@@ -837,47 +905,15 @@ add_vlan adds a vlan to this device via NetConf. Returns 1 on success.
 sub add_vlan{
     my $self = shift;
     my $ckt = shift;
-    
-    if(!$self->connected()){
-	return FWDCTL_FAILURE;
-    }
 
-    my $vars = {};
-    $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-    $vars->{'interfaces'} = [];
-    foreach my $i (@{$ckt->{'interfaces'}}) {
-        if ($self->unit_name_available($i->{interface}, $i->{unit}) == 0) {
-            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
-            return FWDCTL_FAILURE;
-        }
-
-        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                          inner_tag => $i->{'inner_tag'},
-                                          bandwidth => $i->{'bandwidth'} || 0,
-                                          tag  => $i->{'tag'},
-                                          unit => $i->{'unit'}
-                                      });
-    }
-    $vars->{'paths'} = $ckt->{'paths'};
-    $vars->{'destination_ip'} = $ckt->{'destination_ip'};
-    $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-    $vars->{'site_id'} = $ckt->{'site_id'};
-    $vars->{'a_side'} = $ckt->{'a_side'};
-    $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-    $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
-
-    my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output);
-    if (!$ok) {
-        $self->{'logger'}->error($self->{'tt'}->error());
+    if (!$self->connected()) {
         return FWDCTL_FAILURE;
     }
 
+    my $output = $self->add_vlan_xml($ckt);
     if (!defined $output) {
         return FWDCTL_FAILURE;
     }
-
     return $self->_edit_config(config => $output);
 }
 
@@ -892,7 +928,7 @@ sub add_vrf_xml {
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vrf, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
-        warn $self->{tt}->error();
+        warn $self->{'tt'}->error();
         return;
     }
     if (!defined $output) {
@@ -920,7 +956,6 @@ sub add_vrf{
     if (!defined $output) {
         return FWDCTL_FAILURE;
     }
-
     return $self->_edit_config(config => $output);
 }
 
@@ -931,16 +966,11 @@ sub remove_vrf_xml {
     my $self = shift;
     my $vrf = shift;
 
-    my $vars = {};
-    $vars->{'interfaces'} = $vrf->{'interfaces'};
-    $vars->{'vrf_id'} = $vrf->{'vrf_id'};
-    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-
     my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config_delete.xml", $vars, \$output);
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config_delete.xml", $vrf, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
-        warn $self->{tt}->error();
+        warn $self->{'tt'}->error();
         return;
     }
     if (!defined $output) {
@@ -966,7 +996,6 @@ sub remove_vrf{
     if (!defined $output) {
         return FWDCTL_FAILURE;
     }
-
     return $self->_edit_config(config => $output);
 }
 
