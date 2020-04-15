@@ -41,7 +41,7 @@ sub create {
 
     my $q1 = "
         INSERT INTO vrf_ep_peer (circuit_ep_id, vrf_ep_id, local_ip, peer_asn, peer_ip, md5_key, operational_state, state, bfd, ip_version)
-        VALUES (?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
     ";
 
     $args->{model}->{circuit_ep_id} = (exists $args->{model}->{circuit_ep_id}) ? $args->{model}->{circuit_ep_id} : undef;

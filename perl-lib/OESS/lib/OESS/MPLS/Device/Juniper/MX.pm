@@ -892,7 +892,7 @@ sub add_vrf_xml {
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vrf, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
-        warn $self->{tt}->error;
+        warn $self->{tt}->error();
         return;
     }
     if (!defined $output) {
@@ -910,7 +910,7 @@ sub add_vrf{
     my $self = shift;
     my $vrf = shift;
 
-    if(!$self->connected()){
+    if (!$self->connected()) {
         return FWDCTL_FAILURE;
     }
 
@@ -924,18 +924,12 @@ sub add_vrf{
     return $self->_edit_config(config => $output);
 }
 
-
-=head2 remove_vrf
+=head2 remove_vrf_xml
 
 =cut
-sub remove_vrf{
+sub remove_vrf_xml {
     my $self = shift;
     my $vrf = shift;
-
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return FWDCTL_FAILURE;
-    }
 
     my $vars = {};
     $vars->{'interfaces'} = $vrf->{'interfaces'};
@@ -946,9 +940,34 @@ sub remove_vrf{
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config_delete.xml", $vars, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
+        warn $self->{tt}->error();
+        return;
+    }
+    if (!defined $output) {
+        $self->{'logger'}->error('Unknown error occurred while generating remove_vrf_xml.');
+        warn 'Unknown error occurred while generating remove_vrf_xml.';
+        return;
+    }
+    return $output;
+}
+
+=head2 remove_vrf
+
+=cut
+sub remove_vrf{
+    my $self = shift;
+    my $vrf = shift;
+
+    if (!$self->connected()) {
+        return FWDCTL_FAILURE;
     }
 
-    return $self->_edit_config( config => $output );
+    my $output = $self->remove_vrf_xml($vrf);
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
+    }
+
+    return $self->_edit_config(config => $output);
 }
 
 =head2 xml_configuration( $ckts )
