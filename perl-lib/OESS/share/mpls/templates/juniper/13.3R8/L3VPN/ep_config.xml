@@ -193,6 +193,8 @@
 	  <community>
 	    <add/>
 	    <community-name>OESS-L3VPN-[% vrf_id %]</community-name>
+	  </community>
+          <community>
 	    <add/>
 	    <community-name>OESS-L3VPN-[% vrf_id %]-BGP</community-name>
 	  </community>
