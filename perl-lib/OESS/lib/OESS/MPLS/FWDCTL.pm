@@ -258,24 +258,18 @@ sub _write_cache{
             next;
         }
 
-        my $eps = $vrf->endpoints();
-
-        my @ints;
-        foreach my $ep (@$eps){
-            my $int_obj = $ep->to_hash;
-
-            if (defined $switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}) {
-                push(@{$switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}{'interfaces'}}, $int_obj);
-            } else {
-                $switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()} = {
-                    name => $vrf->name(),
-                    vrf_id => $vrf->vrf_id(),
-                    interfaces => [$int_obj],
-                    prefix_limit => $vrf->prefix_limit(),
-                    state => $vrf->state(),
-                    local_asn => $vrf->local_asn(),
-                };
+        # Place endpoints of each L3Connection in a node specific
+        # hash. This ensures that each Switch process sees only the
+        # endpoints it should be concerned with.
+        foreach my $ep (@{$vrf->endpoints}) {
+            if (!defined $switches{$ep->node}) {
+                $switches{$ep->node} = { vrfs => {}, ckts => {} };
             }
+            if (!defined $switches{$ep->node}->{vrfs}->{$vrf->vrf_id}) {
+                $switches{$ep->node}->{vrfs}->{$vrf->vrf_id} = $vrf->to_hash;
+                $switches{$ep->node}->{vrfs}->{$vrf->vrf_id}->{endpoints} = [];
+            }
+            push @{$switches{$ep->node}->{vrfs}->{$vrf->vrf_id}->{endpoints}}, $ep->to_hash;
         }
     }
 

@@ -917,8 +917,6 @@ sub add_vrf_xml {
         warn 'Unknown error occurred while generating add_vrf_xml.';
         return;
     }
-    $self->{'logger'}->warn(Dumper($vrf));
-    $self->{'logger'}->warn(Dumper($output));
     return $output;
 }
 

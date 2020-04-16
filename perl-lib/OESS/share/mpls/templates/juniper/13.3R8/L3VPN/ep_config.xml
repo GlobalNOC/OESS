@@ -1,6 +1,6 @@
 <configuration><groups><name>OESS</name>
   <interfaces>
-    [% FOREACH interface IN interfaces %]
+    [% FOREACH interface IN endpoints %]
     <interface>
       <name>[% interface.interface %]</name>
       <unit>
@@ -43,7 +43,7 @@
     [% END %]
   </interfaces>
 
-  [% FOREACH interface IN interfaces %]
+  [% FOREACH interface IN endpoints %]
   [% IF interface.bandwidth > 0 %]
   <class-of-service>
     <interfaces>
@@ -65,7 +65,7 @@
     <instance>
       <name>OESS-L3VPN-[% vrf_id %]</name>
       <instance-type>vrf</instance-type>
-      [% FOREACH interface IN interfaces %]
+      [% FOREACH interface IN endpoints %]
       <interface>
         <name>[% interface.interface %].[% interface.unit %]</name>
       </interface>
@@ -109,7 +109,7 @@
               <as-number>[% local_asn %]</as-number>
             </local-as>
 
-            [% FOREACH interface IN interfaces %]
+            [% FOREACH interface IN endpoints %]
               [% FOREACH peer IN interface.peers %]
                 [% IF peer.ip_version == 'ipv4' %]
                 <neighbor>
@@ -162,7 +162,7 @@
               <as-number>[% local_asn %]</as-number>
             </local-as>
 
-            [% FOREACH interface IN interfaces %]
+            [% FOREACH interface IN endpoints %]
               [% FOREACH peer IN interface.peers %]
                 [% IF peer.ip_version == 'ipv6' %]
                 <neighbor>

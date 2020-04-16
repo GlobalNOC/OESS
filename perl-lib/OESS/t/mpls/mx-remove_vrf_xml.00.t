@@ -70,7 +70,7 @@ $device->{jnx} = { conn_obj => 1 }; # Fake being connected. :)
 
 my $conf = $device->remove_vrf_xml({
     local_asn => 555,
-    interfaces => [
+    endpoints => [
         {
             interface => 'e15/1',
             unit => 201,

@@ -296,7 +296,7 @@ my $conf = $device->xml_configuration(
     [],
     [{
         local_asn => 555,
-        interfaces => [
+        endpoints => [
             {
                 interface => 'ge-0/0/1',
                 unit => 2004,
