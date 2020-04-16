@@ -115,7 +115,6 @@ sub new {
     $self->{'circuit'} = {};
     $self->{'node_rules'} = {};
     $self->{'link_status'} = {};
-    $self->{'circuit_status'} = {};
     $self->{'node_info'} = {};
     $self->{'link_maintenance'} = {};
     $self->{'node_by_id'} = {};
@@ -145,10 +144,9 @@ sub new {
 builds the cache for it to work off of
 
 =cut
-
 sub build_cache{
     my %params = @_;
-   
+
     my $db = $params{'db'};
     my $db2 = $params{'db2'};
     my $logger = $params{'logger'};
@@ -160,36 +158,27 @@ sub build_cache{
     $logger->error("DB Version does not match expected version") && $logger->logcluck() && exit 1 if !$db->compare_versions();
 
 
-    $logger->debug("Fetching State from the DB");
-    # my $circuits = $db->get_current_circuits( type => 'mpls');
-    my $circuits = OESS::DB::Circuit::fetch_circuits(db => $db2, state => 'active');
-    warn Dumper($circuits);
-
     #init our objects
     my %ckts;
     my %vrfs;
-    my %circuit_status;
     my %link_status;
     my %node_info;
+
+    $logger->debug("Fetching State from the DB");
+    my $circuits = OESS::DB::Circuit::fetch_circuits(db => $db2, state => 'active');
+
     foreach my $circuit (@$circuits) {
-	$logger->error("Updating Cache for circuit: " . $circuit->{'circuit_id'});
+        $logger->info("Updating Cache for circuit: " . $circuit->{'circuit_id'});
+
         my $id = $circuit->{'circuit_id'};
         my $ckt = OESS::L2Circuit->new(
             db => $db2,
             circuit_id => $id
         );
+        $ckt->load_endpoints;
         $ckts{ $ckt->circuit_id() } = $ckt;
-        
-        my $operational_state = $circuit->{'details'}->{'operational_state'};
-        if ($operational_state eq 'up') {
-            $circuit_status{$id} = OESS_CIRCUIT_UP;
-        } elsif ($operational_state  eq 'down') {
-            $circuit_status{$id} = OESS_CIRCUIT_DOWN;
-        } else {
-            $circuit_status{$id} = OESS_CIRCUIT_UNKNOWN;
-        }
     }
-        
+
     my $links = $db->get_current_links(type => 'mpls');
     foreach my $link (@$links) {
         if ($link->{'status'} eq 'up') {
@@ -202,40 +191,35 @@ sub build_cache{
     }
 
     my $vrfs = OESS::DB::VRF::get_vrfs(db => $db2, state => 'active');
-
     foreach my $vrf (@$vrfs){
-	$logger->error("Updating Cache for VRF: " . $vrf->{'vrf_id'});
+        $logger->info("Updating Cache for VRF: " . $vrf->{'vrf_id'});
 
-    $vrf = OESS::VRF->new(db => $db2, vrf_id => $vrf->{'vrf_id'});
-    if (!defined $vrf) {
-        warn "Unable to process VRF: " . $vrf->{'vrf_id'} . "\n";
-        $logger->error("Unable to process VRF: " . $vrf->{'vrf_id'});
-        next;
-    }
-    $vrf->load_endpoints;
-    foreach my $ep (@{$vrf->endpoints}) {
-        $ep->load_peers;
+        $vrf = OESS::VRF->new(db => $db2, vrf_id => $vrf->{'vrf_id'});
+        if (!defined $vrf) {
+            $logger->error("Unable to process VRF: " . $vrf->{'vrf_id'});
+            next;
+        }
+        $vrf->load_endpoints;
+        foreach my $ep (@{$vrf->endpoints}) {
+            $ep->load_peers;
+        }
+
+        $vrfs{ $vrf->vrf_id() } = $vrf;
     }
 
-	$vrfs{ $vrf->vrf_id() } = $vrf;
-    }
-        
     my $nodes = $db->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
         my $details = $db->get_node_by_id(node_id => $node->{'node_id'});
-	next if(!$details->{'mpls'});
-        $details->{'node_id'} = $details->{'node_id'};
-	$details->{'id'} = $details->{'node_id'};
-        $details->{'name'} = $details->{'name'};
-	$details->{'ip'} = $details->{'ip'};
-	$details->{'vendor'} = $details->{'vendor'};
-	$details->{'model'} = $details->{'model'};
-	$details->{'sw_version'} = $details->{'sw_version'};
-        $details->{'pending_diff'} = $details->{'pending_diff'};;
-	$node_info{$node->{'name'}} = $details;
+        next if(!$details->{'mpls'});
+
+        # TODO In addition to the previously removed unnecessary
+        # mappings. Remove this mapping.
+        $details->{'id'} = $details->{'node_id'};
+
+        $node_info{$node->{'name'}} = $details;
     }
 
-    return {ckts => \%ckts, circuit_status => \%circuit_status, link_status => \%link_status, node_info => \%node_info, vrfs => \%vrfs};
+    return {ckts => \%ckts, link_status => \%link_status, node_info => \%node_info, vrfs => \%vrfs};
 }
 
 =head2 convert_graph_to_mpls
@@ -708,7 +692,6 @@ sub update_cache {
         $self->{'circuit'} = $res->{'ckts'};
         $self->{'vrfs'} = $res->{'vrfs'};
         $self->{'link_status'} = $res->{'link_status'};
-        $self->{'circuit_status'} = $res->{'circuit_status'};
         $self->{'node_info'} = $res->{'node_info'};
         $self->{'logger'}->debug("Cache update complete");
 
@@ -1130,8 +1113,6 @@ sub addVlan{
     $self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
                                              old_state   => 'deploying',
                                              new_state   => 'active');
-    
-    $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     $self->{'logger'}->info("Adding VLAN.");
 
