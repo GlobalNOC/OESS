@@ -59,7 +59,7 @@ sub new{
     }
 
     if (!defined $self->{model}) {
-        $self->logger->error("Couldn't load peer from model or database.");
+        $self->{logger}->error("Couldn't load peer from model or database.");
         return;
     }
 
@@ -83,11 +83,12 @@ sub from_hash{
 
     if (!defined $hash->{'ip_version'}) {
         if ($self->{'local_ip'} =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
-            $self->{'ip_version'} = 'ipv4';
+            $hash->{'ip_version'} = 'ipv4';
         } else {
-            $self->{'ip_version'} = 'ipv6';
+            $hash->{'ip_version'} = 'ipv6';
         }
     }
+    $self->{'ip_version'} = $hash->{'ip_version'};
 
     $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'bfd'} = $hash->{'bfd'};

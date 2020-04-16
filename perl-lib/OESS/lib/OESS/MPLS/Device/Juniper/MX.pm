@@ -754,27 +754,23 @@ sub remove_vlan_xml {
     my $self = shift;
     my $ckt = shift;
 
-    my $vars = {};
-    $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-    $vars->{'interfaces'} = [];
-    foreach my $i (@{$ckt->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                          inner_tag => $i->{'inner_tag'},
-                                          bandwidth => $i->{'bandwidth'} || 0,
-                                          tag => $i->{'tag'},
-                                          unit => $i->{'unit'}
-                                        });
+    $ckt->{'switch'}->{'name'} = $self->{'name'};
+    $ckt->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
+
+    # BEGIN: The following bits of code handle both L2CCC and the
+    # L2VPLS template which seems to have extra path related stanzas
+    # in it.
+    if (!defined $ckt->{paths}) {
+        $ckt->{paths} = [];
     }
-    $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-    $vars->{'site_id'} = $ckt->{'site_id'};
-    $vars->{'paths'} = $ckt->{'paths'};
-    $vars->{'a_side'} = $ckt->{'a_side'};
-    $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-    $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
+    # if ($ckt->{'ckt_type'} eq 'L2CCC') {
+        $ckt->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
+        $ckt->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
+    # }
+    # END
 
     my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output);
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $ckt, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
         warn $self->{'tt'}->error();
@@ -834,24 +830,6 @@ sub remove_vlan{
 sub add_vlan_xml {
     my $self = shift;
     my $ckt = shift;
-
-    my $vars = {};
-    $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-    $vars->{'interfaces'} = [];
-    foreach my $i (@{$ckt->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                          inner_tag => $i->{'inner_tag'},
-                                          bandwidth => $i->{'bandwidth'} || 0,
-                                          tag  => $i->{'tag'},
-                                          unit => $i->{'unit'}
-                                      });
-    }
-    $vars->{'paths'} = $ckt->{'paths'};
-    $vars->{'destination_ip'} = $ckt->{'destination_ip'};
-    $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-    $vars->{'site_id'} = $ckt->{'site_id'};
-    $vars->{'a_side'} = $ckt->{'a_side'};
 
     $ckt->{'switch'}->{'name'} = $self->{'name'};
     $ckt->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
@@ -924,6 +902,9 @@ sub add_vrf_xml {
     my $self = shift;
     my $vrf = shift;
 
+    $vrf->{'switch'}->{'name'} = $self->{'name'};
+    $vrf->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
+
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vrf, \$output);
     if (!$ok) {
@@ -936,6 +917,8 @@ sub add_vrf_xml {
         warn 'Unknown error occurred while generating add_vrf_xml.';
         return;
     }
+    $self->{'logger'}->warn(Dumper($vrf));
+    $self->{'logger'}->warn(Dumper($output));
     return $output;
 }
 
@@ -1018,118 +1001,27 @@ sub xml_configuration {
     $configuration .= '<groups><name>OESS</name>';
 
     foreach my $ckt (@{$ckts}) {
-        # The argument $ckts is passed in a generic form. This should be
-        # converted to work with the template.
-        my $xml;
-        my $vars = {};
-        $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-        $vars->{'interfaces'} = [];
-        foreach my $i (@{$ckt->{'interfaces'}}) {
-            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                              cloud_interconnect_type => $i->{'cloud_interconnect_type'},
-                                              mtu => $i->{'mtu'},
-                                              inner_tag => $i->{'inner_tag'},
-                                              tag  => $i->{'tag'},
-                                              unit => $i->{'unit'},
-                                              bandwidth => $i->{'bandwidth'}
-                                            });
-        }
-        $vars->{'paths'} = $ckt->{'paths'};
-        $vars->{'destination_ip'} = $ckt->{'destination_ip'};
-        $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-        $vars->{'switch'} = { name => $self->{'name'},
-                              loopback => $self->{'loopback_addr'} };
-
-        $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-        $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
-
-        $vars->{'site_id'} = $ckt->{'site_id'};
-        $vars->{'paths'} = $ckt->{'paths'};
-        $vars->{'a_side'} = $ckt->{'a_side'};
-
-        if ($ckt->{'state'} eq 'active') {
-            $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
-        } else {
-            # The remove case is now handled in get_config_to_remove
+        my $xml = $self->add_vlan_xml($ckt);
+        if (!defined $xml) {
+            next;
         }
 
         $xml =~ s/<configuration><groups><name>OESS<\/name>//g;
         $xml =~ s/<\/groups><\/configuration>//g;
         $configuration = $configuration . $xml;
     }
-   
+
     foreach my $vrf (@{$vrf}){
-        my $xml;
-        my $vars = {};
-        next if ($vrf->{'state'} ne 'active');
-        $vars->{'vrf_name'} = $vrf->{'name'};
-        $vars->{'interfaces'} = ();
-        foreach my $i (@{$vrf->{'interfaces'}}) {
-            
-            my @bgp_v4;
-            my @bgp_v6;
-            my $has_ipv4 = 0;
-            my $has_ipv6 = 0;
-            
-            foreach my $bgp (@{$i->{'peers'}}){
-                #strip off the cidr 192.168.1.0/24
-                my $peer_ip = $bgp->{'peer_ip'};
-                $peer_ip =~ s/\/\d+//g;
-
-                my $ip = NetAddr::IP->new($bgp->{'peer_ip'});
-                my $type = $ip->version();
-                #determine if its an ipv4 or an ipv6
-                if($type == 4){
-                    $has_ipv4 = 1;
-                    $vars->{'has_ipv4'} = 1;
-                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},
-                                    bfd => $bgp->{'bfd'},
-                                    local_ip => $bgp->{'local_ip'},
-                                    peer_ip => $peer_ip,
-                                    key => $bgp->{'md5_key'}
-                         });
-                    
-                }else{
-                    $has_ipv6 = 1;
-                    $vars->{'has_ipv6'} = 1;
-                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},
-                                    bfd => $bgp->{'bfd'},
-                                    local_ip => $bgp->{'local_ip'},
-                                    peer_ip => $peer_ip,
-                                    key => $bgp->{'md5_key'}
-                         });
-                }
-                
-            }
-
-            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                              unit => $i->{'unit'},
-                                              cloud_interconnect_type => $i->{'cloud_interconnect_type'},
-                                              mtu  => $i->{'mtu'},
-                                              inner_tag  => $i->{'inner_tag'},
-                                              tag  => $i->{'tag'},
-                                              bandwidth => $i->{'bandwidth'},
-                                              v4_peers => \@bgp_v4,
-                                              has_ipv4 => $has_ipv4,
-                                              has_ipv6 => $has_ipv6,
-                                              v6_peers => \@bgp_v6 });
+        my $xml = $self->add_vrf_xml($vrf);
+        if (!defined $xml) {
+            next;
         }
-        $vars->{'local_as'} = $vrf->{'local_asn'};
-        $vars->{'vrf_id'} = $vrf->{'vrf_id'};
-        $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-        $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
 
-        $self->{'logger'}->debug("VARS: " . Dumper($vars));
-        
-        if($vrf->{'state'} eq 'active'){
-            $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vrf, \$xml);
-        }
-        
         $xml =~ s/<configuration><groups><name>OESS<\/name>//g;
         $xml =~ s/<\/groups><\/configuration>//g;
         $configuration = $configuration . $xml;
     }
-    
+
     $configuration = $configuration . '</groups><apply-groups>OESS</apply-groups></configuration>';
     return $configuration;
 }
