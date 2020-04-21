@@ -51,10 +51,12 @@ export default class UsersTable extends React.Component {
 	if(nextProps.query){
 		this.setState({
 			search_query:nextProps.query,
+			curr_page: 1
 		})
 	}else{
 		this.setState({
                         search_query:"",
+			curr_page:1
                 })	
 	}
 
@@ -66,11 +68,11 @@ export default class UsersTable extends React.Component {
 	//this.setState({search_query:this.props.query});
     }
 
-    pageUpdate(event){
+    pageUpdate(event, total_users){
 	const target = event.target;
 	const name = target.name;
 	const curr= this.state.curr_page;
-	const max_page = Math.ceil(this.state.users.length / this.state.offset);
+	const max_page = Math.ceil(total_users / this.state.offset);
 	if(name == "first"){
 		this.setState({curr_page: 1});
 	}
@@ -115,7 +117,7 @@ export default class UsersTable extends React.Component {
 	    }
 	    
 	    var obj  = this.searchFilter();
-	   
+	    var total_users = obj.length;   
 	    for(var i= rowstart ; i< this.state.curr_page * this.state.offset ; i++){
 		var userinfo = {};
 		if(obj[i] != null || obj[i] != undefined){
@@ -150,24 +152,24 @@ export default class UsersTable extends React.Component {
                 		<nav aria-label="Page navigation example">
                     		<ul className="pagination">
 
-                        		<li className="page-item" name="first" onClick={this.pageUpdate}>
-                            			<a name = "first" onClick={this.pageUpdate} className="page-link" aria-label="First">
+                        		<li className="page-item" name="first" onClick={(e)=>this.pageUpdate(e, total_users)}>
+                            			<a name = "first" onClick={(e)=>this.pageUpdate(e, total_users)} className="page-link" aria-label="First">
                             			&laquo;
 						</a>
                         		</li>
-                        		<li className="page-item" name="previous" onClick={this.pageUpdate}>
-                            			<a name="previous" onClick= {this.pageUpdate} className="page-link" aria-label="Previous">
+                        		<li className="page-item" name="previous" onClick={(e)=>this.pageUpdate(e, total_users)}>
+                            			<a name="previous" onClick= {(e)=>this.pageUpdate(e, total_users)} className="page-link" aria-label="Previous">
                            			&lsaquo; 
 						</a>
                         		</li>
                         		<li className="page-item" name="page-number"><a className="page-link" href="#">{this.state.curr_page}</a></li>
-                        		<li className="page-item" name="next" onClick={this.pageUpdate}>
-                            			<a name="next" onClick= {this.pageUpdate} className="page-link" aria-label="Next">
+                        		<li className="page-item" name="next" onClick={(e)=>this.pageUpdate(e, total_users)}>
+                            			<a name="next" onClick= {(e)=>this.pageUpdate(e, total_users)} className="page-link" aria-label="Next">
                             			&rsaquo;
 						</a>
                         		</li>
-                        		<li className="page-item" name="last" onClick={this.pageUpdate}>
-                            			<a name="last" onClick= {this.pageUpdate} className="page-link" aria-label="Last">
+                        		<li className="page-item" name="last" onClick={(e)=>this.pageUpdate(e, total_users)}>
+                            			<a name="last" onClick= {(e)=>this.pageUpdate(e, total_users)} className="page-link" aria-label="Last">
                             			&raquo;
 						</a>
                         		</li>
