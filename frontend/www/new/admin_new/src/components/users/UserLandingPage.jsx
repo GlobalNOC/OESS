@@ -14,6 +14,7 @@ class UserLandingPage extends React.Component {
   constructor(props){
 	super(props);
 	this.updateSearchQuery = this.updateSearchQuery.bind(this);
+	this.handleKeyDown = this.handleKeyDown.bind(this);
 	this.state={
 	  isVisible: false,
 	  rowdata:{},
@@ -27,10 +28,13 @@ class UserLandingPage extends React.Component {
   }
 
   updateSearchQuery(event){
-	const target = event.target;
-        const name = target.name;
         var value = document.getElementById("user_search").value;
 	this.setState({search_query:value});
+  }
+  handleKeyDown(event){
+	if (event.key === 'Enter') {
+     		 this.updateSearchQuery();
+    	}
   }
 
   render() {
@@ -54,16 +58,14 @@ class UserLandingPage extends React.Component {
             </div>
             <br />
 
-             
-              <form id="user_search_div" className="form-inline">
+            <form id="user_search_div" className="form-inline" onSubmit={e => { e.preventDefault(); }}> 
 		<div className="form-group">
-                <input type="text" className="form-control" id="user_search" placeholder="Username"/>
+                <input type="text" className="form-control" id="user_search" placeholder="Username" onKeyDown={this.handleKeyDown}/>
             	</div>
               <button type="button" className="btn btn-primary" onClick={this.updateSearchQuery}>Search</button>
               <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
-             </form>
             <br />
-
+	   </form>
             <UsersTable  query={this.state.search_query} />
             <ModalTemplate2 />
           </div>
