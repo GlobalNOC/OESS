@@ -62,8 +62,8 @@ $mock->new_sub(
 );
 
 my $ok = $device->remove_vlan({
-    circuit_name => 'circuit',
-    interfaces => [
+    name => 'circuit',
+    endpoints => [
         {
             interface => 'ge-0/0/1',
             unit => 2004,
@@ -96,7 +96,7 @@ $mock->new_sub(
 
 $ok = $device->remove_vlan({
     circuit_name => 'circuit',
-    interfaces => [
+    endpoints => [
         {
             interface => 'ge-0/0/1',
             unit => 2004,
@@ -194,33 +194,6 @@ my $expected_config = "<configuration><groups><name>OESS</name>
       </interface>
     </interfaces>
   </class-of-service>
-  
-  <protocols>
-    <mpls>
-      
-      <label-switched-path operation='delete'>
-        <name>OESS-L2VPLS--LSP-3012--</name>
-      </label-switched-path>
-      <path operation='delete'>
-        <name>OESS-L2VPLS--PATH-3012--</name>
-      </path>
-      
-    </mpls>
-  </protocols>
-  <policy-options>
-    <policy-statement>
-      <name>L2VPLS-LSP-Policy</name>
-      
-      <term operation='delete'>
-        <name>OESS-L2VPLS--3012--</name>
-      </term>
-      
-    </policy-statement>
-    <community operation='delete'>
-      <name>OESS-L2VPLS-3012-Community</name>
-    </community>
-  </policy-options>
-  
   <routing-instances>
     <instance operation='delete'>
       <name>OESS-L2VPLS-3012</name>

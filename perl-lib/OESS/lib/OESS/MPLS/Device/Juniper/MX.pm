@@ -761,11 +761,14 @@ sub remove_vlan_xml {
     # L2VPLS template which seems to have extra path related stanzas
     # in it.
     if (!defined $ckt->{paths}) {
-        $ckt->{paths} = [];
+        $ckt->{paths} = [{ details => {} }];
     }
     # if ($ckt->{'ckt_type'} eq 'L2CCC') {
-        $ckt->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-        $ckt->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
+    $ckt->{dest} = $ckt->{paths}->[0]->{details}->{node_z}->{node_loopback};
+    $ckt->{dest_node} = $ckt->{paths}->[0]->{details}->{node_z}->{node_id};
+
+    #    $ckt->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
+    #    $ckt->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
     # }
     # END
 
@@ -824,6 +827,29 @@ sub remove_vlan{
     return $self->_edit_config(config => $output);
 }
 
+=head2 configure_path
+
+=cut
+sub configure_path {
+    my $self = shift;
+    my $path = shift;
+
+    if ($path->{details}->{node_a}->{node_loopback} eq $self->{loopback_addr}) {
+        return $path;
+    }
+
+    # Swap node_a and node_z details
+    my $t = $path->{details}->{node_a};
+    $path->{details}->{node_a} = $path->{details}->{node_z};
+    $path->{details}->{node_z} = $t;
+
+    # Reverse path hops
+    my @hops = reverse(@{$path->{details}->{hops}});
+    $path->{details}->{hops} = \@hops;
+
+    return $path;
+}
+
 =head2 add_vlan_xml
 
 =cut
@@ -833,10 +859,16 @@ sub add_vlan_xml {
 
     $ckt->{'switch'}->{'name'} = $self->{'name'};
     $ckt->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
+
     if ($ckt->{'ckt_type'} eq 'L2CCC') {
-        $ckt->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-        $ckt->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
+        foreach my $path (@{$ckt->{paths}}) {
+            $path = $self->configure_path($path);
+            $ckt->{dest} = $path->{details}->{node_z}->{node_loopback};
+            $ckt->{dest_node} = $path->{details}->{node_z}->{node_id};
+            $ckt->{a_side} = $path->{details}->{node_a}->{node_id};
+        }
     }
+    $self->{logger}->error(Dumper($ckt));
 
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $ckt, \$output);

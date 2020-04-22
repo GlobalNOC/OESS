@@ -107,12 +107,47 @@ sub from_hash {
 sub to_hash {
     my $self = shift;
 
+    # Figure out edges and path from side_a to side_z. In addition we
+    # save node info for additional metadata which is used by our
+    # device templates.
+    my $g = new Graph::Undirected;
+    my $n = {};
+    foreach my $link (@{$self->{links}}) {
+        $n->{$link->node_a_loopback} = {
+            ip => $link->ip_a,
+            node_loopback => $link->node_a_loopback,
+            node_id => $link->node_a_id,
+        };
+        $n->{$link->node_z_loopback} = {
+            ip => $link->ip_z,
+            node_loopback => $link->node_z_loopback,
+            node_id => $link->node_z_id,
+        };
+
+        $g->add_edge($link->node_a_loopback, $link->node_z_loopback);
+    }
+    my @path = $g->longest_path;
+
+    my $edges = [];
+    if (@path <= 1) {
+        push @$edges, $path[0];
+        push @$edges, $path[0];
+    } else {
+        push @$edges, $path[0];
+        push @$edges, $path[@path - 1];
+    }
+
     my $hash = {
         path_id => $self->path_id,
         circuit_id => $self->circuit_id,
         type => $self->type,
         mpls_type => $self->mpls_type,
         state => $self->state,
+        details => {
+            node_a => $n->{$edges->[0]},
+            node_z => $n->{$edges->[1]},
+            hops   => \@path
+        }
     };
 
     if (defined $self->{links}) {

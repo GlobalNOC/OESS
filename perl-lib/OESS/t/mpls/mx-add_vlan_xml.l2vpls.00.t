@@ -104,8 +104,8 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
 $device->{jnx} = { conn_obj => 1 }; # Fake being connected. :)
 
 my $conf = $device->add_vlan_xml({
-    circuit_name => 'circuit',
-    interfaces => [
+    name => 'circuit',
+    endpoints => [
         {
             interface => 'ge-0/0/1',
             unit => 2004,

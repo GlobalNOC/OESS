@@ -1,6 +1,6 @@
 <configuration><groups><name>OESS</name>
   <interfaces>
-    [% FOREACH interface IN interfaces %]
+    [% FOREACH interface IN endpoints %]
     <interface>
       <name>[% interface.interface %]</name>
       <unit>
@@ -22,7 +22,8 @@
     </interface>
     [% END %]
   </interfaces>
-  [%- FOREACH interface IN interfaces -%]
+
+  [%- FOREACH interface IN endpoints -%]
   [%- IF interface.bandwidth > 0 %]
   <class-of-service>
     <interfaces>
@@ -42,44 +43,49 @@
     <mpls>
       <label-switched-path>
         <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]</name>
-
         <apply-groups>L2CCC-LSP-ATTRIBUTES</apply-groups>
         <to>[% dest %]</to>
         [% FOREACH path IN paths %]
-          [% IF path.name == 'PRIMARY' %]
-        <primary>
-          <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
-        </primary>
+          [% IF path.type == 'primary' %]
+          <primary>
+            <name>OESS-L2CCC-[% path.details.node_a.node_id %]-[% path.details.node_z.node_id %]-LSP-[% circuit_id %]-PRIMARY</name>
+          </primary>
           [% ELSE %]
-        <secondary>
-          <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
-      <standby />
-        </secondary>
+          <secondary>
+            <name>OESS-L2CCC-[% path.details.node_a.node_id %]-[% path.details.node_z.node_id %]-LSP-[% circuit_id %]-TERTIARY</name>
+            <standby />
+          </secondary>
           [% END %]
         [% END %]
       </label-switched-path>
+
       [% FOREACH path IN paths %]
       <path>
-        <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
-        [% IF path.mpls_path_type == 'strict' %]
-          [% FOREACH ip IN path.path %]
-        <path-list>
-          <name>[% ip %]</name>
-          <strict />
-        </path-list>
+        [% IF path.type == 'primary' %]
+        <name>OESS-L2CCC-[% path.details.node_a.node_id %]-[% path.details.node_z.node_id %]-LSP-[% circuit_id %]-PRIMARY</name>
+        [% ELSE %]
+        <name>OESS-L2CCC-[% path.details.node_a.node_id %]-[% path.details.node_z.node_id %]-LSP-[% circuit_id %]-TERTIARY</name>
+        [% END %]
+        [% IF path.mpls_type == 'strict' %]
+          [% FOREACH ip IN path.details.hops %]
+          <path-list>
+            <name>[% ip %]</name>
+            <strict />
+          </path-list>
           [% END %]
         [% END %]
       </path>
       [% END %]
     </mpls>
+
     <connections>
       <remote-interface-switch>
         <name>OESS-L2CCC-[% circuit_id %]</name>
-        [% FOREACH interface IN interfaces %]
+        [% FOREACH interface IN endpoints %]
         <interface>[% interface.interface %].[% interface.unit %]</interface>
         [% END %]
-        <transmit-lsp>OESS-L2CCC-[% a_side %]-[% path.dest_node %]-LSP-[% circuit_id %]</transmit-lsp>
-        <receive-lsp>OESS-L2CCC-[% path.dest_node %]-[% a_side %]-LSP-[% circuit_id %]</receive-lsp>
+        <transmit-lsp>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]</transmit-lsp>
+        <receive-lsp>OESS-L2CCC-[% dest_node %]-[% a_side %]-LSP-[% circuit_id %]</receive-lsp>
       </remote-interface-switch>
     </connections>
   </protocols>

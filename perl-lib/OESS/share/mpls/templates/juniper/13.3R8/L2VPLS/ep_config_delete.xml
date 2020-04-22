@@ -1,6 +1,6 @@
 <configuration><groups><name>OESS</name>
   <interfaces>
-    [% FOREACH interface IN interfaces %]
+    [% FOREACH interface IN endpoints %]
     <interface>
       <name>[% interface.interface %]</name>
       <unit operation='delete'>
@@ -9,7 +9,7 @@
     </interface>
     [% END %]
   </interfaces>
-  [%- FOREACH interface IN interfaces -%]
+  [%- FOREACH interface IN endpoints -%]
   [%- IF interface.bandwidth > 0 %]
   <class-of-service>
     <interfaces>
@@ -23,33 +23,6 @@
   </class-of-service>
   [%- END -%]
   [%- END %]
-  [% IF paths.size > 0 %]
-  <protocols>
-    <mpls>
-      [% FOREACH path IN paths %]
-      <label-switched-path operation='delete'>
-        <name>OESS-L2VPLS-[% path.name %]-LSP-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-      </label-switched-path>
-      <path operation='delete'>
-        <name>OESS-L2VPLS-[% path.name %]-PATH-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-      </path>
-      [% END %]
-    </mpls>
-  </protocols>
-  <policy-options>
-    <policy-statement>
-      <name>L2VPLS-LSP-Policy</name>
-      [% FOREACH path IN paths %]
-      <term operation='delete'>
-        <name>OESS-L2VPLS-[% path.name %]-[% circuit_id %]-[% a_side %]-[% path.dest_node %]</name>
-      </term>
-      [% END %]
-    </policy-statement>
-    <community operation='delete'>
-      <name>OESS-L2VPLS-[% circuit_id %]-Community</name>
-    </community>
-  </policy-options>
-  [% END %]
   <routing-instances>
     <instance operation='delete'>
       <name>OESS-L2VPLS-[% circuit_id %]</name>
