@@ -359,6 +359,20 @@ sub _register_rpc_methods{
 
     $d->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new(
+        name => "modifyVrf",
+        async => 1,
+        callback => sub { $self->modifyVrf(@_) },
+        description => "modifyVrf modifies an existing l3 connection."
+    );
+    $method->add_input_parameter(
+        name => "vrf_id",
+        description => "ID of l3 connection to be modified.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::INTEGER
+    );
+    $d->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => "delVrf",
                                             async => 1,
                                             callback => sub { $self->delVrf(@_) },
@@ -829,6 +843,102 @@ sub addVrf{
     }
 
     $cv->end();
+}
+
+=head2 modifyVrf
+
+=cut
+sub modifyVrf {
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $success = $m_ref->{success_callback};
+    my $error = $m_ref->{error_callback};
+
+    my $vrf_id = $p_ref->{vrf_id}{value};
+
+    if (!defined $vrf_id) {
+        $self->{logger}->error("modifylVrf: VRF ID required");
+        $self->{logger}->logconfess;
+    }
+    $self->{logger}->info("Modifing VRF $vrf_id.");
+
+    my $old_vrf = $self->{vrfs}->{$vrf_id};
+
+    # Load l3 connection from database
+    my $vrf = OESS::VRF->new(vrf_id => $vrf_id, db => $self->{'db2'});
+    if (!defined $vrf) {
+        my $err = "Unable to load VRF $vrf_id.";
+        $self->{'logger'}->error($err);
+        return &$error($err);
+    }
+    $vrf->load_endpoints;
+    foreach my $ep (@{$vrf->endpoints}) {
+        $ep->load_peers;
+    }
+    $vrf->load_users;
+    $vrf->load_workgroup;
+
+    if ($vrf->state eq 'decom') {
+        my $err = "modifyVrf: Removing a decom'd vrf is not allowed";
+        $self->{logger}->error($err);
+        return &$error($err);
+    }
+
+    # Update local and switch cache with latest connection data
+    # $self->{vrfs}->{$vrf_id} = $vrf;
+    # $self->_write_cache();
+
+    my $nodes = {};
+    foreach my $ep (@{$vrf->endpoints}) {
+        # $nodes->{$ep->node} = 1;
+        if (!defined $nodes->{$ep->node}) {
+            $nodes->{$ep->node} = [];
+        }
+        push @{$nodes->{$ep->node}}, $ep->to_hash;
+    }
+
+    my $cv = AnyEvent->condvar;
+    my $result = FWDCTL_SUCCESS;
+    my $node_errors = {};
+
+    $cv->begin( sub {
+        if (!%$node_errors) {
+            $self->{logger}->info("Modified VRF $vrf_id.");
+            return &$success({ status => $result });
+        }
+
+        foreach my $node (keys %$node_errors) {
+            $self->{logger}->error($node_errors->{$node}) if defined $node_errors->{$node};
+        }
+
+        return &$error("Failed to modify VRF $vrf_id.");
+    });
+
+    my $new_vrf = $vrf->to_hash;
+
+    foreach my $node (keys %$nodes) {
+        $cv->begin;
+
+        my $node_id = $self->{node_info}->{$node}->{id};
+        my $node_ip = $self->{node_by_id}->{$node_id}->{mgmt_addr};
+
+$new_vrf->{endpoints} = $nodes->{$node};
+
+        my $vrf_json = encode_json($new_vrf);
+
+        $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$node_ip";
+        $self->{fwdctl_events}->modify_vrf(vrf_id => $vrf_id, new_vrf => $vrf_json, async_callback => sub {
+            my $res = shift;
+            if ($res->{results}->{status} != FWDCTL_SUCCESS) {
+                $node_errors->{$node} = "Failed to modify VRF on $node ($node_ip).";
+            }
+            $cv->end;
+        });
+    }
+
+    $cv->end;
 }
 
 =head2 delVrf

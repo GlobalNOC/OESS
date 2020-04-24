@@ -747,86 +747,6 @@ sub get_vrf_stats{
     });
 }
 
-=head2 remove_vlan_xml
-
-=cut
-sub remove_vlan_xml {
-    my $self = shift;
-    my $ckt = shift;
-
-    $ckt->{'switch'}->{'name'} = $self->{'name'};
-    $ckt->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
-
-    # BEGIN: The following bits of code handle both L2CCC and the
-    # L2VPLS template which seems to have extra path related stanzas
-    # in it.
-    if (!defined $ckt->{paths}) {
-        $ckt->{paths} = [{ details => {} }];
-    }
-    # if ($ckt->{'ckt_type'} eq 'L2CCC') {
-    $ckt->{dest} = $ckt->{paths}->[0]->{details}->{node_z}->{node_loopback};
-    $ckt->{dest_node} = $ckt->{paths}->[0]->{details}->{node_z}->{node_id};
-
-    #    $ckt->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-    #    $ckt->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
-    # }
-    # END
-
-    my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $ckt, \$output);
-    if (!$ok) {
-        $self->{'logger'}->error($self->{'tt'}->error());
-        warn $self->{'tt'}->error();
-        return;
-    }
-    if (!defined $output) {
-        $self->{'logger'}->error('Unknown error occurred while generating remove_vlan_xml.');
-        warn 'Unknown error occurred while generating remove_vlan_xml.';
-        return;
-    }
-    return $output;
-}
-
-
-=head2 remove_vlan
-
-    my $ok = remove_vlan(
-      circuit_id => 1234,
-      ckt_type   => 'L2VPLS',
-      interfaces => [
-        { name => 'ge-0/0/1', tag => 2004 },
-        { name => 'ge-0/0/2', tag => 2004 }
-      ],
-      a_side     => '',            # Optional for L2VPN
-      dest_node  => '127.0.0.2',   # Optional for L2VPN and L2VPLS
-      paths      => [
-        {
-          name      => 'vmx1-r2',  # Optional for L2VPN
-          dest_node => '127.0.0.2' # Optional for L2VPN and L2CCC
-        }
-      ]
-    );
-
-remove_vlan removes a vlan from this device via NetConf. Returns 1 on
-success.
-
-=cut
-sub remove_vlan{
-    my $self = shift;
-    my $ckt = shift;
-
-    if (!$self->connected()) {
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
-
-    my $output = $self->remove_vlan_xml($ckt);
-    if (!defined $output) {
-        return FWDCTL_FAILURE;
-    }
-    return $self->_edit_config(config => $output);
-}
-
 =head2 configure_path
 
 =cut
@@ -868,7 +788,6 @@ sub add_vlan_xml {
             $ckt->{a_side} = $path->{details}->{node_a}->{node_id};
         }
     }
-    $self->{logger}->error(Dumper($ckt));
 
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $ckt, \$output);
@@ -880,6 +799,67 @@ sub add_vlan_xml {
     if (!defined $output) {
         $self->{'logger'}->error('Unknown error occurred while generating add_vlan_xml.');
         warn 'Unknown error occurred while generating add_vlan_xml.';
+        return;
+    }
+    return $output;
+}
+
+=head2 modify_vlan_xml
+
+=cut
+sub modify_vlan_xml {
+    my $self = shift;
+    my $ckt = shift;
+
+    my $remove = $self->remove_vlan_xml($ckt);
+    if (!defined $remove) {
+        $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
+        warn 'Unknown error occurred while generating modify_vlan_xml.';
+        return;
+    }
+    $remove =~ s/<\/groups><\/configuration>//g;
+
+    my $add = $self->add_vlan_xml($ckt);
+    if (!defined $add) {
+        $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
+        warn 'Unknown error occurred while generating modify_vlan_xml.';
+        return;
+    }
+    $add =~ s/<configuration><groups><name>OESS<\/name>//g;
+
+    my $output = $remove . $add;
+    return $output;
+}
+
+=head2 remove_vlan_xml
+
+=cut
+sub remove_vlan_xml {
+    my $self = shift;
+    my $ckt = shift;
+
+    $ckt->{'switch'}->{'name'} = $self->{'name'};
+    $ckt->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
+
+    if ($ckt->{'ckt_type'} eq 'L2CCC') {
+        foreach my $path (@{$ckt->{paths}}) {
+            $path = $self->configure_path($path);
+            $ckt->{dest} = $path->{details}->{node_z}->{node_loopback};
+            $ckt->{dest_node} = $path->{details}->{node_z}->{node_id};
+            $ckt->{a_side} = $path->{details}->{node_a}->{node_id};
+        }
+    }
+
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $ckt, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        warn $self->{'tt'}->error();
+        return;
+    }
+    if (!defined $output) {
+        $self->{'logger'}->error('Unknown error occurred while generating remove_vlan_xml.');
+        warn 'Unknown error occurred while generating remove_vlan_xml.';
         return;
     }
     return $output;
@@ -927,6 +907,63 @@ sub add_vlan{
     return $self->_edit_config(config => $output);
 }
 
+=head2 modify_vlan
+
+=cut
+sub modify_vlan {
+    my $self = shift;
+    my $ckt = shift;
+
+    if (!$self->connected()) {
+        return FWDCTL_FAILURE;
+    }
+
+    my $output = $self->modify_vlan_xml($ckt);
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
+    }
+    return $self->_edit_config(config => $output);
+}
+
+=head2 remove_vlan
+
+    my $ok = remove_vlan(
+      circuit_id => 1234,
+      ckt_type   => 'L2VPLS',
+      interfaces => [
+        { name => 'ge-0/0/1', tag => 2004 },
+        { name => 'ge-0/0/2', tag => 2004 }
+      ],
+      a_side     => '',            # Optional for L2VPN
+      dest_node  => '127.0.0.2',   # Optional for L2VPN and L2VPLS
+      paths      => [
+        {
+          name      => 'vmx1-r2',  # Optional for L2VPN
+          dest_node => '127.0.0.2' # Optional for L2VPN and L2CCC
+        }
+      ]
+    );
+
+remove_vlan removes a vlan from this device via NetConf. Returns 1 on
+success.
+
+=cut
+sub remove_vlan{
+    my $self = shift;
+    my $ckt = shift;
+
+    if (!$self->connected()) {
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+    my $output = $self->remove_vlan_xml($ckt);
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
+    }
+    return $self->_edit_config(config => $output);
+}
+
 =head2 add_vrf_xml
 
 =cut
@@ -952,24 +989,31 @@ sub add_vrf_xml {
     return $output;
 }
 
-=head2 add_vrf
+=head2 modify_vrf_xml
 
 =cut
-sub add_vrf{
+sub modify_vrf_xml {
     my $self = shift;
     my $vrf = shift;
 
-    if (!$self->connected()) {
-        return FWDCTL_FAILURE;
+    my $remove = $self->remove_vrf_xml($vrf->{old});
+    if (!defined $remove) {
+        $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
+        warn 'Unknown error occurred while generating modify_vrf_xml.';
+        return;
     }
+    $remove =~ s/<\/groups><\/configuration>//g;
 
-    $self->{'logger'}->debug("VRF: " . Dumper($vrf));
-
-    my $output = $self->add_vrf_xml($vrf);
-    if (!defined $output) {
-        return FWDCTL_FAILURE;
+    my $add = $self->add_vrf_xml($vrf->{new});
+    if (!defined $add) {
+        $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
+        warn 'Unknown error occurred while generating modify_vrf_xml.';
+        return;
     }
-    return $self->_edit_config(config => $output);
+    $add =~ s/<configuration><groups><name>OESS<\/name>//g;
+
+    my $output = $remove . $add;
+    return $output;
 }
 
 =head2 remove_vrf_xml
@@ -992,6 +1036,44 @@ sub remove_vrf_xml {
         return;
     }
     return $output;
+}
+
+=head2 add_vrf
+
+=cut
+sub add_vrf{
+    my $self = shift;
+    my $vrf = shift;
+
+    if (!$self->connected()) {
+        return FWDCTL_FAILURE;
+    }
+
+    $self->{'logger'}->debug("VRF: " . Dumper($vrf));
+
+    my $output = $self->add_vrf_xml($vrf);
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
+    }
+    return $self->_edit_config(config => $output);
+}
+
+=head2 modify_vrf
+
+=cut
+sub modify_vrf {
+    my $self = shift;
+    my $vrf = shift;
+
+    if (!$self->connected()) {
+        return FWDCTL_FAILURE;
+    }
+
+    my $output = $self->modify_vrf_xml($vrf);
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
+    }
+    return $self->_edit_config(config => $output);
 }
 
 =head2 remove_vrf
@@ -1369,7 +1451,7 @@ sub _large_diff {
     my $diff = shift;
 
     my $len = length($diff);
-    if ($len > 500) {
+    if ($len > 50) {
         return 1;
     }
     return 0;

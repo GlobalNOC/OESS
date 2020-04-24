@@ -709,12 +709,22 @@ sub provision_vrf{
     my $reason = "Created by $ENV{'REMOTE_USER'}";
 
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
-        $res = vrf_del(method => $method, vrf_id => $vrf_id);
+        # $res = vrf_del(method => $method, vrf_id => $vrf_id);
 
+        # $db->commit;
+        # _update_cache(vrf_id => $vrf_id);
+
+        # $res = vrf_add(method => $method, vrf_id => $vrf_id);
+
+        # Database is updated with latest version of the
+        # connection. FWDCTL passes cached value (dirty) to switch
+        # process along with the value from the db to ensure all
+        # endpoints are properly cleaned up.
         $db->commit;
+        $res = vrf_modify(method => $method, vrf_id => $vrf_id);
+        warn Dumper($res);
         _update_cache(vrf_id => $vrf_id);
 
-        $res = vrf_add(method => $method, vrf_id => $vrf_id);
         $type = 'modified';
         $reason = "Updated by $ENV{'REMOTE_USER'}";
     } else {
@@ -832,7 +842,6 @@ sub vrf_add{
     return {success => 1, vrf_id => $vrf_id};
 }
 
-
 sub vrf_del{
     my %params = @_;
     my $vrf_id = $params{'vrf_id'};
@@ -858,6 +867,34 @@ sub vrf_del{
         return {success => 0, vrf_id => $vrf_id};
     }
     
+    return {success => 1, vrf_id => $vrf_id};
+}
+
+sub vrf_modify{
+    my %params = @_;
+    my $vrf_id = $params{vrf_id};
+    my $method = $params{method};
+
+    $mq->{topic} = 'MPLS.FWDCTL.RPC';
+
+    my $cv = AnyEvent->condvar;
+
+    warn "_send_vrf_modify_command: Calling modifyVrf on vrf $vrf_id";
+    $mq->modifyVrf(vrf_id => int($vrf_id), async_callback => sub {
+        my $result = shift;
+        $cv->send($result);
+    });
+
+    my $result = $cv->recv;
+    if (defined $result->{error} || !defined $result->{results}) {
+        if (defined $result->{error}) {
+            $method->set_error($result->{error});
+        } else {
+            $method->set_error("Did not get response from modifyVRF.");
+        }
+        return {success => 0, vrf_id => $vrf_id};
+    }
+
     return {success => 1, vrf_id => $vrf_id};
 }
 

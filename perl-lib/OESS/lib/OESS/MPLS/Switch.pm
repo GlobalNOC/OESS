@@ -200,7 +200,26 @@ sub _register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
-    
+
+    $method = GRNOC::RabbitMQ::Method->new(
+        name => "modify_vrf",
+        description => "modify_vrf modifies an existing l3 connection.",
+        callback => sub { return { status => $self->modify_vrf(@_) }; }
+    );
+    $method->add_input_parameter(
+        name => "vrf_id",
+        description => "ID of l3 connection to be modified.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::NUMBER_ID
+    );
+    $method->add_input_parameter(
+        name => "new_vrf",
+        description => "l3 connection hash as it should appear on the network.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $dispatcher->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => "remove_vrf",
                                             description => "removes a vrf from this switch",
                                             callback => sub { return {status => $self->remove_vrf(@_) }});
@@ -521,6 +540,24 @@ sub add_vrf{
     return $self->{'device'}->add_vrf($vrf_obj);
 }
 
+=head2 modify_vrf
+
+=cut
+sub modify_vrf {
+    my $self = shift;
+    my $method = shift;
+    my $params = shift;
+
+    my $vrf_id = $params->{vrf_id}{value};
+    my $new_vrf = decode_json($params->{new_vrf}{value});
+
+    $self->{logger}->debug("Calling modify_vrf: $vrf_id");
+
+    $self->_update_cache;
+    my $vrf = $self->_generate_vrf_commands($vrf_id);
+
+    return $self->{device}->modify_vrf({ new => $new_vrf, old => $vrf });
+}
 
 =head2 remove_vrf
 
