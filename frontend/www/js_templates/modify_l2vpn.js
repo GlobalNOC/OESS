@@ -74,7 +74,7 @@ class GlobalState extends Component {
   }
 
   deleteCircuit() {
-    if (!window.confirm('Are you sure you wish to remove this circuit?')) {
+    if (!window.confirm(`Are you sure you want to delete "${this.circuit.description}"?`)) {
       return null;
     }
 

@@ -107,7 +107,7 @@ class GlobalState extends Component {
   async deleteCircuit() {
     let vrfID = parseInt(this.connection.vrf_id);
 
-    let ok = confirm(`Are you sure you want to delete this connection?`);
+    let ok = confirm(`Are you sure you want to delete "${this.connection.description}"?`);
     if (ok) {
         let deleteModal = $('#delete-connection-loading');
         deleteModal.modal('show');
