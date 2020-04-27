@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function deleteConnection(id, name) {
-    let ok = confirm(`Are you sure you want to delete ${name}?`);
+    let ok = confirm(`Are you sure you want to delete "${name}"?`);
     if (ok) {
         let deleteCircuitModal = $('#delete-circuit-loading');
         deleteCircuitModal.modal('show');
@@ -24,7 +24,7 @@ async function deleteConnection(id, name) {
 }
 
 async function deleteL2VPN(id, name) {
-  let ok = confirm(`Are you sure you want to delete ${name}?`);
+  let ok = confirm(`Are you sure you want to delete "${name}"?`);
   if (ok) {
     let deleteCircuitModal = $('#delete-circuit-loading');
     deleteCircuitModal.modal('show');
@@ -102,7 +102,7 @@ async function loadEntityList() {
         }
 
         let edit = `<a href='?action=modify_cloud&vrf_id=${entity.vrf_id}'><span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span></a>`;
-        let del = `<a onclick="deleteConnection(${entity.vrf_id}, '${entity.name}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
+        let del = `<a onclick="deleteConnection(${entity.vrf_id}, '${entity.description}')" href='javascript:void(0)'><span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span></a>`;
         if(owner != 1 && !session.data.isAdmin) {
             edit = "<span class='glyphicon glyphicon-edit' style='padding-right: 9px;'></span>";
             del = "<span class='glyphicon glyphicon-trash' style='padding-right: 9px;'></span>";
