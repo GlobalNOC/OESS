@@ -76,15 +76,19 @@ async function loadEntityList() {
                 });
             }
 
-            if (endpointOK) {
-                endpointHTML += `
-                <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}</p>
+          let statusIcon = '<span class="glyphicon glyphicon glyphicon-circle-arrow-up" style="color: #5CB85C" aria-hidden="true"></span>';
+          if (!endpointOK) {
+            statusIcon = '<span class="glyphicon glyphicon glyphicon-circle-arrow-down" style="color: #D9534E" aria-hidden="true"></span>';
+          }
+
+          let bandwidth = 'unlimited';
+          if (endpoint.bandwidth != 0) {
+            bandwidth = `${endpoint.bandwidth} Mbps`;
+          }
+
+          endpointHTML += `
+                <p class="entity-interface">${statusIcon} <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag} (${bandwidth})</p>
 `;
-            } else {
-                endpointHTML += `
-                <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}</p>
-`;
-            }
         });
 
         let color = ok ? '#E0F0D9' : '#F2DEDE';
@@ -194,17 +198,20 @@ async function loadL2VPNs() {
     circuit.endpoints.forEach(function(endpoint) {
       let endpointOK = true;
 
-      if (endpointOK) {
-        endpointHTML += `
-        <p class="entity-interface"><span class="label label-success">▴</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}
-        </p>
-        `;
-      } else {
-        endpointHTML += `
-        <p class="entity-interface"><span class="label label-danger">▾</span> <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag}
-        </p>
-        `;
+      let statusIcon = '<span class="glyphicon glyphicon glyphicon-circle-arrow-up" style="color: #5CB85C" aria-hidden="true"></span>';
+      if (!endpointOK) {
+        statusIcon = '<span class="glyphicon glyphicon glyphicon-circle-arrow-down" style="color: #D9534E" aria-hidden="true"></span>';
       }
+
+      let bandwidth = 'unlimited';
+      if (endpoint.bandwidth != 0) {
+        bandwidth = `${endpoint.bandwidth} Mbps`;
+      }
+
+      endpointHTML += `
+        <p class="entity-interface">${statusIcon} <b>${endpoint.node}</b><br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${endpoint.interface} - ${endpoint.tag} (${bandwidth})
+        </p>
+        `;
     });
 
     html += `
