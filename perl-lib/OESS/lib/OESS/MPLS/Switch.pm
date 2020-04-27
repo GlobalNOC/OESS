@@ -32,18 +32,18 @@ use JSON::XS;
 =head2 new
 
 =cut
-
-sub new{
+sub new {
     my $class = shift;
     my %args = (
-	rabbitMQ_host => undef,
-	rabbitMQ_port => undef,
-	rabbitMQ_user => undef,
-	rabbitMQ_pass => undef,
-	use_cache => 1,
-	node => undef,
+        rabbitMQ_host => undef,
+        rabbitMQ_port => undef,
+        rabbitMQ_user => undef,
+        rabbitMQ_pass => undef,
+        use_cache => 1,
+        node => undef,
+        type => 'unknown', # Used to name switch procs viewed via `ps`
         @_
-        );
+    );
 
     my $self = \%args;
     bless $self, $class;
@@ -58,7 +58,7 @@ sub new{
 	$self->_update_cache();
     }
 
-    $0 = "oess_mpls_switch(" . $self->{'node'}->{'mgmt_addr'} . ")";
+    $0 = "oess_mpls_switch.$self->{type}($self->{node}->{mgmt_addr})";
 
     $self->create_device_object();
     if(!defined($self->{'device'})){
