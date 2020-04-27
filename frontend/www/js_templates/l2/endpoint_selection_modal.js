@@ -306,10 +306,14 @@ class EndpointSelectionModal2 {
     for (let i = 0; i < entity.interfaces.length; i++) {
       let child = entity.interfaces[i];
 
+      let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
+
       let checked = 'checked';
       let disabled = '';
       let notAllow = '';
-      if (child.cloud_interconnect_type !== null && child.cloud_interconnect_type !== '' && child.cloud_interconnect_type !== 'aws-hosted-connection') {
+
+
+      if (autoSelectedInterface) {
         checked = '';
         disabled = 'disabled';
         notAllow = 'cursor: not-allowed;';
@@ -333,57 +337,82 @@ class EndpointSelectionModal2 {
       elem.addEventListener('click', function(e) {
         selectedInterface = child.name;
         selectedNode = child.node;
+
+        populateVLANs('.entity-vlans');
       });
 
-      selectedInterface = child.name;
-      selectedNode = child.node;
+      if (!autoSelectedInterface) {
+        selectedInterface = child.name;
+        selectedNode = child.node;
+      }
       list.appendChild(elem);
     }
 
-    // VLAN Select
-    let vlanSelector = this.parent.querySelector('.entity-vlans');
-    vlanSelector.innerHTML = '';
+    // VLAN Select - Populates a select element with the VLANs
+    // available for the currently selected (node, interface).
+    const populateVLANs = (selector) => {
+      let vlanSelector = this.parent.querySelector(selector);
+      vlanSelector.innerHTML = '';
 
-    let vlans = [];
-    let vlanH = {};
-    for (let i = 0; i < entity.interfaces.length; i++) {
-      for (let j = 0; j < entity.interfaces[i].available_vlans.length; j++) {
-        vlanH[entity.interfaces[i].available_vlans[j]] = 1;
+      let vlans = [];
+      let vlanH = {};
+      for (let i = 0; i < entity.interfaces.length; i++) {
+        console.log('selectedInterface:', selectedInterface);
+        console.log('selectedNode:', selectedNode);
+        console.log('entity interfaces:', entity.interfaces[i]);
+
+        let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
+        let userSelectedInterface = (entity.interfaces[i].node == selectedNode && entity.interfaces[i].name == selectedInterface);
+
+        if (autoSelectedInterface || userSelectedInterface) {
+          for (let j = 0; j < entity.interfaces[i].available_vlans.length; j++) {
+            vlanH[entity.interfaces[i].available_vlans[j]] = 1;
+          }
+        }
       }
-    }
-    let key;
-    for (key in vlanH) {
-      vlans.push(key);
-    }
+      let key;
+      for (key in vlanH) {
+        vlans.push(key);
+      }
 
+      let vlan = -1;
+      if (vlans.length > 0) {
+        vlan = vlans[0];
+      }
+      if (endpoint !== undefined && endpoint !== null && 'tag' in endpoint) {
+        vlan = endpoint.tag;
+      }
+      if (vlan !== -1 && !vlans.includes(vlan)) {
+        vlans.unshift(vlan);
+      }
+
+      vlans.forEach((v) => {
+        let o = document.createElement('option');
+        o.innerText = `${v}`;
+        o.setAttribute('value', v);
+
+        if (v == vlan) {
+          o.setAttribute('selected', true);
+        }
+
+        vlanSelector.appendChild(o);
+      });
+
+      if (vlan === -1) {
+        vlanSelector.setAttribute('disabled', '');
+      } else {
+        vlanSelector.removeAttribute('disabled');
+      }
+
+      return vlans;
+    };
+
+    let vlans = populateVLANs('.entity-vlans');
     let vlan = -1;
     if (vlans.length > 0) {
       vlan = vlans[0];
     }
-    if (endpoint !== undefined && endpoint !== null && 'tag' in endpoint) {
-      vlan = endpoint.tag;
-    }
-    if (vlan !== -1 && !vlans.includes(vlan)) {
-      vlans.unshift(vlan);
-    }
-
-    vlans.forEach((v) => {
-      let o = document.createElement('option');
-      o.innerText = `${v}`;
-      o.setAttribute('value', v);
-
-      if (v == vlan) {
-        o.setAttribute('selected', true);
-      }
-
-      vlanSelector.appendChild(o);
-    });
-
-    if (vlan === -1) {
-      vlanSelector.setAttribute('disabled', '');
-    } else {
-      vlanSelector.removeAttribute('disabled');
-    }
+    let vlanSelector = this.parent.querySelector('.entity-vlans');
 
     // Cloud Connection Input
     entity.cloud_interconnect_type = null;
