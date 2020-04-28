@@ -1086,7 +1086,6 @@ sub modify_vrf {
         $self->{logger}->error('A valid configuration could not be generated.');
         return FWDCTL_FAILURE;
     }
-$self->{logger}->error(Dumper($output));
 
     if ($output eq '') {
         $self->{logger}->info("No change required on $self->{name}.");

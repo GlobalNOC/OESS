@@ -559,10 +559,6 @@ sub modify_vrf {
     my $previous = decode_json($params->{previous}{value});
 
     $self->{logger}->debug("Calling modify_vrf: $vrf_id");
-
-    $self->_update_cache;
-    $self->_generate_vrf_commands($vrf_id);
-
     return $self->{device}->modify_vrf({ new => $pending, old => $previous });
 }
 

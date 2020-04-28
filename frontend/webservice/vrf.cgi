@@ -716,26 +716,10 @@ sub provision_vrf{
     my $reason = "Created by $ENV{'REMOTE_USER'}";
 
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
-        # $res = vrf_del(method => $method, vrf_id => $vrf_id);
-
-        # $db->commit;
-        # _update_cache(vrf_id => $vrf_id);
-
-        # $res = vrf_add(method => $method, vrf_id => $vrf_id);
-
-        # Database is updated with latest version of the
-        # connection. FWDCTL passes cached value (dirty) to switch
-        # process along with the value from the db to ensure all
-        # endpoints are properly cleaned up.
-
-        # TODO Re-evaluate above statement
         $db->commit;
         _update_cache(vrf_id => $vrf_id);
 
         $res = vrf_modify(method => $method, vrf_id => $vrf_id, previous => $previous_vrf, current => $vrf->to_hash);
-        warn Dumper($res);
-        # TODO Re-evaluate above statement
-        # _update_cache(vrf_id => $vrf_id);
 
         $type = 'modified';
         $reason = "Updated by $ENV{'REMOTE_USER'}";
