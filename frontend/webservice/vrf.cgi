@@ -316,6 +316,8 @@ sub provision_vrf{
     $db->start_transaction;
 
     my $vrf = undef;
+    my $previous_vrf = undef;
+
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
         $vrf = OESS::VRF->new(db => $db, vrf_id => $model->{'vrf_id'});
         if (!defined $vrf) {
@@ -325,6 +327,11 @@ sub provision_vrf{
         }
 
         $vrf->load_endpoints;
+        foreach my $ep (@{$vrf->endpoints}) {
+            $ep->load_peers;
+        }
+        $previous_vrf = $vrf->to_hash;
+
         $vrf->last_modified_by($user);
         $vrf->update;
     } else {
@@ -720,10 +727,15 @@ sub provision_vrf{
         # connection. FWDCTL passes cached value (dirty) to switch
         # process along with the value from the db to ensure all
         # endpoints are properly cleaned up.
+
+        # TODO Re-evaluate above statement
         $db->commit;
-        $res = vrf_modify(method => $method, vrf_id => $vrf_id);
-        warn Dumper($res);
         _update_cache(vrf_id => $vrf_id);
+
+        $res = vrf_modify(method => $method, vrf_id => $vrf_id, previous => $previous_vrf, current => $vrf->to_hash);
+        warn Dumper($res);
+        # TODO Re-evaluate above statement
+        # _update_cache(vrf_id => $vrf_id);
 
         $type = 'modified';
         $reason = "Updated by $ENV{'REMOTE_USER'}";
@@ -874,16 +886,23 @@ sub vrf_modify{
     my %params = @_;
     my $vrf_id = $params{vrf_id};
     my $method = $params{method};
+    my $current = $params{current};
+    my $previous = $params{previous};
 
     $mq->{topic} = 'MPLS.FWDCTL.RPC';
 
     my $cv = AnyEvent->condvar;
 
     warn "_send_vrf_modify_command: Calling modifyVrf on vrf $vrf_id";
-    $mq->modifyVrf(vrf_id => int($vrf_id), async_callback => sub {
-        my $result = shift;
-        $cv->send($result);
-    });
+    $mq->modifyVrf(
+        vrf_id   => int($vrf_id),
+        current  => encode_json($current),
+        previous => encode_json($previous),
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
 
     my $result = $cv->recv;
     if (defined $result->{error} || !defined $result->{results}) {

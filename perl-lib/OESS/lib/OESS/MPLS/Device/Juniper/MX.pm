@@ -811,7 +811,7 @@ sub modify_vlan_xml {
     my $self = shift;
     my $ckt = shift;
 
-    my $remove = $self->remove_vlan_xml($ckt);
+    my $remove = $self->remove_vlan_xml($ckt->{old});
     if (!defined $remove) {
         $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
         warn 'Unknown error occurred while generating modify_vlan_xml.';
@@ -819,7 +819,7 @@ sub modify_vlan_xml {
     }
     $remove =~ s/<\/groups><\/configuration>//g;
 
-    my $add = $self->add_vlan_xml($ckt);
+    my $add = $self->add_vlan_xml($ckt->{new});
     if (!defined $add) {
         $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
         warn 'Unknown error occurred while generating modify_vlan_xml.';
@@ -996,21 +996,33 @@ sub modify_vrf_xml {
     my $self = shift;
     my $vrf = shift;
 
-    my $remove = $self->remove_vrf_xml($vrf->{old});
-    if (!defined $remove) {
-        $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
-        warn 'Unknown error occurred while generating modify_vrf_xml.';
-        return;
-    }
-    $remove =~ s/<\/groups><\/configuration>//g;
+    my $add = '';
+    my $remove = '';
 
-    my $add = $self->add_vrf_xml($vrf->{new});
-    if (!defined $add) {
-        $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
-        warn 'Unknown error occurred while generating modify_vrf_xml.';
-        return;
+    if (@{$vrf->{old}->{endpoints}} != 0) {
+        $remove = $self->remove_vrf_xml($vrf->{old});
+        if (!defined $remove) {
+            $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
+            warn 'Unknown error occurred while generating modify_vrf_xml.';
+            return;
+        }
+        # $remove =~ s/<\/groups><\/configuration>//g;
     }
-    $add =~ s/<configuration><groups><name>OESS<\/name>//g;
+
+    if (@{$vrf->{new}->{endpoints}} != 0) {
+        $add = $self->add_vrf_xml($vrf->{new});
+        if (!defined $add) {
+            $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
+            warn 'Unknown error occurred while generating modify_vrf_xml.';
+            return;
+        }
+        # $add =~ s/<configuration><groups><name>OESS<\/name>//g;
+    }
+
+    if ($remove ne '' && $add ne '') {
+        $remove =~ s/<\/groups><\/configuration>//g;
+        $add =~ s/<configuration><groups><name>OESS<\/name>//g;
+    }
 
     my $output = $remove . $add;
     return $output;
@@ -1071,7 +1083,14 @@ sub modify_vrf {
 
     my $output = $self->modify_vrf_xml($vrf);
     if (!defined $output) {
+        $self->{logger}->error('A valid configuration could not be generated.');
         return FWDCTL_FAILURE;
+    }
+$self->{logger}->error(Dumper($output));
+
+    if ($output eq '') {
+        $self->{logger}->info("No change required on $self->{name}.");
+        return FWDCTL_SUCCESS;
     }
     return $self->_edit_config(config => $output);
 }

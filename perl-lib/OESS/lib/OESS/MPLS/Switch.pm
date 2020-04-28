@@ -213,7 +213,13 @@ sub _register_rpc_methods{
         pattern => $GRNOC::WebService::Regex::NUMBER_ID
     );
     $method->add_input_parameter(
-        name => "new_vrf",
+        name => "pending",
+        description => "l3 connection hash as it should appear on the network.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $method->add_input_parameter(
+        name => "previous",
         description => "l3 connection hash as it should appear on the network.",
         required => 1,
         pattern => $GRNOC::WebService::Regex::TEXT
@@ -549,14 +555,15 @@ sub modify_vrf {
     my $params = shift;
 
     my $vrf_id = $params->{vrf_id}{value};
-    my $new_vrf = decode_json($params->{new_vrf}{value});
+    my $pending = decode_json($params->{pending}{value});
+    my $previous = decode_json($params->{previous}{value});
 
     $self->{logger}->debug("Calling modify_vrf: $vrf_id");
 
     $self->_update_cache;
-    my $vrf = $self->_generate_vrf_commands($vrf_id);
+    $self->_generate_vrf_commands($vrf_id);
 
-    return $self->{device}->modify_vrf({ new => $new_vrf, old => $vrf });
+    return $self->{device}->modify_vrf({ new => $pending, old => $previous });
 }
 
 =head2 remove_vrf
