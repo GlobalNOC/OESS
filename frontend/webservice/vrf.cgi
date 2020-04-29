@@ -719,7 +719,7 @@ sub provision_vrf{
         $db->commit;
         _update_cache(vrf_id => $vrf_id);
 
-        $res = vrf_modify(method => $method, vrf_id => $vrf_id, previous => $previous_vrf, current => $vrf->to_hash);
+        $res = vrf_modify(method => $method, vrf_id => $vrf_id, previous => $previous_vrf, pending => $vrf->to_hash);
 
         $type = 'modified';
         $reason = "Updated by $ENV{'REMOTE_USER'}";
@@ -870,7 +870,7 @@ sub vrf_modify{
     my %params = @_;
     my $vrf_id = $params{vrf_id};
     my $method = $params{method};
-    my $current = $params{current};
+    my $pending = $params{pending};
     my $previous = $params{previous};
 
     $mq->{topic} = 'MPLS.FWDCTL.RPC';
@@ -880,7 +880,7 @@ sub vrf_modify{
     warn "_send_vrf_modify_command: Calling modifyVrf on vrf $vrf_id";
     $mq->modifyVrf(
         vrf_id   => int($vrf_id),
-        current  => encode_json($current),
+        pending  => encode_json($pending),
         previous => encode_json($previous),
         async_callback => sub {
             my $result = shift;

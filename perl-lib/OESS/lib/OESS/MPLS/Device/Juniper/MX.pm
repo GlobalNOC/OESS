@@ -994,29 +994,28 @@ sub add_vrf_xml {
 =cut
 sub modify_vrf_xml {
     my $self = shift;
-    my $vrf = shift;
+    my $previous = shift;
+    my $pending = shift;
 
     my $add = '';
     my $remove = '';
 
-    if (@{$vrf->{old}->{endpoints}} != 0) {
-        $remove = $self->remove_vrf_xml($vrf->{old});
+    if (@{$previous->{endpoints}} != 0) {
+        $remove = $self->remove_vrf_xml($previous);
         if (!defined $remove) {
             $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
             warn 'Unknown error occurred while generating modify_vrf_xml.';
             return;
         }
-        # $remove =~ s/<\/groups><\/configuration>//g;
     }
 
-    if (@{$vrf->{new}->{endpoints}} != 0) {
-        $add = $self->add_vrf_xml($vrf->{new});
+    if (@{$pending->{endpoints}} != 0) {
+        $add = $self->add_vrf_xml($pending);
         if (!defined $add) {
             $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
             warn 'Unknown error occurred while generating modify_vrf_xml.';
             return;
         }
-        # $add =~ s/<configuration><groups><name>OESS<\/name>//g;
     }
 
     if ($remove ne '' && $add ne '') {
@@ -1075,13 +1074,14 @@ sub add_vrf{
 =cut
 sub modify_vrf {
     my $self = shift;
-    my $vrf = shift;
+    my $previous = shift;
+    my $pending = shift;
 
     if (!$self->connected()) {
         return FWDCTL_FAILURE;
     }
 
-    my $output = $self->modify_vrf_xml($vrf);
+    my $output = $self->modify_vrf_xml($previous, $pending);
     if (!defined $output) {
         $self->{logger}->error('A valid configuration could not be generated.');
         return FWDCTL_FAILURE;

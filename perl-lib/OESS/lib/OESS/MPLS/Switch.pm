@@ -559,7 +559,7 @@ sub modify_vrf {
     my $previous = decode_json($params->{previous}{value});
 
     $self->{logger}->debug("Calling modify_vrf: $vrf_id");
-    return $self->{device}->modify_vrf({ new => $pending, old => $previous });
+    return $self->{device}->modify_vrf($previous, $pending);
 }
 
 =head2 remove_vrf

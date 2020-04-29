@@ -373,14 +373,14 @@ sub _register_rpc_methods{
     );
     $method->add_input_parameter(
         name => "previous",
-        description => "ID of l3 connection to be modified.",
-        required => 0,
+        description => "Previous version of the modified l3 connection.",
+        required => 1,
         pattern => $GRNOC::WebService::Regex::TEXT
     );
     $method->add_input_parameter(
-        name => "current",
-        description => "ID of l3 connection to be modified.",
-        required => 0,
+        name => "pending",
+        description => "Pending version of the modified l3 connection.",
+        required => 1,
         pattern => $GRNOC::WebService::Regex::TEXT
     );
     $d->register_method($method);
@@ -888,7 +888,7 @@ sub modifyVrf {
 
     # TODO change current to pending or new
     my $vrf_id   = $p_ref->{vrf_id}{value};
-    my $pending  = decode_json($p_ref->{current}{value});
+    my $pending  = decode_json($p_ref->{pending}{value});
     my $previous = decode_json($p_ref->{previous}{value});
 
     if (!defined $vrf_id) {
