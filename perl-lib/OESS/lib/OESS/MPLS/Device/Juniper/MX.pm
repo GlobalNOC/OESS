@@ -809,23 +809,34 @@ sub add_vlan_xml {
 =cut
 sub modify_vlan_xml {
     my $self = shift;
-    my $ckt = shift;
+    my $previous = shift;
+    my $pending = shift;
 
-    my $remove = $self->remove_vlan_xml($ckt->{old});
-    if (!defined $remove) {
-        $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
-        warn 'Unknown error occurred while generating modify_vlan_xml.';
-        return;
-    }
-    $remove =~ s/<\/groups><\/configuration>//g;
+    my $add = '';
+    my $remove = '';
 
-    my $add = $self->add_vlan_xml($ckt->{new});
-    if (!defined $add) {
-        $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
-        warn 'Unknown error occurred while generating modify_vlan_xml.';
-        return;
+    if (@{$previous->{endpoints}} != 0) {
+        $remove = $self->remove_vlan_xml($previous);
+        if (!defined $remove) {
+            $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
+            warn 'Unknown error occurred while generating modify_vlan_xml.';
+            return;
+        }
     }
-    $add =~ s/<configuration><groups><name>OESS<\/name>//g;
+
+    if (@{$pending->{endpoints}} != 0) {
+        $add = $self->add_vlan_xml($pending);
+        if (!defined $add) {
+            $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
+            warn 'Unknown error occurred while generating modify_vlan_xml.';
+            return;
+        }
+    }
+
+    if ($remove ne '' && $add ne '') {
+        $remove =~ s/<\/groups><\/configuration>//g;
+        $add =~ s/<configuration><groups><name>OESS<\/name>//g;
+    }
 
     my $output = $remove . $add;
     return $output;
@@ -912,15 +923,22 @@ sub add_vlan{
 =cut
 sub modify_vlan {
     my $self = shift;
-    my $ckt = shift;
+    my $previous = shift;
+    my $pending = shift;
 
     if (!$self->connected()) {
         return FWDCTL_FAILURE;
     }
 
-    my $output = $self->modify_vlan_xml($ckt);
+    my $output = $self->modify_vlan_xml($previous, $pending);
     if (!defined $output) {
+        $self->{logger}->error('A valid configuration could not be generated.');
         return FWDCTL_FAILURE;
+    }
+
+    if ($output eq '') {
+        $self->{logger}->info("No change required on $self->{name}.");
+        return FWDCTL_SUCCESS;
     }
     return $self->_edit_config(config => $output);
 }
@@ -2329,7 +2347,7 @@ sub _edit_config{
                 $self->{'logger'}->warn($msg);
             } else {
                 # error-severity of 'error' is considered fatal
-                $self->{'logger'}->debug(Dumper($error));
+                $self->{'logger'}->error(Dumper($error));
                 die $msg;
             }
         }

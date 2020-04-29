@@ -346,6 +346,31 @@ sub _register_rpc_methods{
     
     $d->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new(
+        name => "modifyVlan",
+        async => 1,
+        callback => sub { $self->modifyVlan(@_) },
+        description => "modifyVlan modifies an existing l2 connection."
+    );
+    $method->add_input_parameter(
+        name => "circuit_id",
+        description => "ID of l2 connection to be modified.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::INTEGER
+    );
+    $method->add_input_parameter(
+        name => "previous",
+        description => "Previous version of the modified l2 connection.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $method->add_input_parameter(
+        name => "pending",
+        description => "Pending version of the modified l2 connection.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "addVrf",
                                             async => 1,
@@ -875,6 +900,59 @@ sub filter_endpoints {
     return \@endpoints;
 }
 
+=head2 determine_site_id
+
+=cut
+sub determine_site_id {
+    my $self = shift;
+    my $node = shift;
+    my $endpoints = shift;
+
+    my $index = {};
+
+    my $site_id = 0;
+    foreach my $ep (@$endpoints) {
+        $site_id++;
+
+        if ($ep->{node} eq $node) {
+            return $site_id;
+        }
+    }
+
+    return $site_id;
+}
+
+=head2 determine_vlan_type
+
+determine_vlan_type determines and returns the protocol type to use
+for a given layer 2 connection.
+
+=cut
+sub determine_vlan_type {
+    my $self = shift;
+    my $vlan = shift;
+
+    my $ckt_type;
+    if ($self->{config}->network_type eq 'evpn-vxlan') {
+        $ckt_type = "EVPN";
+    } else {
+        $ckt_type = "L2VPN";
+
+        foreach my $path (@{$vlan->{paths}}) {
+            if ($path->{type} eq 'primary' && @{$path->{links}} > 0) {
+                $ckt_type = "L2CCC";
+                last;
+            }
+        }
+
+        if (@{$vlan->{endpoints}} > 2) {
+            $ckt_type = "L2VPLS";
+        }
+    }
+
+    return $ckt_type;
+}
+
 =head2 modifyVrf
 
 =cut
@@ -1158,6 +1236,89 @@ sub addVlan{
 
     $cv->end();
 }
+
+=head2 modifyVlan
+
+=cut
+sub modifyVlan {
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $success = $m_ref->{success_callback};
+    my $error = $m_ref->{error_callback};
+
+    my $circuit_id = $p_ref->{circuit_id}{value};
+    my $pending    = decode_json($p_ref->{pending}{value});
+    my $previous   = decode_json($p_ref->{previous}{value});
+
+    if (!defined $circuit_id) {
+        $self->{logger}->error("modifyVlan: circuit_id required");
+        $self->{logger}->logconfess;
+    }
+    $self->{logger}->info("Modifing VLAN $circuit_id.");
+
+    $pending->{ckt_type} = $self->determine_vlan_type($pending);
+    $previous->{ckt_type} = $self->determine_vlan_type($previous);
+
+    my $nodes = {};
+    my @pend_endpoints = @{$pending->{endpoints}};
+    my @prev_endpoints = @{$previous->{endpoints}};
+
+    foreach my $ep (@pend_endpoints) {
+        $nodes->{$ep->{node}} = 1;
+    }
+    foreach my $ep (@prev_endpoints) {
+        $nodes->{$ep->{node}} = 1;
+    }
+
+    my $cv = AnyEvent->condvar;
+    my $result = FWDCTL_SUCCESS;
+    my $node_errors = {};
+
+    $cv->begin( sub {
+        if (!%$node_errors) {
+            $self->{logger}->info("Modified VLAN $circuit_id.");
+            return &$success({ status => $result });
+        }
+
+        foreach my $node (keys %$node_errors) {
+            $self->{logger}->error($node_errors->{$node}) if defined $node_errors->{$node};
+        }
+
+        return &$error("Failed to modify VLAN $circuit_id.");
+    });
+
+    foreach my $node (keys %$nodes) {
+        $cv->begin;
+
+        my $node_id = $self->{node_info}->{$node}->{id};
+        my $node_ip = $self->{node_by_id}->{$node_id}->{mgmt_addr};
+
+        $pending->{endpoints} = $self->filter_endpoints($node, \@pend_endpoints);
+        $pending->{site_id} = $self->determine_site_id($node, \@pend_endpoints);
+        $previous->{endpoints} = $self->filter_endpoints($node, \@prev_endpoints);
+        $previous->{site_id} = $self->determine_site_id($node, \@prev_endpoints);
+
+        $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$node_ip";
+        $self->{fwdctl_events}->modify_vlan(
+            circuit_id => $circuit_id,
+            pending    => encode_json($pending),
+            previous   => encode_json($previous),
+            async_callback => sub {
+                my $res = shift;
+                $self->{logger}->info('fwdctl: ' . Dumper($res));
+                if ($res->{results}->{status} != FWDCTL_SUCCESS) {
+                    $node_errors->{$node} = "Failed to modify VLAN on $node ($node_ip).";
+                }
+                $cv->end;
+            }
+        );
+    }
+
+    $cv->end;
+}
+
 
 =head2 deleteVlan
 

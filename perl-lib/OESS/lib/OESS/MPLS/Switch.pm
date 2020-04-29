@@ -181,6 +181,32 @@ sub _register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
 
+
+    $method = GRNOC::RabbitMQ::Method->new(
+        name => "modify_vlan",
+        description => "modify_vlan modifies an existing l2 connection.",
+        callback => sub { return { status => $self->modify_vlan(@_) }; }
+    );
+    $method->add_input_parameter(
+        name => "circuit_id",
+        description => "ID of l2 connection to be modified.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::NUMBER_ID
+    );
+    $method->add_input_parameter(
+        name => "pending",
+        description => "l2 connection hash as it should appear on the network.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $method->add_input_parameter(
+        name => "previous",
+        description => "l2 connection hash as it should appear on the network.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $dispatcher->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => "remove_vlan",
                                             description => "removes a vlan for this switch",
                                             callback => sub { return {status => $self->remove_vlan(@_) }});
@@ -478,6 +504,27 @@ sub add_vlan{
     my $vlan_obj = $self->_generate_commands( $circuit );
 
     return $self->{'device'}->add_vlan($vlan_obj);
+}
+
+=head2 modify_vlan
+
+=cut
+sub modify_vlan {
+    my $self = shift;
+    my $method = shift;
+    my $params = shift;
+
+    my $circuit_id = $params->{circuit_id}{value};
+    my $pending = decode_json($params->{pending}{value});
+    my $previous = decode_json($params->{previous}{value});
+
+    # Lookup circuit type from cached circuit
+    # my $vlan_obj = $self->_generate_commands($circuit_id);
+    # $pending->{ckt_type} = $vlan_obj->{ckt_type}
+    # $previous->{ckt_type} = $vlan_obj->{ckt_type}
+
+    $self->{logger}->debug("Calling modify_vlan: $circuit_id");
+    return $self->{device}->modify_vlan($previous, $pending);
 }
 
 =head2 get_system_info

@@ -30,7 +30,11 @@
       </label-switched-path>
       [% FOREACH path IN paths %]
       <path operation='delete'>
-        <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
+        [% IF path.type == 'primary' %]
+        <name>OESS-L2CCC-[% path.details.node_a.node_id %]-[% path.details.node_z.node_id %]-LSP-[% circuit_id %]-PRIMARY</name>
+        [% ELSE %]
+        <name>OESS-L2CCC-[% path.details.node_a.node_id %]-[% path.details.node_z.node_id %]-LSP-[% circuit_id %]-TERTIARY</name>
+        [% END %]
       </path>
       [% END %]
     </mpls>
