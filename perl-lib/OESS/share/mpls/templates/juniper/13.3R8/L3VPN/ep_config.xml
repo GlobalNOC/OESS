@@ -87,6 +87,7 @@
         <bgp>
           <log-updown/>
 
+          [% IF uses_ipv4 %]
           <group>
             <name>OESS-L3VPN-[% vrf_id %]-BGP</name>
             <family>
@@ -139,7 +140,9 @@
               [% END %]
             [% END %]
           </group>
+          [% END %]
 
+          [% IF uses_ipv6 %]
           <group>
             <name>OESS-L3VPN-[% vrf_id %]-BGP-V6</name>
             <family>
@@ -179,6 +182,7 @@
               [% END %]
             [% END %]
           </group>
+          [% END %]
 
         </bgp>
       </protocols>

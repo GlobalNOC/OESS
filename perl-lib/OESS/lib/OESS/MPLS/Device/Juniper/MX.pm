@@ -992,6 +992,18 @@ sub add_vrf_xml {
     $vrf->{'switch'}->{'name'} = $self->{'name'};
     $vrf->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
 
+    $vrf->{uses_ipv4} = 0;
+    $vrf->{uses_ipv6} = 0;
+    foreach my $ep (@{$vrf->{endpoints}}) {
+        foreach my $peer (@{$ep->{peers}}) {
+            if ($peer->{ip_version} eq 'ipv4') {
+                $vrf->{uses_ipv4} = 1;
+            } else {
+                $vrf->{uses_ipv6} = 1;
+            }
+        }
+    }
+
     my $output;
     my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vrf, \$output);
     if (!$ok) {
