@@ -68,7 +68,7 @@ sub from_hash{
     $self->{'used_vlans'} = $hash->{'used_vlans'};
     $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'workgroup_id'} = $hash->{'workgroup_id'};
-
+    $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
     return 1;
 }
 
@@ -92,7 +92,8 @@ sub to_hash{
                 node => $self->node()->name(),
                 acls => $acl_models,
                 operational_state => $self->{'operational_state'},
-                workgroup_id => $self->workgroup_id() };
+                workgroup_id => $self->workgroup_id(),
+                utilized_bandwidth => $self->{utilized_bandwidth} };
 
     return $res;
 }
