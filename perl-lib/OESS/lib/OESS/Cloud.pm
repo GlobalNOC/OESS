@@ -172,6 +172,7 @@ sub setup_endpoints {
             $ep->cloud_connection_id($res->{id});
             $ep->inner_tag($ep->tag);
             $ep->tag($conn->{properties}->{sTag});
+            $ep->bandwidth($conn->{properties}->{bandwidthInMbps});
 
             $azure_connections->{$ep->cloud_account_id} = {
                 id        => $ep->cloud_connection_id,
