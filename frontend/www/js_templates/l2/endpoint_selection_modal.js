@@ -24,10 +24,12 @@ class EndpointSelectionModal2 {
     let interface_id = (interfaces.length === 0) ? -1 : interfaces[0].interface_id;
 
     let index = -1;
+    let selectedBandwidth = null;
 
     if (endpoint !== undefined && endpoint !== null) {
       interface_id = endpoint.interface_id;
       index = endpoint.index;
+      selectedBandwidth = endpoint.bandwidth || null;
     }
 
     let interfaceSelector = this.parent.querySelector('.endpoint-select-interface');
@@ -122,14 +124,14 @@ class EndpointSelectionModal2 {
         o.innerText = `${b[1]}`;
         o.setAttribute('value', b[0]);
 
-        if (i == 0) {
+        if ( (selectedBandwidth === null && i == 0) || b[0] == selectedBandwidth) {
           o.setAttribute('selected', true);
         }
 
         bandwidthSelector.appendChild(o);
       });
 
-      if (vlan === -1) {
+      if (vlan === -1 || bandwidthOptions.length === 1) {
         bandwidthSelector.setAttribute('disabled', '');
       } else {
         bandwidthSelector.removeAttribute('disabled');
@@ -205,12 +207,16 @@ class EndpointSelectionModal2 {
     let index = -1;
     let selectedInterface = 'TBD';
     let selectedNode = 'TBD';
+    let selectedCloudAccountId = null;
+    let selectedBandwidth = null;
 
     if (endpoint !== undefined && endpoint !== null) {
       entity_id = endpoint.entity_id;
       index = endpoint.index;
       selectedInterface = endpoint.interface || 'TBD';
       selectedNode = endpoint.node || 'TBD';
+      selectedCloudAccountId = endpoint.cloud_account_id || null;
+      selectedBandwidth = endpoint.bandwidth || null;
     }
 
     this.parent.querySelector('.entity-search').oninput = function(search) {
@@ -433,7 +439,7 @@ class EndpointSelectionModal2 {
 
     cloudAccountFormGroup.style.display = 'none';
     cloudGatewayFormGroup.style.display = 'none';
-    cloudAccountInput.value = null;
+    cloudAccountInput.value = selectedCloudAccountId;
 
     if (entity.cloud_interconnect_type !== null) {
       cloudAccountFormGroup.style.display = 'block';
@@ -454,7 +460,7 @@ class EndpointSelectionModal2 {
         cloudAccountInput.setAttribute('placeholder', '012301230123');
       }
     } else {
-      vlanHelp.dataset.content = "Ethernet frame header of the Tagged Interface connecting to the selected Network Entity.";
+      vlanHelp.dataset.content = `VLAN Identifier of the tagged interface connecting to <b>${entity.name}.</b>`;
     }
 
     // Max Bandwidth
@@ -494,14 +500,14 @@ class EndpointSelectionModal2 {
       o.innerText = `${b[1]}`;
       o.setAttribute('value', b[0]);
 
-      if (i == 0) {
+      if ( (selectedBandwidth === null && i == 0) || b[0] == selectedBandwidth) {
         o.setAttribute('selected', true);
       }
 
       bandwidthSelector.appendChild(o);
     });
 
-    if (vlan === -1) {
+    if (vlan === -1 || bandwidthOptions.length === 1) {
       bandwidthSelector.setAttribute('disabled', '');
     } else {
       bandwidthSelector.removeAttribute('disabled');
