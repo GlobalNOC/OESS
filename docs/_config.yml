@@ -14,15 +14,18 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 title: OESS
-email: your-email@example.com
+email: oess-users@globalnoc.iu.edu
 description: >- # this means to ignore newlines until "baseurl:"
-  Write an awesome description for your new site here. You can edit this
-  line in _config.yml. It will appear in your document head meta (for
-  Google search results) and in your feed.xml site description.
+  The Network Development and Deployment Initiative (NDDI), a
+  partnership between Internet2, Indiana University and others was
+  formed to create a new network platform and complementary software,
+  which together will support global scientific research in a
+  revolutionary new way. The Open Exchange Software Suite (OESS) is the
+  first software product to emerge from this partnership.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
-twitter_username: jekyllrb
-github_username:  jekyll
+twitter_username: iuglobalnoc
+github_username:  GlobalNOC
 
 # Build settings
 markdown: kramdown
@@ -43,8 +46,12 @@ plugins:
 #   - vendor/ruby/
 
 header_pages:
-  - api.md
-  - frontend.md
+#  - api.md
+#  - frontend.md
+  - the-basics.md
+  - user-documentation.md
+  - operations-manual.md
+  - administration.md
 
 collections:
   api_endpoints:
