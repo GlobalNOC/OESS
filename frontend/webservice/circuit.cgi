@@ -255,12 +255,6 @@ sub provision {
         return;
     }
 
-    if (@{$args->{endpoint}->{value}} < 2) {
-        $method->set_error("Couldn't create Circuit: Circuit requires at least two Endpoints.");
-        $db->rollback;
-        return;
-    }
-
     # Endpoint: { entity: 'entity name', bandwidth: 0, tag: 100, inner_tag: 100, peerings: [{ version: 4 }]  }
     foreach my $value (@{$args->{endpoint}->{value}}) {
         my $ep;
