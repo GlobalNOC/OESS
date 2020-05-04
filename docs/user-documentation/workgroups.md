@@ -4,9 +4,31 @@ title: Workgroups
 name: workgroups
 ---
 
+## Introduction
+
 Each user belongs to one or more workgroups. A workgroup allows a
 group of users to jointly manage Device Interfaces and network
-Connections (sometimes called VLANs or Circuits).
+Connections (sometimes called VLANs, Circuits, or
+Connections). Depending on the user type, workgroup membership may
+grant different access privilages.
+
+Read only users may view all connections which were created by the
+user's workgroup, and all connections which terminate on interfaces
+owned by the user's workgroup. These users also have the ability to
+browse network entities and view the current workgroup's useers. Read
+only admin users have the additional capability of viewing all users
+and admin specific information. A read only users have no ability to
+modify or influence network or oess behavior.
+
+Normal users may modify any connection created by its workgroup. These
+users may also modify or remove any connection which terminates on an
+interface owned by its workgroup; Modifications of these connections
+are not possible. Normal users may create, modify, remove or reorder
+any ACLs on their workgroups' interfaces.
+
+Normal users of the admin workgroup have access to the entire system
+and may modify any network connection, acl, entity, workgroup, user or
+network device.
 
 ## Interface ACLs
 

@@ -10,6 +10,6 @@ permalink: /the-basics
 
 ## <a href="/the-basics/concepts-and-terminology.html">Concepts and Terminology</a>
 
-## <a href="/the-basics/components.html">Sofware Components</a>
+## <a href="/the-basics/oess-components.html">Sofware Components</a>
 
-## <a href="/the-basics/api.html">WebService API</a>
+## <a href="/the-basics/oess-api.html">WebService API</a>

@@ -1,31 +1,60 @@
----
-layout: api
----
-<article class="post">
-  <header class="post-header">
-    <h1 class="post-title">{{ page.title | escape }}</h1>
-  </header>
+<!DOCTYPE html>
+<html lang="{{ page.lang | default: site.lang | default: "en" }}">
+  {%- include head.html -%}
 
-  <div class="post-content">
-    {{ content }}
+  <body>
+    {%- include header.html -%}
 
-    {% assign cgi_module = site.data.api[page.name] %}
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <div class="nav-wrapper">
+          <div class="nav-wrapper-nav">
+            <ul>
+              {% for subpage in site.api_endpoints %}
+              <li><a href="{{ subpage.url }}">{{ subpage.title }}</a></li>
+              {% endfor %}
+            </ul>
+          </div>
 
-    {% for cgi_method in cgi_module %}
-      {% assign method = cgi_method[1] %}
+          <div class="nav-wrapper-content">
 
-      <br/>
-      <hr/>
-      <br/>
+            {%- if page.title -%}
+              <h1 class="post-title">{{ page.title | escape }}</h1>
+            {%- endif -%}
+            <hr/>
+            <a href="/">OESS</a> | <a href="/the-basics">Introduction</a> | <a href="/the-basics/oess-api.html">OESS API</a> | <a href="{{ page.url }}">{{ page.title }}</a>
+            <hr/>
+            <br/>
 
-      <h2>{{ method.name }}</h2>
-      <p>{{ method.description }}</p>
+            <article class="post">
+              <div class="post-content">
+                {{ content }}
 
-      {% for input_param in method.input_params %}
-      {% assign param = input_param[1] %}
-        <h4>{{ param.name }} {% if param.required == 1 %}<i style="font-size: .75em">required</i>{% endif %}</h4>
-        <p>{{ param.description }}</p>
-      {% endfor %}
-    {% endfor %}
-  </div>
-</article>
+                {% assign cgi_module = site.data.api[page.name] %}
+
+                {% for cgi_method in cgi_module %}
+                  {% assign method = cgi_method[1] %}
+
+                  <br/>
+                  <hr/>
+                  <br/>
+
+                  <h2>{{ method.name }}</h2>
+                  <p>{{ method.description }}</p>
+
+                  {% for input_param in method.input_params %}
+                  {% assign param = input_param[1] %}
+                  <h4>{{ param.name }} {% if param.required == 1 %}<i style="font-size: .75em">required</i>{% endif %}</h4>
+                  <p>{{ param.description }}</p>
+                  {% endfor %}
+                  {% endfor %}
+              </div>
+            </article>
+
+          </div>
+      </div>
+    </main>
+
+    {%- include footer.html -%}
+  </body>
+</html>
