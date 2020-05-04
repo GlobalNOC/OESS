@@ -44,7 +44,8 @@ defined. Enter the required details and then press Adding Peering.
 OESS supports provisiong connections to AWS, Microsoft Azure, and
 Google Cloud Platform. As provisioning for each cloud is slightly
 different, use the videos in this section to setup your cloud enabled
-endpoints.
+endpoints. Additional details may be
+found [here](/user-documentation/cloud-providers.html).
 
 #### AWS Hosted Connection
 

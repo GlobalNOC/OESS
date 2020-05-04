@@ -12,6 +12,6 @@ permalink: /operations-manual
 
 ## <a href="/operations-manual/installation.html">Installation</a>
 
-## <a href="/operations-manual/configuration.html">Configuration</a>
+## <a href="/operations-manual/software-configuration.html">Software Configuration</a>
 
 ## <a href="/operations-manual/network-configuration.html">Network Configuration</a>

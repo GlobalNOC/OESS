@@ -20,11 +20,14 @@ only admin users have the additional capability of viewing all users
 and admin specific information. A read only users have no ability to
 modify or influence network or oess behavior.
 
-Normal users may modify any connection created by its workgroup. These
-users may also modify or remove any connection which terminates on an
-interface owned by its workgroup; Modifications of these connections
-are not possible. Normal users may create, modify, remove or reorder
-any ACLs on their workgroups' interfaces.
+A normal user may create, modify, remove or reorder any ACL on
+interfaces owned by its workgroups'. Normal users may modify
+connections in two cases:
+
+1. The connection is owned by the user's workgroup
+2. The connection terminates on an interface owned by the user's workgroup
+
+In the second case, the user may only remove the connection.
 
 Normal users of the admin workgroup have access to the entire system
 and may modify any network connection, acl, entity, workgroup, user or
