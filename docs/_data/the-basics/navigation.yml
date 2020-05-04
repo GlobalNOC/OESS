@@ -1,0 +1,7 @@
+pages:
+  - title: Concepts and Terminology
+    url: /the-basics/concepts-and-terminology.html
+  - title: OESS Components
+    url: /the-basics/oess-components.html
+  - title: OESS API
+    url: /the-basics/oess-api.html
