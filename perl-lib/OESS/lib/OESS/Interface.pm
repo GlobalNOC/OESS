@@ -69,6 +69,9 @@ sub from_hash{
     $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'workgroup_id'} = $hash->{'workgroup_id'};
     $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
+    $self->{'bandwidth'} = $hash->{'bandwidth'} || 0;
+    $self->{'mtu'} = $hash->{'mtu'} || 0;
+
     return 1;
 }
 
@@ -93,7 +96,9 @@ sub to_hash{
                 acls => $acl_models,
                 operational_state => $self->{'operational_state'},
                 workgroup_id => $self->workgroup_id(),
-                utilized_bandwidth => $self->{utilized_bandwidth} };
+                utilized_bandwidth => $self->{'utilized_bandwidth'},
+                bandwidth => $self->{'bandwidth'},
+                mtu => $self->{'mtu'} };
 
     return $res;
 }
