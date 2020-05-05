@@ -28,15 +28,12 @@
       <label-switched-path operation='delete'>
         <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]</name>
       </label-switched-path>
-      [% FOREACH path IN paths %]
       <path operation='delete'>
-        [% IF path.type == 'primary' %]
-        <name>OESS-L2CCC-[% path.details.node_a.node_id %]-[% path.details.node_z.node_id %]-LSP-[% circuit_id %]-PRIMARY</name>
-        [% ELSE %]
-        <name>OESS-L2CCC-[% path.details.node_a.node_id %]-[% path.details.node_z.node_id %]-LSP-[% circuit_id %]-TERTIARY</name>
-        [% END %]
+        <name>OESS-L2CCC-[% paths.0.details.node_a.node_id %]-[% paths.0.details.node_z.node_id %]-LSP-[% circuit_id %]-PRIMARY</name>
       </path>
-      [% END %]
+      <path operation='delete'>
+        <name>OESS-L2CCC-[% paths.0.details.node_a.node_id %]-[% paths.0.details.node_z.node_id %]-LSP-[% circuit_id %]-TERTIARY</name>
+      </path>
     </mpls>
     <connections>
       <remote-interface-switch operation='delete'>

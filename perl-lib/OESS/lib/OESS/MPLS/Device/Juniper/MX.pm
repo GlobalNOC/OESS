@@ -1499,7 +1499,7 @@ sub _large_diff {
     my $diff = shift;
 
     my $len = length($diff);
-    if ($len > 50) {
+    if ($len > 500) {
         return 1;
     }
     return 0;
