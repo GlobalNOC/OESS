@@ -106,6 +106,26 @@ sub new{
     $self->{'db'} = OESS::Database->new(config => $config_filename);
     die if (!defined $self->{'db'});
 
+
+    $self->{'interface'} = OESS::MPLS::Discovery::Interface->new(
+        db => $self->{'db'},
+        lsp_processor => sub{ $self->lsp_handler(); }
+    );
+    die "Unable to create Interface processor\n" if !defined $self->{'interface'};
+
+    $self->{'lsp'} = OESS::MPLS::Discovery::LSP->new(db => $self->{'db'});
+    die "Unable to create LSP Processor\n" if !defined $self->{'lsp'};
+
+    $self->{'isis'} = OESS::MPLS::Discovery::ISIS->new(db => $self->{'db'});
+    die "Unable to create ISIS Processor\n" if !defined $self->{'isis'};
+
+    $self->{'path'} = OESS::MPLS::Discovery::Paths->new(
+        db => $self->{'db'},
+        config => $self->{config_filename}
+    );
+    die "Unable to create Path Processor\n" if !defined $self->{'path'};
+
+
     $self->{'interface'} = $self->_init_interfaces();
     die if (!defined $self->{'interface'});
 
@@ -285,66 +305,6 @@ sub run{
 
     $self->{'children'}->{$id} = {};
     $self->{'children'}->{$id}->{'rpc'} = 1;
-}
-
-=head2 _init_interfaces
-
-initialize our sub modules...
-
-=cut
-sub _init_interfaces{
-    my $self = shift;
-    
-    my $ints = OESS::MPLS::Discovery::Interface->new( db => $self->{'db'},
-						      lsp_processor => sub{ $self->lsp_handler(); } );
-    if(!defined($ints)){
-	die "Unable to create Interface processor\n";
-    }
-
-    return $ints;
-}
-
-=head2 _init_lsp
-
-=cut
-sub _init_lsp{
-    my $self = shift;
-
-    my $lsps = OESS::MPLS::Discovery::LSP->new( db => $self->{'db'} );
-    if(!defined($lsps)){
-	die "Unable to create LSP Processor\n";
-    }
-
-    return $lsps;
-
-}
-
-=head2 _init_isis
-
-=cut
-sub _init_isis{  
-    my $self = shift;
-
-    my $isis = OESS::MPLS::Discovery::ISIS->new( db => $self->{'db'} );
-    if(!defined($isis)){
-	die "Unable to create ISIS Processor\n";
-    }
-
-    return $isis;
-
-}
-
-=head2 _init_paths
-
-=cut
-sub _init_paths{
-    my $self = shift;
-    my $paths = OESS::MPLS::Discovery::Paths->new( db => $self->{'db'}, config => $self->{config_filename} );
-    if(!defined($paths)){
-        die "Unable to create Path Processor\n";
-    }
-
-    return $paths;
 }
 
 =head2 int_handler
