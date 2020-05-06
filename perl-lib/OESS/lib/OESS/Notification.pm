@@ -645,7 +645,7 @@ sub send_notification {
 	    Encoding    => 'quoted-printable',
 	    Timezone => 'UTC',
 	    Template => {
-		html => $self->{'template_path'} . "/notification.tt.html",
+		html => $self->{'template_path'} . "/notification2.tt.html",
 		text => $self->{'template_path'} . "/notification_templates.tmpl"
 	    },
 	    TmplParams => \%vars,
@@ -682,7 +682,7 @@ sub send_notification {
 		    Encoding    => 'quoted-printable',
 		    Timezone => 'UTC',
 		    Template => {
-			html => "$self->{'template_path'}/notification.tt.html",
+			html => "$self->{'template_path'}/notification2.tt.html",
 			text => "$self->{'template_path'}/notification_templates.tmpl"
 		    },
 		    TmplParams => \%vars,
