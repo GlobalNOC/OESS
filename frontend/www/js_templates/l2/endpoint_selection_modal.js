@@ -326,10 +326,6 @@ class EndpointSelectionModal2 {
         notAllow = 'cursor: not-allowed;';
       }
 
-      // TODO After interface speed is recorded in the database,
-      // update our bandwidth details to include available bandwidth.
-      // ex.
-      // <b>${child.node}</b> ${child.name} <br/><span>${child.utilized_bandwidth}Mb reserved / ${child.bandwidth}Mb available</span>
       let elem = document.createElement('li');
       elem.setAttribute('class', `list-group-item ${disabled}`);
       elem.innerHTML = `
@@ -342,7 +338,7 @@ class EndpointSelectionModal2 {
                    ${checked}
                    ${disabled}
             />
-            <b>${child.node}</b> ${child.name} <br/><span>${child.utilized_bandwidth}Mb reserved</span>
+            <b>${child.node}</b> ${child.name} <br/><span>${child.utilized_bandwidth}Mb reserved / ${child.bandwidth}Mb total</span>
           </label>
         </div>`;
       elem.addEventListener('click', function(e) {
