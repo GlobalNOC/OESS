@@ -303,11 +303,6 @@ sub provision_vrf{
         return;
     }
 
-    if (@{$params->{endpoint}->{value}} < 2) {
-        $method->set_error("Couldn't create L3Connection: Connection requires at least two Endpoints.");
-        return;
-    }
-
     # Modified VRFs should already have selected the appropriate
     # endpoints for any of their cloud connections. This has not been
     # been done for new VRFs.
