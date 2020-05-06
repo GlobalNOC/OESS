@@ -8,7 +8,7 @@ permalink: /administration
 <p style="margin: 0"><a href="/">OESS</a> | <a href="/administration">Administration</a></p>
 <hr style="margin-bottom: 15px"/>
 
-## <a href="/administration/administrator-access.html">Administrator Access</a>
+## <a href="{{ "/administration/administrator-access.html" | relative_url }}">Administrator Access</a>
 
 ## <a href="/administration/user-workgroup-management.html">User and Workgroup Management</a>
 
