@@ -11,8 +11,8 @@ OESS is a set of software used to configure and control dynamic
 switches. OESS provides network connection provisioning, automatic
 failover, per-interface permissions, and automatic per-VLAN
 statistics. It includes a simple and user
-friendly [web-based user interface](/frontend) as well as
-a [web services API](/api).
+friendly [web-based user interface]({{ "/user-documentation" | relative_url }}) as well as
+a [web services API]({{ "/the-basics/oess-api.html" | relative_url }}).
 
 ## Features
 
