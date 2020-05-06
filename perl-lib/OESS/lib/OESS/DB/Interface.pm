@@ -38,6 +38,27 @@ sub fetch{
         push @$acls, $acl;
     }
 
+
+    my $l2_utilized_bandwidth = $db->execute_query(
+        "select sum(bandwidth) as utilized_bandwidth from circuit_edge_interface_membership where interface_id=? and end_epoch=-1",
+        [$interface_id]
+    );
+    if (!defined $l2_utilized_bandwidth || !defined $l2_utilized_bandwidth->[0]) {
+        warn "Couldn't get utilized bandwidth on interface $interface_id.";
+        return;
+    }
+    $l2_utilized_bandwidth = (defined $l2_utilized_bandwidth->[0]->{utilized_bandwidth}) ? $l2_utilized_bandwidth->[0]->{utilized_bandwidth} : 0;
+
+    my $l3_utilized_bandwidth = $db->execute_query(
+        "select sum(bandwidth) as utilized_bandwidth from vrf_ep where interface_id=? and state='active'",
+        [$interface_id]
+    );
+    if (!defined $l3_utilized_bandwidth || !defined $l3_utilized_bandwidth->[0]) {
+        warn "Couldn't get utilized bandwidth on interface $interface_id.";
+        return;
+    }
+    $l3_utilized_bandwidth = (defined $l3_utilized_bandwidth->[0]->{utilized_bandwidth}) ? $l3_utilized_bandwidth->[0]->{utilized_bandwidth} : 0;
+
     my $node = OESS::Node->new( db => $db, node_id => $interface->{'node_id'});
 
     my $in_use = OESS::DB::Interface::vrf_vlans_in_use(db => $db, interface_id => $interface_id );
@@ -56,7 +77,8 @@ sub fetch{
             mpls_vlan_tag_range => $interface->{'mpls_vlan_tag_range'},
             workgroup_id => $interface->{'workgroup_id'},
             acls => $acls,
-            used_vlans => $in_use };
+            used_vlans => $in_use,
+            utilized_bandwidth => $l2_utilized_bandwidth + $l3_utilized_bandwidth };
 
 }
 

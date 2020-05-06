@@ -214,9 +214,10 @@ class EndpointSelectionModal2 {
     }
 
     this.parent.querySelector('.entity-search').oninput = function(search) {
+      let list = this.parent.querySelector('.entity-search-list');
       if (search.target.value.length < 2) {
-        let list = this.parent.querySelector('.entity-search-list');
         list.innerHTML = '';
+        list.style.display = 'none';
         return null;
       }
 
@@ -224,11 +225,10 @@ class EndpointSelectionModal2 {
       // search query was updated.
       clearTimeout(this.searchTimeout);
 
-      // TODO FIX THIS
       this.searchTimeout = setTimeout(function() {
         getEntitiesAll(session.data.workgroup_id, search.target.value).then(function(entities) {
-          let list = this.parent.querySelector('.entity-search-list');
           list.innerHTML = '';
+          list.style.display = 'block';
 
           for (let i = 0; i < entities.length; i++) {
             let l = document.createElement('a');
@@ -238,6 +238,7 @@ class EndpointSelectionModal2 {
             l.onclick = (e) => {
               search.target.value = '';
               list.innerHTML = '';
+              list.style.display = 'none';
 
               entities[i].index = index;
               this.populateEntityForm(entities[i]);
@@ -319,6 +320,10 @@ class EndpointSelectionModal2 {
         notAllow = 'cursor: not-allowed;';
       }
 
+      // TODO After interface speed is recorded in the database,
+      // update our bandwidth details to include available bandwidth.
+      // ex.
+      // <b>${child.node}</b> ${child.name} <br/><span>${child.utilized_bandwidth}Mb reserved / ${child.bandwidth}Mb available</span>
       let elem = document.createElement('li');
       elem.setAttribute('class', `list-group-item ${disabled}`);
       elem.innerHTML = `
@@ -331,7 +336,7 @@ class EndpointSelectionModal2 {
                    ${checked}
                    ${disabled}
             />
-            <b>${child.node}</b> ${child.name}
+            <b>${child.node}</b> ${child.name} <br/><span>${child.utilized_bandwidth}Mb reserved</span>
           </label>
         </div>`;
       elem.addEventListener('click', function(e) {
