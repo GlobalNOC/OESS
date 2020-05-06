@@ -10,8 +10,8 @@
         <div class="nav-wrapper">
           <div class="nav-wrapper-nav">
             <ul>
-              {% for subpage in site.api_endpoints %}
-              <li><a href="{{ subpage.url | relative_url }}">{{ subpage.title }}</a></li>
+              {% for page in site.data.operations-manual.navigation.pages %}
+              <li><a href="{{ page.url | relative_url }}">{{ page.title }}</a></li>
               {% endfor %}
             </ul>
           </div>
@@ -19,12 +19,13 @@
           <div class="nav-wrapper-content">
 
             {%- if page.title -%}
-              <h1 class="post-title">{{ page.title | escape }}</h1>
+              <h1 class="page-heading">{{ page.title }}</h1>
             {%- endif -%}
-            <hr/>
-            <a href="{{ "/" | relative_url }}">OESS</a> | <a href="{{ "/the-basics" | relative_url }}">Introduction</a> | <a href="{{ "/the-basics/oess-api.html" | relative_url }}">OESS API</a>
-            <hr/>
-            <br/>
+
+              <hr/>
+              <a href="{{ "/" | relative_url }}">OESS</a> | <a href="{{ "/operations-manual" | relative_url }}">Operations Manual</a> | <a href="{{ page.url | relative_url }}">{{ page.title }}</a>
+              <hr/>
+              <br/>
 
             {{ content }}
           </div>
@@ -32,5 +33,6 @@
     </main>
 
     {%- include footer.html -%}
+
   </body>
 </html>
