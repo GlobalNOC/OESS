@@ -47,7 +47,7 @@ displayed. Each rule allows or denies a workgroup (or all workgroups)
 the right to use a range of VLAN tags as circuit endpoints. The rules
 are executed top to bottom, using first-match-wins semantics.
 
-![interface-acls](/assets/img/frontend/workgroup/interface-acls.png)
+![interface-acls]({{ "/assets/img/frontend/workgroup/interface-acls.png" | relative_url }})
 
 ### Adding an ACL Rule
 

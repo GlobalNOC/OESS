@@ -26,7 +26,7 @@ notifications are sent for all circuit events (create, remove, edit,
 failover, down, restoration)
 
 <center>
-    <img src="/assets/img/frontend/administration/add-user.png" />
+    <img src="{{ "/assets/img/frontend/administration/add-user.png" | relative_url }}" />
 </center>
 <br/>
 
@@ -36,7 +36,7 @@ To remove a user from a workgroup click the remove button next to
 their name in the user table.
 
 <center>
-    <img src="/assets/img/frontend/administration/remove-users.png" />
+    <img src="{{ "/assets/img/frontend/administration/remove-users.png" | relative_url }}" />
 </center>
 <br/>
 
@@ -63,7 +63,7 @@ Admin - Can see and edit any circuit on the network
 Demo - Can not provision on the network at all
 
 <center>
-    <img src="/assets/img/frontend/administration/add-workgroup.png" />
+    <img src="{{ "/assets/img/frontend/administration/add-workgroup.png" | relative_url }}" />
 </center>
 <br/>
 
@@ -80,7 +80,7 @@ to edit the Name, External ID, Node MAC Address Limit, Circuit Limit,
 and Circuit Endpoint Limit of a workgroup.
 
 <center>
-    <img src="/assets/img/frontend/administration/edit-workgroup.png" />
+    <img src="{{ "/assets/img/frontend/administration/edit-workgroup.png" | relative_url }}" />
 </center>
 <br/>
 
@@ -90,6 +90,6 @@ workgroup. The right list contains the list of all the edge interfaces
 the workgroup is currently ownes or manages.
 
 <center>
-    <img src="/assets/img/frontend/administration/manage-workgroup.png" />
+    <img src="{{ "/assets/img/frontend/administration/manage-workgroup.png" | relative_url }}" />
 </center>
 <br/>

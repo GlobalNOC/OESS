@@ -18,6 +18,6 @@ to the Config Changes section of the admin interface, and manually
 approve the diff for the nodes marked Pending Approval.
 
 <center>
-    <img src="/assets/img/frontend/administration/approve-device-diffs.png" />
+    <img src="{{ "/assets/img/frontend/administration/approve-device-diffs.png" | relative_url }}"/>
 </center>
 <br/>

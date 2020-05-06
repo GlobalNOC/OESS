@@ -20,7 +20,7 @@ Devices that speak NETCONF must be added manually using the Add MPLS
 switch button.
 
 <center>
-    <img src="/assets/img/frontend/administration/add-netconf-device.png" />
+    <img src="{{ "/assets/img/frontend/administration/add-netconf-device.png" | relative_url }}" />
 </center>
 <br/>
 
@@ -65,7 +65,7 @@ interfaces if you wish to enable provisioning of OpenFlow and NETCONF
 circuits.
 
 <center>
-    <img src="/assets/img/frontend/administration/add-interfaces.png" />
+    <img src="{{ "/assets/img/frontend/administration/add-interfaces.png" | relative_url }}" />
 </center>
 <br/>
 
@@ -75,7 +75,7 @@ To remove an interface from a workgroup click the remove button next
 to the interface in the Owned Interfaces table.
 
 <center>
-    <img src="/assets/img/frontend/administration/remove-interfaces.png" />
+    <img src="{{ "/assets/img/frontend/administration/remove-interfaces.png" | relative_url }}" />
 </center>
 <br/>
 
@@ -86,7 +86,7 @@ Network Tab. Click on the node in the map that contains the interface
 whose ACL rules you wish to modify.
 
 <center>
-    <img src="/assets/img/frontend/administration/manage-acls.png" />
+    <img src="{{ "/assets/img/frontend/administration/manage-acls.png" | relative_url }}" />
 </center>
 
 A dialog box that contains the node's informatin will appear. At the
@@ -95,7 +95,7 @@ the node. Click the "View ACLs" button in the last column of the table
 to open a dialog that contains the interface's ACL information.
 
 <center>
-    <img src="/assets/img/frontend/administration/edit-acl.png" />
+    <img src="{{ "/assets/img/frontend/administration/edit-acl.png" | relative_url }}" />
 </center>
 <br/>
 
@@ -107,7 +107,7 @@ information on how to add, edit, remove, and reorder ACL rules.
 ### Weights / Metrics
 
 <center>
-    <img src="/assets/img/frontend/administration/edit-link.png" />
+    <img src="{{ "/assets/img/frontend/administration/edit-link.png" | relative_url }}" />
 </center>
 <br/>
 
@@ -121,7 +121,7 @@ modified. Enter the desired value in the metric field and then click
 the "Update Link" button.
 
 <center>
-    <img src="/assets/img/frontend/administration/select-link.png" />
+    <img src="{{ "/assets/img/frontend/administration/select-link.png" | relative_url }}" />
 </center>
 <br/>
 

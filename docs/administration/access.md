@@ -9,5 +9,5 @@ of the OESS application, and is the gateway to make system level
 modifications.
 
 <center>
-    <img src="/assets/img/frontend/administration/access-admin.png" />
+    <img src="{{ "/assets/img/frontend/administration/access-admin.png" | relative_url }}" />
 </center>

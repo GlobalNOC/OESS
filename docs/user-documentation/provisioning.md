@@ -13,7 +13,7 @@ connections and then selecting the networks they wish to connect with.
 Each connection is identified by its description and is provisioned
 according the schedule defined by the user.
 
-![connection-details](/assets/img/frontend/provisioning/connection-details.png)
+![connection-details]({{ "/assets/img/frontend/provisioning/connection-details.png" | relative_url }})
 
 ## Endpoints
 
@@ -25,7 +25,7 @@ will be displayed. Navigate the hierarchy to find your desired
 endpoints and then click Add Endpoint.
 
 <center>
-    <img src="/assets/img/frontend/provisioning/new-endpoint-selected.png" width="50%"/>
+    <img src="{{ "/assets/img/frontend/provisioning/new-endpoint-selected.png" | relative_url }}" width="50%"/>
 </center>
 
 ### Peers
@@ -36,7 +36,7 @@ which allows for the defnitiion of a BGP peering will be
 defined. Enter the required details and then press Adding Peering.
 
 <center>
-    <img src="/assets/img/frontend/provisioning/new-peering.png" width="50%"/>
+    <img src="{{ "/assets/img/frontend/provisioning/new-peering.png" | relative_url }}" width="50%"/>
 </center>
 
 ### Public Cloud Providers
@@ -69,4 +69,4 @@ upper right corner of the page. After a few moments the connection
 will be provisioned and you will be redirected to the connection's
 details page.
 
-![connection-details-3](/assets/img/frontend/provisioning/connection-details-3.png)
+![connection-details-3]({{ "/assets/img/frontend/provisioning/connection-details-3.png" | relative_url }})
