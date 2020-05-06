@@ -126,18 +126,6 @@ sub new{
     die "Unable to create Path Processor\n" if !defined $self->{'path'};
 
 
-    $self->{'interface'} = $self->_init_interfaces();
-    die if (!defined $self->{'interface'});
-
-    $self->{'lsp'} = $self->_init_lsp();
-    die if (!defined $self->{'lsp'});
-
-    $self->{'isis'} = $self->_init_isis();
-    die if (!defined $self->{'isis'});
-
-    $self->{'path'} = $self->_init_paths();
-    die if (!defined $self->{'path'});
-
     my $tsds_conf = $self->{'db'}->{'configuration'}->{'tsds'};
     $self->{'tsds_svc'} = GRNOC::WebService::Client->new(
         url => $tsds_conf->{'url'} . "/push.cgi",
