@@ -183,19 +183,19 @@ sub vrf_notification{
     $vrf->load_users;
     $vrf->load_workgroup;
 
-    my $subject = "OESS Notification: VRF '" . $vrf->{'description'} . "' ";
+    my $subject = "OESS Notification: '" . $vrf->{'description'} . "' ";
     #no bulk notifications for MPLS VRFs
     switch($p_ref->{'type'}{'value'}){
         case "provisioned"{
-            $subject .= "has been provisioned in workgroup: " . $vrf->workgroup()->name();
+            $subject .= "provisioned in workgroup: " . $vrf->workgroup()->name();
             $self->{'notification_events'}->vrf_provision( vrf_id => $vrf->vrf_id(), no_reply => 1 );
         }
         case "removed" {
-            $subject .= "has been removed from workgroup: " . $vrf->workgroup()->name();
+            $subject .= "removed from workgroup: " . $vrf->workgroup()->name();
             $self->{'notification_events'}->vrf_remove( vrf_id => $vrf->vrf_id(), no_reply => 1 );
         }
         case "modified" {
-            $subject .= "has been edited in workgroup: " . $vrf->workgroup()->name();
+            $subject .= "modified in workgroup: " . $vrf->workgroup()->name();
             $self->{'notification_events'}->vrf_modify( vrf_id => $vrf->vrf_id(), no_reply => 1 );
         }
     }
@@ -246,7 +246,7 @@ sub circuit_notification {
 	return {status => 0};;
     }
 
-    my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
+    my $subject = "OESS Notification: '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
     my $workgroup = $circuit_notification_data->{'workgroup'};
 
     $self->{'log'}->debug("Sending circuit with subject: " . $subject);
@@ -255,27 +255,27 @@ sub circuit_notification {
 
     switch($circuit->{'type'} ) {
         case "provisioned"{
-            $subject .= "has been provisioned in workgroup: $workgroup ";
+            $subject .= "provisioned in workgroup: $workgroup ";
             $self->{'notification_events'}->circuit_provision( circuit => $circuit, no_reply => 1 );
         }
         case "removed" {
-            $subject .= "has been removed from workgroup: $workgroup";
+            $subject .= "removed from workgroup: $workgroup";
             $self->{'notification_events'}->circuit_remove( circuit => $circuit, no_reply => 1 );
         }
         case "modified" {
-            $subject .= "has been edited in workgroup: $workgroup";
+            $subject .= "modified in workgroup: $workgroup";
             $self->{'notification_events'}->circuit_modify( circuit => $circuit, no_reply => 1 );
         }
         case "change_path" {
-            $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
+            $subject .= "changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
             $self->{'notification_events'}->circuit_change_path( circuit => $circuit, no_reply => 1 );
         }
         case "restored" {
-            $subject .= "has been restored for workgroup: $workgroup";
+            $subject .= "restored for workgroup: $workgroup";
             $self->{'notification_events'}->circuit_restore( circuit => $circuit, no_reply => 1 );
         }
         case "down" {
-            $subject .= "is down for workgroup: $workgroup";
+            $subject .= "down for workgroup: $workgroup";
             $self->{'notification_events'}->circuit_down( circuit => $circuit, no_reply => 1 );
         }
         case "unknown" {
