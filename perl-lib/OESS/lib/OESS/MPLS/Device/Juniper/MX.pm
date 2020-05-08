@@ -622,19 +622,6 @@ sub _process_interface{
     $obj->{'mtu'} = trim($xp->findvalue('./j:mtu'));
     $obj->{'addresses'} = [];
 
-    my $speed = trim($xp->findvalue('./j:speed'));
-    if ($speed =~ /mbps/) {
-        $speed =~ s/mbps//g;
-        $obj->{'speed'} = int($speed);
-    }
-    elsif ($speed =~ /Gbps/) {
-        $speed =~ s/Gbps//g;
-        $obj->{'speed'} = int($speed) * 1000;
-    }
-    else {
-        $obj->{'speed'} = undef;
-    }
-
     if (!defined $obj->{'description'} || $obj->{'description'} eq '') {
         $obj->{'description'} = $obj->{'name'};
     }
