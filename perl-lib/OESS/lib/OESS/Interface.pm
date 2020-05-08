@@ -138,16 +138,16 @@ sub update_db{
         return;
     }
 
-    my $ok = OESS::DB::Interface::update(
+    my $err = OESS::DB::Interface::update(
         db => $self->{'db'},
         interface => $self->to_hash
     );
-    if (!defined $ok) {
-        $self->{'logger'}->error("Could not update Interface: ...");
+    if (defined $err) {
+        $self->{'logger'}->error("Could not update Interface: $err");
         return;
     }
 
-    return $ok;
+    return 1;
 }
 
 =head2 operational_state

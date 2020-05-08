@@ -124,6 +124,15 @@ sub create {
     return (undef, 'Required argument `model->description` is missing.') if !exists $args->{model}->{description};
 
     $args->{model}->{type} = $args->{model}->{type} || 'normal';
+    my $type_ok = 0;
+    my $valid_types = ['normal','admin','demo'];
+    foreach my $type (@$valid_types) {
+        if ($args->{model}->{type} eq $type) {
+            $type_ok = 1;
+            last;
+        }
+    }
+    return (undef, "Invalid workgroup type '$args->{model}->{type}' specified.") if !$type_ok;
 
     my $q = "
         INSERT INTO workgroup (name, description, external_id, type)
