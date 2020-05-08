@@ -75,10 +75,10 @@ sub setup_endpoints {
                 $amazon_addr   = $peer->peer_ip;
                 $auth_key      = $peer->md5_key;
                 $customer_addr = $peer->local_ip;
+                $ip_version    = $peer->ip_version;
 
-                if ($peer->local_ip =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
-                    $ip_version = 'ipv4';
-                } else {
+                # AWS Auto-Generates IPv6 Addresses
+                if ($ip_version != 'ipv4') {
                     $amazon_addr = undef;
                     $customer_addr = undef;
                 }

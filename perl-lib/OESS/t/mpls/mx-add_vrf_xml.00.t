@@ -16,21 +16,15 @@ use OESS::MPLS::Device::Juniper::MX;
 
 
 my $exp_xml = '<configuration>
-  <groups operation="delete">
-    <name>OESS</name>
-  </groups>
   <groups>
     <name>OESS</name>
     <interfaces>
       <interface>
-        <name>ge-0/0/1</name>
+        <name>e15/1</name>
         <unit>
-          <name>2004</name>
+          <name>201</name>
           <description>OESS-L3VPN-3012</description>
-          <vlan-tags>
-            <outer>2004</outer>
-            <inner>30</inner>
-          </vlan-tags>
+          <vlan-id>201</vlan-id>
           <family>
             <inet>
               <mtu>9000</mtu>
@@ -42,11 +36,11 @@ my $exp_xml = '<configuration>
         </unit>
       </interface>
       <interface>
-        <name>ge-0/0/2</name>
+        <name>e15/1</name>
         <unit>
-          <name>2004</name>
+          <name>601</name>
           <description>OESS-L3VPN-3012</description>
-          <vlan-id>2004</vlan-id>
+          <vlan-id>601</vlan-id>
           <family>
             <inet6>
               <address>
@@ -60,9 +54,9 @@ my $exp_xml = '<configuration>
     <class-of-service>
       <interfaces>
         <interface>
-          <name>ge-0/0/1</name>
+          <name>e15/1</name>
           <unit>
-            <name>2004</name>
+            <name>201</name>
             <shaping-rate>
               <rate>50m</rate>
             </shaping-rate>
@@ -75,10 +69,10 @@ my $exp_xml = '<configuration>
         <name>OESS-L3VPN-3012</name>
         <instance-type>vrf</instance-type>
         <interface>
-          <name>ge-0/0/1.2004</name>
+          <name>e15/1.201</name>
         </interface>
         <interface>
-          <name>ge-0/0/2.2004</name>
+          <name>e15/1.601</name>
         </interface>
         <route-distinguisher>
           <rd-type>127.0.0.1:3012</rd-type>
@@ -282,7 +276,6 @@ my $exp_xml = '<configuration>
       </community>
     </policy-options>
   </groups>
-  <apply-groups>OESS</apply-groups>
 </configuration>';
 
 my $device = OESS::MPLS::Device::Juniper::MX->new(
@@ -292,53 +285,50 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
     name => 'vmx-r0.testlab.grnoc.iu.edu',
     node_id => 1
 );
-my $conf = $device->xml_configuration(
-    [],
-    [{
-        local_asn => 555,
-        endpoints => [
-            {
-                interface => 'ge-0/0/1',
-                unit => 2004,
-                tag => 2004,
-                inner_tag => 30, # CHECK: QinQ
-                bandwidth => 50, # CHECK: class-of-service added
-                mtu => 9000,     # CHECK: family > ccc > mtu added
-                peers => [
-                    {
-                        local_ip  => '192.168.2.2/31',
-                        peer_ip => '192.168.2.3/31',
-                        md5_key => 'md5key',
-                        bfd => 0,
-                        peer_asn => 666,
-                        ip_version => 'ipv4'
-                    }
-                ]
-            },
-            {
-                interface => 'ge-0/0/2',
-                unit => 2004,
-                tag => 2004,
-                bandwidth => 0,  # CHECK: class-of-service omitted
-                mtu => 0,        # CHECK: family > ccc > mtu omitted
-                peers => [
-                    {
-                        local_ip  => 'fd97:ab53:51b7:017b::4/127',
-                        peer_ip => 'fd97:ab53:51b7:017b::5/127',
-                        md5_key => undef,
-                        bfd => 1,
-                        peer_asn => 777,
-                        ip_version => 'ipv6'
-                    }
-                ]
-            }
-        ],
-        switch => { loopback => '127.0.0.1' },
-        vrf_id => 3012,
-        state => 'active'
-    }],
-    '<groups operation="delete"><name>OESS</name></groups>'
-);
+$device->{jnx} = { conn_obj => 1 }; # Fake being connected. :)
+
+my $conf = $device->add_vrf_xml({
+    local_asn => 555,
+    endpoints => [
+        {
+            interface => 'e15/1',
+            unit => 201,
+            tag => 201,
+            bandwidth => 50, # CHECK: class-of-service added
+            mtu => 9000,     # CHECK: family > ccc > mtu added
+            peers => [
+                {
+                    local_ip  => '192.168.2.2/31',
+                    peer_ip => '192.168.2.3/31',
+                    md5_key => 'md5key',
+                    bfd => 0,
+                    peer_asn => 666,
+                    ip_version => 'ipv4'
+                }
+            ]
+        },
+        {
+            interface => 'e15/1',
+            unit => 601,
+            tag => 601,
+            bandwidth => 0,  # CHECK: class-of-service omitted
+            mtu => 0,        # CHECK: family > ccc > mtu omitted
+            peers => [
+                {
+                    local_ip  => 'fd97:ab53:51b7:017b::4/127',
+                    peer_ip => 'fd97:ab53:51b7:017b::5/127',
+                    md5_key => undef,
+                    bfd => 1,
+                    peer_asn => 777,
+                    ip_version => 'ipv6'
+                }
+            ]
+        }
+    ],
+    switch => { loopback => '127.0.0.1' },
+    vrf_id => 3012,
+    state => 'active'
+});
 
 # Load expected and generated XML and convert to string minus
 # whitespace for easy comparision.
@@ -350,6 +340,6 @@ my $g = $gxml->toString;
 
 ok($e eq $g, 'Got expected XMl');
 if ($e ne $g) {
-    warn Dumper($e);
-    warn Dumper($g);
+    warn 'Expected: ' . Dumper($e);
+    warn 'Generated: ' . Dumper($g);
 }

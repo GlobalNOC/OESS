@@ -12,11 +12,10 @@ use OESS::MPLS::Device::Juniper::MX;
 
 # Purpose:
 #
-# Validate correct generation of L2VPLS L2Connection template.
+# Validate correct generation of add L2Connection template.
 
 
 my $exp_xml = '<configuration>
-  <groups operation="delete"><name>OESS</name></groups>
   <groups>
     <name>OESS</name>
     <interfaces>
@@ -93,7 +92,6 @@ my $exp_xml = '<configuration>
       </instance>
     </routing-instances>
   </groups>
-  <apply-groups>OESS</apply-groups>
 </configuration>';
 
 my $device = OESS::MPLS::Device::Juniper::MX->new(
@@ -103,35 +101,33 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
     name => 'vmx-r0.testlab.grnoc.iu.edu',
     node_id => 1
 );
-my $conf = $device->xml_configuration(
-    [{
-        name => 'circuit',
-        endpoints => [
-            {
-                interface => 'ge-0/0/1',
-                unit => 2004,
-                tag => 2004,
-                inner_tag => 30, # CHECK: QinQ
-                bandwidth => 50, # CHECK: class-of-service added
-                mtu => 9000      # CHECK: mtu omitted
-            },
-            {
-                interface => 'ge-0/0/2',
-                unit => 2004,
-                tag => 2004,
-                bandwidth => 0,  # CHECK: class-of-service omitted
-                mtu => 8080      # CHECK: mtu omitted
-            }
-        ],
-        paths => [],
-        circuit_id => 3012,
-        site_id => 1,
-        state => 'active',
-        ckt_type => 'L2VPLS'
-    }],
-    [],
-    '<groups operation="delete"><name>OESS</name></groups>'
-);
+$device->{jnx} = { conn_obj => 1 }; # Fake being connected. :)
+
+my $conf = $device->add_vlan_xml({
+    name => 'circuit',
+    endpoints => [
+        {
+            interface => 'ge-0/0/1',
+            unit => 2004,
+            tag => 2004,
+            inner_tag => 30, # CHECK: QinQ
+            bandwidth => 50, # CHECK: class-of-service added
+            mtu => 9000      # CHECK: mtu omitted
+        },
+        {
+            interface => 'ge-0/0/2',
+            unit => 2004,
+            tag => 2004,
+            bandwidth => 0,  # CHECK: class-of-service omitted
+            mtu => 8080      # CHECK: mtu omitted
+        }
+    ],
+    paths => [],
+    circuit_id => 3012,
+    site_id => 1,
+    state => 'active',
+    ckt_type => 'L2VPLS'
+});
 
 # Load expected and generated XML and convert to string minus
 # whitespace for easy comparision.
@@ -143,6 +139,6 @@ my $g = $gxml->toString;
 
 ok($e eq $g, 'Got expected XMl');
 if ($e ne $g) {
-    warn Dumper($e);
-    warn Dumper($g);
+    warn 'Expected: ' . Dumper($e);
+    warn 'Generated: ' . Dumper($g);
 }

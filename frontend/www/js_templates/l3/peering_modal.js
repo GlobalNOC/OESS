@@ -41,7 +41,7 @@ class PeeringModal {
   onSubmit(f) {
     this.parent.querySelector('.add-peering-modal-button').addEventListener('click', function(e) {
       let ipSelect = this.parent.querySelector(`.ip-version`);
-      let ipVersion = parseInt(ipSelect.options[ipSelect.selectedIndex].value);
+      let ipVersion = ipSelect.options[ipSelect.selectedIndex].value;
 
       let asn = this.parent.querySelector(`.bgp-asn`);
       if (!asn.validity.valid) {
@@ -89,9 +89,9 @@ class PeeringModal {
 
   handleIpVersionChange(e) {
     let select = this.parent.querySelector(`.ip-version`);
-    let ipVersion = parseInt(select.options[select.selectedIndex].value);
+    let ipVersion = select.options[select.selectedIndex].value;
 
-    if (ipVersion === 6) {
+    if (ipVersion == 'ipv6') {
       asIPv6CIDR(this.parent.querySelector(`.oess-peer-ip`));
       asIPv6CIDR(this.parent.querySelector(`.your-peer-ip`));
     } else {

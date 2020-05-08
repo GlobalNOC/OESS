@@ -1,7 +1,7 @@
 <configuration><groups><name>OESS</name>
 
   <interfaces>
-    [% FOREACH interface IN interfaces %]
+    [% FOREACH interface IN endpoints %]
     <interface>
       <name>[% interface.interface %]</name>
       <unit>
@@ -33,7 +33,7 @@
       <instance-type>evpn</instance-type>
       <vlan-id>none</vlan-id>
 
-      [% FOREACH interface IN interfaces %]
+      [% FOREACH interface IN endpoints %]
       <interface>
 	    <name>[% interface.interface %].[% interface.unit %]</name>
       </interface>

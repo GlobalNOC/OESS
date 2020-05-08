@@ -747,64 +747,133 @@ sub get_vrf_stats{
     });
 }
 
-=head2 remove_vlan
-
-    my $ok = remove_vlan(
-      circuit_id => 1234,
-      ckt_type   => 'L2VPLS',
-      interfaces => [
-        { name => 'ge-0/0/1', tag => 2004 },
-        { name => 'ge-0/0/2', tag => 2004 }
-      ],
-      a_side     => '',            # Optional for L2VPN
-      dest_node  => '127.0.0.2',   # Optional for L2VPN and L2VPLS
-      paths      => [
-        {
-          name      => 'vmx1-r2',  # Optional for L2VPN
-          dest_node => '127.0.0.2' # Optional for L2VPN and L2CCC
-        }
-      ]
-    );
-
-remove_vlan removes a vlan from this device via NetConf. Returns 1 on
-success.
+=head2 configure_path
 
 =cut
-sub remove_vlan{
+sub configure_path {
+    my $self = shift;
+    my $path = shift;
+
+    if ($path->{details}->{node_a}->{node_loopback} eq $self->{loopback_addr}) {
+        return $path;
+    }
+
+    # Swap node_a and node_z details
+    my $t = $path->{details}->{node_a};
+    $path->{details}->{node_a} = $path->{details}->{node_z};
+    $path->{details}->{node_z} = $t;
+
+    # Reverse path hops
+    my @hops = reverse(@{$path->{details}->{hops}});
+    $path->{details}->{hops} = \@hops;
+
+    return $path;
+}
+
+=head2 add_vlan_xml
+
+=cut
+sub add_vlan_xml {
     my $self = shift;
     my $ckt = shift;
 
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
-        return;
-    }
+    $ckt->{'switch'}->{'name'} = $self->{'name'};
+    $ckt->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
 
-    my $vars = {};
-    $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-    $vars->{'interfaces'} = [];
-    foreach my $i (@{$ckt->{'interfaces'}}) {
-        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                          inner_tag => $i->{'inner_tag'},
-                                          bandwidth => $i->{'bandwidth'} || 0,
-                                          tag => $i->{'tag'},
-                                          unit => $i->{'unit'}
-                                        });
+    if ($ckt->{'ckt_type'} eq 'L2CCC') {
+        foreach my $path (@{$ckt->{paths}}) {
+            $path = $self->configure_path($path);
+            $ckt->{dest} = $path->{details}->{node_z}->{node_loopback};
+            $ckt->{dest_node} = $path->{details}->{node_z}->{node_id};
+            $ckt->{a_side} = $path->{details}->{node_a}->{node_id};
+        }
     }
-    $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-    $vars->{'site_id'} = $ckt->{'site_id'};
-    $vars->{'paths'} = $ckt->{'paths'};
-    $vars->{'a_side'} = $ckt->{'a_side'};
-    $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-    $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
 
     my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $vars, \$output);
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $ckt, \$output);
     if (!$ok) {
         $self->{'logger'}->error($self->{'tt'}->error());
+        warn $self->{'tt'}->error();
+        return;
+    }
+    if (!defined $output) {
+        $self->{'logger'}->error('Unknown error occurred while generating add_vlan_xml.');
+        warn 'Unknown error occurred while generating add_vlan_xml.';
+        return;
+    }
+    return $output;
+}
+
+=head2 modify_vlan_xml
+
+=cut
+sub modify_vlan_xml {
+    my $self = shift;
+    my $previous = shift;
+    my $pending = shift;
+
+    my $add = '';
+    my $remove = '';
+
+    if (@{$previous->{endpoints}} != 0) {
+        $remove = $self->remove_vlan_xml($previous);
+        if (!defined $remove) {
+            $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
+            warn 'Unknown error occurred while generating modify_vlan_xml.';
+            return;
+        }
     }
 
-    return $self->_edit_config( config => $output );
+    if (@{$pending->{endpoints}} != 0) {
+        $add = $self->add_vlan_xml($pending);
+        if (!defined $add) {
+            $self->{'logger'}->error('Unknown error occurred while generating modify_vlan_xml.');
+            warn 'Unknown error occurred while generating modify_vlan_xml.';
+            return;
+        }
+    }
+
+    if ($remove ne '' && $add ne '') {
+        $remove =~ s/<\/groups><\/configuration>//g;
+        $add =~ s/<configuration><groups><name>OESS<\/name>//g;
+    }
+
+    my $output = $remove . $add;
+    return $output;
+}
+
+=head2 remove_vlan_xml
+
+=cut
+sub remove_vlan_xml {
+    my $self = shift;
+    my $ckt = shift;
+
+    $ckt->{'switch'}->{'name'} = $self->{'name'};
+    $ckt->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
+
+    if ($ckt->{'ckt_type'} eq 'L2CCC') {
+        foreach my $path (@{$ckt->{paths}}) {
+            $path = $self->configure_path($path);
+            $ckt->{dest} = $path->{details}->{node_z}->{node_loopback};
+            $ckt->{dest_node} = $path->{details}->{node_z}->{node_id};
+            $ckt->{a_side} = $path->{details}->{node_a}->{node_id};
+        }
+    }
+
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config_delete.xml", $ckt, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        warn $self->{'tt'}->error();
+        return;
+    }
+    if (!defined $output) {
+        $self->{'logger'}->error('Unknown error occurred while generating remove_vlan_xml.');
+        warn 'Unknown error occurred while generating remove_vlan_xml.';
+        return;
+    }
+    return $output;
 }
 
 =head2 add_vlan
@@ -837,48 +906,177 @@ add_vlan adds a vlan to this device via NetConf. Returns 1 on success.
 sub add_vlan{
     my $self = shift;
     my $ckt = shift;
-    
-    if(!$self->connected()){
-	return FWDCTL_FAILURE;
-    }
 
-    my $vars = {};
-    $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-    $vars->{'interfaces'} = [];
-    foreach my $i (@{$ckt->{'interfaces'}}) {
-        if ($self->unit_name_available($i->{interface}, $i->{unit}) == 0) {
-            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
-            return FWDCTL_FAILURE;
-        }
-
-        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                          inner_tag => $i->{'inner_tag'},
-                                          bandwidth => $i->{'bandwidth'} || 0,
-                                          tag  => $i->{'tag'},
-                                          unit => $i->{'unit'}
-                                      });
-    }
-    $vars->{'paths'} = $ckt->{'paths'};
-    $vars->{'destination_ip'} = $ckt->{'destination_ip'};
-    $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-    $vars->{'site_id'} = $ckt->{'site_id'};
-    $vars->{'a_side'} = $ckt->{'a_side'};
-    $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-    $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
-
-    my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$output);
-    if (!$ok) {
-        $self->{'logger'}->error($self->{'tt'}->error());
+    if (!$self->connected()) {
         return FWDCTL_FAILURE;
     }
 
+    my $output = $self->add_vlan_xml($ckt);
     if (!defined $output) {
         return FWDCTL_FAILURE;
     }
-
     return $self->_edit_config(config => $output);
+}
+
+=head2 modify_vlan
+
+=cut
+sub modify_vlan {
+    my $self = shift;
+    my $previous = shift;
+    my $pending = shift;
+
+    if (!$self->connected()) {
+        return FWDCTL_FAILURE;
+    }
+
+    my $output = $self->modify_vlan_xml($previous, $pending);
+    if (!defined $output) {
+        $self->{logger}->error('A valid configuration could not be generated.');
+        return FWDCTL_FAILURE;
+    }
+
+    if ($output eq '') {
+        $self->{logger}->info("No change required on $self->{name}.");
+        return FWDCTL_SUCCESS;
+    }
+    return $self->_edit_config(config => $output);
+}
+
+=head2 remove_vlan
+
+    my $ok = remove_vlan(
+      circuit_id => 1234,
+      ckt_type   => 'L2VPLS',
+      interfaces => [
+        { name => 'ge-0/0/1', tag => 2004 },
+        { name => 'ge-0/0/2', tag => 2004 }
+      ],
+      a_side     => '',            # Optional for L2VPN
+      dest_node  => '127.0.0.2',   # Optional for L2VPN and L2VPLS
+      paths      => [
+        {
+          name      => 'vmx1-r2',  # Optional for L2VPN
+          dest_node => '127.0.0.2' # Optional for L2VPN and L2CCC
+        }
+      ]
+    );
+
+remove_vlan removes a vlan from this device via NetConf. Returns 1 on
+success.
+
+=cut
+sub remove_vlan{
+    my $self = shift;
+    my $ckt = shift;
+
+    if (!$self->connected()) {
+        $self->{'logger'}->error("Not currently connected to device");
+        return;
+    }
+
+    my $output = $self->remove_vlan_xml($ckt);
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
+    }
+    return $self->_edit_config(config => $output);
+}
+
+=head2 add_vrf_xml
+
+=cut
+sub add_vrf_xml {
+    my $self = shift;
+    my $vrf = shift;
+
+    $vrf->{'switch'}->{'name'} = $self->{'name'};
+    $vrf->{'switch'}->{'loopback'} = $self->{'loopback_addr'};
+
+    $vrf->{uses_ipv4} = 0;
+    $vrf->{uses_ipv6} = 0;
+    foreach my $ep (@{$vrf->{endpoints}}) {
+        foreach my $peer (@{$ep->{peers}}) {
+            if ($peer->{ip_version} eq 'ipv4') {
+                $vrf->{uses_ipv4} = 1;
+            } else {
+                $vrf->{uses_ipv6} = 1;
+            }
+        }
+    }
+
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vrf, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        warn $self->{'tt'}->error();
+        return;
+    }
+    if (!defined $output) {
+        $self->{'logger'}->error('Unknown error occurred while generating add_vrf_xml.');
+        warn 'Unknown error occurred while generating add_vrf_xml.';
+        return;
+    }
+    return $output;
+}
+
+=head2 modify_vrf_xml
+
+=cut
+sub modify_vrf_xml {
+    my $self = shift;
+    my $previous = shift;
+    my $pending = shift;
+
+    my $add = '';
+    my $remove = '';
+
+    if (@{$previous->{endpoints}} != 0) {
+        $remove = $self->remove_vrf_xml($previous);
+        if (!defined $remove) {
+            $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
+            warn 'Unknown error occurred while generating modify_vrf_xml.';
+            return;
+        }
+    }
+
+    if (@{$pending->{endpoints}} != 0) {
+        $add = $self->add_vrf_xml($pending);
+        if (!defined $add) {
+            $self->{'logger'}->error('Unknown error occurred while generating modify_vrf_xml.');
+            warn 'Unknown error occurred while generating modify_vrf_xml.';
+            return;
+        }
+    }
+
+    if ($remove ne '' && $add ne '') {
+        $remove =~ s/<\/groups><\/configuration>//g;
+        $add =~ s/<configuration><groups><name>OESS<\/name>//g;
+    }
+
+    my $output = $remove . $add;
+    return $output;
+}
+
+=head2 remove_vrf_xml
+
+=cut
+sub remove_vrf_xml {
+    my $self = shift;
+    my $vrf = shift;
+
+    my $output;
+    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config_delete.xml", $vrf, \$output);
+    if (!$ok) {
+        $self->{'logger'}->error($self->{'tt'}->error());
+        warn $self->{'tt'}->error();
+        return;
+    }
+    if (!defined $output) {
+        $self->{'logger'}->error('Unknown error occurred while generating remove_vrf_xml.');
+        warn 'Unknown error occurred while generating remove_vrf_xml.';
+        return;
+    }
+    return $output;
 }
 
 =head2 add_vrf
@@ -888,91 +1086,43 @@ sub add_vrf{
     my $self = shift;
     my $vrf = shift;
 
-    if(!$self->connected()){
+    if (!$self->connected()) {
         return FWDCTL_FAILURE;
     }
 
     $self->{'logger'}->debug("VRF: " . Dumper($vrf));
 
-    my $vars = {};
-    $vars->{'vrf_name'} = $vrf->{'name'};
-    $vars->{'interfaces'} = ();
-
-    foreach my $i (@{$vrf->{'interfaces'}}) {
-	
-	my @bgp_v4;
-        my @bgp_v6;
-        my $has_ipv4=0;
-        my $has_ipv6=0;
-
-	foreach my $bgp (@{$i->{'peers'}}){
-            #strip off the cidr
-            #192.168.1.0/24
-            my $peer_ip = $bgp->{'peer_ip'};
-            $peer_ip =~ s/\/\d+//g;
-
-            my $type = NetAddr::IP->new($bgp->{'peer_ip'})->version();
-            #determine if its an ipv4 or an ipv6
-            if($type == 4){
-                $has_ipv4 = 1;
-                $vars->{'has_ipv4'} = 1;
-                push(@bgp_v4, { asn => $bgp->{'peer_asn'},
-                                bfd => $bgp->{'bfd'},
-                                local_ip => $bgp->{'local_ip'},
-                                peer_ip => $peer_ip,
-                                key => $bgp->{'md5_key'}
-                     });
-
-            }else{
-                $has_ipv6 = 1;
-                $vars->{'has_ipv6'} = 1;
-                push(@bgp_v6, { asn => $bgp->{'peer_asn'},
-                                bfd => $bgp->{'bfd'},
-                                local_ip => $bgp->{'local_ip'},
-                                peer_ip => $peer_ip,
-                                key => $bgp->{'md5_key'}
-                     });
-            }            
-        }
-
-
-        if ($self->unit_name_available($i->{'interface'}, $i->{'unit'}) == 0) {
-            $self->{'logger'}->error("Unit $i->{unit} is not available on $i->{interface}.");
-            return FWDCTL_FAILURE;
-        }
-
-        push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                          type => $i->{'type'},
-                                          mtu  => $i->{'mtu'},
-                                          inner_tag => $i->{'inner_tag'},
-                                          tag  => $i->{'tag'},
-                                          unit => $i->{'unit'},
-                                          bandwidth => $i->{'bandwidth'},
-                                          v4_peers => \@bgp_v4,
-                                          has_ipv4 => $has_ipv4,
-                                          has_ipv6 => $has_ipv6,
-                                          v6_peers => \@bgp_v6 });
-    }
-    $vars->{'vrf_id'} = $vrf->{'vrf_id'};
-    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-    $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
-    $vars->{'local_as'} = $vrf->{'local_asn'};
-    $self->{'logger'}->debug("VARS: " . Dumper($vars));
-
-    my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$output);
-    if (!$ok) {
-        $self->{'logger'}->error($self->{'tt'}->error());
-        return FWDCTL_FAILURE;
-    }
-
+    my $output = $self->add_vrf_xml($vrf);
     if (!defined $output) {
         return FWDCTL_FAILURE;
     }
-
     return $self->_edit_config(config => $output);
 }
 
+=head2 modify_vrf
+
+=cut
+sub modify_vrf {
+    my $self = shift;
+    my $previous = shift;
+    my $pending = shift;
+
+    if (!$self->connected()) {
+        return FWDCTL_FAILURE;
+    }
+
+    my $output = $self->modify_vrf_xml($previous, $pending);
+    if (!defined $output) {
+        $self->{logger}->error('A valid configuration could not be generated.');
+        return FWDCTL_FAILURE;
+    }
+
+    if ($output eq '') {
+        $self->{logger}->info("No change required on $self->{name}.");
+        return FWDCTL_SUCCESS;
+    }
+    return $self->_edit_config(config => $output);
+}
 
 =head2 remove_vrf
 
@@ -981,23 +1131,15 @@ sub remove_vrf{
     my $self = shift;
     my $vrf = shift;
 
-    if(!$self->connected()){
-        $self->{'logger'}->error("Not currently connected to device");
+    if (!$self->connected()) {
         return FWDCTL_FAILURE;
     }
 
-    my $vars = {};
-    $vars->{'interfaces'} = $vrf->{'interfaces'};
-    $vars->{'vrf_id'} = $vrf->{'vrf_id'};
-    $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-
-    my $output;
-    my $ok = $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config_delete.xml", $vars, \$output);
-    if (!$ok) {
-        $self->{'logger'}->error($self->{'tt'}->error());
+    my $output = $self->remove_vrf_xml($vrf);
+    if (!defined $output) {
+        return FWDCTL_FAILURE;
     }
-
-    return $self->_edit_config( config => $output );
+    return $self->_edit_config(config => $output);
 }
 
 =head2 xml_configuration( $ckts )
@@ -1019,118 +1161,27 @@ sub xml_configuration {
     $configuration .= '<groups><name>OESS</name>';
 
     foreach my $ckt (@{$ckts}) {
-        # The argument $ckts is passed in a generic form. This should be
-        # converted to work with the template.
-        my $xml;
-        my $vars = {};
-        $vars->{'circuit_name'} = $ckt->{'circuit_name'};
-        $vars->{'interfaces'} = [];
-        foreach my $i (@{$ckt->{'interfaces'}}) {
-            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                              cloud_interconnect_type => $i->{'cloud_interconnect_type'},
-                                              mtu => $i->{'mtu'},
-                                              inner_tag => $i->{'inner_tag'},
-                                              tag  => $i->{'tag'},
-                                              unit => $i->{'unit'},
-                                              bandwidth => $i->{'bandwidth'}
-                                            });
-        }
-        $vars->{'paths'} = $ckt->{'paths'};
-        $vars->{'destination_ip'} = $ckt->{'destination_ip'};
-        $vars->{'circuit_id'} = $ckt->{'circuit_id'};
-        $vars->{'switch'} = { name => $self->{'name'},
-                              loopback => $self->{'loopback_addr'} };
-
-        $vars->{'dest'} = $ckt->{'paths'}->[0]->{'dest'};
-        $vars->{'dest_node'} = $ckt->{'paths'}->[0]->{'dest_node'};
-
-        $vars->{'site_id'} = $ckt->{'site_id'};
-        $vars->{'paths'} = $ckt->{'paths'};
-        $vars->{'a_side'} = $ckt->{'a_side'};
-
-        if ($ckt->{'state'} eq 'active') {
-            $self->{'tt'}->process($self->{'template_dir'} . "/" . $ckt->{'ckt_type'} . "/ep_config.xml", $vars, \$xml);
-        } else {
-            # The remove case is now handled in get_config_to_remove
+        my $xml = $self->add_vlan_xml($ckt);
+        if (!defined $xml) {
+            next;
         }
 
         $xml =~ s/<configuration><groups><name>OESS<\/name>//g;
         $xml =~ s/<\/groups><\/configuration>//g;
         $configuration = $configuration . $xml;
     }
-   
+
     foreach my $vrf (@{$vrf}){
-        my $xml;
-        my $vars = {};
-        next if ($vrf->{'state'} ne 'active');
-        $vars->{'vrf_name'} = $vrf->{'name'};
-        $vars->{'interfaces'} = ();
-        foreach my $i (@{$vrf->{'interfaces'}}) {
-            
-            my @bgp_v4;
-            my @bgp_v6;
-            my $has_ipv4 = 0;
-            my $has_ipv6 = 0;
-            
-            foreach my $bgp (@{$i->{'peers'}}){
-                #strip off the cidr 192.168.1.0/24
-                my $peer_ip = $bgp->{'peer_ip'};
-                $peer_ip =~ s/\/\d+//g;
-
-                my $ip = NetAddr::IP->new($bgp->{'peer_ip'});
-                my $type = $ip->version();
-                #determine if its an ipv4 or an ipv6
-                if($type == 4){
-                    $has_ipv4 = 1;
-                    $vars->{'has_ipv4'} = 1;
-                    push(@bgp_v4, { asn => $bgp->{'peer_asn'},
-                                    bfd => $bgp->{'bfd'},
-                                    local_ip => $bgp->{'local_ip'},
-                                    peer_ip => $peer_ip,
-                                    key => $bgp->{'md5_key'}
-                         });
-                    
-                }else{
-                    $has_ipv6 = 1;
-                    $vars->{'has_ipv6'} = 1;
-                    push(@bgp_v6, { asn => $bgp->{'peer_asn'},
-                                    bfd => $bgp->{'bfd'},
-                                    local_ip => $bgp->{'local_ip'},
-                                    peer_ip => $peer_ip,
-                                    key => $bgp->{'md5_key'}
-                         });
-                }
-                
-            }
-
-            push (@{$vars->{'interfaces'}}, { interface => $i->{'interface'},
-                                              unit => $i->{'unit'},
-                                              cloud_interconnect_type => $i->{'cloud_interconnect_type'},
-                                              mtu  => $i->{'mtu'},
-                                              inner_tag  => $i->{'inner_tag'},
-                                              tag  => $i->{'tag'},
-                                              bandwidth => $i->{'bandwidth'},
-                                              v4_peers => \@bgp_v4,
-                                              has_ipv4 => $has_ipv4,
-                                              has_ipv6 => $has_ipv6,
-                                              v6_peers => \@bgp_v6 });
+        my $xml = $self->add_vrf_xml($vrf);
+        if (!defined $xml) {
+            next;
         }
-        $vars->{'local_as'} = $vrf->{'local_asn'};
-        $vars->{'vrf_id'} = $vrf->{'vrf_id'};
-        $vars->{'switch'} = {name => $self->{'name'}, loopback => $self->{'loopback_addr'}};
-        $vars->{'prefix_limit'} = $vrf->{'prefix_limit'};
 
-        $self->{'logger'}->debug("VARS: " . Dumper($vars));
-        
-        if($vrf->{'state'} eq 'active'){
-            $self->{'tt'}->process($self->{'template_dir'} . "/L3VPN/ep_config.xml", $vars, \$xml);
-        }
-        
         $xml =~ s/<configuration><groups><name>OESS<\/name>//g;
         $xml =~ s/<\/groups><\/configuration>//g;
         $configuration = $configuration . $xml;
     }
-    
+
     $configuration = $configuration . '</groups><apply-groups>OESS</apply-groups></configuration>';
     return $configuration;
 }
@@ -2308,7 +2359,7 @@ sub _edit_config{
                 $self->{'logger'}->warn($msg);
             } else {
                 # error-severity of 'error' is considered fatal
-                $self->{'logger'}->debug(Dumper($error));
+                $self->{'logger'}->error(Dumper($error));
                 die $msg;
             }
         }
