@@ -183,15 +183,15 @@
 
 </head>
 <!--
-	The email background color (#222222) is defined in three places:
+	The email background color (#fff) is defined in three places:
 	1. body tag: for most email clients
 	2. center tag: for Gmail and Inbox mobile apps and web versions of Gmail, GSuite, Inbox, Yahoo, AOL, Libero, Comcast, freenet, Mail.ru, Orange.fr
 	3. mso conditional: For Windows 10 Mail
 -->
-<body width="100%" style="margin: 0; padding: 0 !important; mso-line-height-rule: exactly; background-color: #222222;">
-	<center role="article" aria-roledescription="email" lang="en" style="width: 100%; background-color: #222222;">
+<body width="100%" style="margin: 0; padding: 0 !important; mso-line-height-rule: exactly; background-color: #fff;">
+	<center role="article" aria-roledescription="email" lang="en" style="width: 100%; background-color: #fff;">
     <!--[if mso | IE]>
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #222222;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #fff;">
     <tr>
     <td>
     <![endif]-->
@@ -209,6 +209,36 @@
         </div>
         <!-- Preview Text Spacing Hack : END -->
 
+
+        <!-- OESS Header Full Bleed Background Section : BEGIN -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #222; border-bottom-color: #080808; border-bottom-style: solid; border-bottom-width: 1px;">
+            <tr>
+                <td>
+                    <div align="center" style="max-width: 600px; margin: auto;" class="email-container">
+                        <!--[if mso]>
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" align="center">
+                        <tr>
+                        <td>
+                        <![endif]-->
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            <tr>
+                                <td style="padding: 20px; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #ffffff;">
+                                    <p width="600" height="" alt="alt_text" border="0" style="width: 100%; max-width: 600px; height: auto; font-family: Arial,Helvetica,sans-serif; font-size: 32px; line-height: 24px; color: #9d9d9d; margin: auto; display: block;">OESS</p>
+                                </td>
+                            </tr>
+                        </table>
+                        <!--[if mso]>
+                        </td>
+                        </tr>
+                        </table>
+                        <![endif]-->
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <!-- OESS Header Full Bleed Background Section : END -->
+
+
         <!--
             Set the email width. Defined in two places:
             1. max-width for all clients except Desktop Windows Outlook, allowing the email to squish on narrow but never go wider than 600px.
@@ -223,20 +253,13 @@
 
 	        <!-- Email Body : BEGIN -->
 	        <table align="center" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: auto;">
-                <!-- OESS Header, Flush : BEGIN -->
-                <tr>
-                    <td style="background-color: #ffffff;">
-                        <p width="600" height="" alt="alt_text" border="0" style="width: 100%; max-width: 600px; height: auto; font-family: Arial,Helvetica,sans-serif; font-size: 32px; line-height: 24px; color: #333333; margin: auto; display: block; padding: 15px;">Cloud Connect</p>
-                    </td>
-                </tr>
-                <!-- OESS Header, Flush : END -->
 
                 <!-- 1 Column Text + Button : BEGIN -->
                 <tr>
                     <td style="background-color: #ffffff;">
                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                             <tr>
-                                <td style="padding: 10px 20px; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #555555;">
+                                <td style="padding: 20px; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #555555;">
                                     <h1 style="margin: 0 0 10px 0; font-family: sans-serif; font-size: 25px; line-height: 30px; color: #333333; font-weight: normal;">[% circuit_description %]</h1>
                                     <p style="margin: 0;">Connection [% type %] on [% human_time %] by [% last_modified_by %]</p>
                                 </td>
@@ -248,7 +271,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td style="padding: 20px 20px 20px 0px;">
+                                <td style="padding: 40px 20px 20px 0px;">
                                     <!-- Button : BEGIN -->
                                     <table align="center" role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: auto;">
                                         <tr>
@@ -275,7 +298,7 @@
 
                 <!-- 2 Even Columns : BEGIN -->
                 <tr>
-                    <td style="padding: 20px 0px; background-color: #ffffff;">
+                    <td style="padding: 20px 0px 10px 0px; background-color: #ffffff;">
                         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
                             <tr>
                                 <td valign="middle" width="50%">
@@ -308,11 +331,11 @@
             <!-- Email Footer : BEGIN -->
 	        <table align="center" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: auto;">
                 <tr>
-                    <td style="padding: 20px; font-family: sans-serif; font-size: 12px; line-height: 15px; text-align: center; color: #888888;">
+                    <td style="padding: 0px 20px; font-family: sans-serif; font-size: 12px; line-height: 15px; text-align: center; color: #888888;">
                         <br><br>
                         <p style="margin: 0;">
                             <strong>Contact us at:</string><br/>
-                            <a style="color: white; text-decoration: underline;" href="mailto:noc@net.internet2.edu">noc@net.internet2.edu</a>
+                            <a style="color: #333333; text-decoration: underline;" href="mailto:noc@net.internet2.edu">noc@net.internet2.edu</a>
                         <br><br>
                     </td>
                 </tr>
@@ -327,7 +350,7 @@
         </div>
 
         <!-- Full Bleed Background Section : BEGIN -->
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #709f2b;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
             <tr>
                 <td>
                     <div align="center" style="max-width: 600px; margin: auto;" class="email-container">
@@ -338,9 +361,9 @@
                         <![endif]-->
                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                             <tr>
-                                <td style="padding: 20px; text-align: center; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #ffffff;">
+                                <td style="padding: 20px; text-align: center; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #333333;">
                                     <p style="margin: 0;">
-                                        <a style="color: white; text-decoration: underline;" href="http://www.iu.edu/comments/copyright.shtml">Copyright</a> &#169; 2020 The Trustees of <a style="color: white; text-decoration: underline;" href="http://www.iu.edu">Indiana University</a>
+                                        <a style="text-decoration: underline;" href="http://www.iu.edu/comments/copyright.shtml">Copyright</a> &#169; 2020 The Trustees of <a style="text-decoration: underline;" href="http://www.iu.edu">Indiana University</a>
                                     </p>
                                 </td>
                             </tr>
