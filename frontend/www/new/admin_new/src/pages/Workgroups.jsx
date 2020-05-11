@@ -13,18 +13,40 @@ import { PageContextProvider } from '../contexts/PageContext.jsx';
 import "../style.css";
 
 
+import { getWorkgroups, getAllWorkgroups } from '../api/workgroup.js';
+import TableTemplate from '../components/generic_components/TableTemplate.jsx';
+
+import { WorkgroupTable } from '../components/workgroups/WorkgroupTable.jsx';
+import { PageSelector } from '../components/generic_components/PageSelector.jsx';
+
 class Workgroups extends React.Component {
   constructor(props){
 	super(props);
-	this.state={
-	  isVisible: false,
-	  rowdata:{}
+	this.state = {
+      pageNumber: 0,
+      pageSize:   20,
+      filter:     '',
+      workgroups: []
 	};
+
+    this.filterWorkgroups = this.filterWorkgroups.bind(this);
   }
 
-  displaypopup(currComponent){
-    var rowdata = {};
-    this.setState({isVisible:true, rowdata:rowdata});
+  async componentDidMount() {
+    try {
+      let workgroups = await getAllWorkgroups();
+      this.setState({ workgroups });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  filterWorkgroups(e) {
+    // Reset back the first table page when the filter is changed
+    this.setState({
+      filter:     e.target.value,
+      pageNumber: 0
+    });
   }
 
   render() {
@@ -34,6 +56,37 @@ class Workgroups extends React.Component {
     let url = new URL(document.location.href);
     let workgroup_id = url.searchParams.get('workgroup_id');
     console.log(url.pathname);
+
+    let pageStart = this.state.pageSize * this.state.pageNumber;
+    let pageEnd = pageStart + this.state.pageSize;
+    let filteredItemCount = 0;
+
+    let workgroups = this.state.workgroups.filter((d) => {
+      if (!this.state.filter) {
+        return true;
+      }
+
+      if ( (new RegExp(this.state.filter, 'i').test(d.name)) ) {
+        return true;
+      } else if ( (new RegExp(this.state.filter, 'i').test(d.external_id)) ) {
+        return true;
+      } else if ( this.state.filter == d.workgroup_id ) {
+        return true;
+      } else {
+        return false;
+      }
+    }).filter((d, i) => {
+      // Any items not filtered by search are displayed and the count
+      // of these are used to determine the number of table pages to
+      // show.
+      filteredItemCount += 1;
+
+      if (i >= pageStart && i < pageEnd) {
+        return true;
+      } else {
+        return false;
+      }
+    });
 
     return (
       <PageContextProvider>
@@ -56,15 +109,18 @@ class Workgroups extends React.Component {
 
             <form id="user_search_div" className="form-inline">
               <div className="form-group">
-                <input type="text" className="form-control" id="user_search" placeholder="Workgroup"/>
+                <input type="text" className="form-control" id="user_search" placeholder="Workgroup" onChange={(e) => this.filterWorkgroups(e)}/>
               </div>
               <button type="button" className="btn btn-primary" data-target="#myModal2" data-toggle="modal">Search</button>
               <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add Workgroup</button>
             </form>
             <br />
 
-            <UsersTable />
-            <ModalTemplate2 />
+            <WorkgroupTable data={workgroups} filter={this.state.filter} pageNumber={this.state.pageNumber} pageSize={this.state.pageSize}/>
+            <center>
+              <PageSelector pageNumber={this.state.pageNumber} pageSize={this.state.pageSize} itemCount={filteredItemCount} onChange={(i) => this.setState({pageNumber: i})} />
+            </center>
+
           </div>
         </div>
       </PageContextProvider>
