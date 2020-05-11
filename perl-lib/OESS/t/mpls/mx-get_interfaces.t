@@ -248,6 +248,7 @@ my $ints = [{
     'description' => 'Management Interface',
     'admin_state' => 'up',
     'operational_state' => 'up',
+    'mtu' => 1514,
     'speed' => 1000
 }];
 

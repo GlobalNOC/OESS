@@ -618,24 +618,35 @@ sub _process_interface{
     $obj->{'admin_state'} = trim($xp->findvalue('./j:admin-status'));
     $obj->{'operational_state'} = trim($xp->findvalue('./j:oper-status'));
     $obj->{'description'} = trim($xp->findvalue('./j:description'));
+    $obj->{'speed'} = trim($xp->findvalue('./j:speed'));
+    $obj->{'mtu'} = trim($xp->findvalue('./j:mtu'));
     $obj->{'addresses'} = [];
 
-    my $speed = trim($xp->findvalue('./j:speed'));
-    if ($speed =~ /mbps/) {
-        $speed =~ s/mbps//g;
-        $obj->{'speed'} = int($speed);
+    if (!defined $obj->{'description'} || $obj->{'description'} eq '') {
+        $obj->{'description'} = $obj->{'name'};
     }
-    elsif ($speed =~ /Gbps/) {
-        $speed =~ s/Gbps//g;
-        $obj->{'speed'} = int($speed) * 1000;
-    }
-    else {
+
+    if ($obj->{'speed'} =~ /Unlimited/) {
+        $obj->{'speed'} = 0;
+    } elsif ($obj->{'speed'} =~ /mbps/) {
+        $obj->{'speed'} =~ s/mbps//g;
+        $obj->{'speed'} = int($obj->{'speed'});
+    } elsif ($obj->{'speed'} =~ /Gbps/) {
+        $obj->{'speed'} =~ s/Gbps//g;
+        $obj->{'speed'} = int($obj->{'speed'}) * 1000;
+    } else {
+        $self->{'logger'}->warn("Unknown speed '$obj->{speed}' got on interface '$obj->{name}'.");
         $obj->{'speed'} = undef;
     }
 
-    if (!defined $obj->{'description'} || $obj->{'description'} eq '') {
-	$obj->{'description'} = $obj->{'name'};
-    } 
+    if ($obj->{'mtu'} =~ /Unlimited/) {
+        $obj->{'mtu'} = 0;
+    } elsif ($obj->{'mtu'} =~ /\d+/) {
+        $obj->{'mtu'} = int($obj->{'mtu'});
+    } else {
+        $self->{'logger'}->warn("Unknown mtu '$obj->{mtu}' got on interface '$obj->{name}'.");
+        $obj->{'mtu'} = undef;
+    }
 
     my $families  = $xp->findnodes('./j:logical-interface/j:address-family');
     foreach my $family (@{$families}) {

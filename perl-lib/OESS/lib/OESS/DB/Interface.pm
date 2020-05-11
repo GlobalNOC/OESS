@@ -25,7 +25,13 @@ sub fetch{
 
     my $interface_id = $params{'interface_id'};
 
-    my $interface = $db->execute_query("select * from interface join interface_instantiation on interface.interface_id=interface_instantiation.interface_id and end_epoch=-1 where interface.interface_id = ?",[$interface_id]);
+    my $interface = $db->execute_query(
+        "select *, interface_instantiation.capacity_mbps as bandwidth, interface_instantiation.mtu_bytes as mtu
+         from interface
+         join interface_instantiation on interface.interface_id=interface_instantiation.interface_id and interface_instantiation.end_epoch=-1
+         where interface.interface_id=?",
+        [$interface_id]
+    );
 
     return if (!defined($interface) || !defined($interface->[0]));
 
@@ -79,9 +85,9 @@ sub fetch{
         workgroup_id => $interface->{'workgroup_id'},
         acls => $acls,
         used_vlans => $in_use,
-        bandwidth => $interface->{capacity_mbps},
+        bandwidth => $interface->{bandwidth},
         utilized_bandwidth => $l2_utilized_bandwidth + $l3_utilized_bandwidth,
-        mtu => $interface->{mtu_bytes},
+        mtu => $interface->{mtu},
         admin_state => $interface->{admin_state},
         node_id => $interface->{node_id}
     };
