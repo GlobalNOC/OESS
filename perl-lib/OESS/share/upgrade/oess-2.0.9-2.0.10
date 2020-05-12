@@ -30,9 +30,16 @@ sub main{
     my $dbq = new OESS::Database();
     my $current_version = $dbq->get_oess_schema_version();
     if($current_version eq $prev_version){
-        $dbq->{'dbh'}->begin_work();
-        upgrade($dbq);
-        $dbq->{'dbh'}->commit();
+        eval {
+            $dbq->{'dbh'}->begin_work();
+            upgrade($dbq);
+            $dbq->{'dbh'}->commit();
+        };
+        if ($@) {
+            $dbq->{'dbh'}->rollback();
+            print "$@\n";
+            exit;
+        }
     } else{
         print "Wrong version of OESS DB\n";
         print "This script only upgrades from version $prev_version to $version\n";
@@ -67,7 +74,7 @@ sub upgrade{
         }
 
         $sth = $dbh->prepare("update vrf_ep_peer set ip_version=? where vrf_ep_peer_id=?");
-        my $ok = $sth->execute([ $version, $peer->{vrf_ep_peer_id} ]);
+        my $ok = $sth->execute($version, $peer->{vrf_ep_peer_id});
         die "Unable to set IP version on peer $peer->{vrf_ep_peer_id}." if !defined $ok;
     }
 
