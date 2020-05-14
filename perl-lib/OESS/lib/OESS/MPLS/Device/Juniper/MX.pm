@@ -635,7 +635,7 @@ sub _process_interface{
         $obj->{'speed'} =~ s/Gbps//g;
         $obj->{'speed'} = int($obj->{'speed'}) * 1000;
     } else {
-        $self->{'logger'}->warn("Unknown speed '$obj->{speed}' got on interface '$obj->{name}'.");
+        $self->{'logger'}->debug("Unknown speed '$obj->{speed}' got on interface '$obj->{name}'.");
         $obj->{'speed'} = undef;
     }
 
@@ -644,7 +644,7 @@ sub _process_interface{
     } elsif ($obj->{'mtu'} =~ /\d+/) {
         $obj->{'mtu'} = int($obj->{'mtu'});
     } else {
-        $self->{'logger'}->warn("Unknown mtu '$obj->{mtu}' got on interface '$obj->{name}'.");
+        $self->{'logger'}->debug("Unknown mtu '$obj->{mtu}' got on interface '$obj->{name}'.");
         $obj->{'mtu'} = undef;
     }
 
