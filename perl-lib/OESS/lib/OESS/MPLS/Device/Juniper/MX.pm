@@ -522,7 +522,14 @@ sub get_routed_lsps{
         
         my $circuit_id;
 
-        if($dest =~ /^(.*)\.(\d+)$/){
+        if ($dest =~ /^(.*)\.(\d+)$/) {
+            # The logic below doesn't seem to see to work without
+            # circuit being passed to this sub. Instead extract
+            # circuit id from LSP name.
+            if ($dest_to_lsp->{$dest}->[0] =~ /^OESS\-.*\-(\d+)/gm) {
+                $circuit_id = $1;
+            }
+
             #ok we have an interface!
             my $int = $1;
             my $tag = $2;
