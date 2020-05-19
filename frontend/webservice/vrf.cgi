@@ -520,6 +520,11 @@ sub provision_vrf{
                     $peering->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
                 }
 
+                # GCP has no support for BGP Keys
+                if ($interface->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                    $peering->{md5_key} = '';
+                }
+
                 # Assuming we use .2 and .3 the first time around. We
                 # can use .4 and .5 on the next peering.
                 $last_octet += 2;
@@ -606,6 +611,11 @@ sub provision_vrf{
                     } else {
                         $peering->{local_ip} = 'fd28:221e:28fa:61d3::' . $last_octet . '/127';
                         $peering->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
+                    }
+
+                    # GCP has no support for BGP Keys
+                    if ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                        $peering->{md5_key} = '';
                     }
 
                     # Assuming we use .2 and .3 the first time around. We
