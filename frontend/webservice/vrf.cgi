@@ -454,7 +454,7 @@ sub provision_vrf{
                                 md5_key => '',
                                 local_ip => '192.168.100.249/30',
                                 peer_ip  => '192.168.100.250/30',
-                                version  => 4
+                                ip_version  => 'ipv4'
                             }
                         );
                     } else {
@@ -466,7 +466,7 @@ sub provision_vrf{
                                 md5_key => '',
                                 local_ip => '192.168.100.253/30',
                                 peer_ip  => '192.168.100.254/30',
-                                version  => 4
+                                ip_version  => 'ipv4'
                             }
                         );
                     }
