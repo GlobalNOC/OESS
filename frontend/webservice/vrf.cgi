@@ -421,7 +421,7 @@ sub provision_vrf{
                 }
             } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
                 $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
-            } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
+            } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
                 $ep->{mtu} = 1440;
             } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                 $ep->{mtu} = 1500;
@@ -520,6 +520,11 @@ sub provision_vrf{
                     $peering->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
                 }
 
+                # GCP has no support for BGP Keys
+                if ($interface->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                    $peering->{md5_key} = '';
+                }
+
                 # Assuming we use .2 and .3 the first time around. We
                 # can use .4 and .5 on the next peering.
                 $last_octet += 2;
@@ -550,7 +555,7 @@ sub provision_vrf{
                 }
             } elsif ($endpoint->cloud_interconnect_type eq 'aws-hosted-vinterface') {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
-            } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-inerconnect') {
+            } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
                 $endpoint->mtu(1440);
             } elsif ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
                 $endpoint->mtu(1500);
@@ -606,6 +611,11 @@ sub provision_vrf{
                     } else {
                         $peering->{local_ip} = 'fd28:221e:28fa:61d3::' . $last_octet . '/127';
                         $peering->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
+                    }
+
+                    # GCP has no support for BGP Keys
+                    if ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                        $peering->{md5_key} = '';
                     }
 
                     # Assuming we use .2 and .3 the first time around. We

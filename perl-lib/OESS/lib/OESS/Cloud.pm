@@ -120,10 +120,22 @@ sub setup_endpoints {
             my $interconnect_name = $vrf_name;
             my $connection_id     = 'a-' . lc($uuid);
 
+            my $max_gcp_bandwidth = 5000;
+            if ($ep->bandwidth > $max_gcp_bandwidth) {
+                die "The maximum bandwidth of GCP interconnects is currently restricted to $max_gcp_bandwidth Mbps.";
+            }
+
+            my $bandwidth = '';
+            if ($ep->bandwidth >= 1000) {
+                $bandwidth = 'BPS_' . ($ep->bandwidth / 1000) . 'G';
+            } else {
+                $bandwidth = 'BPS_' . $ep->bandwidth . 'M';
+            }
+
             my $res = $gcp->insert_interconnect_attachment(
                 interconnect_id   => $ep->cloud_interconnect_id,
                 interconnect_name => $interconnect_name,
-                bandwidth         => 'BPS_' . $ep->bandwidth . 'M',
+                bandwidth         => $bandwidth,
                 connection_id     => $connection_id,
                 pairing_key       => $ep->cloud_account_id,
                 portal_url        => $config->base_url,
