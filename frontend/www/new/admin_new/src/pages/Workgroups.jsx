@@ -17,7 +17,9 @@ import { getWorkgroups, getAllWorkgroups } from '../api/workgroup.js';
 import TableTemplate from '../components/generic_components/TableTemplate.jsx';
 
 import { WorkgroupTable } from '../components/workgroups/WorkgroupTable.jsx';
+import { WorkgroupModal } from '../components/workgroups/WorkgroupModal.jsx';
 import { PageSelector } from '../components/generic_components/PageSelector.jsx';
+import { BaseModal } from '../components/generic_components/BaseModal.jsx';
 
 class Workgroups extends React.Component {
   constructor(props){
@@ -26,7 +28,8 @@ class Workgroups extends React.Component {
       pageNumber: 0,
       pageSize:   20,
       filter:     '',
-      workgroups: []
+      workgroups: [],
+      visible:    false
 	};
 
     this.filterWorkgroups = this.filterWorkgroups.bind(this);
@@ -88,8 +91,13 @@ class Workgroups extends React.Component {
       }
     });
 
+    let modalID = "modal-addWorkgroup";
+
     return (
       <PageContextProvider>
+
+
+
 
         <div className="oess-page-container">
           <div className="oess-page-navigation">
@@ -101,9 +109,16 @@ class Workgroups extends React.Component {
           </div>
 
           <div className="oess-page-content">
+
+
+            <BaseModal visible={this.state.visible} header="Create Workgroup" modalID={modalID} onClose={() => this.setState({visible: false})}>
+              <WorkgroupModal workgroup={null} />
+            </BaseModal>
+
+
             <div>
               <p className="title"><b>Workgroups</b></p>
-              <p className="subtitle">Add, remove, or update Workgroups.</p>
+              <p className="subtitle">Create, edit, or delete Workgroups.</p>
             </div>
             <br />
 
@@ -111,8 +126,8 @@ class Workgroups extends React.Component {
               <div className="form-group">
                 <input type="text" className="form-control" id="user_search" placeholder="Workgroup" onChange={(e) => this.filterWorkgroups(e)}/>
               </div>
-              <button type="button" className="btn btn-primary" data-target="#myModal2" data-toggle="modal">Search</button>
-              <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add Workgroup</button>
+              <button type="button" className="btn btn-primary">Search</button>
+              <button type="button" className="btn btn-default" data-target={`#${modalID}`} data-toggle="modal">Create Workgroup</button>
             </form>
             <br />
 
