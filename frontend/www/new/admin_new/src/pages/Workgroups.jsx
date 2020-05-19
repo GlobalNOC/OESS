@@ -26,7 +26,7 @@ class Workgroups extends React.Component {
 	super(props);
 	this.state = {
       pageNumber: 0,
-      pageSize:   20,
+      pageSize:   2,
       filter:     '',
       workgroups: [],
       visible:    false
@@ -127,7 +127,7 @@ class Workgroups extends React.Component {
                 <input type="text" className="form-control" id="user_search" placeholder="Workgroup" onChange={(e) => this.filterWorkgroups(e)}/>
               </div>
               <button type="button" className="btn btn-primary">Search</button>
-              <button type="button" className="btn btn-default" data-target={`#${modalID}`} data-toggle="modal">Create Workgroup</button>
+              <button type="button" className="btn btn-default" onClick={() => this.setState({visible: true})}>Create Workgroup</button>
             </form>
             <br />
 

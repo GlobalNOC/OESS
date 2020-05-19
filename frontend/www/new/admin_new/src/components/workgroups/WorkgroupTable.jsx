@@ -7,6 +7,7 @@ class WorkgroupTable extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      visible: false,
       workgroup: null
     };
     // this.addUser = this.addUser.bind(this);
@@ -26,7 +27,7 @@ class WorkgroupTable extends React.Component {
 
   editWorkgroup(workgroup) {
     console.log('editWorkgroup', workgroup);
-    this.setState({workgroup});
+    this.setState({workgroup: workgroup, visible: true});
   }
 
   manageInterfaces(workgroup) {
@@ -55,11 +56,7 @@ class WorkgroupTable extends React.Component {
             <button type="button" className="btn btn-default btn-xs" onClick={() => this.addUser(d)}>Add User</button>&nbsp;
 
             <div className="btn-group">
-              <button type="button"
-                      className="btn btn-default btn-xs"
-                      data-target={`#${modalID}`}
-                      data-toggle="modal"
-                      onClick={() => this.editWorkgroup(d)}>
+              <button type="button" className="btn btn-default btn-xs" onClick={() => this.editWorkgroup(d)}>
                 Edit Workgroup
               </button>
               <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -80,7 +77,7 @@ class WorkgroupTable extends React.Component {
 
     return (
       <div>
-        <BaseModal visible={true} header="Edit Workgroup" modalID={modalID}>
+        <BaseModal visible={this.state.visible} header="Edit Workgroup" modalID={modalID} onClose={() => {this.setState({visible: false}); console.log(this.state); } }>
           <WorkgroupModal workgroup={this.state.workgroup} />
         </BaseModal>
 
