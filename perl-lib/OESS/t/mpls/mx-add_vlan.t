@@ -83,8 +83,8 @@ $mock->new_sub(
 );
 
 my $ok = $device->add_vlan({
-    circuit_name => 'circuit',
-    interfaces => [
+    name => 'circuit',
+    endpoints => [
         {
             interface => 'ge-0/0/1',
             unit => 2004,
@@ -116,8 +116,8 @@ $mock->new_sub(
 );
 
 $ok = $device->add_vlan({
-    circuit_name => 'circuit',
-    interfaces => [
+    name => 'circuit',
+    endpoints => [
         {
             interface => 'ge-0/0/1',
             tag => 2004,
@@ -166,8 +166,8 @@ $mock->new_sub(
 );
 
 $ok = $device->add_vlan({
-    circuit_name => 'circuit',
-    interfaces => [
+    name => 'circuit',
+    endpoints => [
         {
             interface => 'ge-0/0/1',
             unit => 2004,

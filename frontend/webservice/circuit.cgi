@@ -255,12 +255,6 @@ sub provision {
         return;
     }
 
-    if (@{$args->{endpoint}->{value}} < 2) {
-        $method->set_error("Couldn't create Circuit: Circuit requires at least two Endpoints.");
-        $db->rollback;
-        return;
-    }
-
     # Endpoint: { entity: 'entity name', bandwidth: 0, tag: 100, inner_tag: 100, peerings: [{ version: 4 }]  }
     foreach my $value (@{$args->{endpoint}->{value}}) {
         my $ep;
@@ -324,7 +318,7 @@ sub provision {
             }
         } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
             $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
-        } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
+        } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
             $ep->{mtu} = 1440;
         } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
             $ep->{mtu} = 1500;
@@ -452,6 +446,8 @@ sub update {
     $circuit->load_endpoints;
     $circuit->load_paths;
 
+    my $previous = $circuit->to_hash;
+
     $circuit->description($args->{description}->{value});
     $circuit->remote_url($args->{remote_url}->{value});
     $circuit->remote_requester($args->{remote_requester}->{value});
@@ -529,7 +525,7 @@ sub update {
                 }
             } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
                 $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
-            } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
+            } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
                 $ep->{mtu} = 1440;
             } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                 $ep->{mtu} = 1500;
@@ -562,7 +558,7 @@ sub update {
                 }
             } elsif ($endpoint->cloud_interconnect_type eq 'aws-hosted-vinterface') {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
-            } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-inerconnect') {
+            } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
                 $endpoint->mtu(1440);
             } elsif ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
                 $endpoint->mtu(1500);
@@ -644,15 +640,11 @@ sub update {
         }
     }
 
-    _send_remove_command($circuit->circuit_id);
-
-    # Put rollback in place for quick tests
-    # $db->rollback;
     $db->commit;
-    warn Dumper($circuit->to_hash);
+    my $pending = $circuit->to_hash;
 
     _send_update_cache($circuit->circuit_id);
-    _send_add_command($circuit->circuit_id);
+    _send_modify_command($circuit->circuit_id, $previous, $pending);
 
     _send_event(
         status  => 'up',
@@ -800,6 +792,40 @@ sub _send_add_command {
     }
     if (defined $result->{error}) {
         return ($result, "Error occured while calling addVlan: $result->{error}");
+    }
+    return ($result->{results}->{status}, $err);
+}
+
+sub _send_modify_command {
+    my $circuit_id = shift;
+    my $previous   = shift;
+    my $pending    = shift;
+
+    my $result = undef;
+    my $err    = undef;
+
+    if (!defined $mq) {
+        return (undef, "Couldn't create RabbitMQ Client.");
+    }
+    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+
+    my $cv = AnyEvent->condvar;
+    $mq->modifyVlan(
+        circuit_id => int($circuit_id),
+        previous   => encode_json($previous),
+        pending    => encode_json($pending),
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+    $result = $cv->recv();
+
+    if (!defined $result) {
+        return ($result, "Error occurred while calling modifyVlan: Couldn't connect to RabbitMQ.");
+    }
+    if (defined $result->{error}) {
+        return ($result, "Error occured while calling modifyVlan: $result->{error}");
     }
     return ($result->{results}->{status}, $err);
 }

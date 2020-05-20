@@ -32,18 +32,18 @@ use JSON::XS;
 =head2 new
 
 =cut
-
-sub new{
+sub new {
     my $class = shift;
     my %args = (
-	rabbitMQ_host => undef,
-	rabbitMQ_port => undef,
-	rabbitMQ_user => undef,
-	rabbitMQ_pass => undef,
-	use_cache => 1,
-	node => undef,
+        rabbitMQ_host => undef,
+        rabbitMQ_port => undef,
+        rabbitMQ_user => undef,
+        rabbitMQ_pass => undef,
+        use_cache => 1,
+        node => undef,
+        type => 'unknown', # Used to name switch procs viewed via `ps`
         @_
-        );
+    );
 
     my $self = \%args;
     bless $self, $class;
@@ -58,7 +58,7 @@ sub new{
 	$self->_update_cache();
     }
 
-    $0 = "oess_mpls_switch(" . $self->{'node'}->{'mgmt_addr'} . ")";
+    $0 = "oess_mpls_switch.$self->{type}($self->{node}->{mgmt_addr})";
 
     $self->create_device_object();
     if(!defined($self->{'device'})){
@@ -181,6 +181,32 @@ sub _register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
 
+
+    $method = GRNOC::RabbitMQ::Method->new(
+        name => "modify_vlan",
+        description => "modify_vlan modifies an existing l2 connection.",
+        callback => sub { return { status => $self->modify_vlan(@_) }; }
+    );
+    $method->add_input_parameter(
+        name => "circuit_id",
+        description => "ID of l2 connection to be modified.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::NUMBER_ID
+    );
+    $method->add_input_parameter(
+        name => "pending",
+        description => "l2 connection hash as it should appear on the network.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $method->add_input_parameter(
+        name => "previous",
+        description => "l2 connection hash as it should appear on the network.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $dispatcher->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => "remove_vlan",
                                             description => "removes a vlan for this switch",
                                             callback => sub { return {status => $self->remove_vlan(@_) }});
@@ -200,7 +226,32 @@ sub _register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
     $dispatcher->register_method($method);
-    
+
+    $method = GRNOC::RabbitMQ::Method->new(
+        name => "modify_vrf",
+        description => "modify_vrf modifies an existing l3 connection.",
+        callback => sub { return { status => $self->modify_vrf(@_) }; }
+    );
+    $method->add_input_parameter(
+        name => "vrf_id",
+        description => "ID of l3 connection to be modified.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::NUMBER_ID
+    );
+    $method->add_input_parameter(
+        name => "pending",
+        description => "l3 connection hash as it should appear on the network.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $method->add_input_parameter(
+        name => "previous",
+        description => "l3 connection hash as it should appear on the network.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $dispatcher->register_method($method);
+
     $method = GRNOC::RabbitMQ::Method->new( name => "remove_vrf",
                                             description => "removes a vrf from this switch",
                                             callback => sub { return {status => $self->remove_vrf(@_) }});
@@ -455,6 +506,27 @@ sub add_vlan{
     return $self->{'device'}->add_vlan($vlan_obj);
 }
 
+=head2 modify_vlan
+
+=cut
+sub modify_vlan {
+    my $self = shift;
+    my $method = shift;
+    my $params = shift;
+
+    my $circuit_id = $params->{circuit_id}{value};
+    my $pending = decode_json($params->{pending}{value});
+    my $previous = decode_json($params->{previous}{value});
+
+    # Lookup circuit type from cached circuit
+    # my $vlan_obj = $self->_generate_commands($circuit_id);
+    # $pending->{ckt_type} = $vlan_obj->{ckt_type}
+    # $previous->{ckt_type} = $vlan_obj->{ckt_type}
+
+    $self->{logger}->debug("Calling modify_vlan: $circuit_id");
+    return $self->{device}->modify_vlan($previous, $pending);
+}
+
 =head2 get_system_info
 
 =cut
@@ -521,6 +593,21 @@ sub add_vrf{
     return $self->{'device'}->add_vrf($vrf_obj);
 }
 
+=head2 modify_vrf
+
+=cut
+sub modify_vrf {
+    my $self = shift;
+    my $method = shift;
+    my $params = shift;
+
+    my $vrf_id = $params->{vrf_id}{value};
+    my $pending = decode_json($params->{pending}{value});
+    my $previous = decode_json($params->{previous}{value});
+
+    $self->{logger}->debug("Calling modify_vrf: $vrf_id");
+    return $self->{device}->modify_vrf($previous, $pending);
+}
 
 =head2 remove_vrf
 

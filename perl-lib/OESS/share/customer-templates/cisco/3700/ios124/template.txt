@@ -1,5 +1,5 @@
 [% FOREACH peer IN peers -%]
-[% IF peer.ip_version == 4 -%]
+[% IF peer.ip_version == 'ipv4' -%]
 !=======================================IPV4=======================================
 ! OESS
 ! Layer 3 Connection ID: [% vrf_id %]

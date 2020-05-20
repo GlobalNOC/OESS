@@ -105,8 +105,8 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
 );
 my $conf = $device->xml_configuration(
     [{
-        circuit_name => 'circuit',
-        interfaces => [
+        name => 'circuit',
+        endpoints => [
             {
                 interface => 'ge-0/0/1',
                 unit => 2004,

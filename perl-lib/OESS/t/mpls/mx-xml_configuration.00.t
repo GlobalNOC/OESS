@@ -88,8 +88,8 @@ my $exp_xml = '<configuration><groups operation="delete"><name>OESS</name></grou
 
 my $conf = $device->xml_configuration(
     [{
-        circuit_name => 'circuit',
-        interfaces => [
+        name => 'circuit',
+        endpoints => [
             {
                 interface => 'ge-0/0/1',
                 unit => 2004,
@@ -113,5 +113,7 @@ my $conf = $device->xml_configuration(
     '<groups operation="delete"><name>OESS</name></groups>'
 );
 
-warn "XML: " . $conf . "\n";
 ok($conf eq $exp_xml, "Got expected xml");
+if ($conf ne $exp_xml) {
+    warn "XML: " . $conf . "\n";
+}

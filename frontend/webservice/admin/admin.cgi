@@ -2342,16 +2342,16 @@ sub decom_link {
     my $link_state;
     if ($link->{status} eq 'down') {
         # Set role of associated interfaces to unknown.
-        my $ok1 = OESS::DB::Interface::update(db => $db2, interface => {
+        my $err1 = OESS::DB::Interface::update(db => $db2, interface => {
             interface_id => $link->{interface_a_id},
             role         => 'unknown'
         });
-        my $ok2 = OESS::DB::Interface::update(db => $db2, interface => {
+        my $err2 = OESS::DB::Interface::update(db => $db2, interface => {
             interface_id => $link->{interface_z_id},
             role         => 'unknown'
         });
-        if (!$ok1 || !$ok2) {
-            $method->set_error("Couldn't update link endpoints.");
+        if (defined $err1 || defined $err2) {
+            $method->set_error("Couldn't update link endpoints: $err1 $err2");
             $db2->rollback;
             return;
         }

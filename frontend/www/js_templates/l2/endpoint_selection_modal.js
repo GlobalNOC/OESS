@@ -24,10 +24,12 @@ class EndpointSelectionModal2 {
     let interface_id = (interfaces.length === 0) ? -1 : interfaces[0].interface_id;
 
     let index = -1;
+    let selectedBandwidth = null;
 
     if (endpoint !== undefined && endpoint !== null) {
       interface_id = endpoint.interface_id;
       index = endpoint.index;
+      selectedBandwidth = endpoint.bandwidth || null;
     }
 
     let interfaceSelector = this.parent.querySelector('.endpoint-select-interface');
@@ -122,14 +124,14 @@ class EndpointSelectionModal2 {
         o.innerText = `${b[1]}`;
         o.setAttribute('value', b[0]);
 
-        if (i == 0) {
+        if ( (selectedBandwidth === null && i == 0) || b[0] == selectedBandwidth) {
           o.setAttribute('selected', true);
         }
 
         bandwidthSelector.appendChild(o);
       });
 
-      if (vlan === -1) {
+      if (vlan === -1 || bandwidthOptions.length === 1) {
         bandwidthSelector.setAttribute('disabled', '');
       } else {
         bandwidthSelector.removeAttribute('disabled');
@@ -205,18 +207,23 @@ class EndpointSelectionModal2 {
     let index = -1;
     let selectedInterface = 'TBD';
     let selectedNode = 'TBD';
+    let selectedCloudAccountId = null;
+    let selectedBandwidth = null;
 
     if (endpoint !== undefined && endpoint !== null) {
       entity_id = endpoint.entity_id;
       index = endpoint.index;
       selectedInterface = endpoint.interface || 'TBD';
       selectedNode = endpoint.node || 'TBD';
+      selectedCloudAccountId = endpoint.cloud_account_id || null;
+      selectedBandwidth = endpoint.bandwidth || null;
     }
 
     this.parent.querySelector('.entity-search').oninput = function(search) {
+      let list = this.parent.querySelector('.entity-search-list');
       if (search.target.value.length < 2) {
-        let list = this.parent.querySelector('.entity-search-list');
         list.innerHTML = '';
+        list.style.display = 'none';
         return null;
       }
 
@@ -224,11 +231,10 @@ class EndpointSelectionModal2 {
       // search query was updated.
       clearTimeout(this.searchTimeout);
 
-      // TODO FIX THIS
       this.searchTimeout = setTimeout(function() {
         getEntitiesAll(session.data.workgroup_id, search.target.value).then(function(entities) {
-          let list = this.parent.querySelector('.entity-search-list');
           list.innerHTML = '';
+          list.style.display = 'block';
 
           for (let i = 0; i < entities.length; i++) {
             let l = document.createElement('a');
@@ -238,6 +244,7 @@ class EndpointSelectionModal2 {
             l.onclick = (e) => {
               search.target.value = '';
               list.innerHTML = '';
+              list.style.display = 'none';
 
               entities[i].index = index;
               this.populateEntityForm(entities[i]);
@@ -306,10 +313,14 @@ class EndpointSelectionModal2 {
     for (let i = 0; i < entity.interfaces.length; i++) {
       let child = entity.interfaces[i];
 
+      let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
+
       let checked = 'checked';
       let disabled = '';
       let notAllow = '';
-      if (child.cloud_interconnect_type !== null && child.cloud_interconnect_type !== '' && child.cloud_interconnect_type !== 'aws-hosted-connection') {
+
+
+      if (autoSelectedInterface) {
         checked = '';
         disabled = 'disabled';
         notAllow = 'cursor: not-allowed;';
@@ -327,63 +338,88 @@ class EndpointSelectionModal2 {
                    ${checked}
                    ${disabled}
             />
-            <b>${child.node}</b> ${child.name}
+            <b>${child.node}</b> ${child.name} <br/><span>${child.utilized_bandwidth}Mb reserved / ${child.bandwidth}Mb total</span>
           </label>
         </div>`;
       elem.addEventListener('click', function(e) {
         selectedInterface = child.name;
         selectedNode = child.node;
+
+        populateVLANs('.entity-vlans');
       });
 
-      selectedInterface = child.name;
-      selectedNode = child.node;
+      if (!autoSelectedInterface) {
+        selectedInterface = child.name;
+        selectedNode = child.node;
+      }
       list.appendChild(elem);
     }
 
-    // VLAN Select
-    let vlanSelector = this.parent.querySelector('.entity-vlans');
-    vlanSelector.innerHTML = '';
+    // VLAN Select - Populates a select element with the VLANs
+    // available for the currently selected (node, interface).
+    const populateVLANs = (selector) => {
+      let vlanSelector = this.parent.querySelector(selector);
+      vlanSelector.innerHTML = '';
 
-    let vlans = [];
-    let vlanH = {};
-    for (let i = 0; i < entity.interfaces.length; i++) {
-      for (let j = 0; j < entity.interfaces[i].available_vlans.length; j++) {
-        vlanH[entity.interfaces[i].available_vlans[j]] = 1;
+      let vlans = [];
+      let vlanH = {};
+      for (let i = 0; i < entity.interfaces.length; i++) {
+        console.log('selectedInterface:', selectedInterface);
+        console.log('selectedNode:', selectedNode);
+        console.log('entity interfaces:', entity.interfaces[i]);
+
+        let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
+        let userSelectedInterface = (entity.interfaces[i].node == selectedNode && entity.interfaces[i].name == selectedInterface);
+
+        if (autoSelectedInterface || userSelectedInterface) {
+          for (let j = 0; j < entity.interfaces[i].available_vlans.length; j++) {
+            vlanH[entity.interfaces[i].available_vlans[j]] = 1;
+          }
+        }
       }
-    }
-    let key;
-    for (key in vlanH) {
-      vlans.push(key);
-    }
+      let key;
+      for (key in vlanH) {
+        vlans.push(key);
+      }
 
+      let vlan = -1;
+      if (vlans.length > 0) {
+        vlan = vlans[0];
+      }
+      if (endpoint !== undefined && endpoint !== null && 'tag' in endpoint) {
+        vlan = endpoint.tag;
+      }
+      if (vlan !== -1 && !vlans.includes(vlan)) {
+        vlans.unshift(vlan);
+      }
+
+      vlans.forEach((v) => {
+        let o = document.createElement('option');
+        o.innerText = `${v}`;
+        o.setAttribute('value', v);
+
+        if (v == vlan) {
+          o.setAttribute('selected', true);
+        }
+
+        vlanSelector.appendChild(o);
+      });
+
+      if (vlan === -1) {
+        vlanSelector.setAttribute('disabled', '');
+      } else {
+        vlanSelector.removeAttribute('disabled');
+      }
+
+      return vlans;
+    };
+
+    let vlans = populateVLANs('.entity-vlans');
     let vlan = -1;
     if (vlans.length > 0) {
       vlan = vlans[0];
     }
-    if (endpoint !== undefined && endpoint !== null && 'tag' in endpoint) {
-      vlan = endpoint.tag;
-    }
-    if (vlan !== -1 && !vlans.includes(vlan)) {
-      vlans.unshift(vlan);
-    }
-
-    vlans.forEach((v) => {
-      let o = document.createElement('option');
-      o.innerText = `${v}`;
-      o.setAttribute('value', v);
-
-      if (v == vlan) {
-        o.setAttribute('selected', true);
-      }
-
-      vlanSelector.appendChild(o);
-    });
-
-    if (vlan === -1) {
-      vlanSelector.setAttribute('disabled', '');
-    } else {
-      vlanSelector.removeAttribute('disabled');
-    }
+    let vlanSelector = this.parent.querySelector('.entity-vlans');
 
     // Cloud Connection Input
     entity.cloud_interconnect_type = null;
@@ -404,7 +440,7 @@ class EndpointSelectionModal2 {
 
     cloudAccountFormGroup.style.display = 'none';
     cloudGatewayFormGroup.style.display = 'none';
-    cloudAccountInput.value = null;
+    cloudAccountInput.value = selectedCloudAccountId;
 
     if (entity.cloud_interconnect_type !== null) {
       cloudAccountFormGroup.style.display = 'block';
@@ -425,7 +461,7 @@ class EndpointSelectionModal2 {
         cloudAccountInput.setAttribute('placeholder', '012301230123');
       }
     } else {
-      vlanHelp.dataset.content = "Ethernet frame header of the Tagged Interface connecting to the selected Network Entity.";
+      vlanHelp.dataset.content = `VLAN Identifier of the tagged interface connecting to <b>${entity.name}.</b>`;
     }
 
     // Max Bandwidth
@@ -465,14 +501,14 @@ class EndpointSelectionModal2 {
       o.innerText = `${b[1]}`;
       o.setAttribute('value', b[0]);
 
-      if (i == 0) {
+      if ( (selectedBandwidth === null && i == 0) || b[0] == selectedBandwidth) {
         o.setAttribute('selected', true);
       }
 
       bandwidthSelector.appendChild(o);
     });
 
-    if (vlan === -1) {
+    if (vlan === -1 || bandwidthOptions.length === 1) {
       bandwidthSelector.setAttribute('disabled', '');
     } else {
       bandwidthSelector.removeAttribute('disabled');

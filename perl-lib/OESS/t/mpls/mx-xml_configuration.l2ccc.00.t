@@ -66,7 +66,7 @@ my $exp_xml = '<configuration>
         <label-switched-path>
           <name>OESS-L2CCC-100-200-LSP-3012</name>
           <apply-groups>L2CCC-LSP-ATTRIBUTES</apply-groups>
-          <to/>
+          <to>192.168.1.200</to>
           <primary>
             <name>OESS-L2CCC-100-200-LSP-3012-PRIMARY</name>
           </primary>
@@ -106,15 +106,15 @@ my $exp_xml = '<configuration>
 
 my $device = OESS::MPLS::Device::Juniper::MX->new(
     config => '/etc/oess/database.xml',
-    loopback_addr => '127.0.0.1',
+    loopback_addr => '192.168.1.150',
     mgmt_addr => '127.0.0.1',
     name => 'vmx-r0.testlab.grnoc.iu.edu',
     node_id => 1
 );
 my $conf = $device->xml_configuration(
     [{
-        circuit_name => 'circuit',
-        interfaces => [
+        name => 'circuit',
+        endpoints => [
             {
                 interface => 'ge-0/0/1',
                 unit => 2004,
@@ -133,18 +133,32 @@ my $conf = $device->xml_configuration(
         ],
         paths => [
             {
-                name => 'PRIMARY',
-                dest_node => 200,
-                mpls_path_type => 'strict',
+                type => 'primary',
+                details => {
+                    node_a => { node_id => 100, node_loopback => '192.168.1.150' },
+                    node_z => { node_id => 200, node_loopback => '192.168.1.200' },
+                    hops => [
+                        '192.186.1.150',
+                        '192.168.1.200'
+                    ]
+                },
+                mpls_type => 'strict',
                 path => [
                     '192.186.1.150',
                     '192.168.1.200'
                 ]
             },
             {
-                name => 'TERTIARY',
-                dest_node => 200,
-                mpls_path_type => 'loose'
+                name => 'tertiary',
+                mpls_type => 'loose',
+                details => {
+                    node_a => { node_id => 100, node_loopback => '192.168.1.150' },
+                    node_z => { node_id => 200, node_loopback => '192.168.1.200' },
+                    hops => [
+                        '192.186.1.150',
+                        '192.168.1.200'
+                    ]
+                }
             }
         ],
         circuit_id => 3012,
