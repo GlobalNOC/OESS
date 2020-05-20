@@ -1,0 +1,9 @@
+pages:
+  - title: Release Notes
+    url: /operations-manual/release-notes.html
+  - title: Installation
+    url: /operations-manual/installation.html
+  - title: Software Configuration
+    url: /operations-manual/software-configuration.html
+  - title: Network Configuration
+    url: /operations-manual/network-configuration.html

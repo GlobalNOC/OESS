@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl
 #
 ##----- NDDI OESS Monitoring.cgi
 ##-----                                                                                  

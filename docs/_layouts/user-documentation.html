@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="{{ page.lang | default: site.lang | default: "en" }}">
+  {%- include head.html -%}
+
+  <body>
+    {%- include header.html -%}
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <div class="nav-wrapper">
+          <div class="nav-wrapper-nav">
+            <ul>
+              {% for page in site.data.user-documentation.navigation.pages %}
+              <li><a href="{{ page.url | relative_url }}">{{ page.title }}</a></li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          <div class="nav-wrapper-content">
+
+            {%- if page.title -%}
+              <h1 class="page-heading">{{ page.title }}</h1>
+            {%- endif -%}
+
+              <hr/>
+              <a href="{{ "/" | relative_url }}">OESS</a> | <a href="{{ "/user-documentation" | relative_url }}">User Documentation</a> | <a href="{{ page.url | relative_url }}">{{ page.title }}</a>
+              <hr/>
+              <br/>
+
+            {{ content }}
+          </div>
+      </div>
+    </main>
+
+    {%- include footer.html -%}
+  </body>
+
+</html>
