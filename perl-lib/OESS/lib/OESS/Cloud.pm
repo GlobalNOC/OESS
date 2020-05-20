@@ -122,7 +122,7 @@ sub setup_endpoints {
 
             my $max_gcp_bandwidth = 5000;
             if ($ep->bandwidth > $max_gcp_bandwidth) {
-                die "The maximum bandwidth of GCP interconnects is currently restricted to $max_gcp_bandwidth Mbps.";
+                die "The maximum bandwidth of GCP Partner Interconnects is currently restricted to $max_gcp_bandwidth Mbps.\n";
             }
 
             my $bandwidth = '';
