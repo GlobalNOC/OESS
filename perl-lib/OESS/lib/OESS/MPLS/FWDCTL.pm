@@ -300,6 +300,15 @@ sub _write_cache{
         }
 
         my $site_id = 0;
+        my %switches_in_use;
+
+        foreach my $ep (@{$ckt->endpoints}) {
+            $switches_in_use{$ep->node_id} = $self->{node_by_id}->{$ep->node_id}->{loopback_address};
+        }
+        if (scalar(keys %switches_in_use) == 1 && $self->{'config'}->network_type ne 'evpn-vxlan') {
+            $ckt_type = "L2VPLS";
+        }
+
         foreach my $ep (@{$ckt->endpoints}) {
             $site_id++;
 
@@ -312,6 +321,17 @@ sub _write_cache{
                 $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{ckt_type} = $ckt_type;
                 $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{site_id} = $site_id;
             }
+
+            if ($ckt_type eq "L2CCC") {
+                foreach my $node_id (keys %switches_in_use) {
+                    if ($ep->node_id eq $node_id) {
+                        next;
+                    }
+                    $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{z_node} = $node_id;
+                    $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{z_loopback} = $switches_in_use{$node_id};
+                }
+            }
+
             push @{$switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{endpoints}}, $ep->to_hash;
         }
     }
