@@ -75,27 +75,28 @@ sub new {
 
     $self->{'db'} = OESS::Database->new( config_file => $config_filename );
     $self->{'db2'} = OESS::DB->new();
-    my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-FWDCTL',
-                                                             topic => "MPLS.FWDCTL.RPC");
 
-    $self->_register_rpc_methods( $fwdctl_dispatcher );
+    if (!$self->{object_only}) {
+        my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new(
+            queue => 'MPLS-FWDCTL',
+            topic => "MPLS.FWDCTL.RPC"
+        );
 
-    $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
+        $self->_register_rpc_methods( $fwdctl_dispatcher );
+        $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
+        $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
+            timeout => 120,
+            topic => 'MPLS.FWDCTL.event'
+        );
+        $self->{'logger'}->info("RabbitMQ ready to go!");
 
-    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
-        timeout => 120,
-        topic => 'MPLS.FWDCTL.event'
-    );
-
-
-    $self->{'logger'}->info("RabbitMQ ready to go!");
-
-    # When this process receives sigterm send an event to notify all
-    # children to exit cleanly.
-    $SIG{TERM} = sub {
-        $self->stop();
-    };
+        # When this process receives sigterm send an event to notify
+        # all children to exit cleanly.
+        $SIG{TERM} = sub {
+            $self->stop();
+        };
+    }
 
 
     my $topo = OESS::Topology->new( db => $self->{'db'}, MPLS => 1 );
@@ -124,14 +125,12 @@ sub new {
         { circuit_id => { value => -1 } }
     );
 
-    #from TOPO startup
-    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
-    foreach my $node (@$nodes) {
-	warn Dumper($node);
-	$self->make_baby($node->{'node_id'});
+    if (!$self->{object_only}) {
+        my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
+        foreach my $node (@$nodes) {
+            $self->make_baby($node->{'node_id'});
+        }
     }
-
-    
     $self->{'logger'}->error("MPLS Provisioner INIT COMPLETE");
 
     $self->{'events'} = {};
