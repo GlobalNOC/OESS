@@ -11,6 +11,7 @@ perl-lib/OESS/Makefile
 perl-lib/OESS/MANIFEST.bak
 perl-lib/OESS/t/conf/SNMP/*
 frontend/www/.htpasswd
+frontend/.htpasswd
 nox/**/Makefile
 nox/**/.deps/
 nox/**/*.la
