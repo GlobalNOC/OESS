@@ -67,6 +67,10 @@ async function loadEntityList() {
 
         entity.endpoints.forEach(function(endpoint) {
             let endpointOK = true;
+            if (endpoint.operational_state !== 'up'){
+                ok=false;
+                endpointOK = false;
+            }
             if ('peers' in endpoint) {
                 endpoint.peers.forEach(function(peer) {
                     if (peer.operational_state !== 'up') {
