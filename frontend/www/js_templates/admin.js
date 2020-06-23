@@ -3306,7 +3306,7 @@ function setup_discovery_tab(){
 	    $('#new_mpls_vendor').on('change', function(){
 		    var vendor = $('#new_mpls_vendor').val();
 		    if(vendor == 'Juniper'){
-			var options = {"MX": "MX", "QFX": "QFX"};
+			var options = {"MX": "MX", "qfx": "QFX"};
 			var $el = $("#new_mpls_model");
 			$el.empty();
 		        $.each(options, function(value, key){
