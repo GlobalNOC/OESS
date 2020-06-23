@@ -107,7 +107,7 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
     loopback_addr => '192.168.1.150',
     mgmt_addr => '127.0.0.1',
     name => 'vmx-r0.testlab.grnoc.iu.edu',
-    node_id => 1
+    node_id => 100
 );
 $device->{jnx} = { conn_obj => 1 }; # Fake being connected. :)
 
@@ -163,8 +163,8 @@ my $conf = $device->add_vlan_xml({
     circuit_id => 3012,
     site_id => 1,
     state => 'active',
-    dest => '192.168.1.200',
-    a_side => 100,
+    z_loopback => '192.168.1.200',
+    z_node => 200,
     ckt_type => 'L2CCC'
 });
 
