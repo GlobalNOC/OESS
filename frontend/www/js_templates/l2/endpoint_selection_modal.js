@@ -311,7 +311,7 @@ class EndpointSelectionModal2 {
     // describes a cloud interconnect, disable the Interfaces as they
     // will be auto-selected according to the prescribed procedure.
     for (let i = 0; i < entity.interfaces.length; i++) {
-      var child = entity.interfaces[i];
+      let child = entity.interfaces[i];
 
       let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
 
@@ -325,7 +325,7 @@ class EndpointSelectionModal2 {
         disabled = 'disabled';
         notAllow = 'cursor: not-allowed;';
       }
-      var elem = document.createElement('li');
+      let elem = document.createElement('li');
       elem.setAttribute('class', `list-group-item ${disabled}`);
       if (child.cloud_interconnect_type != null){
       elem.innerHTML = `
