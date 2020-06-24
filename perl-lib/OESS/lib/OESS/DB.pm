@@ -27,6 +27,17 @@ use DBI;
 
 =head2 new
 
+    my $db = new OESS::DB(config => '/etc/oess/database.xml');
+
+new creates a new C<OESS::DB> connection object. Use this to execute
+queries and manage database transactions.
+
+Minimal configuration:
+
+    <configuration>
+      <credentials username="" password="" database""/>
+    </configuration>
+
 =cut
 sub new{
     my $that  = shift;

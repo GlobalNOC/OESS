@@ -75,27 +75,28 @@ sub new {
 
     $self->{'db'} = OESS::Database->new( config_file => $config_filename );
     $self->{'db2'} = OESS::DB->new();
-    my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-FWDCTL',
-                                                             topic => "MPLS.FWDCTL.RPC");
 
-    $self->_register_rpc_methods( $fwdctl_dispatcher );
+    if (!$self->{object_only}) {
+        my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new(
+            queue => 'MPLS-FWDCTL',
+            topic => "MPLS.FWDCTL.RPC"
+        );
 
-    $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
+        $self->_register_rpc_methods( $fwdctl_dispatcher );
+        $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
+        $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
+            timeout => 120,
+            topic => 'MPLS.FWDCTL.event'
+        );
+        $self->{'logger'}->info("RabbitMQ ready to go!");
 
-    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
-        timeout => 120,
-        topic => 'MPLS.FWDCTL.event'
-    );
-
-
-    $self->{'logger'}->info("RabbitMQ ready to go!");
-
-    # When this process receives sigterm send an event to notify all
-    # children to exit cleanly.
-    $SIG{TERM} = sub {
-        $self->stop();
-    };
+        # When this process receives sigterm send an event to notify
+        # all children to exit cleanly.
+        $SIG{TERM} = sub {
+            $self->stop();
+        };
+    }
 
 
     my $topo = OESS::Topology->new( db => $self->{'db'}, MPLS => 1 );
@@ -115,7 +116,6 @@ sub new {
     $self->{'circuit'} = {};
     $self->{'node_rules'} = {};
     $self->{'link_status'} = {};
-    $self->{'circuit_status'} = {};
     $self->{'node_info'} = {};
     $self->{'link_maintenance'} = {};
     $self->{'node_by_id'} = {};
@@ -125,14 +125,12 @@ sub new {
         { circuit_id => { value => -1 } }
     );
 
-    #from TOPO startup
-    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
-    foreach my $node (@$nodes) {
-	warn Dumper($node);
-	$self->make_baby($node->{'node_id'});
+    if (!$self->{object_only}) {
+        my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
+        foreach my $node (@$nodes) {
+            $self->make_baby($node->{'node_id'});
+        }
     }
-
-    
     $self->{'logger'}->error("MPLS Provisioner INIT COMPLETE");
 
     $self->{'events'} = {};
@@ -145,10 +143,9 @@ sub new {
 builds the cache for it to work off of
 
 =cut
-
 sub build_cache{
     my %params = @_;
-   
+
     my $db = $params{'db'};
     my $db2 = $params{'db2'};
     my $logger = $params{'logger'};
@@ -160,36 +157,27 @@ sub build_cache{
     $logger->error("DB Version does not match expected version") && $logger->logcluck() && exit 1 if !$db->compare_versions();
 
 
-    $logger->debug("Fetching State from the DB");
-    # my $circuits = $db->get_current_circuits( type => 'mpls');
-    my $circuits = OESS::DB::Circuit::fetch_circuits(db => $db2, state => 'active');
-    warn Dumper($circuits);
-
     #init our objects
     my %ckts;
     my %vrfs;
-    my %circuit_status;
     my %link_status;
     my %node_info;
+
+    $logger->debug("Fetching State from the DB");
+    my $circuits = OESS::DB::Circuit::fetch_circuits(db => $db2, state => 'active');
+
     foreach my $circuit (@$circuits) {
-	$logger->error("Updating Cache for circuit: " . $circuit->{'circuit_id'});
+        $logger->info("Updating Cache for circuit: " . $circuit->{'circuit_id'});
+
         my $id = $circuit->{'circuit_id'};
         my $ckt = OESS::L2Circuit->new(
             db => $db2,
             circuit_id => $id
         );
+        $ckt->load_endpoints;
         $ckts{ $ckt->circuit_id() } = $ckt;
-        
-        my $operational_state = $circuit->{'details'}->{'operational_state'};
-        if ($operational_state eq 'up') {
-            $circuit_status{$id} = OESS_CIRCUIT_UP;
-        } elsif ($operational_state  eq 'down') {
-            $circuit_status{$id} = OESS_CIRCUIT_DOWN;
-        } else {
-            $circuit_status{$id} = OESS_CIRCUIT_UNKNOWN;
-        }
     }
-        
+
     my $links = $db->get_current_links(type => 'mpls');
     foreach my $link (@$links) {
         if ($link->{'status'} eq 'up') {
@@ -202,40 +190,35 @@ sub build_cache{
     }
 
     my $vrfs = OESS::DB::VRF::get_vrfs(db => $db2, state => 'active');
-
     foreach my $vrf (@$vrfs){
-	$logger->error("Updating Cache for VRF: " . $vrf->{'vrf_id'});
+        $logger->info("Updating Cache for VRF: " . $vrf->{'vrf_id'});
 
-    $vrf = OESS::VRF->new(db => $db2, vrf_id => $vrf->{'vrf_id'});
-    if (!defined $vrf) {
-        warn "Unable to process VRF: " . $vrf->{'vrf_id'} . "\n";
-        $logger->error("Unable to process VRF: " . $vrf->{'vrf_id'});
-        next;
-    }
-    $vrf->load_endpoints;
-    foreach my $ep (@{$vrf->endpoints}) {
-        $ep->load_peers;
+        $vrf = OESS::VRF->new(db => $db2, vrf_id => $vrf->{'vrf_id'});
+        if (!defined $vrf) {
+            $logger->error("Unable to process VRF: " . $vrf->{'vrf_id'});
+            next;
+        }
+        $vrf->load_endpoints;
+        foreach my $ep (@{$vrf->endpoints}) {
+            $ep->load_peers;
+        }
+
+        $vrfs{ $vrf->vrf_id() } = $vrf;
     }
 
-	$vrfs{ $vrf->vrf_id() } = $vrf;
-    }
-        
     my $nodes = $db->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
         my $details = $db->get_node_by_id(node_id => $node->{'node_id'});
-	next if(!$details->{'mpls'});
-        $details->{'node_id'} = $details->{'node_id'};
-	$details->{'id'} = $details->{'node_id'};
-        $details->{'name'} = $details->{'name'};
-	$details->{'ip'} = $details->{'ip'};
-	$details->{'vendor'} = $details->{'vendor'};
-	$details->{'model'} = $details->{'model'};
-	$details->{'sw_version'} = $details->{'sw_version'};
-        $details->{'pending_diff'} = $details->{'pending_diff'};;
-	$node_info{$node->{'name'}} = $details;
+        next if(!$details->{'mpls'});
+
+        # TODO In addition to the previously removed unnecessary
+        # mappings. Remove this mapping.
+        $details->{'id'} = $details->{'node_id'};
+
+        $node_info{$node->{'name'}} = $details;
     }
 
-    return {ckts => \%ckts, circuit_status => \%circuit_status, link_status => \%link_status, node_info => \%node_info, vrfs => \%vrfs};
+    return {ckts => \%ckts, link_status => \%link_status, node_info => \%node_info, vrfs => \%vrfs};
 }
 
 =head2 convert_graph_to_mpls
@@ -262,7 +245,7 @@ sub convert_graph_to_mpls{
 
 sub _write_cache{
     my $self = shift;
-    $self->{'logger'}->info("called _write_cache");
+    $self->{'logger'}->info("calling _write_cache");
 
     my %switches;
 
@@ -274,29 +257,22 @@ sub _write_cache{
             next;
         }
 
-        my $eps = $vrf->endpoints();
-
-        my @ints;
-        foreach my $ep (@$eps){
-            my $int_obj = $ep->to_hash;
-
-            if (defined $switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}) {
-                push(@{$switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()}{'interfaces'}}, $int_obj);
-            } else {
-                $switches{$ep->node()}->{'vrfs'}{$vrf->vrf_id()} = {
-                    name => $vrf->name(),
-                    vrf_id => $vrf->vrf_id(),
-                    interfaces => [$int_obj],
-                    prefix_limit => $vrf->prefix_limit(),
-                    state => $vrf->state(),
-                    local_asn => $vrf->local_asn(),
-                };
+        # Place endpoints of each L3Connection in a node specific
+        # hash. This ensures that each Switch process sees only the
+        # endpoints it should be concerned with.
+        foreach my $ep (@{$vrf->endpoints}) {
+            if (!defined $switches{$ep->node}) {
+                $switches{$ep->node} = { vrfs => {}, ckts => {} };
             }
+            if (!defined $switches{$ep->node}->{vrfs}->{$vrf->vrf_id}) {
+                $switches{$ep->node}->{vrfs}->{$vrf->vrf_id} = $vrf->to_hash;
+                $switches{$ep->node}->{vrfs}->{$vrf->vrf_id}->{endpoints} = [];
+            }
+            push @{$switches{$ep->node}->{vrfs}->{$vrf->vrf_id}->{endpoints}}, $ep->to_hash;
         }
     }
 
-    foreach my $ckt_id (keys (%{$self->{'circuit'}})){
-        my $found = 0;
+    foreach my $ckt_id (keys %{$self->{circuit}}) {
         next if $self->{'circuit'}->{$ckt_id}->{'type'} ne 'mpls';
 
         $self->{'logger'}->debug("Writing Circuit $ckt_id to cache.");
@@ -305,8 +281,6 @@ sub _write_cache{
             $self->{'logger'}->error("Circuit $ckt_id couldn't be loaded or written to cache.");
             next;
         }
-        my $details = $ckt->to_hash();
-        my $eps = $ckt->endpoints();
 
         my $ckt_type;
         if ($self->{'config'}->network_type eq 'evpn-vxlan') {
@@ -319,156 +293,60 @@ sub _write_cache{
                 $ckt_type = "L2CCC";
             }
 
-            if(scalar(@$eps) > 2){
+            if (scalar(@{$ckt->endpoints}) > 2) {
                 $ckt_type = "L2VPLS";
             }
         }
 
         my $site_id = 0;
-        foreach my $ep_a (@$eps){
-            my @ints;
-            push(@ints, $ep_a->to_hash);
+        my %switches_in_use;
 
+        foreach my $ep (@{$ckt->endpoints}) {
+            $switches_in_use{$ep->node_id} = $self->{node_by_id}->{$ep->node_id}->{loopback_address};
+        }
+        if (scalar(keys %switches_in_use) == 1 && $self->{'config'}->network_type ne 'evpn-vxlan') {
+            $ckt_type = "L2VPLS";
+        }
+
+        foreach my $ep (@{$ckt->endpoints}) {
             $site_id++;
-            my $paths = [];
-            my $touch = {};
 
-            if(defined($switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}})){
-                next;
+            if (!defined $switches{$ep->node}) {
+                $switches{$ep->node} = { ckts => {}, ckts => {} };
+            }
+            if (!defined $switches{$ep->node}->{ckts}->{$ckt->circuit_id}) {
+                $switches{$ep->node}->{ckts}->{$ckt->circuit_id} = $ckt->to_hash;
+                $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{endpoints} = [];
+                $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{ckt_type} = $ckt_type;
+                $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{site_id} = $site_id;
             }
 
-            foreach my $ep_z (@$eps){
-
-                # Ignore interations comparing the same endpoint.
-                next if ($ep_a->{'node'} eq $ep_z->{'node'} && $ep_a->{'interface'} eq $ep_z->{'interface'} && $ep_a->{'tag'} eq $ep_z->{'tag'} && $ep_a->{'inner_tag'} eq $ep_z->{'inner_tag'});
-
-                if ($ep_a->{'node'} eq $ep_z->{'node'}){
-                    # We're comparing interfaces on the same node; There
-                    # are no path calculations to be made.
-                    #
-                    # Because we are only creating a single circuit
-                    # object per node, we should include any other
-                    # interface we see on $ep_a->{'node'}.
-                    push(@ints, $ep_z->to_hash);
-                    next;
+            if ($ckt_type eq "L2CCC") {
+                foreach my $node_id (keys %switches_in_use) {
+                    if ($ep->node_id eq $node_id) {
+                        next;
+                    }
+                    $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{z_node} = $node_id;
+                    $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{z_loopback} = $switches_in_use{$node_id};
                 }
-
-                if (exists $touch->{$ep_z->{'node'}}) {
-                    # A path from $ep_a to $ep_z has already been
-                    # calculated; Skip path calculations.
-                    #
-                    # Because this endpoint is remote to $ep_a we do not
-                    # add the interface to @ints.
-                    next;
-                }
-                $touch->{$ep_z->{'node'}} = 1;
-
-
-                my $primary = $ckt->get_path(path => 'primary');
-                if (!defined $primary) {
-                    push @$paths, {
-                        name           => 'PRIMARY',
-                        mpls_path_type => 'loose',
-                        dest           => $self->{node_info}->{$ep_z->{node}}->{loopback_address},
-                        dest_node      => $self->{node_info}->{$ep_z->{node}}->{node_id}
-                    };
-                } else {
-                    my $loopback_a = $self->{node_info}->{$ep_a->{node}}->{loopback_address};
-                    my $loopback_z = $self->{node_info}->{$ep_z->{node}}->{loopback_address};
-                    push @$paths, {
-                        name           => 'PRIMARY',
-                        mpls_path_type => 'strict',
-                        path           => $primary->hops($loopback_a, $loopback_z),
-                        dest           => $self->{node_info}->{$ep_z->{node}}->{loopback_address},
-                        dest_node      => $self->{node_info}->{$ep_z->{node}}->{node_id}
-                    };
-
-                    push @$paths, {
-                        name           => 'TERTIARY',
-                        dest           => $self->{node_info}->{$ep_z->{node}}->{loopback_address},
-                        mpls_path_type => 'loose',
-                        dest_node      => $self->{node_info}->{$ep_z->{node}}->{node_id}
-                    };
-                }
-
-                # Because the path hops are specific to the direction
-                # my $primary = $ckt->get_mpls_path_type( path => 'primary');
-
-                # if(!defined($primary) || $primary eq 'none' || $primary eq 'loose'){
-                #     #either we have a none or a loose type for mpls type... or its not defined... in any case... use a loose path
-                #     push(@$paths,{ name => 'PRIMARY',  
-                #                    mpls_path_type => 'loose',
-                #                    dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-                #                    dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
-                # }else{
-                #     #ok so they specified a strict path... get the LSPs
-                #     push(@$paths,{ name => 'PRIMARY', mpls_path_type => 'strict',
-                #                    path => $ckt->get_mpls_hops( path => 'primary',
-                #                                                 start => $ep_a->{'node'},
-                #                                                 end => $ep_z->{'node'}),
-                #                    dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-                #                    dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
-                #                });
-
-                #     my $backup = $ckt->get_mpls_path_type( path => 'backup');
-
-                #     if(!defined($backup) || $backup eq 'none' || $backup eq 'loose'){
-                #         push(@$paths,{ name => 'SECONDARY', 
-                #                        mpls_path_type => 'loose',
-                #                        dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-                #                        dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}});
-                #     }else{
-                #         push(@$paths,{ name => 'SECONDARY',
-                #                        mpls_path_type => 'strict',
-                #                        path => $ckt->get_mpls_hops( path => 'backup',
-                #                                                     start => $ep_a->{'node'},
-                #                                                     end => $ep_z->{'node'}),
-                #                        dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-                #                        dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
-                #                    });
-                #         #our tertiary path...
-                #         push(@$paths,{ name => 'TERTIARY',
-                #                        dest => $self->{'node_info'}->{$ep_z->{'node'}}->{'loopback_address'},
-                #                        mpls_path_type => 'loose',
-                #                        dest_node => $self->{'node_info'}->{$ep_z->{'node'}}->{'node_id'}
-                #                    });
-                #     }
-                # }	
             }
 
-            $self->{'logger'}->debug("Adding Circuit: " . $ckt->name() . " to cache for node: " . $ep_a->{'node'});
-
-            if(scalar(@$paths) == 0 && $self->{'config'}->network_type ne 'evpn-vxlan'){
-                # All observed endpoints are on the same node; Use VPLS.
-                $ckt_type = "L2VPLS";
-            }
-
-            my $obj = { circuit_name => $ckt->name(),
-                        interfaces => \@ints,
-                        paths => $paths,
-                        ckt_type => $ckt_type,
-                        site_id => $site_id,
-                        a_side => $ep_a->{'node_id'},
-                        state  => $ckt->state()
-                    };
-
-            $switches{$ep_a->{'node'}}->{'ckts'}{$details->{'circuit_id'}} = $obj;
+            push @{$switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{endpoints}}, $ep->to_hash;
         }
     }
 
     foreach my $node (keys %{$self->{'node_info'}}){
-	my $data;
-	$data->{'nodes'} = $self->{'node_by_id'};
-	$data->{'ckts'} = $switches{$node}->{'ckts'};
-    $data->{'vrfs'} = $switches{$node}->{'vrfs'};
-	$self->{'logger'}->info("writing shared file for node_id: " . $self->{'node_info'}->{$node}->{'id'});
+        my $data;
+        $data->{'nodes'} = $self->{'node_by_id'};
+        $data->{'ckts'} = $switches{$node}->{'ckts'};
+        $data->{'vrfs'} = $switches{$node}->{'vrfs'};
+        $self->{'logger'}->info("writing shared file for node_id: " . $self->{'node_info'}->{$node}->{'id'});
 
-	my $file = $self->{'share_file'} . "." . $self->{'node_info'}->{$node}->{'id'};
-	open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
+        my $file = $self->{'share_file'} . "." . $self->{'node_info'}->{$node}->{'id'};
+        open(my $fh, ">", $file) or $self->{'logger'}->error("Unable to open $file " . $!);
         print $fh encode_json($data);
         close($fh);
     }
-
 }
 
 sub _register_rpc_methods{
@@ -487,6 +365,31 @@ sub _register_rpc_methods{
     
     $d->register_method($method);
 
+    $method = GRNOC::RabbitMQ::Method->new(
+        name => "modifyVlan",
+        async => 1,
+        callback => sub { $self->modifyVlan(@_) },
+        description => "modifyVlan modifies an existing l2 connection."
+    );
+    $method->add_input_parameter(
+        name => "circuit_id",
+        description => "ID of l2 connection to be modified.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::INTEGER
+    );
+    $method->add_input_parameter(
+        name => "previous",
+        description => "Previous version of the modified l2 connection.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $method->add_input_parameter(
+        name => "pending",
+        description => "Pending version of the modified l2 connection.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "addVrf",
                                             async => 1,
@@ -498,6 +401,32 @@ sub _register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
 
+    $d->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method->new(
+        name => "modifyVrf",
+        async => 1,
+        callback => sub { $self->modifyVrf(@_) },
+        description => "modifyVrf modifies an existing l3 connection."
+    );
+    $method->add_input_parameter(
+        name => "vrf_id",
+        description => "ID of l3 connection to be modified.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::INTEGER
+    );
+    $method->add_input_parameter(
+        name => "previous",
+        description => "Previous version of the modified l3 connection.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $method->add_input_parameter(
+        name => "pending",
+        description => "Pending version of the modified l3 connection.",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
     $d->register_method($method);
 
     $method = GRNOC::RabbitMQ::Method->new( name => "delVrf",
@@ -656,6 +585,7 @@ sub make_baby {
     $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
     $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
     $args{'topic'} = "MPLS.FWDCTL.Switch";
+    $args{'type'} = 'fwdctl';
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
 use warnings;
@@ -698,6 +628,8 @@ sub update_cache {
     my $node_id =  $p_ref->{'node_id'}{'value'};
     my $vrf_id = $p_ref->{'vrf_id'}{'value'};
 
+    my $conn = undef;
+
     if ((!defined($circuit_id) || $circuit_id == -1 ) && (!defined($vrf_id) || $vrf_id == -1)) {
         $self->{'logger'}->debug("Updating Cache for entire network.");
 
@@ -705,7 +637,6 @@ sub update_cache {
         $self->{'circuit'} = $res->{'ckts'};
         $self->{'vrfs'} = $res->{'vrfs'};
         $self->{'link_status'} = $res->{'link_status'};
-        $self->{'circuit_status'} = $res->{'circuit_status'};
         $self->{'node_info'} = $res->{'node_info'};
         $self->{'logger'}->debug("Cache update complete");
 
@@ -720,20 +651,18 @@ sub update_cache {
     } elsif(defined($circuit_id) && $circuit_id != -1) {
         $self->{'logger'}->debug("Updating cache for circuit $circuit_id.");
 
-        my $ckt = $self->get_ckt_object($circuit_id);
-        if (!defined $ckt) {
+        $conn = $self->get_ckt_object($circuit_id);
+        if (!defined $conn) {
             return &$error("Couldn't create circuit object for circuit $circuit_id");
         }
         $self->{'logger'}->info("Updated cache for circuit $circuit_id.");
-    }else{
+    } else {
         $self->{'logger'}->debug("Updating cache for vrf $vrf_id.");
 
-        my $vrf = $self->get_vrf_object($vrf_id);
-        if (!defined $vrf) {
+        $conn = $self->get_vrf_object($vrf_id);
+        if (!defined $conn) {
             return &$error("Couldn't create vrf object for vrf $vrf_id");
         }
-
-        $vrf->update_vrf_details();
         $self->{'logger'}->info("Updated cache for vrf $vrf_id.");
     }
 
@@ -750,22 +679,42 @@ sub update_cache {
         }
     );
 
-    foreach my $id (keys %{$self->{'children'}}){
-        if (defined $node_id && $node_id != $id) {
-            next;
-        }
-        my $addr = $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
-        $condvar->begin();
+    if (defined $conn) {
+        # Targeted Cache Update
+        foreach my $ep (@{$conn->endpoints}) {
+            my $addr = $self->{node_by_id}->{$ep->node_id}->{mgmt_addr};
 
-        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$addr";
-        $self->{'fwdctl_events'}->update_cache(
-            async_callback => sub {
-                my $result = shift;
-                $condvar->end();
+            $condvar->begin;
+            $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$addr";
+            $self->{fwdctl_events}->update_cache(
+                async_callback => sub {
+                    my $result = shift;
+                    $condvar->end;
+                }
+            );
+        }
+        $condvar->end;
+
+    } else {
+        # Global Cache Update
+        foreach my $id (keys %{$self->{'children'}}){
+            if (defined $node_id && $node_id != $id) {
+                next;
             }
-        );
+            my $addr = $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+            $condvar->begin();
+
+            $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$addr";
+            $self->{'fwdctl_events'}->update_cache(
+                async_callback => sub {
+                    my $result = shift;
+                    $condvar->end();
+                }
+            );
+        }
+        $condvar->end();
+
     }
-    $condvar->end();
 }
 
 =head2 check_child_status
@@ -952,6 +901,155 @@ sub addVrf{
     $cv->end();
 }
 
+
+=head2 filter_endpoints
+
+    my $filtered_endpoints = filter_endpoints('mx960-1', [ ... ]);
+
+filter_endpoints filters C<$eps> by C<$node> which is the name of the
+network device stored within each endpoint at C<endpoint.node>.
+
+=cut
+sub filter_endpoints {
+    my $self = shift;
+    my $node = shift;
+    my $eps = shift;
+
+    my @endpoints = grep { $_->{node} eq $node } @{$eps};
+    return \@endpoints;
+}
+
+=head2 determine_site_id
+
+=cut
+sub determine_site_id {
+    my $self = shift;
+    my $node = shift;
+    my $endpoints = shift;
+
+    my $index = {};
+
+    my $site_id = 0;
+    foreach my $ep (@$endpoints) {
+        $site_id++;
+
+        if ($ep->{node} eq $node) {
+            return $site_id;
+        }
+    }
+
+    return $site_id;
+}
+
+=head2 determine_vlan_type
+
+determine_vlan_type determines and returns the protocol type to use
+for a given layer 2 connection.
+
+=cut
+sub determine_vlan_type {
+    my $self = shift;
+    my $vlan = shift;
+
+    my $ckt_type;
+    if ($self->{config}->network_type eq 'evpn-vxlan') {
+        $ckt_type = "EVPN";
+    } else {
+        $ckt_type = "L2VPN";
+
+        foreach my $path (@{$vlan->{paths}}) {
+            if ($path->{type} eq 'primary' && @{$path->{links}} > 0) {
+                $ckt_type = "L2CCC";
+                last;
+            }
+        }
+
+        if (@{$vlan->{endpoints}} > 2) {
+            $ckt_type = "L2VPLS";
+        }
+    }
+
+    return $ckt_type;
+}
+
+=head2 modifyVrf
+
+=cut
+sub modifyVrf {
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $success = $m_ref->{success_callback};
+    my $error = $m_ref->{error_callback};
+
+    # TODO change current to pending or new
+    my $vrf_id   = $p_ref->{vrf_id}{value};
+    my $pending  = decode_json($p_ref->{pending}{value});
+    my $previous = decode_json($p_ref->{previous}{value});
+
+    if (!defined $vrf_id) {
+        $self->{logger}->error("modifylVrf: vrf_id required");
+        $self->{logger}->logconfess;
+    }
+    $self->{logger}->info("Modifing VRF $vrf_id.");
+
+    my $nodes = {};
+    my @pend_endpoints = @{$pending->{endpoints}};
+    my @prev_endpoints = @{$previous->{endpoints}};
+
+    foreach my $ep (@pend_endpoints) {
+        $nodes->{$ep->{node}} = 1;
+    }
+    foreach my $ep (@prev_endpoints) {
+        $nodes->{$ep->{node}} = 1;
+    }
+
+    my $cv = AnyEvent->condvar;
+    my $result = FWDCTL_SUCCESS;
+    my $node_errors = {};
+
+    $cv->begin( sub {
+        if (!%$node_errors) {
+            $self->{logger}->info("Modified VRF $vrf_id.");
+            return &$success({ status => $result });
+        }
+
+        foreach my $node (keys %$node_errors) {
+            $self->{logger}->error($node_errors->{$node}) if defined $node_errors->{$node};
+        }
+
+        return &$error("Failed to modify VRF $vrf_id.");
+    });
+
+    foreach my $node (keys %$nodes) {
+        $cv->begin;
+
+        my $node_id = $self->{node_info}->{$node}->{id};
+        my $node_ip = $self->{node_by_id}->{$node_id}->{mgmt_addr};
+
+        $pending->{endpoints} = $self->filter_endpoints($node, \@pend_endpoints);
+        $previous->{endpoints} = $self->filter_endpoints($node, \@prev_endpoints);
+
+        $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$node_ip";
+        $self->{fwdctl_events}->modify_vrf(
+            vrf_id   => $vrf_id,
+            pending  => encode_json($pending),
+            previous => encode_json($previous),
+            async_callback => sub {
+                my $res = shift;
+                $self->{logger}->info('fwdctl: ' . Dumper($res));
+                if ($res->{results}->{status} != FWDCTL_SUCCESS) {
+                    $node_errors->{$node} = "Failed to modify VRF on $node ($node_ip).";
+                }
+                $cv->end;
+            }
+        );
+    }
+
+    $cv->end;
+}
+
 =head2 delVrf
 
 =cut
@@ -1109,8 +1207,6 @@ sub addVlan{
     $self->{'db'}->update_circuit_path_state(circuit_id  => $circuit_id,
                                              old_state   => 'deploying',
                                              new_state   => 'active');
-    
-    $self->{'circuit_status'}->{$circuit_id} = OESS_CIRCUIT_UP;
 
     $self->{'logger'}->info("Adding VLAN.");
 
@@ -1159,6 +1255,89 @@ sub addVlan{
 
     $cv->end();
 }
+
+=head2 modifyVlan
+
+=cut
+sub modifyVlan {
+    my $self = shift;
+    my $m_ref = shift;
+    my $p_ref = shift;
+
+    my $success = $m_ref->{success_callback};
+    my $error = $m_ref->{error_callback};
+
+    my $circuit_id = $p_ref->{circuit_id}{value};
+    my $pending    = decode_json($p_ref->{pending}{value});
+    my $previous   = decode_json($p_ref->{previous}{value});
+
+    if (!defined $circuit_id) {
+        $self->{logger}->error("modifyVlan: circuit_id required");
+        $self->{logger}->logconfess;
+    }
+    $self->{logger}->info("Modifing VLAN $circuit_id.");
+
+    $pending->{ckt_type} = $self->determine_vlan_type($pending);
+    $previous->{ckt_type} = $self->determine_vlan_type($previous);
+
+    my $nodes = {};
+    my @pend_endpoints = @{$pending->{endpoints}};
+    my @prev_endpoints = @{$previous->{endpoints}};
+
+    foreach my $ep (@pend_endpoints) {
+        $nodes->{$ep->{node}} = 1;
+    }
+    foreach my $ep (@prev_endpoints) {
+        $nodes->{$ep->{node}} = 1;
+    }
+
+    my $cv = AnyEvent->condvar;
+    my $result = FWDCTL_SUCCESS;
+    my $node_errors = {};
+
+    $cv->begin( sub {
+        if (!%$node_errors) {
+            $self->{logger}->info("Modified VLAN $circuit_id.");
+            return &$success({ status => $result });
+        }
+
+        foreach my $node (keys %$node_errors) {
+            $self->{logger}->error($node_errors->{$node}) if defined $node_errors->{$node};
+        }
+
+        return &$error("Failed to modify VLAN $circuit_id.");
+    });
+
+    foreach my $node (keys %$nodes) {
+        $cv->begin;
+
+        my $node_id = $self->{node_info}->{$node}->{id};
+        my $node_ip = $self->{node_by_id}->{$node_id}->{mgmt_addr};
+
+        $pending->{endpoints} = $self->filter_endpoints($node, \@pend_endpoints);
+        $pending->{site_id} = $self->determine_site_id($node, \@pend_endpoints);
+        $previous->{endpoints} = $self->filter_endpoints($node, \@prev_endpoints);
+        $previous->{site_id} = $self->determine_site_id($node, \@prev_endpoints);
+
+        $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$node_ip";
+        $self->{fwdctl_events}->modify_vlan(
+            circuit_id => $circuit_id,
+            pending    => encode_json($pending),
+            previous   => encode_json($previous),
+            async_callback => sub {
+                my $res = shift;
+                $self->{logger}->info('fwdctl: ' . Dumper($res));
+                if ($res->{results}->{status} != FWDCTL_SUCCESS) {
+                    $node_errors->{$node} = "Failed to modify VLAN on $node ($node_ip).";
+                }
+                $cv->end;
+            }
+        );
+    }
+
+    $cv->end;
+}
+
 
 =head2 deleteVlan
 
@@ -1350,57 +1529,62 @@ sub get_diff_text {
 
 =head2 get_vrf_object
 
+    my $conn = $fwdctl->get_vrf_object(1000);
+
+get_vrf_object looks up C<$ckt_id> from the database, stores the
+created object in memory, and returns it. On failure C<undef> is
+returned.
+
 =cut
-sub get_vrf_object{
+sub get_vrf_object {
     my $self = shift;
     my $vrf_id = shift;
 
-    my $vrf = $self->{'vrfs'}->{$vrf_id};
+    my $vrf = OESS::VRF->new(vrf_id => $vrf_id, db => $self->{'db2'});
     if (!defined $vrf) {
-        $vrf = OESS::VRF->new(vrf_id => $vrf_id, db => $self->{'db2'});
-        if (!defined $vrf) {
-            $self->{'logger'}->error("Unable to create VRF Object for VRF: " . $vrf_id);
-            return;
-        }
-        $vrf->load_endpoints;
-        foreach my $ep (@{$vrf->endpoints}) {
-            $ep->load_peers;
-        }
-        $vrf->load_users;
-        $vrf->load_workgroup;
-
-        $self->{'vrfs'}->{$vrf->vrf_id()} = $vrf;
+        $self->{'logger'}->error("Error occured creating Layer3 Connection: " . $vrf_id);
+        return;
     }
 
+    $vrf->load_endpoints;
+    foreach my $ep (@{$vrf->endpoints}) {
+        $ep->load_peers;
+    }
+    $vrf->load_users;
+    $vrf->load_workgroup;
+
+    $self->{'vrfs'}->{$vrf->vrf_id} = $vrf;
     return $vrf;
 }
 
-
 =head2 get_ckt_object
 
-returns a ckt object for the requested circuit
+    my $conn = $fwdctl->get_ckt_object(1000);
+
+get_ckt_object looks up C<$ckt_id> from the database, stores the
+created object in memory, and returns it. On failure C<undef> is
+returned.
 
 =cut
-
-sub get_ckt_object{
+sub get_ckt_object {
     my $self =shift;
     my $ckt_id = shift;
 
     my $ckt = OESS::L2Circuit->new(circuit_id => $ckt_id, db => $self->{'db2'});
     if (!defined $ckt) {
-        $self->{'logger'}->error("Error occured creating circuit: " . $ckt_id);
+        $self->{'logger'}->error("Error occured creating Layer2 Connection: " . $ckt_id);
         return;
     }
 
     if ($ckt->{'type'} ne 'mpls') {
         $self->{'logger'}->error("Circuit $ckt_id is not of type MPLS.");
-        return undef;
+        return;
     }
 
     $ckt->load_endpoints;
     $ckt->load_paths;
-    $self->{'circuit'}->{$ckt->circuit_id} = $ckt;
 
+    $self->{'circuit'}->{$ckt->circuit_id} = $ckt;
     return $ckt;
 }
 

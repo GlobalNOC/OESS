@@ -1354,6 +1354,7 @@ sub add_user {
     if (defined $err) {
         return send_json($err);
     }
+    
 
     my $results;
 
@@ -1363,6 +1364,13 @@ sub add_user {
     my @auth_names  = $args->{"auth_name"}{'value'};
     my $type        = $args->{"type"}{'value'};
     my $status      = $args->{"status"}{'value'};
+    foreach my $username (@auth_names){
+       my $userCheck = OESS::DB::User::fetch(db => $db2, username => $username);
+       if (defined $userCheck){
+           $method->set_error("User $username Already Exists");
+           return;
+       }
+    }
     my $new_user_id = $db->add_user(
         given_name    => $given_name,
         family_name   => $family_name,
@@ -2342,16 +2350,16 @@ sub decom_link {
     my $link_state;
     if ($link->{status} eq 'down') {
         # Set role of associated interfaces to unknown.
-        my $ok1 = OESS::DB::Interface::update(db => $db2, interface => {
+        my $err1 = OESS::DB::Interface::update(db => $db2, interface => {
             interface_id => $link->{interface_a_id},
             role         => 'unknown'
         });
-        my $ok2 = OESS::DB::Interface::update(db => $db2, interface => {
+        my $err2 = OESS::DB::Interface::update(db => $db2, interface => {
             interface_id => $link->{interface_z_id},
             role         => 'unknown'
         });
-        if (!$ok1 || !$ok2) {
-            $method->set_error("Couldn't update link endpoints.");
+        if (defined $err1 || defined $err2) {
+            $method->set_error("Couldn't update link endpoints: $err1 $err2");
             $db2->rollback;
             return;
         }

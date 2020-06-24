@@ -73,7 +73,7 @@ lib/OESS/Workgroup.pm
 lib/OESS/Webservice.pm
 Makefile.PL
 MANIFEST			This list of files
-perl-OESS-2.0.9.tar.gz
+perl-OESS-2.0.10.tar.gz
 perl-OESS.spec
 share/fresh_backup.sql
 share/fresh_schema.sql
@@ -135,6 +135,7 @@ share/upgrade/oess-2.0.5-2.0.6
 share/upgrade/oess-2.0.6-2.0.7
 share/upgrade/oess-2.0.7-2.0.8
 share/upgrade/oess-2.0.8-2.0.9
+share/upgrade/oess-2.0.9-2.0.10
 t/00-load_base.t
 t/01-load_known_state.t
 t/02-pod.t

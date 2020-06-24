@@ -25,7 +25,13 @@ sub fetch{
 
     my $interface_id = $params{'interface_id'};
 
-    my $interface = $db->execute_query("select * from interface where interface.interface_id = ?",[$interface_id]);
+    my $interface = $db->execute_query(
+        "select *, interface_instantiation.capacity_mbps as bandwidth, interface_instantiation.mtu_bytes as mtu
+         from interface
+         join interface_instantiation on interface.interface_id=interface_instantiation.interface_id and interface_instantiation.end_epoch=-1
+         where interface.interface_id=?",
+        [$interface_id]
+    );
 
     return if (!defined($interface) || !defined($interface->[0]));
 
@@ -38,26 +44,53 @@ sub fetch{
         push @$acls, $acl;
     }
 
+
+    my $l2_utilized_bandwidth = $db->execute_query(
+        "select sum(bandwidth) as utilized_bandwidth from circuit_edge_interface_membership where interface_id=? and end_epoch=-1",
+        [$interface_id]
+    );
+    if (!defined $l2_utilized_bandwidth || !defined $l2_utilized_bandwidth->[0]) {
+        warn "Couldn't get utilized bandwidth on interface $interface_id.";
+        return;
+    }
+    $l2_utilized_bandwidth = (defined $l2_utilized_bandwidth->[0]->{utilized_bandwidth}) ? $l2_utilized_bandwidth->[0]->{utilized_bandwidth} : 0;
+
+    my $l3_utilized_bandwidth = $db->execute_query(
+        "select sum(bandwidth) as utilized_bandwidth from vrf_ep where interface_id=? and state='active'",
+        [$interface_id]
+    );
+    if (!defined $l3_utilized_bandwidth || !defined $l3_utilized_bandwidth->[0]) {
+        warn "Couldn't get utilized bandwidth on interface $interface_id.";
+        return;
+    }
+    $l3_utilized_bandwidth = (defined $l3_utilized_bandwidth->[0]->{utilized_bandwidth}) ? $l3_utilized_bandwidth->[0]->{utilized_bandwidth} : 0;
+
     my $node = OESS::Node->new( db => $db, node_id => $interface->{'node_id'});
 
     my $in_use = OESS::DB::Interface::vrf_vlans_in_use(db => $db, interface_id => $interface_id );
 
     push(@{$in_use},@{OESS::DB::Interface::circuit_vlans_in_use(db => $db, interface_id => $interface_id)});
 
-    return {interface_id => $interface->{'interface_id'},
-            cloud_interconnect_type => $interface->{'cloud_interconnect_type'},
-            cloud_interconnect_id => $interface->{'cloud_interconnect_id'},
-            name => $interface->{'name'},
-            role => $interface->{'role'},
-            description => $interface->{'description'},
-            operational_state => $interface->{'operational_state'},
-            node => $node,
-            vlan_tag_range => $interface->{'vlan_tag_range'},
-            mpls_vlan_tag_range => $interface->{'mpls_vlan_tag_range'},
-            workgroup_id => $interface->{'workgroup_id'},
-            acls => $acls,
-            used_vlans => $in_use };
-
+    return {
+        interface_id => $interface->{'interface_id'},
+        cloud_interconnect_type => $interface->{'cloud_interconnect_type'},
+        cloud_interconnect_id => $interface->{'cloud_interconnect_id'},
+        name => $interface->{'name'},
+        role => $interface->{'role'},
+        description => $interface->{'description'},
+        operational_state => $interface->{'operational_state'},
+        node => $node,
+        vlan_tag_range => $interface->{'vlan_tag_range'},
+        mpls_vlan_tag_range => $interface->{'mpls_vlan_tag_range'},
+        workgroup_id => $interface->{'workgroup_id'},
+        acls => $acls,
+        used_vlans => $in_use,
+        bandwidth => $interface->{bandwidth},
+        utilized_bandwidth => $l2_utilized_bandwidth + $l3_utilized_bandwidth,
+        mtu => $interface->{mtu},
+        admin_state => $interface->{admin_state},
+        node_id => $interface->{node_id}
+    };
 }
 
 =head2 get_interface
@@ -180,9 +213,89 @@ sub circuit_vlans_in_use{
     return \@tags;
 }
 
+=head2 create
+
+    my ($id, $err) = OESS::DB::Interface::create(
+        db    => $db,
+        model => {
+            admin_state             => 'known',    # Optional
+            bandwidth               => 10000,      # Optional
+            cloud_interconnect_id   => undef,      # Optional
+            cloud_interconnect_type => undef,      # Optional
+            description             => 'BACKBONE',
+            mpls_vlan_tag_range     => '1-4095',   # Optional
+            name                    => 'ae0',
+            node_id                 => 100,
+            operational_state       => 'unknown',  # Optional
+            role                    => 'unknown',  # Optional
+            vlan_tag_range          => '-1',       # Optional
+            workgroup_id            => 100,        # Optional
+            mtu                     => 9000        # Optional
+        }
+    );
+
+=cut
+sub create {
+    my $args = {
+        db    => undef,
+        model => undef,
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `model` is missing.' if !defined $args->{model};
+    return 'Required argument `model->description` is missing.' if !defined $args->{model}->{description};
+    return 'Required argument `model->name` is missing.' if !defined $args->{model}->{name};
+    return 'Required argument `model->node_id` is missing.' if !defined $args->{model}->{node_id};
+    return 'Required argument `model->role` is missing.' if !defined $args->{model}->{role};
+
+    $args->{model}->{bandwidth} = (exists $args->{model}->{bandwidth}) ? $args->{model}->{bandwidth} : 10000;
+    $args->{model}->{cloud_interconnect_id} = (exists $args->{model}->{cloud_interconnect_id}) ? $args->{model}->{cloud_interconnect_id} : undef;
+    $args->{model}->{cloud_interconnect_type} = (exists $args->{model}->{cloud_interconnect_type}) ? $args->{model}->{cloud_interconnect_type} : undef;
+    $args->{model}->{mpls_vlan_tag_range} = (exists $args->{model}->{mpls_vlan_tag_range}) ? $args->{model}->{mpls_vlan_tag_range} : '1-4095';
+    $args->{model}->{admin_state} = (exists $args->{model}->{admin_state}) ? $args->{model}->{admin_state} : 'unknown';
+    $args->{model}->{operational_state} = (exists $args->{model}->{operational_state}) ? $args->{model}->{operational_state} : 'unknown';
+    $args->{model}->{role} = (exists $args->{model}->{role}) ? $args->{model}->{role} : 'unknown';
+    $args->{model}->{vlan_tag_range} = (exists $args->{model}->{vlan_tag_range}) ? $args->{model}->{vlan_tag_range} : '-1';
+    $args->{model}->{workgroup_id} = (exists $args->{model}->{workgroup_id}) ? $args->{model}->{workgroup_id} : undef;
+    $args->{model}->{mtu} = (exists $args->{model}->{mtu}) ? $args->{model}->{mtu} : 9000;
+
+    my $q1 = "INSERT into interface (name, port_number, description, cloud_interconnect_id, cloud_interconnect_type, operational_state, role, node_id, vlan_tag_range, mpls_vlan_tag_range, workgroup_id)
+              VALUES (?,NULL,?,?,?,?,?,?,?,?,?)";
+    my $interface_id = $args->{db}->execute_query($q1, [
+        $args->{model}->{name},
+        $args->{model}->{description},
+        $args->{model}->{cloud_interconnect_id},
+        $args->{model}->{cloud_interconnect_type},
+        $args->{model}->{operational_state},
+        $args->{model}->{role},
+        $args->{model}->{node_id},
+        $args->{model}->{vlan_tag_range},
+        $args->{model}->{mpls_vlan_tag_range},
+        $args->{model}->{workgroup_id}
+    ]);
+    if (!defined $interface_id) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $q2 = "INSERT INTO interface_instantiation (interface_id, end_epoch, start_epoch, admin_state, capacity_mbps, mtu_bytes)
+              VALUES (?, -1, unix_timestamp(now()), ?, ?, ?)";
+    my $ok = $args->{db}->execute_query($q2, [
+        $interface_id,
+        $args->{model}->{admin_state},
+        $args->{model}->{bandwidth},
+        $args->{model}->{mtu}
+    ]);
+    if (!defined $ok) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    return ($interface_id, undef);
+}
+
 =head2 update
 
-    OESS::DB::Interface::update(
+    my $err = OESS::DB::Interface::update(
         db => $db,
         interface => {
             interface_id            => 1,
@@ -197,16 +310,19 @@ sub circuit_vlans_in_use{
             workgroup_id            => 1                        # Optional
         }
     );
+    die $err if defined $err;
 
 =cut
 sub update {
     my $args = {
-        db  => undef,
-        interface => {},
+        db        => undef,
+        interface => undef,
         @_
     };
 
-    return if !defined $args->{interface}->{interface_id};
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `interface` is missing.' if !defined $args->{interface};
+    return 'Required argument `interface->interface_id` is missing.' if !defined $args->{interface}->{interface_id};
 
     my $params = [];
     my $values = [];
@@ -251,10 +367,14 @@ sub update {
     my $fields = join(', ', @$params);
     push @$values, $args->{interface}->{interface_id};
 
-    return $args->{db}->execute_query(
+    my $ok = $args->{db}->execute_query(
         "UPDATE interface SET $fields WHERE interface_id=?",
         $values
     );
+    if (!defined $ok) {
+        return $args->{db}->get_error;
+    }
+    return;
 }
 
 =head2 get_available_internal_vlan

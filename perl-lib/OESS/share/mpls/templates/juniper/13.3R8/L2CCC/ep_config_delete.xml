@@ -1,6 +1,6 @@
 <configuration><groups><name>OESS</name>
   <interfaces>
-    [% FOREACH interface IN interfaces %]
+    [% FOREACH interface IN endpoints %]
     <interface>
       <name>[% interface.interface %]</name>
       <unit operation='delete'>
@@ -9,7 +9,7 @@
     </interface>
     [% END %]
   </interfaces>
-  [%- FOREACH interface IN interfaces -%]
+  [%- FOREACH interface IN endpoints -%]
   [%- IF interface.bandwidth > 0 %]
   <class-of-service>
     <interfaces>
@@ -28,11 +28,12 @@
       <label-switched-path operation='delete'>
         <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]</name>
       </label-switched-path>
-      [% FOREACH path IN paths %]
       <path operation='delete'>
-        <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-[% path.name %]</name>
+        <name>OESS-L2CCC-[% paths.0.details.node_a.node_id %]-[% paths.0.details.node_z.node_id %]-LSP-[% circuit_id %]-PRIMARY</name>
       </path>
-      [% END %]
+      <path operation='delete'>
+        <name>OESS-L2CCC-[% paths.0.details.node_a.node_id %]-[% paths.0.details.node_z.node_id %]-LSP-[% circuit_id %]-TERTIARY</name>
+      </path>
     </mpls>
     <connections>
       <remote-interface-switch operation='delete'>

@@ -27,7 +27,7 @@
                 <!-- entity form -->
                 <div class="form-group">
                   <input class="form-control entity-search" type="text" placeholder="Search"/>
-                  <div class="list-group entity-search-list" style="max-height:250px; overflow-y:scroll; position: absolute; width: 95%; z-index: 100; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"></div>
+                  <div class="list-group entity-search-list" style="display: none; max-height:250px; overflow-y:scroll; position: absolute; width: 95%; z-index: 100; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"></div>
 
                   <div style="height: 200px; overflow-y: scroll; margin-top: 15px; margin-bottom: 15px;">
                     <div class="list-group entity-list">Loading...</div>
@@ -62,7 +62,7 @@
                         <option value="transit">Transit</option>
                         <option value="private" selected>Virtual Private</option>
                       </select>
-                      <a tabindex="0" class="btn btn-link" role="button" style="padding: 6px; margin: 0 0 0 6px;" data-toggle="popover" data-trigger="focus" data-container="body" data-html="true" data-content="The <b>MTU</b> of AWS Hosted Connections varies depending on the Direct Connect Gateway type used with this Connection. Failure to select the appropriate gateway type may impact network forwarding.">
+                      <a tabindex="0" class="btn btn-link" role="button" style="padding: 6px; margin: 0 0 0 6px;" data-toggle="popover" data-trigger="focus" data-container="body" data-html="true" data-content="The <b>MTU</b> of AWS Hosted Connections varies depending on the Direct Connect Gateway type used with this Connection. Failure to select the appropriate gateway type may impact network performance.">
                         <span class="glyphicon glyphicon-question-sign" aria-hidden="true"></span>
                       </a>
                     </div>

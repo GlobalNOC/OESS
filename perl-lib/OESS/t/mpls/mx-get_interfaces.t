@@ -247,7 +247,9 @@ my $ints = [{
     'name' => 'ge-0/0/0',
     'description' => 'Management Interface',
     'admin_state' => 'up',
-    'operational_state' => 'up'
+    'operational_state' => 'up',
+    'mtu' => 1514,
+    'speed' => 1000
 }];
 
 my $result = $device->get_interfaces();

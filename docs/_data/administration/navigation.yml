@@ -1,0 +1,11 @@
+pages:
+  - title: Administrator Access
+    url: /administration/administrator-access.html
+  - title: User and Workgroup Management
+    url: /administration/user-workgroup-management.html
+  - title: Network Topology
+    url: /administration/network-topology.html
+  - title: Configuration Changes
+    url: /administration/configuration-changes.html
+  - title: Remote Devices
+    url: /administration/remote-devices.html

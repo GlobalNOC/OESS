@@ -68,6 +68,9 @@ sub from_hash{
     $self->{'used_vlans'} = $hash->{'used_vlans'};
     $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'workgroup_id'} = $hash->{'workgroup_id'};
+    $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
+    $self->{'bandwidth'} = $hash->{'bandwidth'} || 0;
+    $self->{'mtu'} = $hash->{'mtu'} || 0;
 
     return 1;
 }
@@ -92,7 +95,10 @@ sub to_hash{
                 node => $self->node()->name(),
                 acls => $acl_models,
                 operational_state => $self->{'operational_state'},
-                workgroup_id => $self->workgroup_id() };
+                workgroup_id => $self->workgroup_id(),
+                utilized_bandwidth => $self->{'utilized_bandwidth'},
+                bandwidth => $self->{'bandwidth'},
+                mtu => $self->{'mtu'} };
 
     return $res;
 }
@@ -137,16 +143,16 @@ sub update_db{
         return;
     }
 
-    my $ok = OESS::DB::Interface::update(
+    my $err = OESS::DB::Interface::update(
         db => $self->{'db'},
         interface => $self->to_hash
     );
-    if (!defined $ok) {
-        $self->{'logger'}->error("Could not update Interface: ...");
+    if (defined $err) {
+        $self->{'logger'}->error("Could not update Interface: $err");
         return;
     }
 
-    return $ok;
+    return 1;
 }
 
 =head2 operational_state

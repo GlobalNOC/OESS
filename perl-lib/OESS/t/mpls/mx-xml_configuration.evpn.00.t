@@ -96,8 +96,8 @@ my $device = OESS::MPLS::Device::Juniper::MX->new(
 );
 my $conf = $device->xml_configuration(
     [{
-        circuit_name => 'circuit',
-        interfaces => [
+        name => 'circuit',
+        endpoints => [
             {
                 interface => 'ge-0/0/1',
                 unit => 2004,
@@ -116,10 +116,7 @@ my $conf = $device->xml_configuration(
         ],
         paths => [],
         circuit_id => 3012,
-        site_id => 1,
         state => 'active',
-        dest => '192.168.1.200',
-        a_side => 100,
         ckt_type => 'EVPN'
     }],
     [],

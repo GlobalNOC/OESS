@@ -42,6 +42,13 @@ sub main{
     my $username;
     #remove the ready file
 
+    # This directory is auto-removed on reboot. Create the directory
+    # if not already created.
+    if (!-d "/var/run/oess/") {
+        `/usr/bin/mkdir /var/run/oess`;
+        `/usr/bin/chown _oess:_oess /var/run/oess`;
+    }
+
     #--- see if the pid file exists. if not then just continue running.
     if(-e $pid_file){
         #--- read the file to get the PID

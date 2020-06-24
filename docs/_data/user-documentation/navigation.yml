@@ -1,0 +1,11 @@
+pages:
+  - title: FAQ
+    url: /user-documentation/faq.html
+  - title: Provisioning
+    url: /user-documentation/provisioning.html
+  - title: Workgroups
+    url: /user-documentation/workgroups.html
+  - title: Network Entities
+    url: /user-documentation/network-entities.html
+  - title: Cloud Providers
+    url: /user-documentation/cloud-providers.html

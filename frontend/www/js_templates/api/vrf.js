@@ -43,10 +43,6 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
   form.append('remove_time', removeTime);
   form.append('vrf_id', vrfID);
 
-  if (endpoints.length < 2) {
-      throw('At least two endpoints must be specified.');
-  }
-
   endpoints.forEach(function(endpoint) {
     let e = {
       vrf_endpoint_id: endpoint.vrf_endpoint_id,

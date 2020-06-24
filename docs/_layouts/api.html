@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="{{ page.lang | default: site.lang | default: "en" }}">
+  {%- include head.html -%}
+
+  <body>
+    {%- include header.html -%}
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <div class="nav-wrapper">
+          <div class="nav-wrapper-nav">
+            <ul>
+              {% for subpage in site.api_endpoints %}
+              <li><a href="{{ subpage.url | relative_url }}">{{ subpage.title }}</a></li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          <div class="nav-wrapper-content">
+
+            {%- if page.title -%}
+              <h1 class="post-title">{{ page.title | escape }}</h1>
+            {%- endif -%}
+            <hr/>
+            <a href="{{ "/" | relative_url }}">OESS</a> | <a href="{{ "/the-basics" | relative_url }}">Introduction</a> | <a href="{{ "/the-basics/oess-api.html" | relative_url }}">OESS API</a>
+            <hr/>
+            <br/>
+
+            {{ content }}
+          </div>
+      </div>
+    </main>
+
+    {%- include footer.html -%}
+  </body>
+</html>

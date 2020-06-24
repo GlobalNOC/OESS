@@ -303,11 +303,6 @@ sub provision_vrf{
         return;
     }
 
-    if (@{$params->{endpoint}->{value}} < 2) {
-        $method->set_error("Couldn't create L3Connection: Connection requires at least two Endpoints.");
-        return;
-    }
-
     # Modified VRFs should already have selected the appropriate
     # endpoints for any of their cloud connections. This has not been
     # been done for new VRFs.
@@ -316,6 +311,8 @@ sub provision_vrf{
     $db->start_transaction;
 
     my $vrf = undef;
+    my $previous_vrf = undef;
+
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
         $vrf = OESS::VRF->new(db => $db, vrf_id => $model->{'vrf_id'});
         if (!defined $vrf) {
@@ -325,6 +322,11 @@ sub provision_vrf{
         }
 
         $vrf->load_endpoints;
+        foreach my $ep (@{$vrf->endpoints}) {
+            $ep->load_peers;
+        }
+        $previous_vrf = $vrf->to_hash;
+
         $vrf->last_modified_by($user);
         $vrf->update;
     } else {
@@ -419,7 +421,7 @@ sub provision_vrf{
                 }
             } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
                 $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
-            } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-inerconnect') {
+            } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
                 $ep->{mtu} = 1440;
             } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                 $ep->{mtu} = 1500;
@@ -452,7 +454,7 @@ sub provision_vrf{
                                 md5_key => '',
                                 local_ip => '192.168.100.249/30',
                                 peer_ip  => '192.168.100.250/30',
-                                version  => 4
+                                ip_version  => 'ipv4'
                             }
                         );
                     } else {
@@ -464,7 +466,7 @@ sub provision_vrf{
                                 md5_key => '',
                                 local_ip => '192.168.100.253/30',
                                 peer_ip  => '192.168.100.254/30',
-                                version  => 4
+                                ip_version  => 'ipv4'
                             }
                         );
                     }
@@ -510,12 +512,17 @@ sub provision_vrf{
 
                 $peering->{peer_asn} = (!defined $peering->{peer_asn} || $peering->{peer_asn} eq '') ? 64512 : $peering->{peering_asn};
                 $peering->{md5_key} = (!defined $peering->{md5_key} || $peering->{md5_key} eq '') ? md5_hex(rand) : $peering->{md5_key};
-                if ($peering->{version} == 4) {
+                if ($peering->{version} == 'ipv4') {
                     $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
                     $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
                 } else {
                     $peering->{local_ip} = 'fd28:221e:28fa:61d3::' . $last_octet . '/127';
                     $peering->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
+                }
+
+                # GCP has no support for BGP Keys
+                if ($interface->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                    $peering->{md5_key} = '';
                 }
 
                 # Assuming we use .2 and .3 the first time around. We
@@ -548,7 +555,7 @@ sub provision_vrf{
                 }
             } elsif ($endpoint->cloud_interconnect_type eq 'aws-hosted-vinterface') {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
-            } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-inerconnect') {
+            } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
                 $endpoint->mtu(1440);
             } elsif ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
                 $endpoint->mtu(1500);
@@ -598,12 +605,17 @@ sub provision_vrf{
 
                     $peering->{peer_asn} = (!defined $peering->{peer_asn} || $peering->{peer_asn} eq '') ? 64512 : $peering->{peering_asn};
                     $peering->{md5_key} = (!defined $peering->{md5_key} || $peering->{md5_key} eq '') ? md5_hex(rand) : $peering->{md5_key};
-                    if ($peering->{version} == 4) {
+                    if ($peering->{version} == 'ipv4') {
                         $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
                         $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
                     } else {
                         $peering->{local_ip} = 'fd28:221e:28fa:61d3::' . $last_octet . '/127';
                         $peering->{peer_ip}  = 'fd28:221e:28fa:61d3::' . ($last_octet + 1) . '/127';
+                    }
+
+                    # GCP has no support for BGP Keys
+                    if ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                        $peering->{md5_key} = '';
                     }
 
                     # Assuming we use .2 and .3 the first time around. We
@@ -709,12 +721,11 @@ sub provision_vrf{
     my $reason = "Created by $ENV{'REMOTE_USER'}";
 
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
-        $res = vrf_del(method => $method, vrf_id => $vrf_id);
-
         $db->commit;
         _update_cache(vrf_id => $vrf_id);
 
-        $res = vrf_add(method => $method, vrf_id => $vrf_id);
+        $res = vrf_modify(method => $method, vrf_id => $vrf_id, previous => $previous_vrf, pending => $vrf->to_hash);
+
         $type = 'modified';
         $reason = "Updated by $ENV{'REMOTE_USER'}";
     } else {
@@ -832,7 +843,6 @@ sub vrf_add{
     return {success => 1, vrf_id => $vrf_id};
 }
 
-
 sub vrf_del{
     my %params = @_;
     my $vrf_id = $params{'vrf_id'};
@@ -858,6 +868,41 @@ sub vrf_del{
         return {success => 0, vrf_id => $vrf_id};
     }
     
+    return {success => 1, vrf_id => $vrf_id};
+}
+
+sub vrf_modify{
+    my %params = @_;
+    my $vrf_id = $params{vrf_id};
+    my $method = $params{method};
+    my $pending = $params{pending};
+    my $previous = $params{previous};
+
+    $mq->{topic} = 'MPLS.FWDCTL.RPC';
+
+    my $cv = AnyEvent->condvar;
+
+    warn "_send_vrf_modify_command: Calling modifyVrf on vrf $vrf_id";
+    $mq->modifyVrf(
+        vrf_id   => int($vrf_id),
+        pending  => encode_json($pending),
+        previous => encode_json($previous),
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+
+    my $result = $cv->recv;
+    if (defined $result->{error} || !defined $result->{results}) {
+        if (defined $result->{error}) {
+            $method->set_error($result->{error});
+        } else {
+            $method->set_error("Did not get response from modifyVRF.");
+        }
+        return {success => 0, vrf_id => $vrf_id};
+    }
+
     return {success => 1, vrf_id => $vrf_id};
 }
 
