@@ -6,7 +6,9 @@ use warnings;
 package OESS::MPLS::Discovery::Interface;
 
 use OESS::Database;
-
+use OESS::DB;
+use OESS::DB::Interface;
+use OESS::DB::Node;
 use Data::Dumper;
 use Log::Log4perl;
 
@@ -32,7 +34,7 @@ sub new{
 	    $self->{'config'} = "/etc/oess/database.xml";
 	}
 	
-	$self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
+	$self->{'db'} = new OESS::DB( config => $self->{'config'} );
     }
 
     die if(!defined($self->{'db'}));
@@ -51,19 +53,20 @@ sub process_results{
     my $node_name = $params{'node'};
     my $interfaces = $params{'interfaces'};
 
-    $self->{'db'}->_start_transaction();
+    $self->{'db'}->start_transaction();
 
     foreach my $interface (@$interfaces) {
-        my $interface_id = $self->{'db'}->get_interface_id_by_names(node => $node_name, interface => $interface->{'name'});
+        my $interface_id = OESS::DB::Interface::get_interface(db => $self->{'db'}, node => $node_name, interface=$interface->{'name'});
         if (!defined($interface_id)) {
-            my $node = $self->{'db'}->get_node_by_name(name => $node_name);
+                                                    
+
+            my $node = OESS::DB::Node::fetch(db => $self->{'db'}, name => $node_name);
             if (!defined($node)) {
-                $self->{'logger'}->warn($self->{'db'}->{'error'});
-                $self->{'db'}->_rollback();
+                $self->{'logger'}->warn($self->{'db'}->get_error);
+                $self->{'db'}->rollback();
                 return;
             }
-
-            my $res = $self->{'db'}->add_or_update_interface(
+            my $model = {
                 node_id => $node->{'node_id'},
                 name => $interface->{'name'},
                 operational_state => $interface->{'operational_state'},
@@ -72,39 +75,43 @@ sub process_results{
                 vlan_tag_range => "-1",
                 mpls_vlan_tag_range => "1-4095",
                 capacity_mbps => $interface->{'speed'},
-                mtu_bytes => $interface->{'mtu'}
+                mtu_bytes => $interface->{'mtu'} 
+            }
+            my $res = OESS::DB::Interface::create( db=>$self->{'db'}, model=>$model)
+                
             );
             if (!defined($res)) {
-                $self->{'logger'}->warn($self->{'db'}->{'error'});
-                $self->{'db'}->_rollback();
+                $self->{'logger'}->warn($self->{'db'}->get_error);
+                $self->{'db'}->rollback();
                 return;
             } else {
                 next;
             }
         }
 
-        my $intf = $self->{'db'}->get_interface(interface_id => $interface_id);
+        my $intf = OESS::DB::Interface::fetch(db => $self->{'db'}, interface_id= $interface_id);
         if (!defined($intf)) {
             $self->{'logger'}->warn($self->{'db'}->{'error'});
-            $self->{'db'}->_rollback();
+            $self->{'db'}->rollback();
             return;
         }
 
         if ($intf->{'operational_state'} ne $interface->{'operational_state'}) {
-            my $result = $self->{'db'}->update_interface_operational_state(
+            
+            my $result = OESS::DB::Interface::update(db => $self->{'db'},
                 interface_id => $interface_id,
                 operational_state => $interface->{'operational_state'}
-            );
+            );       
             if (!defined($result)) {
-                $self->{'logger'}->warn($self->{'db'}->{'error'});
-                $self->{'db'}->_rollback();
+                $self->{'logger'}->warn($self->{'db'}->get_error);
+                $self->{'db'}->rollback();
                 return;
             }
         }
     }
 
     # all must have worked, commit and return success
-    $self->{'db'}->_commit();
+    $self->{'db'}->commit();
     return 1;
 }
 

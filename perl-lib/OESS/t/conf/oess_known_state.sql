@@ -640,7 +640,7 @@ CREATE TABLE `node_instantiation` (
   `sw_version` varchar(255) DEFAULT NULL,
   `mgmt_addr` varchar(255) DEFAULT NULL,
   `loopback_address` varchar(255) DEFAULT NULL,
-  `netconf_port` int(11) DEFAULT '830',
+  `tcp_port` int(6) DEFAULT '830',
   PRIMARY KEY (`node_id`,`end_epoch`),
   UNIQUE KEY `node_instantiation_idx` (`end_epoch`,`dpid`),
   KEY `node_instantiation_idx1` (`end_epoch`),
@@ -1185,4 +1185,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-07-02 16:44:23
+-- Dump completed on 2020-06-24 15:16:44
