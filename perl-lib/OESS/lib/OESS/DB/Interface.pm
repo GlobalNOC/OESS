@@ -374,7 +374,41 @@ sub update {
     if (!defined $ok) {
         return $args->{db}->get_error;
     }
-    return;
+
+    my $inst_params = [];
+    my $inst_values = [];
+    my $inst_update = 0;
+
+    if (exists $args->{interface}->{bandwidth}) {
+        push @$inst_params, 'capacity_mbps';
+        push @$inst_values, $args->{interface}->{bandwidth};
+        $inst_update = 1;
+    }
+    if (exists $args->{interface}->{mtu}) {
+        push @$inst_params, 'mtu_bytes';
+        push @$inst_values, $args->{interface}->{mtu};
+        $inst_update = 1;
+    }
+                                   
+    my $inst_fields = join(', ', @$inst_params);
+    push @$inst_values, $args->{interface}->{interface_id};
+                                
+    if ($inst_update) {
+        my $inst_ok = $args->{db}->execute_query(
+            "UPDATE interface_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE interface_id=? and end_epoch = -1",
+            [$args->{interface}->{interface_id}]
+        );                                                            
+        if (!defined $inst_ok) {
+            return $args->{db}->get_error;
+        }
+        $inst_ok = $args->{db}->execute_query(
+           "INSERT INTO interface_instantiation ($inst_fields, interface_id, start_epoch, end_epoch)
+            VALUES (?,?,?, UNIX_TIMESTAMP(NOW()), -1)",
+            $inst_values
+        );
+     }
+
+     return;                                          
 }
 
 =head2 get_available_internal_vlan
