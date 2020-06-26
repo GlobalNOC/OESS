@@ -117,5 +117,57 @@ sub find_user_by_remote_auth{
 
     return $user_id->[0];
 }
+=head2 authorization_system
+=cut
+sub authorization_system{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $user_id = $params{'user_id'};
+    my $username = $params{'username'};
+    my $role = $params{'role'};
 
+    if (!defined $user_id) {
+        $user_id = find_user_by_remote_auth(db => $db, remote_user => $username);
+        if (!defined $user_id) {
+            return {error => "Invalid or decommissioned user specified."};
+        }
+    }
+    my $user = fetch(db => $db, user_id => $user_id);
+    
+    if (!defined $user || $user->{'status'} eq 'decom'){
+        return {error => "Invalid or decommissioned user specified."};
+    }
+    if ($user->{'is_admin'} == 1) {
+        my $workgroups = get_workgroups(db => $db, user_id => $user_id);
+        my $read_access = 1;
+        my $normal_access = 0;
+        my $admin_access = 0;
+        foreach my $workgroup (@$workgroups){
+          if ( $workgroup->{'type'} ne 'admin'){
+             next;
+          }
+          // Inside an Admin Group;
+          my $group_role = $db->execute_query("SELECT role FROM user_workgroup_membership WHERE user_id = ? AND workgroup_id = ?",
+                                              [$user_id, $workgroup->{'workgroup_id'}])[0]->{'role'};
+          if ($group_role eq 'normal') {
+              $normal_access = 1;
+          }
+          if ($group_role eq 'admin') {
+              $normal_access = 1;
+              $admin_access = 1;
+          }
+        }
+        if ($role eq 'read-only' && $read_access == 1) {
+           return;
+        } elsif ($role eq 'normal' && $normal_access == 1) {
+           return;
+        } elsif ($role eq 'admin' && $admin_access ==1)  {
+           return;
+        } else {
+           return { error => "User $user->{'username'} does not have the proper of level of access" };
+        }
+    } else {
+       return {error => "User $user->{'username'} does not have system admin privileges."};
+    }
+}
 1;
