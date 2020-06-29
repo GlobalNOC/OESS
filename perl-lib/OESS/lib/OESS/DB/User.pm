@@ -1,10 +1,10 @@
-#!/usr/bin/perl
+#!/usr/bin/perl         
 
 use strict;
 use warnings;
 
 use OESS::Workgroup;
-
+use OESS::DB::Workgroup;
 package OESS::DB::User;
 
 =head2 fetch
@@ -164,10 +164,80 @@ sub authorization_system{
         } elsif ($role eq 'admin' && $admin_access ==1)  {
            return;
         } else {
-           return { error => "User $user->{'username'} does not have the proper of level of access" };
+           return { error => "User $user->{'username'} does not have the proper level of access." };
         }
     } else {
        return {error => "User $user->{'username'} does not have system admin privileges."};
+    }
+}
+=head2 authorization_workgroup
+=cut
+sub authorization_workgroup{
+    my %params = @_;
+    my $db = $params{'db'};
+    my $user_id = $params{'user_id'};
+    my $username = $params{'username'};
+    my $workgroup_id = $params{'workgroup_id'};
+    my $role = $param{'role'};
+
+    if (!defined $user_id) {
+        $user_id = find_user_by_remoate_auth(db => $db, remove_user => $username);
+        if (!define $user_id) {
+            return { error => "Invalid or decommissioned user specified." };
+        }
+    }
+    my $user = fetch(db => $db, user_id = $user_id);
+    
+    if (!defined $user || $user->{'status'} eq 'decom') {
+        return { error => "Invalid or decommissioned user specified." };
+    }
+    
+    my $workgroup = OESS::DB::Workgroup::fetch(db => $db, workgroup_id => $workgroup_id);
+
+    if (!defined $workgroup || $workgroup->{'status'} eq 'decom') {
+        return { error => "Invalid or decommissioned workgroup specified." };
+    }
+    # TODO: Check Workgroup Type and determine who can use high admin privs
+    if ($workgroup->{'type'} eq 'admin') {
+        my $high_admin = authorization_system(db => $db, user_id => $user_id, role => $role);
+        if (!defined $high_admin) {
+            return;
+        } else {
+            return { error => $high_admin->{'error'}};
+        }
+    } else {
+       my $user_wg_role = $db->execute_query("SELECT role from user_workgroup_membership WHERE user_id = ? and workgroup_id = ?",
+                                             [$user_id, $workgroup_id])[0]->{'role'};
+       my $read_access = 1;
+       my $normal_access = 0;
+       my $admin_access = 0;
+       if ($user_wg_role eq 'normal') {
+           $normal_access = 1;
+       }
+       if ($user_wg_role eq 'admin') {
+           $normal_access = 1;
+           $admin_access = 1;        
+       }
+       my $is_sys_admin;
+       if ($role eq 'read-only') {
+           $is_sys_admin = authorization_system(db =>$db, user_id => $user_id, role => 'read_only');
+       } else {
+           $is_sys_admin = authorization_system(db => $db, user_id => $user_id, role => 'normal');
+       }
+       if (!defined $is_sys_admin) {
+           $normal_user = 1;
+           $admin_user = 1;
+       }
+        if ($role eq 'read-only' && $read_access == 1) {
+            return;
+        } elsif ($role eq 'normal' && $normal_access == 1) {
+            return;
+        } elsif ($role eq 'admin' && $admin_access == 1) {
+            return;
+        } else {
+            return {error => "User $user->{'username'} does not have the proper access permissions"};
+            
+        }
     }
 }
 1;
