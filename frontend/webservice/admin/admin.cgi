@@ -40,6 +40,8 @@ use OESS::DB;
 use OESS::DB::ACL;
 use OESS::DB::Interface;
 use OESS::DB::Link;
+use OESS::DB::User;
+use OESS::DB::Workgroup;
 
 use OESS::ACL;
 use OESS::Endpoint;
@@ -516,10 +518,6 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
                                   description => '' );
-    $method->add_input_parameter( name        => 'type',
-                                  pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 0,
-                                  description => '' );
     $method->add_input_parameter( name        => 'status',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 0,
@@ -545,6 +543,10 @@ sub register_webservice_methods {
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 0,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'role',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 1,
                                   description => '' );
     $svc->register_method($method);
 
@@ -944,7 +946,9 @@ sub set_diff_approval {
 sub get_circuits_on_interface{
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    
+    #my ($user, $err) = authorization(admin => 1, read_only => 1);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'read-only');
     if (defined $err) {
         return send_json($err);
     }
@@ -967,7 +971,8 @@ sub get_circuits_on_interface{
 sub insert_node_in_path{
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal');
     if (defined $err) {
         return send_json($err);
     }
@@ -981,7 +986,8 @@ sub insert_node_in_path{
 sub is_new_node_in_path{
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username =>$ENV{'REMOTE_USER'}, role=> 'normal');
     if (defined $err) {
         return send_json($err);
     }
@@ -997,7 +1003,8 @@ sub is_new_node_in_path{
 sub is_ok_to_decom{
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal');
     if (defined $err) {
         return send_json($err);
     }
@@ -1024,7 +1031,8 @@ sub is_ok_to_decom{
 sub get_remote_devices {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    #my ($user, $err) = authorization(admin => 1, read_only => 1);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'read-only');
     if (defined $err) {
         return send_json($err);
     }
@@ -1048,7 +1056,8 @@ sub get_remote_devices {
 sub get_remote_links {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    #my ($user, $err) = authorization(admin => 1, read_only => 1);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'read-only'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1070,7 +1079,8 @@ sub get_remote_links {
 sub remove_remote_link {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1096,7 +1106,8 @@ sub remove_remote_link {
 sub add_remote_link {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1130,7 +1141,8 @@ sub add_remote_link {
 sub edit_remote_link {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1164,7 +1176,8 @@ sub edit_remote_link {
 sub get_workgroups {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 1);
+    #my ($user, $err) = authorization(admin => 1, read_only => 1);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'read-only'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1190,7 +1203,8 @@ sub get_workgroups {
 sub update_interface_owner {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1219,7 +1233,8 @@ sub update_interface_owner {
 sub add_workgroup {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1246,8 +1261,10 @@ sub add_workgroup {
 sub get_users {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 0, read_only => 1);
-    if (defined $err) {
+    #my ($user, $err) = authorization(admin => 0, read_only => 1);
+    my $user = OESS::DB::User::fetch(db => $db2, $username => $ENV{'REMOTE_USER'}); 
+    if (!defined $user) {
+        my $err = "User $ENV{'REMOTE_USER'} is not a valid user";
         return send_json($err);
     }
 
@@ -1268,7 +1285,11 @@ sub get_users {
 sub get_users_in_workgroup {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 0, read_only => 1);
+    #my ($user, $err) = authorization(admin => 0, read_only => 1);
+    my $err = OESS::DB::User::authorization_workgroup(db => $db2, 
+                                                      username => $ENV{'REMOTE_USER'}, 
+                                                      workgroup_id => $args->{'workgroup_id'}{'value'}, 
+                                                      role => 'read-only');
     if (defined $err) {
         return send_json($err);
     }
@@ -1293,7 +1314,11 @@ sub get_users_in_workgroup {
 sub add_user_to_workgroup {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_workgroup(db => $db2, 
+                                                      username => $ENV{'REMOTE_USER'}, 
+                                                      workgroup_id => $args->{'workgroup_id'}{'value'}, 
+                                                      role => 'admin'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1302,13 +1327,16 @@ sub add_user_to_workgroup {
 
     my $user_id = $args->{'user_id'}{'value'};
     my $wg_id   = $args->{'workgroup_id'}{'value'};
-    my $result = $db->add_user_to_workgroup(
+    my $role    = $args->{'role'}{'value'};
+    my $result = OESS::DB::Workgroup::add_user(
+        db           => $db2,
         user_id      => $user_id,
-        workgroup_id => $wg_id
+        workgroup_id => $wg_id,
+        role         => $role
         );
 
     if ( !defined $result ) {
-        $results->{'error'}   = $db->get_error();
+        $results->{'error'}   = $results->{err};
         $results->{'results'} = [];
     }
     else {
@@ -1321,7 +1349,11 @@ sub add_user_to_workgroup {
 sub remove_user_from_workgroup {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_workgroup(db => $db2, 
+                                                      username => $ENV{'REMOTE_USER'}, 
+                                                      workgroup_id => $args->{'workgroup_id'}{'value'}, 
+                                                      role => 'admin'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1350,7 +1382,8 @@ sub remove_user_from_workgroup {
 sub add_user {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal');  
     if (defined $err) {
         return send_json($err);
     }
@@ -1361,14 +1394,12 @@ sub add_user {
     my $family_name = $args->{"family_name"}{'value'};
     my $email       = $args->{"email_address"}{'value'};
     my @auth_names  = $args->{"auth_name"}{'value'};
-    my $type        = $args->{"type"}{'value'};
     my $status      = $args->{"status"}{'value'};
     my $new_user_id = $db->add_user(
         given_name    => $given_name,
         family_name   => $family_name,
         email_address => $email,
         auth_names    => \@auth_names,
-        type          => $type,
         status        => $status
         );
 
@@ -1386,7 +1417,8 @@ sub add_user {
 sub delete_user {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1411,7 +1443,8 @@ sub delete_user {
 sub edit_user {
     my ($method, $args) = @_;
 
-    my ($user, $err) = authorization(admin => 1, read_only => 0);
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my $err = OESS::DB::User::authorization_system(db => $db2, $username => $ENV{'REMOTE_USER'}, role=>'normal'); 
     if (defined $err) {
         return send_json($err);
     }
@@ -1423,7 +1456,6 @@ sub edit_user {
     my $family_name = $args->{"family_name"}{'value'};
     my $email       = $args->{"email_address"}{'value'};
     my @auth_names  = $args->{"auth_name"}{'value'};
-    my $type        = $args->{'type'}{'value'};
     my $status      = $args->{'status'}{'value'};
 
     my $success = $db->edit_user(
@@ -1432,7 +1464,6 @@ sub edit_user {
         email_address => $email,
         auth_names    => \@auth_names,
         user_id       => $user_id,
-        type          => $type,
         status        => $status
         );
 
