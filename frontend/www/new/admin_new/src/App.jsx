@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 
 import { UserLandingPage } from "./pages/Users.jsx";
+import { Device } from "./pages/Device.jsx";
 import { Devices } from "./pages/Devices.jsx";
 import { Workgroups } from "./pages/Workgroups.jsx";
 
@@ -21,6 +22,7 @@ const App = () => {
           <Route path="/workgroups">
             <Workgroups />
           </Route>
+          <Route path="/devices/:id" component={Device} />
           <Route path="/devices">
             <Devices />
           </Route>

@@ -18,7 +18,6 @@ export const AdminNavBar = () => {
     let classNames = '';
     if (url.pathname.includes(link.url)) {
       classNames = 'active';
-      link.url = '#';
     }
     return (
       <li key={i} role="presentation" className={classNames}>
