@@ -1,13 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import UsersTable from "../user_table/UserTable.jsx";
-import getCurrentUser from '../../api/user_menu.jsx';
-import { AdminNavBar } from "../nav_bar/AdminNavBar.jsx";
-import ModalTemplate2 from '../generic_components/ModalTemplate2.jsx';
-import { PageContextProvider } from '../../contexts/PageContext.jsx';
-import NavBar from "../nav_bar/NavBar.jsx";
+import UsersTable from "../components/user_table/UserTable.jsx";
+import getCurrentUser from '../api/user_menu.jsx';
+import { AdminNavBar } from "../components/nav_bar/AdminNavBar.jsx";
+import ModalTemplate2 from '../components/generic_components/ModalTemplate2.jsx';
+import { PageContextProvider } from '../contexts/PageContext.jsx';
+import NavBar from "../components/nav_bar/NavBar.jsx";
 
-import "../../style.css";
+import "../style.css";
 
 class UserLandingPage extends React.Component {
 	
@@ -75,5 +75,4 @@ class UserLandingPage extends React.Component {
   }
 }
 
-let mountNode = document.getElementById("show-users");
-ReactDOM.render(<UserLandingPage />, mountNode);
+export { UserLandingPage };

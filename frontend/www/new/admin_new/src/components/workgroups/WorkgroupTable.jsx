@@ -60,7 +60,7 @@ class WorkgroupTable extends React.Component {
                 Edit Workgroup
               </button>
               <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <span className="caret"></span>
+                <span>▾</span>{/* className="caret" doesn't work idk why */}
                 <span className="sr-only">Toggle Dropdown</span>
               </button>
               <ul className="dropdown-menu" style={{fontSize: '12px'}}>
