@@ -90,8 +90,7 @@ sub fetch{
                                                   given_name => $given_name,
                                                   family_name => $family_name,
                                                   email => $email,
-                                                  auth_names => $auth_names,
-                                                  status => $status);
+                                                  auth_names => $auth_names);
 
 Takes the your input and creates the user object in the database and the associated auth_user associated table.
 
@@ -105,40 +104,39 @@ sub add_user {
    my $family_name = $params{'family_name'};
    my $email = $params{'email'};
    my $auth_names = $params{'auth_names'};
-   my $status = $args{'status'};
 
-   if (!defined $status) {
-       $status = 'active';
-   }
-
-   if(!defined $given_name || !defined $family_name || !defined $email || !defined $auth_names) {
-      return (undef, "Invalid parameters to add user, please provide a given name, family name, email, and auth names"); 
-  }
+   return (undef, 'Required argument `db` is missing.') if !defined $db;
+   return (undef, 'Required argument `given_name` is missing.') if !defined $given_name;
+   return (undef, 'Required argument `family_name` is missing.') if !defined $family_name;
+   return (undef, 'Required argument `email` is missing.') if !defined $email;
+   return (undef, 'Required argument `auth_names` is missing.') if !defined $auth_names;
    
    if ($given_name =~ /^system$/ || $family_name =~ /^system$/) {
        return (undef, "Cannot use system as a username.");
    }
-   
-   $db->start_transaction();
 
    my $query = "INSERT INTO user (email, given_names, family_name, status) VALUES (?, ?, ?, ?)";
    my $user_id = $db->execute_query($query,[$email,$given_name,$family_name,$status]);
 
    if (!defined $user_id) {
-       $db->rollback();
        return (undef, "Unable to create new user.");
    }
 
    if (ref($auth_names) eq 'ARRAY') {
        foreach my $name in (@$auth_names){
-           $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-           $db->execute_query($query, [$name,$user_id]);
+           if length $name >=1 {
+            $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
+            $db->execute_query($query, [$name,$user_id]); 
+           }
        }
    } else {
-       $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-       $db->execute_query($query, [$auth_names, $user_id]);
+       if length $authNames >=1 {
+           $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
+           $db->execute_query($query, [$auth_names, $user_id]);
+       } else {
+           return (undef, "Username should be at least 1 character long");
+       }
    }
-   $db->commit();
 
    return ($user_id, undef);
 }
@@ -163,6 +161,9 @@ sub delete_user {
     my $db = $params{'db'};
     my $user_id = $params{'user_id'};
 
+    return (undef, 'Required argument `db` is missing.') if !defined $db;
+    return (undef, 'Requried argument `user_id` is missing.') if !defined $user_id;
+
     my $info = $self->fetch(db => $db, user_id => $user_id);
 
     if (!defined $info) {
@@ -173,22 +174,17 @@ sub delete_user {
        return (undef, "Cannot delete the system user.");
     }
 
-    $db->start_transaction();
 
     if (!defined $db->execute_query("DELETE FROM user_workgroup_membership WHERE user_id = ?", [$user_id])) {
-        $db->rollback();
         return (undef, "Internal error delete user.");
     }
     if (!defined $db->execute_query("DELETE FROM remote_auth WHERE user_id = ?", [$user_id])) {
-        $db->rollback();
         return (undef, "Internal error delete user.");
     }
     if (!defined $db->execute_query("DELETE FROM user WHERE user_id =?", [$user_id])) {
-        $db->rollback();
         return (undef, "Internal error delete user.");
     }
 
-    $db->commit();
 
     return (1, undef);
 }
@@ -241,22 +237,24 @@ sub edit_user {
     my $auth_names   = $params{'auth_names'};
     my $status       = $params{'status'};
 
-    if(!defined $given_name || !defined $family_name || !defined $email || !defined $auth_names) {
-       return (undef, "Invalid parameters to edit user, please provide a given name, family name, email, and auth names"); 
-    } 
-    
+    return (undef, 'Required argument `db` is missing.') if !defined $db;
+    return (undef, 'Required arguemnt `user_id` is missing.') if !defined $user_id; 
+    return (undef, 'Required argument `given_name` is missing.') if !defined $given_name;
+    return (undef, 'Required argument `family_name` is missing.') if !defined $family_name;
+    return (undef, 'Required argument `email` is missing.') if !defined $email;
+    return (undef, 'Required argument `auth_names` is missing.') if !defined $auth_names;
+    return (undef, 'Required argument `status` is missing.') if !defined $status;
+     
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/) {
         return(undef, "User 'system' is reserved.");
     }
 
-    $db->start_transaction();
 
     my $query = "UPDATE user SET email = ?, given_names = ?, family_name = ?, status = ?, WHERE user_id = ?";
 
     my $results = $db->execute_query($query, [$email, $given_name, $family_name, $status, $user_id]);
 
     if (!defined $user_id || $result == 0) {
-        $db->rollback();
         return (undef, "Unable to edit user - does this user actually exist?");
     }
 
@@ -264,10 +262,13 @@ sub edit_user {
 
     if (ref($auth_names) eq 'ARRAY') {
         foreach my $name in (@$auth_names){
-            $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-            $db->execute_query($query, [$name,$user_id]);
+            if length $name >=1 {
+                $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
+                $db->execute_query($query, [$name,$user_id]);
+            }
         }
      } else {
+         return (undef, 'Auth_Names is required to be at least 1 character.') if length $auth_names <1;
          $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
          $db->execute_query($query, [$auth_names, $user_id]);
      }
@@ -331,29 +332,71 @@ sub find_user_by_remote_auth{
 
     return $user_id->[0];
 }
-=head2 authorization_system
+=head2 has_system_access
+
+=item db
+    Denotes the database we are checking for access
+=back
+
+=item user_id
+    Denotes the user_id of the user whose access we are checking
+=back
+
+=item username
+    Denotes the username of the user whose access we are checking
+=back
+
+=item workgroup_id
+   Denotes the workgroup_id of the workgroup we checking the users permissions in
+=back
+
+=item role
+   Denotes the level of access the user needs for a particular action
+=back
+
+    my $results = OESS::DB::User::has_system_access(
+                                  db           => $db,
+                                  user_id      => $user_id,
+                                  role        => $role);
+    
+    OR
+
+    my $results = OESS::DB::User::has_workgroup_access(
+                                  db           => $db,
+                                  username     => $username,,
+                                  role        => $role);
+ 
+has_system_access checks if the user belongs to and admin C<workgroup> and then
+checks if their C<role> is the same or higher level than the passed C<role>. If
+it is then the User has the proper level of permissions based on the following
+C<admin> highest access C<normal> medium access C<read-only> mimum access
+Then the function grants permission Otherwise spits out an error.
 =cut
-sub authorization_system{
-    my $self = shift;
+sub has_system_access{
     my %params = @_;
     my $db = $params{'db'};
     my $user_id = $params{'user_id'};
     my $username = $params{'username'};
     my $role = $params{'role'};
 
+
+    return {error => "Required argument 'db' is missing."} if !defined $db;
+    return {error => "Required to pass either 'user_id' or 'username'."} if !defined $user_id && !defined $username;
+    return {error => "Required argument 'role' is missing."} if !defined $role;
+
     if (!defined $user_id) {
-        $user_id = $self->find_user_by_remote_auth(db => $db, remote_user => $username);
+        $user_id = find_user_by_remote_auth(db => $db, remote_user => $username);
         if (!defined $user_id) {
             return {error => "Invalid or decommissioned user specified."};
         }
     }
-    my $user = $self->fetch(db => $db, user_id => $user_id);
+    my $user = fetch(db => $db, user_id => $user_id);
     
     if (!defined $user || $user->{'status'} eq 'decom'){
         return {error => "Invalid or decommissioned user specified."};
     }
     if ($user->{'is_admin'} == 1) {
-        my $workgroups = $self->get_workgroups(db => $db, user_id => $user_id);
+        my $workgroups = get_workgroups(db => $db, user_id => $user_id);
         my $read_access = 1;
         my $normal_access = 0;
         my $admin_access = 0;
@@ -384,10 +427,50 @@ sub authorization_system{
        return {error => "User $user->{'username'} does not have system admin privileges."};
     }
 }
-=head2 authorization_workgroup
+=head2 has_workgroup_access
+
+=item db
+    Denotes the database we are checking for access
+=back
+
+=item user_id
+    Denotes the user_id of the user whose access we are checking
+=back
+
+=item username
+    Denotes the username of the user whose access we are checking
+=back
+
+=item workgroup_id
+   Denotes the workgroup_id of the workgroup we checking the users permissions in
+=back
+
+=item role
+   Denotes the level of access the user needs for a particular action
+=back
+
+    my $results = OESS::DB::User::has_workgroup_access(
+                                  db           => $db,
+                                  user_id      => $user_id,
+                                  workgroup_id => $workgroup_id,
+                                  $role        => $role);
+    
+    OR
+
+    my $results = OESS::DB::User::has_workgroup_access(
+                                  db           => $db,
+                                  user_id      => $user_id,
+                                  workgroup_id => $workgroup_id,
+                                  $role        => $role);
+
+has_workgroup_access checks if a specified user's C<role> found in C<user_workgroup_membership>
+identified by the C<workgroup_id> and C<user_id> or C<username> matches the passed
+C<role> and grants access based on that criteria. The roles are ranked as follows
+C<admin> highest access, C<normal> middle access, C<read-only> minimum access. 
+It will also grant access to system admins of an appropriate level.
+
 =cut
-sub authorization_workgroup{
-    my $self = shift;
+sub has_workgroup_access {
     my %params = @_;
     my $db = $params{'db'};
     my $user_id = $params{'user_id'};
@@ -395,13 +478,18 @@ sub authorization_workgroup{
     my $workgroup_id = $params{'workgroup_id'};
     my $role = $param{'role'};
 
+    return {error => "Required argument 'db' is missing."} if !defined $db;
+    return {error => "Required to pass either 'user_id' or 'username'."} if !defined $user_id && !defined $username;
+    return {error => "Required argument 'workgroup_id' is missing."} if !defined $workgrou_id;
+    return {error => "Required argument 'role' is missing."} if !defined $role;
+ 
     if (!defined $user_id) {
-        $user_id = $self->find_user_by_remoate_auth(db => $db, remove_user => $username);
+        $user_id = find_user_by_remoate_auth(db => $db, remove_user => $username);
         if (!defined $user_id) {
             return { error => "Invalid or decommissioned user specified." };
         }
     }
-    my $user = $self->fetch(db => $db, user_id = $user_id);
+    my $user = fetch(db => $db, user_id = $user_id);
     
     if (!defined $user || $user->{'status'} eq 'decom') {
         return { error => "Invalid or decommissioned user specified." };
@@ -413,7 +501,7 @@ sub authorization_workgroup{
         return { error => "Invalid or decommissioned workgroup specified." };
     }
     if ($workgroup->{'type'} eq 'admin') {
-        my $high_admin = $self->authorization_system(db => $db, user_id => $user_id, role => $role);
+        my $high_admin = has_system_access(db => $db, user_id => $user_id, role => $role);
         if (!defined $high_admin) {
             return;
         } else {
@@ -434,9 +522,9 @@ sub authorization_workgroup{
        }
        my $is_sys_admin;
        if ($role eq 'read-only') {
-           $is_sys_admin = $self->authorization_system(db =>$db, user_id => $user_id, role => 'read_only');
+           $is_sys_admin = has_system_access(db =>$db, user_id => $user_id, role => 'read_only');
        } else {
-           $is_sys_admin = $self->authorization_system(db => $db, user_id => $user_id, role => 'normal');
+           $is_sys_admin = has_system_access(db => $db, user_id => $user_id, role => 'normal');
        }
        if (!defined $is_sys_admin) {
            $normal_user = 1;
