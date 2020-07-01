@@ -13,10 +13,12 @@ import "../style.css";
 
 import { getWorkgroups, getAllWorkgroups } from '../api/workgroup.js';
 
-import { WorkgroupTable } from '../components/workgroups/WorkgroupTable.jsx';
 import { WorkgroupModal } from '../components/workgroups/WorkgroupModal.jsx';
 import { PageSelector } from '../components/generic_components/PageSelector.jsx';
 import { BaseModal } from '../components/generic_components/BaseModal.jsx';
+
+
+import { Table } from '../components/generic_components/Table.jsx';
 
 class Workgroups extends React.Component {
   constructor(props){
@@ -25,8 +27,10 @@ class Workgroups extends React.Component {
       pageNumber: 0,
       pageSize:   2,
       filter:     '',
+      workgroup:  null,
       workgroups: [],
-      visible:    false
+      visible:    false,
+      editModalVisible: false
 	};
 
     this.filterWorkgroups = this.filterWorkgroups.bind(this);
@@ -90,11 +94,40 @@ class Workgroups extends React.Component {
 
     let modalID = "modal-addWorkgroup";
 
+
+    const rowButtons = (data) => {
+      return (
+        <div>
+          <button type="button" className="btn btn-default btn-xs" onClick={() => console.log('add',data)}>Add User</button>&nbsp;
+          <div className="btn-group">
+            <button type="button" className="btn btn-default btn-xs" onClick={() => this.setState({editModalVisible: true, workgroup: data})}>
+              Edit Workgroup
+            </button>
+              <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <span>▾</span>{/* className="caret" doesn't work idk why */}
+                <span className="sr-only">Toggle Dropdown</span>
+              </button>
+              <ul className="dropdown-menu" style={{fontSize: '12px'}}>
+                <li><a href="#" onClick={() => console.log('delWg', data)}>Delete Workgroup</a></li>
+                <li role="separator" className="divider" style={{margin: '4px 0'}}></li>
+                <li><a href="#" onClick={() => console.log('manIntf', data)}>Manage Interfaces</a></li>
+                <li><a href="#" onClick={() => console.log('manUsers', data)}>Manage Users</a></li>
+              </ul>
+            </div>
+        </div>
+      );
+    };
+
+    let columns = [
+      { name: 'ID', key: 'workgroup_id' },
+      { name: 'Name', key: 'name' },
+      { name: 'Type', key: 'type' },
+      { name: 'External ID', key: 'external_id' },
+      { name: '', render: rowButtons, style: {textAlign: 'right'} }
+    ];
+
     return (
       <PageContextProvider>
-
-
-
 
         <div className="oess-page-container">
           <div className="oess-page-navigation">
@@ -107,11 +140,13 @@ class Workgroups extends React.Component {
 
           <div className="oess-page-content">
 
-
             <BaseModal visible={this.state.visible} header="Create Workgroup" modalID={modalID} onClose={() => this.setState({visible: false})}>
               <WorkgroupModal workgroup={null} />
             </BaseModal>
 
+            <BaseModal visible={this.state.editModalVisible} header="Edit Workgroup" modalID="modal-edit-workgroup" onClose={() => this.setState({editModalVisible: false})} >
+              <WorkgroupModal workgroup={this.state.workgroup} />
+            </BaseModal>
 
             <div>
               <p className="title"><b>Workgroups</b></p>
@@ -128,7 +163,8 @@ class Workgroups extends React.Component {
             </form>
             <br />
 
-            <WorkgroupTable data={workgroups} filter={this.state.filter} pageNumber={this.state.pageNumber} pageSize={this.state.pageSize}/>
+            <Table columns={columns} rows={workgroups} />
+
             <center>
               <PageSelector pageNumber={this.state.pageNumber} pageSize={this.state.pageSize} itemCount={filteredItemCount} onChange={(i) => this.setState({pageNumber: i})} />
             </center>
