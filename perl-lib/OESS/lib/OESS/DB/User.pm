@@ -115,22 +115,22 @@ sub add_user {
        return (undef, "Cannot use system as a username.");
    }
 
-   my $query = "INSERT INTO user (email, given_names, family_name, status) VALUES (?, ?, ?, ?)";
-   my $user_id = $db->execute_query($query,[$email,$given_name,$family_name,$status]);
+   my $query = "INSERT INTO user (email, given_names, family_name, status) VALUES (?, ?, ?, 'active')";
+   my $user_id = $db->execute_query($query,[$email,$given_name,$family_name]);
 
    if (!defined $user_id) {
        return (undef, "Unable to create new user.");
    }
 
    if (ref($auth_names) eq 'ARRAY') {
-       foreach my $name in (@$auth_names){
-           if length $name >=1 {
-            $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-            $db->execute_query($query, [$name,$user_id]); 
+       foreach my $name (@$auth_names){
+           if (length($name) >=1) {
+               $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
+               $db->execute_query($query, [$name,$user_id]); 
            }
        }
    } else {
-       if length $authNames >=1 {
+       if (length($auth_names) >=1) {
            $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
            $db->execute_query($query, [$auth_names, $user_id]);
        } else {
@@ -156,21 +156,20 @@ sub add_user {
 Returns a tuple of a result code 1 if correct, and and error
 =cut
 sub delete_user {
-    my $self = shift;
-    my %params = @_;
-    my $db = $params{'db'};
-    my $user_id = $params{'user_id'};
+    my %params = @_; 
+    my $db = $params{db};
+    my $user_id = $params{user_id};
 
     return (undef, 'Required argument `db` is missing.') if !defined $db;
     return (undef, 'Requried argument `user_id` is missing.') if !defined $user_id;
 
-    my $info = $self->fetch(db => $db, user_id => $user_id);
+    my $info = OESS::DB::User::fetch(db => $db, user_id => $user_id);
 
     if (!defined $info) {
         return (undef, "Internal error identifying user with id: $user_id");
     }
 
-    if ($info->[0]->{'given_names'} =~ /^system$/i || $info->[0]->{'family_name'} =~ /^system$/i) {
+    if ($info->{'given_names'} =~ /^system$/i || $info->{'family_name'} =~ /^system$/i) {
        return (undef, "Cannot delete the system user.");
     }
 
@@ -228,7 +227,7 @@ sub delete_user {
 =cut
 sub edit_user {
     my %params = @_;
-    my $db = %params{'db'};
+    my $db = $params{'db'};
     
     my $user_id      = $params{'user_id'};
     my $given_name   = $params{'given_name'};
@@ -250,19 +249,19 @@ sub edit_user {
     }
 
 
-    my $query = "UPDATE user SET email = ?, given_names = ?, family_name = ?, status = ?, WHERE user_id = ?";
+    my $query = "UPDATE user SET email = ?, given_names = ?, family_name = ?, status = ? WHERE user_id = $user_id";
 
-    my $results = $db->execute_query($query, [$email, $given_name, $family_name, $status, $user_id]);
+    my $results = $db->execute_query($query, [$email, $given_name, $family_name, $status]);
 
-    if (!defined $user_id || $result == 0) {
+    if (!defined $user_id || $results == 0) {
         return (undef, "Unable to edit user - does this user actually exist?");
     }
 
     $db->execute_query("DELETE FROM remote_auth WHERE user_id = ?", [$user_id]);
 
     if (ref($auth_names) eq 'ARRAY') {
-        foreach my $name in (@$auth_names){
-            if length $name >=1 {
+        foreach my $name (@$auth_names){
+            if (length $name >=1) {
                 $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
                 $db->execute_query($query, [$name,$user_id]);
             }
@@ -296,9 +295,11 @@ sub get_workgroups {
 
     my $query;
     my $values;
+    my $datas;
     if (defined $is_admin && defined $is_admin->[0]) {
         $query = "SELECT * from workgroup ORDER BY workgroup.name ASC";
         $values = [];
+        $datas = $args->{db}->execute_query($query);
     } else {
         $query = "
             SELECT workgroup.*
@@ -308,14 +309,17 @@ sub get_workgroups {
             ORDER BY workgroup.name ASC
         ";
         $values = [$args->{user_id}];
+        $datas = $args->{db}->execute_query($query,$values);
     }
 
-    my $datas = $args->{db}->execute_query($query, $values);
     if (!defined $datas) {
         return (undef, $args->{db}->get_error);
     }
-
-    return ($datas, undef);
+    if (!defined $datas->[0]){
+        return (undef, "Returned 0 Workgroups");
+    }
+    my $length = @$datas;
+    return ($datas, $length);
 }
 
 =head2 find_user_by_remote_auth
@@ -383,29 +387,33 @@ sub has_system_access{
     return {error => "Required argument 'db' is missing."} if !defined $db;
     return {error => "Required to pass either 'user_id' or 'username'."} if !defined $user_id && !defined $username;
     return {error => "Required argument 'role' is missing."} if !defined $role;
-
+    my $user;
     if (!defined $user_id) {
-        $user_id = find_user_by_remote_auth(db => $db, remote_user => $username);
-        if (!defined $user_id) {
-            return {error => "Invalid or decommissioned user specified."};
-        }
+        $user = OESS::DB::User::fetch(db => $db, username => $username);
+    } else {
+        $user = OESS::DB::User::fetch(db => $db, user_id =>$user_id);
     }
-    my $user = fetch(db => $db, user_id => $user_id);
     
     if (!defined $user || $user->{'status'} eq 'decom'){
         return {error => "Invalid or decommissioned user specified."};
     }
     if ($user->{'is_admin'} == 1) {
-        my $workgroups = get_workgroups(db => $db, user_id => $user_id);
+        my ($workgroups, $wg_err) = OESS::DB::User::get_workgroups(db => $db, user_id => $user->{user_id});
+        if (!defined $workgroups){
+                return {error => $workgroups->[2]->{type}};
+        }
         my $read_access = 1;
         my $normal_access = 0;
         my $admin_access = 0;
+        
         foreach my $workgroup (@$workgroups){
-          if ( $workgroup->{'type'} ne 'admin'){
-             next;
+          if ( $workgroup->{type} ne 'admin'){
+              next;
           }
-          my $group_role = $db->execute_query("SELECT role FROM user_workgroup_membership WHERE user_id = ? AND workgroup_id = ?",
-                                              [$user_id, $workgroup->{'workgroup_id'}])[0]->{'role'};
+          my $role_result = $db->execute_query("SELECT role FROM user_workgroup_membership WHERE user_id = ? AND workgroup_id = ?",
+                                                      [$user->{user_id}, $workgroup->{'workgroup_id'}]);
+          my $group_role = $role_result->[0]->{role};
+          
           if ($group_role eq 'normal') {
               $normal_access = 1;
           }
@@ -476,20 +484,18 @@ sub has_workgroup_access {
     my $user_id = $params{'user_id'};
     my $username = $params{'username'};
     my $workgroup_id = $params{'workgroup_id'};
-    my $role = $param{'role'};
+    my $role = $params{'role'};
 
     return {error => "Required argument 'db' is missing."} if !defined $db;
     return {error => "Required to pass either 'user_id' or 'username'."} if !defined $user_id && !defined $username;
-    return {error => "Required argument 'workgroup_id' is missing."} if !defined $workgrou_id;
+    return {error => "Required argument 'workgroup_id' is missing."} if !defined $workgroup_id;
     return {error => "Required argument 'role' is missing."} if !defined $role;
- 
+    my $user;
     if (!defined $user_id) {
-        $user_id = find_user_by_remoate_auth(db => $db, remove_user => $username);
-        if (!defined $user_id) {
-            return { error => "Invalid or decommissioned user specified." };
-        }
+        $user = OESS::DB::User::fetch(db => $db, username => $username);
+    } else {
+        $user = OESS::DB::User::fetch(db => $db, user_id => $user_id);
     }
-    my $user = fetch(db => $db, user_id = $user_id);
     
     if (!defined $user || $user->{'status'} eq 'decom') {
         return { error => "Invalid or decommissioned user specified." };
@@ -501,7 +507,7 @@ sub has_workgroup_access {
         return { error => "Invalid or decommissioned workgroup specified." };
     }
     if ($workgroup->{'type'} eq 'admin') {
-        my $high_admin = has_system_access(db => $db, user_id => $user_id, role => $role);
+        my $high_admin = has_system_access(db => $db, user_id => $user->{user_id}, role => $role);
         if (!defined $high_admin) {
             return;
         } else {
@@ -509,26 +515,30 @@ sub has_workgroup_access {
         }
     } else {
        my $user_wg_role = $db->execute_query("SELECT role from user_workgroup_membership WHERE user_id = ? and workgroup_id = ?",
-                                             [$user_id, $workgroup_id])[0]->{'role'};
-       my $read_access = 1;
+                                             [$user->{user_id}, $workgroup_id])->[0]->{'role'};
+       my $read_access = 0;
        my $normal_access = 0;
        my $admin_access = 0;
-       if ($user_wg_role eq 'normal') {
-           $normal_access = 1;
-       }
-       if ($user_wg_role eq 'admin') {
-           $normal_access = 1;
-           $admin_access = 1;        
+       if(defined $user_wg_role) {
+           $read_access = 1;
+           if ($user_wg_role eq 'normal') {
+               $normal_access = 1;
+           }
+           if ($user_wg_role eq 'admin') {
+               $normal_access = 1;
+               $admin_access = 1;        
+           }
        }
        my $is_sys_admin;
        if ($role eq 'read-only') {
-           $is_sys_admin = has_system_access(db =>$db, user_id => $user_id, role => 'read_only');
+           $is_sys_admin = has_system_access(db =>$db, user_id => $user->{user_id}, role => 'read_only');
        } else {
-           $is_sys_admin = has_system_access(db => $db, user_id => $user_id, role => 'normal');
+           $is_sys_admin = has_system_access(db => $db, user_id => $user->{user_id}, role => 'normal');
        }
        if (!defined $is_sys_admin) {
-           $normal_user = 1;
-           $admin_user = 1;
+           $read_access = 1;
+           $normal_access = 1;
+           $admin_access = 1;
        }
         if ($role eq 'read-only' && $read_access == 1) {
             return;

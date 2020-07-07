@@ -59,7 +59,7 @@ sub upgrade{
     $sth = $dbh->prepare("ALTER TABLE user_workgroup_membership ADD role enum('admin','normal','read-only) NOT NULL DEFAULT 'read-only'");
     $sth->execute() or die "Unable to add Role to Table";
 
-    $sth = $dbh->prepare("UPDATE user_workgroup_membership wg, user u SET wg.role='admin' WHERE wg.user_id=u.user_id AND u.type='nomral'");
+    $sth = $dbh->prepare("UPDATE user_workgroup_membership wg, user u SET wg.role='admin' WHERE wg.user_id=u.user_id AND u.type='normal'");
     $sth->execute() or die "Unable to set workgroup admins";
 
     $sth = $dbh->prepare("UPDATE user_workgroup_membership wg, user u SET wg.role='read-only' WHERE wg.user_id=u.user_id AND u.type='read-only'");

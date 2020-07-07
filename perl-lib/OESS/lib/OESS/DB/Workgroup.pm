@@ -90,9 +90,12 @@ sub get_users_in_workgroup{
     my $db = $params{'db'};
     my $workgroup_id = $params{'workgroup_id'};
     
+    return (undef, 'Required argument `db` is missing.') if !defined $db;
+    return (undfe, 'Required argument `workgroup_id` is missing.') uf !defined $workgroup_id;
+
     my $users = $db->execute_query("select user_id from user_workgroup_membership where workgroup_id = ?",[$workgroup_id]);
     if(!defined($users)){
-        return;
+        return (undef, "Unable to find any users in workgroup of that workgroup_id");
     }
     
     my @users;
@@ -105,7 +108,7 @@ sub get_users_in_workgroup{
         
         push(@users, $user);
     }
-    return \@users;
+    return (\@users,undef);
 }
 
 =head2 create
@@ -263,7 +266,7 @@ sub add_user {
     return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
     return (undef, 'Required argument `user_id` is missing.') if !defined $args->{user_id};
     return (undef, 'Required argument `workgroup_id` is missing.') if !defined $args->{workgroup_id};
-    return (undef, 'Required arguemtn `workgroup_id` is missing.') if !defined $args->{role};
+    return (undef, 'Required argument `role` is missing.') if !defined $args->{role};
 
     my $query = "
         insert into user_workgroup_membership (
@@ -282,8 +285,8 @@ sub add_user {
     return ($res, undef);
 }
 
-=head2 edit_role
-    my ($ok, $err) = OESS::DB::Workgroup::edit_role(
+=head2 edit_user_role
+    my ($ok, $err) = OESS::DB::Workgroup::edit_user_role(
         db => $db
         workgroup+id => 100,
         user_id => 10,
@@ -291,13 +294,13 @@ sub add_user {
     );
     warn $err if (defined $err);
 
-edit_role changes the C<user_workgroup_membership> identified by
+edit_user_role changes the C<user_workgroup_membership> identified by
 C<workgroup_id> and C<user_id>. It takes in a C<role> and modifies
 the table to change the C<role> of the specified userin
 the specified workgroup identified by C<workgroup_id>
 
 =cut
-sub edit_role {
+sub edit_user_role {
     my $args = {
         db           => undef,
         user_id      => undef,
@@ -311,17 +314,14 @@ sub edit_role {
     return (undef, 'Required argument `workgroup_id` is missing.') if !defined $args->{workgroup_id};
     return (undef, 'Required argument `role` is missing.') if !defined $args->{role};
 
-    $db->start_transaction();
 
     my $query = "UPDATE user_workgroup_membership SET role = ? WHERE workgroup_id = ? AND user_id = ?";
 
-    my $result = $db->execute_query($query, [$args->{role}, $args->{workgroup_id}, $args->{user_id}]);
+    my $result = $args->{db}->execute_query($query, [$args->{role}, $args->{workgroup_id}, $args->{user_id}]);
 
     if ($result == 0) {
-       $db->rollback();
        return (undef, "Unable to edit role - does this user belong to this workgroup?");
     }
-    $db->commit();
 
     return (1, undef);
 
