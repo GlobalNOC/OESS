@@ -15,6 +15,7 @@ use OESS::RabbitMQ::Client;
 use OESS::Cloud;
 use OESS::Config;
 use OESS::DB;
+use OESS::DB::User;
 use OESS::DB::Entity;
 use OESS::User;
 use OESS::VRF;
@@ -281,9 +282,15 @@ sub provision_vrf{
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if ($user->type eq 'read-only') {
-        $method->set_error("User '$user->{username}' is read-only.");
+    #User must be in workgroup with at least normal priviledges
+    my $permissions = OESS::DB::User::has_workgroup_access(db => $db,
+                      username     => $ENV{REMOTE_USER},
+                      workgroup_id => $params->{workgroup_id}{value},
+                      role         => 'normal');
+    if (defined $permissions) {
+        $method->set_error($permissions->{error});
         return;
+    
     }
 
     my $model = {};
@@ -297,11 +304,6 @@ sub provision_vrf{
     $model->{'last_modified'} = $params->{'provision_time'}{'value'};
     $model->{'endpoints'} = ();
 
-    # User must be in workgroup or an admin to continue
-    if (!$user->in_workgroup($model->{'workgroup_id'}) && !$user->is_admin()){
-        $method->set_error("User is not in workgroup $model->{workgroup_id}.");
-        return;
-    }
 
     # Modified VRFs should already have selected the appropriate
     # endpoints for any of their cloud connections. This has not been
@@ -765,8 +767,12 @@ sub remove_vrf {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if ($user->type eq 'read-only') {
-        $method->set_error("User '$user->{username}' is read-only.");
+    my $permissions = OESS::DB::User::has_workgroup_access(db => $db,
+                      username     => $ENV{REMOTE_USER},
+                      workgroup_id => $params->{workgroup_id}{value},
+                      role         => 'normal');
+    if (defined $permissions) {
+        $model->set_error($permissions->{error});
         return;
     }
 

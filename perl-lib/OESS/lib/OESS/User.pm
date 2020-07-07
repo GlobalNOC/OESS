@@ -59,8 +59,7 @@ sub to_hash{
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
     $obj->{'is_admin'} = $self->is_admin();
-    $obj->{'type'} = $self->type();
-
+    
     if (defined $self->{workgroups}) {
         $obj->{'workgroups'} = [];
         foreach my $wg (@{$self->{workgroups}}) {
@@ -83,7 +82,6 @@ sub from_hash{
     $self->{'first_name'} = $hash->{'given_names'};
     $self->{'last_name'} = $hash->{'family_name'};
     $self->{'email'} = $hash->{'email'};
-    $self->{'type'} = $hash->{'type'};
     $self->{'is_admin'} = $hash->{'is_admin'};
 
     if (defined $hash->{workgroups}) {
@@ -236,14 +234,6 @@ sub in_workgroup{
         }
     }
     return 0;
-}
-
-=head2 type
-
-=cut
-sub type{
-    my $self = shift;
-    return $self->{'type'};
 }
 
 1;
