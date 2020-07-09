@@ -91,9 +91,9 @@ sub get_users_in_workgroup{
     my $workgroup_id = $params{'workgroup_id'};
     
     return (undef, 'Required argument `db` is missing.') if !defined $db;
-    return (undfe, 'Required argument `workgroup_id` is missing.') uf !defined $workgroup_id;
+    return (undef, 'Required argument `workgroup_id` is missing.') if !defined $workgroup_id;
 
-    my $users = $db->execute_query("select user_id from user_workgroup_membership where workgroup_id = ?",[$workgroup_id]);
+    my $users = $db->execute_query("select user_id, role from user_workgroup_membership where workgroup_id = ?",[$workgroup_id]);
     if(!defined($users)){
         return (undef, "Unable to find any users in workgroup of that workgroup_id");
     }
@@ -101,7 +101,7 @@ sub get_users_in_workgroup{
     my @users;
     
     foreach my $u (@$users){
-        my $user = OESS::User->new(db => $db, user_id => $u->{'user_id'});
+        my $user = OESS::User->new(db => $db, user_id => $u->{'user_id'}, role => $u->{role});
         if(!defined($user)){
             next;
         }
@@ -124,8 +124,9 @@ sub create {
     return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
     return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
     return (undef, 'Required argument `model->name` is missing.') if !defined $args->{model}->{name};
-    return (undef, 'Required argument `model->description` is missing.') if !exists $args->{model}->{description};
-
+    if (!defined $args->{model}->{description}) {
+        $args->{model}->{description} = "";
+    }
     $args->{model}->{type} = $args->{model}->{type} || 'normal';
     my $type_ok = 0;
     my $valid_types = ['normal','admin','demo'];

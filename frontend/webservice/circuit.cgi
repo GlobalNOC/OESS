@@ -209,12 +209,12 @@ sub provision {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    my $permissions = OESS::DB::User::has_workgroup_access(db => $db,
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
                       username     => $ENV{REMOTE_USER},
                       workgroup_id => $args->{workgroup_id}->{value},
                       role         => 'normal');
-    if (defined $permissions) {
-        $method->set_error($permissions->{error});
+    if (defined $err) {
+        $method->set_error($err);
         return;
     }
 
@@ -697,12 +697,12 @@ sub remove {
         return;
     }
 
-    my $permissions = OESS::DB::User::has_workgroup_permissions(db => $db,
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
                       username     => $ENV{REMOTE_USER},
                       workgroup_id => $args->{workgroup_id}->{value},
                       role         => 'normal');
-    if (defined $permissions) {
-        $method->set_error($permissions->{error});
+    if (defined $err) {
+        $method->set_error($err);
         return;
     }
 

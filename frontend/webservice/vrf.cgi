@@ -283,12 +283,12 @@ sub provision_vrf{
         return;
     }
     #User must be in workgroup with at least normal priviledges
-    my $permissions = OESS::DB::User::has_workgroup_access(db => $db,
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
                       username     => $ENV{REMOTE_USER},
                       workgroup_id => $params->{workgroup_id}{value},
                       role         => 'normal');
-    if (defined $permissions) {
-        $method->set_error($permissions->{error});
+    if (defined $err) {
+        $method->set_error($err);
         return;
     
     }
@@ -767,12 +767,12 @@ sub remove_vrf {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    my $permissions = OESS::DB::User::has_workgroup_access(db => $db,
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
                       username     => $ENV{REMOTE_USER},
                       workgroup_id => $params->{workgroup_id}{value},
                       role         => 'normal');
-    if (defined $permissions) {
-        $model->set_error($permissions->{error});
+    if (defined $err) {
+        $model->set_error($err);
         return;
     }
 

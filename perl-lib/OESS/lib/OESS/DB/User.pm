@@ -15,6 +15,7 @@ sub fetch{
     my $db = $params{'db'};
     my $user_id = $params{'user_id'};
     my $username = $params{'username'};
+    my $role = $params{'role'};         
 
     my $user;
 
@@ -57,7 +58,11 @@ sub fetch{
 
     # Replace is_admin field with scan for admin workgroups
     $user->[0]->{is_admin} = $admin_result->[0]->{is_admin};
-
+    # Add the role will typically be empty but added for the cases when a
+    # workgroup needs to display users.
+    if(defined $role){
+       $user->[0]{role} = $role;
+    }
     return $user->[0];
 }
 =head2 add_user
@@ -384,9 +389,9 @@ sub has_system_access{
     my $role = $params{'role'};
 
 
-    return {error => "Required argument 'db' is missing."} if !defined $db;
-    return {error => "Required to pass either 'user_id' or 'username'."} if !defined $user_id && !defined $username;
-    return {error => "Required argument 'role' is missing."} if !defined $role;
+    return (0, "Required argument 'db' is missing.") if !defined $db;
+    return (0, "Required to pass either 'user_id' or 'username'.") if !defined $user_id && !defined $username;
+    return (0, "Required argument 'role' is missing.") if !defined $role;
     my $user;
     if (!defined $user_id) {
         $user = OESS::DB::User::fetch(db => $db, username => $username);
@@ -395,13 +400,11 @@ sub has_system_access{
     }
     
     if (!defined $user || $user->{'status'} eq 'decom'){
-        return {error => "Invalid or decommissioned user specified."};
+        return (0 ,"Invalid or decommissioned user specified.");
     }
     if ($user->{'is_admin'} == 1) {
         my ($workgroups, $wg_err) = OESS::DB::User::get_workgroups(db => $db, user_id => $user->{user_id});
-        if (!defined $workgroups){
-                return {error => $workgroups->[2]->{type}};
-        }
+        
         my $read_access = 1;
         my $normal_access = 0;
         my $admin_access = 0;
@@ -412,7 +415,7 @@ sub has_system_access{
           }
           my $role_result = $db->execute_query("SELECT role FROM user_workgroup_membership WHERE user_id = ? AND workgroup_id = ?",
                                                       [$user->{user_id}, $workgroup->{'workgroup_id'}]);
-          my $group_role = $role_result->[0]->{role};
+          my $group_role = $role_result->[0]->{role} || 'dud';
           
           if ($group_role eq 'normal') {
               $normal_access = 1;
@@ -423,16 +426,16 @@ sub has_system_access{
           }
         }
         if ($role eq 'read-only' && $read_access == 1) {
-           return;
+           return (1, undef);
         } elsif ($role eq 'normal' && $normal_access == 1) {
-           return;
+           return (1, undef);
         } elsif ($role eq 'admin' && $admin_access ==1)  {
-           return;
+           return (1, undef);
         } else {
-           return { error => "User $user->{'username'} does not have the proper level of access." };
+           return (0, "User $user->{'username'} does not have the proper level of access.");
         }
     } else {
-       return {error => "User $user->{'username'} does not have system admin privileges."};
+       return (0, "User $user->{'username'} does not have system admin privileges.");
     }
 }
 =head2 has_workgroup_access
@@ -486,10 +489,10 @@ sub has_workgroup_access {
     my $workgroup_id = $params{'workgroup_id'};
     my $role = $params{'role'};
 
-    return {error => "Required argument 'db' is missing."} if !defined $db;
-    return {error => "Required to pass either 'user_id' or 'username'."} if !defined $user_id && !defined $username;
-    return {error => "Required argument 'workgroup_id' is missing."} if !defined $workgroup_id;
-    return {error => "Required argument 'role' is missing."} if !defined $role;
+    return (0, "Required argument 'db' is missing.") if !defined $db;
+    return (0, "Required to pass either 'user_id' or 'username'.") if !defined $user_id && !defined $username;
+    return (0, "Required argument 'workgroup_id' is missing.") if !defined $workgroup_id;
+    return (0, "Required argument 'role' is missing.") if !defined $role;
     my $user;
     if (!defined $user_id) {
         $user = OESS::DB::User::fetch(db => $db, username => $username);
@@ -498,20 +501,20 @@ sub has_workgroup_access {
     }
     
     if (!defined $user || $user->{'status'} eq 'decom') {
-        return { error => "Invalid or decommissioned user specified." };
+        return (0, "Invalid or decommissioned user specified.");
     }
     
     my $workgroup = OESS::DB::Workgroup::fetch(db => $db, workgroup_id => $workgroup_id);
 
     if (!defined $workgroup || $workgroup->{'status'} eq 'decom') {
-        return { error => "Invalid or decommissioned workgroup specified." };
+        return (0, "Invalid or decommissioned workgroup specified." );
     }
     if ($workgroup->{'type'} eq 'admin') {
-        my $high_admin = has_system_access(db => $db, user_id => $user->{user_id}, role => $role);
-        if (!defined $high_admin) {
-            return;
+        my ($high_admin, $ha_err) = has_system_access(db => $db, user_id => $user->{user_id}, role => $role);
+        if (!defined $ha_err) {
+            return (1, undef);
         } else {
-            return { error => $high_admin->{'error'}};
+            return (0, $ha_err);
         }
     } else {
        my $user_wg_role = $db->execute_query("SELECT role from user_workgroup_membership WHERE user_id = ? and workgroup_id = ?",
@@ -541,13 +544,13 @@ sub has_workgroup_access {
            $admin_access = 1;
        }
         if ($role eq 'read-only' && $read_access == 1) {
-            return;
+            return (1, undef);
         } elsif ($role eq 'normal' && $normal_access == 1) {
-            return;
+            return (1, undef);
         } elsif ($role eq 'admin' && $admin_access == 1) {
-            return;
+            return (1, undef);
         } else {
-            return {error => "User $user->{'username'} does not have the proper access permissions"};
+            return (0, "User $user->{'username'} does not have the proper access permissions");
             
         }
     }

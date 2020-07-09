@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path/..";
 
 use Data::Dumper;
-use Test::More tests => 6;
+use Test::More tests => 7;
 
 use OESSDatabaseTester;
 
@@ -36,25 +36,35 @@ my $db = new OESS::DB(
 
 OESS::DB::Workgroup::add_user(db => $db, user_id => 911, workgroup_id => 1, role => 'normal' );
 
-my $result = OESS::DB::User::has_workgroup_access(db => $db, username => 'user_911@foo.net', workgroup_id => 1, role => 'normal');
-ok(!defined $result, "Got expected undefined meaning user has access on workgroup");
+my ($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => 'user_911@foo.net', workgroup_id => 1, role => 'normal');
+ok(!defined $err, "Got expected undefined err meaning user has access on workgroup");
 
-$result = OESS::DB::User::has_workgroup_access(db => $db, user_id => 911, workgroup_id => 1, role => 'admin');
-ok(defined $result->{error}, "Got expected error, $result->{error}");
+($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, user_id => 911, workgroup_id => 1, role => 'admin');
+ok(defined $err, "Got expected error, $err");
 
-$result = OESS::DB::User::has_workgroup_access(db => $db, user_id =>251, workgroup_id => 1, role => 'admin');
-ok(!defined $result, "Got expected undefined since user is a sysadmin");
+($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, user_id =>251, workgroup_id => 1, role => 'admin');
+ok(!defined $err, "Got expected undefined err since user is a sysadmin");
 
 OESS::DB::Workgroup::add_user(db => $db, user_id => 911, workgroup_id => 11, role => 'normal');
 
-$result = OESS::DB::User::has_workgroup_access(db => $db, user_id => 911, workgroup_id => 11, role => 'admin');
-ok(defined $result->{error}, "Got expected error, user is a system admin but doesn't have proper role in that admin group");
+($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, user_id => 911, workgroup_id => 11, role => 'admin');
+ok(defined $err, "Got expected error, user is a system admin but doesn't have proper role in that admin group");
 
-$result = OESS::DB::User::has_workgroup_access(db => $db, user_id => 251, workgroup_id => 11, role => 'admin');
-ok(!defined $result, "Got expected undefined since has system admin has proper admin privileges");
+($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, user_id => 251, workgroup_id => 11, role => 'admin');
+ok(!defined $err, "Got expected undefined err since has system admin has proper admin privileges");
 
 OESS::DB::Workgroup::remove_user(db => $db, user_id => 911, workgroup_id => 1);
 OESS::DB::Workgroup::remove_user(db => $db, user_id => 911, workgroup_id => 11);
 
-$result = OESS::DB::User::has_workgroup_access(db => $db, user_id => 911, workgroup_id => 1, role => 'read-only');
-ok(defined $result->{error}, "Got expected error, $result->{error}");
+($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, user_id => 911, workgroup_id => 1, role => 'read-only');
+ok(defined $err, "Got expected error, $err");
+
+my $model = {
+    name => 'Admin Group 2',
+    type => 'admin'
+};
+my ($newWGID, $createErr) = OESS::DB::Workgroup::create(db => $db, model => $model);
+OESS::DB::Workgroup::add_user(db => $db, user_id =>911, workgroup_id => $newWGID, role=>'admin');
+
+($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, user_id => 911, workgroup_id => 11, role => 'admin');
+ok(!defined $err, "Got expected undefined err since this user is a high admin even though it is not his personal admin group.");

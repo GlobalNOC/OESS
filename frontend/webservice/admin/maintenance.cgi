@@ -80,11 +80,6 @@ sub main {
     if(!defined($user)){
         return send_json({error => "unable to find user"});
     } 
-    my $authorization = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role = 'normal');
-    
-    if (defined $authorization) {
-        return send_json($authorization);
-    }
 
     
    
@@ -251,6 +246,11 @@ sub node_maintenances {
     my $results;
     my $node_id = $args->{'node_id'}{'value'};
 
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    if (defined $err) {
+        $method->get_error($err);
+        return;
+    }
     my $data;
     if (defined $node_id) {
         $data = $db->get_node_maintenance($node_id);
@@ -273,6 +273,11 @@ sub start_node_maintenance {
     my $node_id = $args->{'node_id'}{'value'};
     my $description = $args->{'description'}{'value'};
 
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    if (defined $err) {
+        $method->get_error($err);
+        return;
+    } 
     if (!defined $node_id) {
         $method->set_error("Parameter node_id must be provided.");
         return;
@@ -318,7 +323,12 @@ sub end_node_maintenance {
     my ( $method, $args ) = @_ ;
     my $results;
     my $node_id = $args->{'node_id'}{'value'};
-
+    
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    if (defined $err) {
+        $method->get_error($err);
+        return;
+    } 
     my $data = $db->end_node_maintenance($node_id);
     if (!defined $data) {
         $method->set_error("Failed to take node out of maintenance mode.");
@@ -344,7 +354,12 @@ sub link_maintenances {
     my ( $method, $args ) = @_ ;
     my $results;
     my $link_id = $args->{'link_id'}{'value'};
-
+    
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    if (defined $err) {
+        $method->get_error($err);
+        return;
+    } 
     my $data;
     if (defined $link_id) {
         $data = $db->get_link_maintenance($link_id);
@@ -366,7 +381,12 @@ sub start_link_maintenance {
     my $results     = {};
     my $link_id     = $args->{'link_id'}{'value'};
     my $description = $args->{'description'}{'value'};
-
+    
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    if (defined $err) {
+        $method->get_error($err);
+        return;
+    } 
     if (!defined $link_id) {
         $method->set_error(error => "Parameter link_id must be provided.");
         return;
@@ -408,6 +428,11 @@ sub end_link_maintenance {
     my $results;
     my $link_id = $args->{'link_id'}{'value'};
     
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    if (defined $err) {
+        $method->get_error($err);
+        return;
+    } 
     my $data = $db->end_link_maintenance($link_id);
     if (!defined $data) {
         $method->set_error("Failed to take link out of maintenance mode.");

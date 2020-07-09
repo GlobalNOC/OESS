@@ -456,7 +456,7 @@ sub get_entities{
 
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
     
-    my $err = OESS::DB::User::has_workgroup_access(db => $db, username => $username, workgroup_id => $workgroup_id, role => 'read-only');
+    my ($access, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => $username, workgroup_id => $workgroup_id, role => 'read-only');
     if (defined $err) {
         $method->set_error($err->{error});
         return;
@@ -567,7 +567,7 @@ sub get_entity{
     }
 
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
-    my $err = OESS::DB::User::has_workgroup_access(db => $db, username => $username, role => 'read-only');
+    my ($access, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => $username, role => 'read-only');
     if (defined $err) {
         $method->set_error($err->{error});
         return;
@@ -743,13 +743,8 @@ sub _may_modify_entity {
     # Else, if the user is an admin, they may modify the entity:
     my $user = OESS::User->new(db => $db, user_id => $user_id);
     return 0 if !defined($user);
-    my $err = OESS::DB::User::has_system_access(db => $db, username => $username, role => 'normal');
-    if (defined $err) {
-        return 0;
-    } else {
-        return 1;
-    }
-}
+    my ($access, $err) = OESS::DB::User::has_system_access(db => $db, username => $username, role => 'normal');
+    return $access;
 
 sub main{
     register_ro_methods();
