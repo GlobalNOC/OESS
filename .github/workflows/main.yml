@@ -16,3 +16,8 @@ jobs:
         uses: actions/checkout@v2
       - name: Run perl-OESS tests
         uses: jonstout/OESS@master
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v1
+        with:
+          name: code-coverage-report
+          path: perl-lib/OESS/cover_db
