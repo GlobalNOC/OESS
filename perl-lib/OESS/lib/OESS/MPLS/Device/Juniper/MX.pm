@@ -813,10 +813,13 @@ sub add_vlan_xml {
 
     if ($ckt->{'ckt_type'} eq 'L2CCC') {
         foreach my $path (@{$ckt->{paths}}) {
+            if ($path->{type} ne 'primary') {
+                next;
+            }
             $path = $self->configure_path($path);
-            $ckt->{dest} = $path->{details}->{node_z}->{node_loopback};
-            $ckt->{dest_node} = $path->{details}->{node_z}->{node_id};
-            $ckt->{a_side} = $path->{details}->{node_a}->{node_id};
+            $ckt->{dest} = $ckt->{z_loopback};
+            $ckt->{dest_node} = $ckt->{z_node};
+            $ckt->{a_side} = $self->{node_id};
         }
     }
 
@@ -885,10 +888,13 @@ sub remove_vlan_xml {
 
     if ($ckt->{'ckt_type'} eq 'L2CCC') {
         foreach my $path (@{$ckt->{paths}}) {
+            if ($path->{type} ne 'primary') {
+                next;
+            }
             $path = $self->configure_path($path);
-            $ckt->{dest} = $path->{details}->{node_z}->{node_loopback};
-            $ckt->{dest_node} = $path->{details}->{node_z}->{node_id};
-            $ckt->{a_side} = $path->{details}->{node_a}->{node_id};
+            $ckt->{dest} = $ckt->{z_loopback};
+            $ckt->{dest_node} = $ckt->{z_node};
+            $ckt->{a_side} = $self->{node_id};
         }
     }
 

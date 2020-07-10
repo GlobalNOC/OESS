@@ -75,27 +75,28 @@ sub new {
 
     $self->{'db'} = OESS::Database->new( config_file => $config_filename );
     $self->{'db2'} = OESS::DB->new();
-    my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new( queue => 'MPLS-FWDCTL',
-                                                             topic => "MPLS.FWDCTL.RPC");
 
-    $self->_register_rpc_methods( $fwdctl_dispatcher );
+    if (!$self->{object_only}) {
+        my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new(
+            queue => 'MPLS-FWDCTL',
+            topic => "MPLS.FWDCTL.RPC"
+        );
 
-    $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
+        $self->_register_rpc_methods( $fwdctl_dispatcher );
+        $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
 
+        $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
+            timeout => 120,
+            topic => 'MPLS.FWDCTL.event'
+        );
+        $self->{'logger'}->info("RabbitMQ ready to go!");
 
-    $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
-        timeout => 120,
-        topic => 'MPLS.FWDCTL.event'
-    );
-
-
-    $self->{'logger'}->info("RabbitMQ ready to go!");
-
-    # When this process receives sigterm send an event to notify all
-    # children to exit cleanly.
-    $SIG{TERM} = sub {
-        $self->stop();
-    };
+        # When this process receives sigterm send an event to notify
+        # all children to exit cleanly.
+        $SIG{TERM} = sub {
+            $self->stop();
+        };
+    }
 
 
     my $topo = OESS::Topology->new( db => $self->{'db'}, MPLS => 1 );
@@ -124,14 +125,12 @@ sub new {
         { circuit_id => { value => -1 } }
     );
 
-    #from TOPO startup
-    my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
-    foreach my $node (@$nodes) {
-	warn Dumper($node);
-	$self->make_baby($node->{'node_id'});
+    if (!$self->{object_only}) {
+        my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
+        foreach my $node (@$nodes) {
+            $self->make_baby($node->{'node_id'});
+        }
     }
-
-    
     $self->{'logger'}->error("MPLS Provisioner INIT COMPLETE");
 
     $self->{'events'} = {};
@@ -300,6 +299,15 @@ sub _write_cache{
         }
 
         my $site_id = 0;
+        my %switches_in_use;
+
+        foreach my $ep (@{$ckt->endpoints}) {
+            $switches_in_use{$ep->node_id} = $self->{node_by_id}->{$ep->node_id}->{loopback_address};
+        }
+        if (scalar(keys %switches_in_use) == 1 && $self->{'config'}->network_type ne 'evpn-vxlan') {
+            $ckt_type = "L2VPLS";
+        }
+
         foreach my $ep (@{$ckt->endpoints}) {
             $site_id++;
 
@@ -312,6 +320,17 @@ sub _write_cache{
                 $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{ckt_type} = $ckt_type;
                 $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{site_id} = $site_id;
             }
+
+            if ($ckt_type eq "L2CCC") {
+                foreach my $node_id (keys %switches_in_use) {
+                    if ($ep->node_id eq $node_id) {
+                        next;
+                    }
+                    $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{z_node} = $node_id;
+                    $switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{z_loopback} = $switches_in_use{$node_id};
+                }
+            }
+
             push @{$switches{$ep->node}->{ckts}->{$ckt->circuit_id}->{endpoints}}, $ep->to_hash;
         }
     }

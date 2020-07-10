@@ -1367,7 +1367,7 @@ sub add_user {
     foreach my $username (@auth_names){
        my $userCheck = OESS::DB::User::fetch(db => $db2, username => $username);
        if (defined $userCheck){
-           $method->set_error("User Already Exists");
+           $method->set_error("User $username Already Exists");
            return;
        }
     }

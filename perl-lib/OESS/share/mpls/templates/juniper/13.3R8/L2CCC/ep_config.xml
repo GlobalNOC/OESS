@@ -46,10 +46,10 @@
         <apply-groups>L2CCC-LSP-ATTRIBUTES</apply-groups>
         <to>[% dest %]</to>
         <primary>
-          <name>OESS-L2CCC-[% paths.0.details.node_a.node_id %]-[% paths.0.details.node_z.node_id %]-LSP-[% circuit_id %]-PRIMARY</name>
+          <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-PRIMARY</name>
         </primary>
         <secondary>
-          <name>OESS-L2CCC-[% paths.0.details.node_a.node_id %]-[% paths.0.details.node_z.node_id %]-LSP-[% circuit_id %]-TERTIARY</name>
+          <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-TERTIARY</name>
           <standby />
         </secondary>
       </label-switched-path>
@@ -57,7 +57,7 @@
       <path>
         [% FOREACH path IN paths %]
         [% IF path.type == 'primary' %]
-        <name>OESS-L2CCC-[% path.details.node_a.node_id %]-[% path.details.node_z.node_id %]-LSP-[% circuit_id %]-PRIMARY</name>
+        <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-PRIMARY</name>
         [% FOREACH ip IN path.details.hops %]
         <path-list>
           <name>[% ip %]</name>
@@ -68,7 +68,7 @@
         [% END %]
       </path>
       <path>
-        <name>OESS-L2CCC-[% paths.0.details.node_a.node_id %]-[% paths.0.details.node_z.node_id %]-LSP-[% circuit_id %]-TERTIARY</name>
+        <name>OESS-L2CCC-[% a_side %]-[% dest_node %]-LSP-[% circuit_id %]-TERTIARY</name>
       </path>
     </mpls>
 
