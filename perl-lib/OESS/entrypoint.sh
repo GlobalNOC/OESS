@@ -7,7 +7,6 @@ cp perl-lib/OESS/t/conf/database.xml /etc/oess/database.xml
 cp perl-lib/OESS/t/conf/passwd.xml /etc/oess/.passwd.xml
 
 rm -rf /usr/share/perl5/vendor_perl/OESS
-# cp perl-lib/OESS/lib/OESS /usr/share/perl5/vendor_perl
 
 /usr/bin/mysql_install_db --user=mysql --ldata=/var/lib/mysql --force
 /usr/bin/mysqld_safe --datadir='/var/lib/mysql' &
@@ -19,4 +18,4 @@ sleep 3
 cd perl-lib/OESS
 perl Makefile.PL
 make
-make test
+cover -test
