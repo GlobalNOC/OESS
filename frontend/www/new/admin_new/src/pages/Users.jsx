@@ -9,7 +9,7 @@ import NavBar from "../components/nav_bar/NavBar.jsx";
 
 import "../style.css";
 
-class UserLandingPage extends React.Component {
+class Users extends React.Component {
 	
   constructor(props){
 	super(props);
@@ -40,39 +40,26 @@ class UserLandingPage extends React.Component {
   render() {
     var currComponent = this;
     return (
-      <PageContextProvider>
-
-        <div className="oess-page-container">
-          <div className="oess-page-navigation">
-            <NavBar />
-          </div>
-
-          <div className="oess-side-navigation">
-            <AdminNavBar />
-          </div>
-
-          <div className="oess-page-content">
-            <div>
-              <p className="title"><b>Users</b></p>
-              <p className="subtitle">Add, remove, or update users.</p>
-            </div>
-            <br />
-
-            <form id="user_search_div" className="form-inline" onSubmit={e => { e.preventDefault(); }}> 
-		<div className="form-group">
-                <input type="text" className="form-control" id="user_search" placeholder="Username" onKeyDown={this.handleKeyDown}/>
-            	</div>
-              <button type="button" className="btn btn-primary" onClick={this.updateSearchQuery}>Search</button>
-              <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
-            <br />
-	   </form>
-            <UsersTable  query={this.state.search_query} />
-            <ModalTemplate2 />
-          </div>
+      <div>
+        <div>
+          <p className="title"><b>Users</b></p>
+          <p className="subtitle">Add, remove, or update users.</p>
         </div>
-      </PageContextProvider>
+        <br />
+
+        <form id="user_search_div" className="form-inline" onSubmit={e => { e.preventDefault(); }}> 
+          <div className="form-group">
+            <input type="text" className="form-control" id="user_search" placeholder="Username" onKeyDown={this.handleKeyDown}/>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={this.updateSearchQuery}>Search</button>
+          <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
+          <br />
+        </form>
+        <UsersTable  query={this.state.search_query} />
+        <ModalTemplate2 />
+      </div>
     );
   }
 }
 
-export { UserLandingPage };
+export { Users };

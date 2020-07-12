@@ -1,10 +1,9 @@
 import React from "react";
 
-import { Link } from "react-router-dom";
+import { Link, withRouter } from "react-router-dom";
 
-export const AdminNavBar = () => {
-  // https://developer.mozilla.org/en-US/docs/Web/API/URL_API
-  let url = new URL(document.location.href);
+const adminNavBar = (props) => {
+  const { location } = props;
 
   let links = [
     { name: 'Devices',    url: '/devices' },
@@ -16,7 +15,7 @@ export const AdminNavBar = () => {
 
   let sideNavLinks = links.map((link, i) => {
     let classNames = '';
-    if (url.pathname.includes(link.url)) {
+    if (location.pathname.includes(link.url)) {
       classNames = 'active';
     }
     return (
@@ -32,3 +31,5 @@ export const AdminNavBar = () => {
     </ul>
   );
 };
+
+export const AdminNavBar = withRouter(adminNavBar);

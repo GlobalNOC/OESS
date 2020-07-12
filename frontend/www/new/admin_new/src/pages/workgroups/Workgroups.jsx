@@ -1,24 +1,18 @@
 import React from "react";
 import ReactDOM from "react-dom";
 
-import getCurrentUser from '../api/user_menu.jsx';
 
-import { AdminNavBar } from "../components/nav_bar/AdminNavBar.jsx";
-import NavBar from "../components/nav_bar/NavBar.jsx";
-
-import { PageContextProvider } from '../contexts/PageContext.jsx';
-
-import "../style.css";
+import "../../style.css";
 
 
-import { getWorkgroups, getAllWorkgroups } from '../api/workgroup.js';
+import { getAllWorkgroups } from '../../api/workgroup.js';
 
-import { WorkgroupModal } from '../components/workgroups/WorkgroupModal.jsx';
-import { PageSelector } from '../components/generic_components/PageSelector.jsx';
-import { BaseModal } from '../components/generic_components/BaseModal.jsx';
+import { WorkgroupModal } from '../../components/workgroups/WorkgroupModal.jsx';
+import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
+import { BaseModal } from '../../components/generic_components/BaseModal.jsx';
 
 
-import { Table } from '../components/generic_components/Table.jsx';
+import { Table } from '../../components/generic_components/Table.jsx';
 
 class Workgroups extends React.Component {
   constructor(props){
@@ -127,51 +121,36 @@ class Workgroups extends React.Component {
     ];
 
     return (
-      <PageContextProvider>
+      <div>
+        <BaseModal visible={this.state.visible} header="Create Workgroup" modalID={modalID} onClose={() => this.setState({visible: false})}>
+          <WorkgroupModal workgroup={null} />
+        </BaseModal>
 
-        <div className="oess-page-container">
-          <div className="oess-page-navigation">
-            <NavBar />
-          </div>
+        <BaseModal visible={this.state.editModalVisible} header="Edit Workgroup" modalID="modal-edit-workgroup" onClose={() => this.setState({editModalVisible: false})} >
+          <WorkgroupModal workgroup={this.state.workgroup} />
+        </BaseModal>
 
-          <div className="oess-side-navigation">
-            <AdminNavBar />
-          </div>
-
-          <div className="oess-page-content">
-
-            <BaseModal visible={this.state.visible} header="Create Workgroup" modalID={modalID} onClose={() => this.setState({visible: false})}>
-              <WorkgroupModal workgroup={null} />
-            </BaseModal>
-
-            <BaseModal visible={this.state.editModalVisible} header="Edit Workgroup" modalID="modal-edit-workgroup" onClose={() => this.setState({editModalVisible: false})} >
-              <WorkgroupModal workgroup={this.state.workgroup} />
-            </BaseModal>
-
-            <div>
-              <p className="title"><b>Workgroups</b></p>
-              <p className="subtitle">Create, edit, or delete Workgroups.</p>
-            </div>
-            <br />
-
-            <form id="user_search_div" className="form-inline">
-              <div className="form-group">
-                <input type="text" className="form-control" id="user_search" placeholder="Workgroup" onChange={(e) => this.filterWorkgroups(e)}/>
-              </div>
-              <button type="button" className="btn btn-primary">Search</button>
-              <button type="button" className="btn btn-default" onClick={() => this.setState({visible: true})}>Create Workgroup</button>
-            </form>
-            <br />
-
-            <Table columns={columns} rows={workgroups} />
-
-            <center>
-              <PageSelector pageNumber={this.state.pageNumber} pageSize={this.state.pageSize} itemCount={filteredItemCount} onChange={(i) => this.setState({pageNumber: i})} />
-            </center>
-
-          </div>
+        <div>
+          <p className="title"><b>Workgroups</b></p>
+          <p className="subtitle">Create, edit, or delete Workgroups.</p>
         </div>
-      </PageContextProvider>
+        <br />
+
+        <form id="user_search_div" className="form-inline">
+          <div className="form-group">
+            <input type="text" className="form-control" id="user_search" placeholder="Workgroup" onChange={(e) => this.filterWorkgroups(e)}/>
+          </div>
+          <button type="button" className="btn btn-primary">Search</button>
+          <button type="button" className="btn btn-default" onClick={() => this.setState({visible: true})}>Create Workgroup</button>
+        </form>
+        <br />
+
+        <Table columns={columns} rows={workgroups} />
+
+        <center>
+          <PageSelector pageNumber={this.state.pageNumber} pageSize={this.state.pageSize} itemCount={filteredItemCount} onChange={(i) => this.setState({pageNumber: i})} />
+        </center>
+      </div>
     );
   }
 }
