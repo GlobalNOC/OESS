@@ -13,6 +13,7 @@ import { Workgroups } from "./pages/workgroups/Workgroups.jsx";
 import { BrowserRouter as Router, Switch, Route, Redirect } from "react-router-dom";
 
 import "./style.css";
+import { CreateWorkgroup } from "./pages/workgroups/CreateWorkgroup.jsx";
 
 const App = () => {
   return (
@@ -35,6 +36,9 @@ const App = () => {
               </Route>
               <Route path="/users">
                 <Users />
+              </Route>
+              <Route path="/workgroups/new">
+                <CreateWorkgroup />
               </Route>
               <Route path="/workgroups">
                 <Workgroups />

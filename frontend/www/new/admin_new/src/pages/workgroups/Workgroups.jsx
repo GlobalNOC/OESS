@@ -7,7 +7,7 @@ import "../../style.css";
 
 import { getAllWorkgroups } from '../../api/workgroup.js';
 
-import { WorkgroupModal } from '../../components/workgroups/WorkgroupModal.jsx';
+import { WorkgroupForm } from '../../components/workgroups/WorkgroupForm.jsx';
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
 import { BaseModal } from '../../components/generic_components/BaseModal.jsx';
 
@@ -123,7 +123,7 @@ class Workgroups extends React.Component {
     return (
       <div>
         <BaseModal visible={this.state.visible} header="Create Workgroup" modalID={modalID} onClose={() => this.setState({visible: false})}>
-          <WorkgroupModal workgroup={null} />
+          <WorkgroupForm workgroup={null} />
         </BaseModal>
 
         <BaseModal visible={this.state.editModalVisible} header="Edit Workgroup" modalID="modal-edit-workgroup" onClose={() => this.setState({editModalVisible: false})} >
