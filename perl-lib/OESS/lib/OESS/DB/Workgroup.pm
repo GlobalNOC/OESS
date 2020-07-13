@@ -327,6 +327,7 @@ sub edit_user_role {
     return (1, undef);
 
 }
+
 =head2 remove_user
 
     my ($ok, $err) = OESS::DB::Workgroup::remove_user(

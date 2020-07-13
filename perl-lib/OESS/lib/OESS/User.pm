@@ -208,6 +208,7 @@ sub workgroups{
     my $self = shift;
     return $self->{'workgroups'} || [];
 }
+
 =head2 role
 
 =cut
@@ -215,6 +216,7 @@ sub role{
     my $self = shift;
     return $self->{role};
 }
+
 =head2 email
 
 =cut

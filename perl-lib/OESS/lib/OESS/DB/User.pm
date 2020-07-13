@@ -65,30 +65,26 @@ sub fetch{
     }
     return $user->[0];
 }
+
 =head2 add_user
+
+=over
 
 =item db
     Used to denote which database is being used for the transactions
-=back
 
 =item given_name
     Denotes the first name of the user to be added to the database
-=back
 
 =item family_name
     Denotes the last name of the user to be added to the database
-=back
 
 =item email
     Denotes the email address of the user to be added to the database
-=back
 
 =item auth_names
     Denotes either a single or list of usernames accreditted to the user
-=back
 
-=item status
-    Denotes the current status of the account either {'active','decom'};
 =back
 
     my ($result, $err) = OESS::DB::User::add_user(db => $db, 
@@ -101,6 +97,7 @@ Takes the your input and creates the user object in the database and the associa
 
 
 Returns a tuple of of a the result that is the new user id and and error if defined.
+
 =cut
 sub add_user {
    my %params = @_;
@@ -145,20 +142,26 @@ sub add_user {
 
    return ($user_id, undef);
 }
+
 =head2 delete_user
+
+=over
 
 =item db
     Denotes the database that the user is being deleted from
-=back
 
 =item user_id
     Denotes the user_id of the user to be deleted.
+
 =back
+
     my ($result, $error) = OESS::DB::User::delete_user(db => $db,
+
                                                        user_id => $user_id);
     Takes you input and delete the associate user from the database and associated tables. (user, user_workgroup_management, auth_names)
 
 Returns a tuple of a result code 1 if correct, and and error
+
 =cut
 sub delete_user {
     my %params = @_; 
@@ -194,33 +197,31 @@ sub delete_user {
 }
 =head2 edit_user
 
+=over
+
 =item db
     Denotes the database that is being used for these edits that are being made.
-=back
 
 =item user_id
     Denotes the user_id of the user who is being editted.
-=back
 
 =item given_name
     Denotes the new first name of the edited user
-=back
 
 =item family_name
     Denotes the new last name of the edited user
-=back
 
 =item email
     Denotes the new email of the edited user
-=back
 
 =item auth_names
     Denotes the new usernames of the edited user
-=back
 
 =item status
     Denotes the new status of the edited user
+
 =back
+
     my ($result, $error) = OESS::DB::User::edit_user(db => $db,
                                                       given_name => $given_name,
                                                       family_name => $family_name,
@@ -280,6 +281,7 @@ sub edit_user {
 
      return (1,undef)
 }
+
 =head2 get_workgroups
 
 =cut
@@ -328,6 +330,7 @@ sub get_workgroups {
 }
 
 =head2 find_user_by_remote_auth
+
 =cut
 sub find_user_by_remote_auth{
     my %params = @_;
@@ -341,26 +344,26 @@ sub find_user_by_remote_auth{
 
     return $user_id->[0];
 }
+
 =head2 has_system_access
+
+=over
 
 =item db
     Denotes the database we are checking for access
-=back
 
 =item user_id
     Denotes the user_id of the user whose access we are checking
-=back
 
 =item username
     Denotes the username of the user whose access we are checking
-=back
 
 =item workgroup_id
    Denotes the workgroup_id of the workgroup we checking the users permissions in
-=back
 
 =item role
    Denotes the level of access the user needs for a particular action
+
 =back
 
     my $results = OESS::DB::User::has_system_access(
@@ -380,6 +383,7 @@ checks if their C<role> is the same or higher level than the passed C<role>. If
 it is then the User has the proper level of permissions based on the following
 C<admin> highest access C<normal> medium access C<read-only> mimum access
 Then the function grants permission Otherwise spits out an error.
+
 =cut
 sub has_system_access{
     my %params = @_;
@@ -438,26 +442,26 @@ sub has_system_access{
        return (0, "User $user->{'username'} does not have system admin privileges.");
     }
 }
+
 =head2 has_workgroup_access
+
+=over
 
 =item db
     Denotes the database we are checking for access
-=back
 
 =item user_id
     Denotes the user_id of the user whose access we are checking
-=back
 
 =item username
     Denotes the username of the user whose access we are checking
-=back
 
 =item workgroup_id
    Denotes the workgroup_id of the workgroup we checking the users permissions in
-=back
 
 =item role
    Denotes the level of access the user needs for a particular action
+
 =back
 
     my $results = OESS::DB::User::has_workgroup_access(
