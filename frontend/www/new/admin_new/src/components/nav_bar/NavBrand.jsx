@@ -4,11 +4,11 @@ import "./navbar.css";
 
 export default class NavBrand extends React.Component {
   render() {
-	return (
+    return (
       <a className="navbar-brand oess-navbar-brand" href={this.props.linkTo}>
-		<img className="navbar-brand-logo" src={this.props.src}/>	
-		{this.props.text}
-	  </a>
+        <img className="navbar-brand-logo" src={this.props.src} alt="Cloud Connect Logo" />	
+        {this.props.text}
+      </a>
     ); 
   }
 }

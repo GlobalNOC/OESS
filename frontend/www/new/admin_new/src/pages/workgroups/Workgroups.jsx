@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 
+import { Link } from "react-router-dom";
 
 import "../../style.css";
 
@@ -126,9 +127,9 @@ class Workgroups extends React.Component {
           <WorkgroupForm workgroup={null} />
         </BaseModal>
 
-        <BaseModal visible={this.state.editModalVisible} header="Edit Workgroup" modalID="modal-edit-workgroup" onClose={() => this.setState({editModalVisible: false})} >
+        {/*<BaseModal visible={this.state.editModalVisible} header="Edit Workgroup" modalID="modal-edit-workgroup" onClose={() => this.setState({editModalVisible: false})} >
           <WorkgroupModal workgroup={this.state.workgroup} />
-        </BaseModal>
+        </BaseModal>*/}
 
         <div>
           <p className="title"><b>Workgroups</b></p>
@@ -141,7 +142,7 @@ class Workgroups extends React.Component {
             <input type="text" className="form-control" id="user_search" placeholder="Workgroup" onChange={(e) => this.filterWorkgroups(e)}/>
           </div>
           <button type="button" className="btn btn-primary">Search</button>
-          <button type="button" className="btn btn-default" onClick={() => this.setState({visible: true})}>Create Workgroup</button>
+          <Link to="/workgroups/new" className="btn btn-default">Create Workgroup</Link>
         </form>
         <br />
 
