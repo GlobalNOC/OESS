@@ -66,6 +66,68 @@ sub fetch{
     return $user->[0];
 }
 
+=head2 fetch_all
+
+    my ($users, $error) = OESS::DB::User::fetch_all(
+        db => new OESS::DB
+    );
+
+=cut
+sub fetch_all{
+    my %params = @_;
+    my $db = $params{db};
+
+    my $res = $db->execute_query(" SELECT *
+                                   FROM user
+                                   ORDER BY given_names", []);
+    if (!defined $res || !defined $res->[0]) {
+        return (undef, $db->get_error);
+    }
+    
+    my @users;
+
+    foreach my $user (@$res) {
+        my $data = {
+            'given_name' => $user->{given_names},
+            'family_name' => $user->{family_name},
+            'email' => $user->{'email'},
+            'user_id' => $user->{'user_id'},
+            'status' => $user->{'status'},
+            'is_admin' => $user->{'is_admin'},
+            'usernames' => []
+        };
+        my $username_results = $db->execute_query("SELECT auth_name from remote_auth where user_id=?", [$user->{user_id}]);
+
+        if (!defined $username_results) {
+            return (undef, "Internal error fetching usernames");
+        }
+        foreach my $username (@$username_results){
+            push(@{$data->{usernames}}, $username->{'auth_name'});
+        }
+
+        my $admin_query = "
+            SELECT exists(
+                SELECT type
+                FROM workgroup
+                JOIN user_workgroup_membership on workgroup.workgroup_id=user_workgroup_membership.workgroup_id
+                WHERE user_workgroup_membership.user_id=? AND type='admin'
+            ) as is_admin;
+        ";
+        my $admin_result = $db->execute_query(
+            $admin_query,
+            [$user->{'user_id'}]);
+        if (!defined $admin_result || !defined $admin_result->[0]) {
+            return (undef, $db->get_error);
+        }
+
+        $data->{is_admin} = $admin_result->[0]->{is_admin};
+
+        push(@users, $data);
+
+    }
+    return (\@users, undef);
+}
+
 =head2 add_user
 
 =over
@@ -195,6 +257,7 @@ sub delete_user {
 
     return (1, undef);
 }
+
 =head2 edit_user
 
 =over
@@ -230,7 +293,9 @@ sub delete_user {
                                                       status => $status);
     
     Returns the result of 1 if edit is succesful and an error is neccessary 
+
 =cut
+
 sub edit_user {
     my %params = @_;
     my $db = $params{'db'};

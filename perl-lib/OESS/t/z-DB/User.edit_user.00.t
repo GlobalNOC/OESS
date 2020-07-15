@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path/..";
 
 use Data::Dumper;
-use Test::More tests => 12;
+use Test::More tests => 16;
 
 use OESSDatabaseTester;
 
@@ -54,6 +54,7 @@ foreach my $key (keys %$model) {
     ok($user->{$key} eq $model->{$key}, "got expected initial $key from db");
 }
 $model->{family_name} = 'Please-Ignore';
+
 my ($res, $err2) = OESS::DB::User::edit_user(db => $db,
                                              user_id     => $id,
                                              given_name  => $model->{given_names},
@@ -69,3 +70,15 @@ $user = OESS::DB::User::fetch(db => $db, user_id => $id);
 foreach my $key (keys %$model) {
     ok($user->{$key} eq $model->{$key}, "got expected edited $key from db");
 }
+
+($res, $err2) = OESS::DB::User::edit_user();
+ok($res == 0, "Editing User failed with no paramaters");
+
+($res, $err2) = OESS::DB::User::edit_user(db => $db, given_name => 'Aj');
+ok($res == 0, "Editing user failed when only given name specified.");
+
+($res, $err2) = OESS::DB::User::edit_user(db => $db, family_name => 'User 11');
+ok($res == 0, "Editiing user failed when only family name specified");
+
+($res, $err2) = OESS::DB::User::edit_user(db => $db, email => "user_11");
+ok($res == 0, "Editing user failed when only email specified");

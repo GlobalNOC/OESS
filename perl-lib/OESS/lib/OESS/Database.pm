@@ -3871,9 +3871,9 @@ sub edit_user {
     
     $self->_start_transaction();
     
-    my $query = "update user set email = ?, given_names = ?, family_name = ?, type = ?, status = ?  where user_id = ?";
+    my $query = "update user set email = ?, given_names = ?, family_name = ?, status = ?  where user_id = ?";
     
-    my $result = $self->_execute_query($query, [$email, $given_name, $family_name, $type, $status,  $user_id]);
+    my $result = $self->_execute_query($query, [$email, $given_name, $family_name, $status,  $user_id]);
     
     if (! defined $user_id || $result == 0){
         $self->_set_error("Unable to edit user - does this user actually exist?");

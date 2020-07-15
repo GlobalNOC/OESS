@@ -34,27 +34,27 @@ my $db = new OESS::DB(
     config => "$path/../conf/database.xml"
 );
 
-my $result = OESS::DB::User::has_system_access(db => $db, username => 'user_251@foo.net', role => 'admin');
-ok(!defined $result, "Got expected undefined result meaning accepting access");
+my ($result, $error) = OESS::DB::User::has_system_access(db => $db, username => 'user_251@foo.net', role => 'admin');
+ok($result == 1, "Got expected undefined result meaning accepting access");
 
-$result = OESS::DB::User::has_system_access(db => $db, user_id => 251, role =>'normal');
-ok(!defined $result, "Got expected undefined result meaning accepting access");
+($result, $error) = OESS::DB::User::has_system_access(db => $db, user_id => 251, role =>'normal');
+ok($result == 1, "Got expected undefined result meaning accepting access");
 
-$result = OESS::DB::User::has_system_access(db => $db, user_id => 251, role => 'read-only');
-ok(!defined $result, "Got expected undefined result meaning accepting access");
+($result, $error) = OESS::DB::User::has_system_access(db => $db, user_id => 251, role => 'read-only');
+ok($result == 1, "Got expected undefined result meaning accepting access");
 
-$result = OESS::DB::User::has_system_access(db=> $db, user_id => 911, role => 'read-only');
-ok(defined $result->{error}, "Got expected error, $result->{error}");
+($result, $error) = OESS::DB::User::has_system_access(db=> $db, user_id => 911, role => 'read-only');
+ok(defined $error, "Got expected error, $error");
 
 OESS::DB::Workgroup::add_user(db => $db, user_id => 901, workgroup_id => 11, role => 'normal');
 
-$result = OESS::DB::User::has_system_access(db => $db, user_id => 901, role => 'admin' );
-ok(defined $result->{error}, "Got expected error, $result->{error}");
+($result, $error) = OESS::DB::User::has_system_access(db => $db, user_id => 901, role => 'admin' );
+ok(defined $error, "Got expected error, $error");
 
 OESS::DB::Workgroup::edit_user_role(db => $db, user_id => 901, workgroup_id => 11, role => 'read-only');
 
-$result = OESS::DB::User::has_system_access(db => $db, user_id => 901, role => 'normal');
-ok(defined $result->{error}, "Got expected error, $result->{error}");
+($result, $error) = OESS::DB::User::has_system_access(db => $db, user_id => 901, role => 'normal');
+ok(defined $error, "Got expected error, $error");
 
-$result = OESS::DB::User::has_system_access(db => $db, user_id => 901, role => 'read-only');
-ok(!defined $result, "Got Expected undefined result meaning accepting access");
+($result, $error) = OESS::DB::User::has_system_access(db => $db, user_id => 901, role => 'read-only');
+ok($result == 1, "Got Expected undefined result meaning accepting access");
