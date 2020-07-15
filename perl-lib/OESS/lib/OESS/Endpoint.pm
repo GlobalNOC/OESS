@@ -147,7 +147,7 @@ sub _build_from_model{
     $self->{'entity'} = $self->{'model'}->{'entity'};
     $self->{'entity_id'} = $self->{'model'}->{'entity_id'};
     $self->{'description'} = $self->{'model'}->{'description'};
-
+    $self->{'operational_state'} = $self->{'model'}->{'operational_state'};
     # The default selection method is to find the first interface that
     # has supports C<bandwidth> and has C<tag> available.
 
@@ -180,6 +180,7 @@ sub to_hash{
     $obj->{'node'} = $self->{'node'};
     $obj->{'node_id'} = $self->{'node_id'};
     $obj->{'description'} = $self->{'description'};
+    $obj->{'operational_state'} = $self->{'operational_state'};
     $obj->{'inner_tag'} = $self->inner_tag();
     $obj->{'tag'} = $self->tag();
     $obj->{'bandwidth'} = $self->{'bandwidth'};
@@ -229,6 +230,7 @@ sub from_hash{
     $self->{'node'} = $hash->{'node'};
     $self->{'node_id'} = $hash->{'node_id'};
     $self->{'description'} = $hash->{'description'};
+    $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'inner_tag'} = $hash->{'inner_tag'};
     $self->{'tag'} = $hash->{'tag'};
     $self->{'bandwidth'} = $hash->{'bandwidth'};
