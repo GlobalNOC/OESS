@@ -62,11 +62,15 @@ async function loadEntityList() {
     }
 
     entities.forEach(function(entity, index) {
-
+        ok = true;
         let endpointHTML = '';
 
         entity.endpoints.forEach(function(endpoint) {
             let endpointOK = true;
+            if (endpoint.operational_state !== 'up'){
+                ok=false;
+                endpointOK = false;
+            }
             if ('peers' in endpoint) {
                 endpoint.peers.forEach(function(peer) {
                     if (peer.operational_state !== 'up') {
@@ -179,7 +183,7 @@ async function loadL2VPNs() {
   }
 
   circuits.forEach(function(circuit, index) {
-    let color = ok ? '#E0F0D9' : '#F2DEDE';
+    ok = true;
     let createdOn = new Date(circuit.created_on);
     let modifiedOn = new Date(circuit.last_edited);
     let bg_color = '#fff';
@@ -197,7 +201,10 @@ async function loadL2VPNs() {
     let endpointHTML = '';
     circuit.endpoints.forEach(function(endpoint) {
       let endpointOK = true;
-
+      if ( endpoint.operational_state !== "up" ){
+        endpointOK = false;
+        ok = false;
+      }
       let statusIcon = '<span class="glyphicon glyphicon glyphicon-circle-arrow-up" style="color: #5CB85C" aria-hidden="true"></span>';
       if (!endpointOK) {
         statusIcon = '<span class="glyphicon glyphicon glyphicon-circle-arrow-down" style="color: #D9534E" aria-hidden="true"></span>';
@@ -213,7 +220,7 @@ async function loadL2VPNs() {
         </p>
         `;
     });
-
+     let color = ok ? '#E0F0D9' : '#F2DEDE'; 
     html += `
 <div class="panel panel-default">
   <div class="panel-heading" style="display: flex; background-color: ${bg_color};">

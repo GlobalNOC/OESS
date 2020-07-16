@@ -1405,6 +1405,7 @@ sub add_user {
         $method->set_error($err);
         return;
     }
+    
 
     my $results;
 
@@ -1413,7 +1414,9 @@ sub add_user {
     my $email       = $args->{"email_address"}{'value'};
     my @auth_names  = $args->{"auth_name"}{'value'};
     my $status      = $args->{"status"}{'value'};
+
     my ($new_user_id, $err2) = OESS::DB::User::add_user(db => $db2,
+
         given_name    => $given_name,
         family_name   => $family_name,
         email         => $email,
