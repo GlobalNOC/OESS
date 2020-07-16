@@ -248,5 +248,25 @@ sub send_json {
     print "Content-type: text/plain\n\n" . encode_json($output);
 }
 
+sub get_oess_status {
+    my $results;
+    my $serviceResult;
+    
+    return if !defined $mq;
+
+    $mq-> = 'OF.FWDCTL.RPC';
+    $serviceResult = $mq->is_connected();
+
+    $result->{FWDCTL} = int($serviceResult->{'result'}->{'connected'});
+
+    $mq->{'topic'} = 'OF.Notification.RPC';
+    $serviceResult = $mq->is_connected();
+
+    $result->{Notification} = int($serviceResult->{'result'}->{'connected'});
+    
+    return $result
+
+}
+
 main();
 
