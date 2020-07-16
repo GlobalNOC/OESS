@@ -30,7 +30,7 @@ my $conf = "$cwd/../../conf/mpls/discovery.xml";
 my $dump = "$cwd/../../conf/mpls/discovery.sql";
 
 OESSDatabaseTester::load_database($conf, $dump);
-
+sleep 3;
 
 # Initial adjacencies shown here for reference.
 my $adjs = {
