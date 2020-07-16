@@ -16,12 +16,12 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Current Database: `oess_test`
+-- Current Database: `discovery`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess_test` /*!40100 DEFAULT CHARACTER SET utf8 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `discovery` /*!40100 DEFAULT CHARACTER SET utf8 */;
 
-USE `oess_test`;
+USE `discovery`;
 
 --
 -- Table structure for table `circuit`
