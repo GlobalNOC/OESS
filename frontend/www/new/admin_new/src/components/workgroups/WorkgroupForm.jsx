@@ -28,7 +28,7 @@ export const WorkgroupForm = (props) => {
     console.log('submit:', workgroup, 'validated:', ok);
 
     if (props.onSubmit) {
-      props.onSubmit(e);
+      props.onSubmit(workgroup);
     }
   }
 

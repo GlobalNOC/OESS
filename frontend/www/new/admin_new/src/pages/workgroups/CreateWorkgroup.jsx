@@ -5,19 +5,25 @@ import { withRouter } from "react-router-dom";
 import "../../style.css";
 
 
-import { getAllWorkgroups } from '../../api/workgroup.js';
+import { createWorkgroup } from '../../api/workgroup.js';
 
 import { WorkgroupForm } from '../../components/workgroups/WorkgroupForm.jsx';
 
 
-const createWorkgroup = (props) => {
+const createWorkgroupComponent = (props) => {
   const { history } = props;
 
-  let submitHandler = (e) => {
-    console.log(e);
+  let submitHandler = async (e) => {
+    try {
+      let results = await createWorkgroup(e);
+      console.info(results);
+    } catch (error) {
+      console.error(error);
+    }
+    history.push('/workgroups');
   }
-  let cancelHandler = (e) => {
-    console.log('goto workgroups');
+
+  let cancelHandler = async () => {
     history.push('/workgroups');
   };
 
@@ -34,4 +40,4 @@ const createWorkgroup = (props) => {
   );
 }
 
-export const CreateWorkgroup = withRouter(createWorkgroup);
+export const CreateWorkgroup = withRouter(createWorkgroupComponent);
