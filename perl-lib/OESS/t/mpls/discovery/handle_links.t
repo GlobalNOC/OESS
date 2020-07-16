@@ -59,7 +59,7 @@ my $discovery = OESS::MPLS::Discovery->new(
     config => $conf,
     test   => 1
 );
-
+sleep 3;
 # Move endpoint on node3 from xe-7/0/3 to xe-7/0/2
 $discovery->{ipv4_intf} = {
     '198.169.70.2' => 'xe-7/0/3',
