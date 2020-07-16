@@ -55,7 +55,6 @@ my $adjs = {
         }
     }
 };
-
 my $discovery = OESS::MPLS::Discovery->new(
     config => $conf,
     test   => 1
@@ -92,7 +91,7 @@ $adjs = {
 $discovery->handle_links($adjs);
 
 my $link_insts = $discovery->{db}->_execute_query("select * from link_instantiation where end_epoch=-1",[]);
-ok(defined $link_insts->[0], "Link instantiation exists.");
+ok(@$link_insts == 1, "Link instantiation exists.");
 
 my $expected_adj = ($link_insts->[0]->{interface_a_id} == 5 && $link_insts->[0]->{interface_z_id} == 3) ||
     ($link_insts->[0]->{interface_a_id} == 3 && $link_insts->[0]->{interface_z_id} == 5);
