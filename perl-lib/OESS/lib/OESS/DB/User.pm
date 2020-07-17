@@ -604,7 +604,7 @@ sub has_workgroup_access {
        my $is_sys_admin;
        my $adminErr;
        if ($role eq 'read-only') {
-           ($is_sys_admin, $adminErr) = has_system_access(db =>$db, user_id => $user->{user_id}, role => 'read_only');
+           ($is_sys_admin, $adminErr) = has_system_access(db =>$db, user_id => $user->{user_id}, role => 'read-only');
        } else {
            ($is_sys_admin, $adminErr) = has_system_access(db => $db, user_id => $user->{user_id}, role => 'normal');
        }

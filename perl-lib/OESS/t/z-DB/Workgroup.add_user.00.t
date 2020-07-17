@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path/..";
 
 use Data::Dumper;
-use Test::More tests => 8;
+use Test::More tests => 10;
 
 use OESSDatabaseTester;
 
@@ -62,6 +62,12 @@ ok(!defined $id, "Fails to add without role specified");
 ok(defined $id, "User was added to workgroup");
 ok(!defined $err, "No err was found during adding user to workgroup");
 
+($id, $err) = OESS::DB::Workgroup::add_user(db => $db,
+                                          user_id      => $user,
+                                          workgroup_id => $workgroup,
+                                          role         => 'admin');
+ok(!defined $id, "User can't be added to the workgroup again");
+ok(defined $err, "Returned Error: $err");
 my $result = $db->execute_query("SELECT * FROM user_workgroup_membership WHERE user_id = ? AND workgroup_id = ?", [$user,$workgroup]);
 ok(defined $result && defined $result->[0], "User,Workgroup combo was present in user_workgroup_membership table");
 
