@@ -169,8 +169,8 @@ $(function () {
 let state = new GlobalState();
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
 
-document.addEventListener('DOMContentLoaded', function() {
-  loadUserMenu();
+document.addEventListener('DOMContentLoaded', async function() {
+  await loadUserMenu();
 
   let url = new URL(window.location.href);
   let id = url.searchParams.get('vrf_id');

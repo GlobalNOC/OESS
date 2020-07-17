@@ -149,8 +149,8 @@ async function update(props) {
   });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  loadUserMenu();
+document.addEventListener('DOMContentLoaded', async function() {
+  await loadUserMenu();
 
   let url = new URL(window.location.href);
   let id = url.searchParams.get('circuit_id');

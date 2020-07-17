@@ -183,19 +183,19 @@ sub vrf_notification{
     $vrf->load_users;
     $vrf->load_workgroup;
 
-    my $subject = "OESS Notification: VRF '" . $vrf->{'description'} . "' ";
+    my $subject = "OESS Notification: '" . $vrf->{'description'} . "' ";
     #no bulk notifications for MPLS VRFs
     switch($p_ref->{'type'}{'value'}){
         case "provisioned"{
-            $subject .= "has been provisioned in workgroup: " . $vrf->workgroup()->name();
+            $subject .= "provisioned in workgroup: " . $vrf->workgroup()->name();
             $self->{'notification_events'}->vrf_provision( vrf_id => $vrf->vrf_id(), no_reply => 1 );
         }
         case "removed" {
-            $subject .= "has been removed from workgroup: " . $vrf->workgroup()->name();
+            $subject .= "removed from workgroup: " . $vrf->workgroup()->name();
             $self->{'notification_events'}->vrf_remove( vrf_id => $vrf->vrf_id(), no_reply => 1 );
         }
         case "modified" {
-            $subject .= "has been edited in workgroup: " . $vrf->workgroup()->name();
+            $subject .= "modified in workgroup: " . $vrf->workgroup()->name();
             $self->{'notification_events'}->vrf_modify( vrf_id => $vrf->vrf_id(), no_reply => 1 );
         }
     }
@@ -232,12 +232,6 @@ sub circuit_notification {
 
     my $circuit;
     $self->{'log'}->debug("Sending Circuit Notification: " . Data::Dumper::Dumper($p_ref));
-    
-    if ($type eq 'link_down' || $type eq 'link_up' ) {
-	$self->{'log'}->debug("Sending bulk notifications");
-        $self->_send_bulk_notification($p_ref);
-        return;
-    }
 
     $circuit = $p_ref->{'affected_circuits'}{'value'}[0];
     my $circuit_notification_data = $self->get_notification_data( circuit => $circuit );
@@ -246,7 +240,7 @@ sub circuit_notification {
 	return {status => 0};;
     }
 
-    my $subject = "OESS Notification: Circuit '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
+    my $subject = "OESS Notification: '" . $circuit_notification_data->{'circuit'}->{'description'} . "' ";
     my $workgroup = $circuit_notification_data->{'workgroup'};
 
     $self->{'log'}->debug("Sending circuit with subject: " . $subject);
@@ -255,27 +249,27 @@ sub circuit_notification {
 
     switch($circuit->{'type'} ) {
         case "provisioned"{
-            $subject .= "has been provisioned in workgroup: $workgroup ";
+            $subject .= "provisioned in workgroup: $workgroup ";
             $self->{'notification_events'}->circuit_provision( circuit => $circuit, no_reply => 1 );
         }
         case "removed" {
-            $subject .= "has been removed from workgroup: $workgroup";
+            $subject .= "removed from workgroup: $workgroup";
             $self->{'notification_events'}->circuit_remove( circuit => $circuit, no_reply => 1 );
         }
         case "modified" {
-            $subject .= "has been edited in workgroup: $workgroup";
+            $subject .= "modified in workgroup: $workgroup";
             $self->{'notification_events'}->circuit_modify( circuit => $circuit, no_reply => 1 );
         }
         case "change_path" {
-            $subject .= "has changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
+            $subject .= "changed to " . $circuit_notification_data->{'circuit'}->{'active_path'} . " path in workgroup: $workgroup";
             $self->{'notification_events'}->circuit_change_path( circuit => $circuit, no_reply => 1 );
         }
         case "restored" {
-            $subject .= "has been restored for workgroup: $workgroup";
+            $subject .= "restored for workgroup: $workgroup";
             $self->{'notification_events'}->circuit_restore( circuit => $circuit, no_reply => 1 );
         }
         case "down" {
-            $subject .= "is down for workgroup: $workgroup";
+            $subject .= "down for workgroup: $workgroup";
             $self->{'notification_events'}->circuit_down( circuit => $circuit, no_reply => 1 );
         }
         case "unknown" {
@@ -429,140 +423,6 @@ sub send_vrf_notification {
 
     return 1;
     
-}
-
-sub _send_bulk_notification {
-    my $self = shift;
-    my $data = shift;
-    my $db = $self->{'db'};
-    my $circuits = $data->{'affected_circuits'}{'value'};
-    my $link_name = $data->{'link_name'}{'value'};
-    my $workgroup_notifications={};
-    my $type = $data->{'type'}{'value'};
-
-    foreach my $circuit (@$circuits) {
-        #build workgroup buckets
-        my $circuit_details = $self->get_notification_data(circuit => $circuit);
-
-        if(!defined($circuit_details)){
-            next;
-        }
-        
-        my $owners = $circuit_details->{'endpoint_owners'};
-        
-        foreach my $owner (keys %$owners) {
-            my $affected_users = $owners->{$owner}->{'affected_users'};
-            my $workgroup_id = $owners->{$owner}->{'workgroup_id'};
-            
-            unless ($workgroup_notifications->{$owner}) {
-                $workgroup_notifications->{$owner} = {};
-                $workgroup_notifications->{$owner}{'affected_users'} = $affected_users;
-                $workgroup_notifications->{$owner }{'workgroup_id'} = $workgroup_id;
-                $workgroup_notifications->{$owner}{'endpoint_owned'}{'circuits'} = [];
-            }
-            
-            push (@{ $workgroup_notifications->{ $owner }{'endpoint_owned'}{'circuits'} }, $circuit_details->{'circuit'} );
-            
-        }
-
-        unless ($workgroup_notifications->{$circuit_details->{'workgroup'} } ) {
-            $workgroup_notifications->{$circuit_details->{'workgroup'} } = {};
-            $workgroup_notifications->{$circuit_details->{'workgroup'} }{'affected_users'} = $circuit_details->{'affected_users'};
-            $workgroup_notifications->{$circuit_details->{'workgroup'} }{'workgroup_id'} = $circuit_details->{'workgroup_id'};
-            $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'} = [];
-        }
-
-        push (@{ $workgroup_notifications->{$circuit_details->{'workgroup'} }{'circuits'} }, $circuit_details->{'circuit'} );
-
-    }
-
-    foreach my $workgroup (keys %$workgroup_notifications) {
-        #split into per workgroup circuit sets
-        my @to_list = ();
-        my $workgroup_circuits = $workgroup_notifications->{$workgroup}{'circuits'} || [];
-        my $circuits_on_owned_endpoints = $workgroup_notifications->{$workgroup}{'endpoint_owned'}{'circuits'} || [];
-        my $affected_users = $workgroup_notifications->{$workgroup}{'affected_users'};
-        my $subject;
-        my $circuit_count = 0;
-        if ($workgroup_circuits){
-            $circuit_count= scalar (@$workgroup_circuits);
-        }
-        my $owned_count =0;
-        if ($circuits_on_owned_endpoints){
-            $owned_count = scalar (@$circuits_on_owned_endpoints);
-        }
-        switch($type) {
-            case ('link_down'){
-                $subject = "OESS Notification: Backbone Link $link_name is down. ".$circuit_count." circuits in workgroup $workgroup and ".$owned_count." using ports owned by your workgroup are impacted";
-            }
-            case ('link_up'){
-                $subject = "OESS Notification: Backbone Link $link_name is up. ".$circuit_count." circuits in workgroup $workgroup and ".$owned_count. " using ports owned by your workgroup have been restored to service";
-            }
-        }
-
-
-	my $dt = DateTime->now;	
-	my $str_date = $dt->day_name() . ", " . $dt->month_name() . " " . $dt->day() . ", " . $dt->year() . ", at " . $dt->hms();
-	$self->{'log'}->debug("Using Time String: " . $str_date);
-	
-        my %vars = (
-                    SUBJECT => $subject,
-                    base_url => $self->{'base_url'},
-                    workgroup           => $workgroup,
-                    workgroup_id => $workgroup_notifications->{$workgroup }{'workgroup_id'},
-                    from_signature_name => $self->{'from_name'},
-                    link_name => $link_name,
-                    type => $type,
-                    circuits => $workgroup_circuits,
-                    circuits_on_owned_endpoints => $circuits_on_owned_endpoints,
-                    image_base_url => $self->{'image_base_url'},
-                    human_time => $str_date
-                   );
-	$self->{'log'}->debug("using VARS: " . Data::Dumper::Dumper(%vars));
-
-        my %tmpl_options = ( ABSOLUTE=>1,
-                             RELATIVE=>0,
-                           );
-        my $body;
-
-        #$self->{'tt'}->process( "$self->{'template_path'}/notification_templates.tmpl", $vars, \$body ) ||  warn $self->{'tt'}->error();
-
-        foreach my $user ( @$affected_users ) {
-            push( @to_list, $user->{'email_address'} );
-        }
-
-        my $to_string = join( ",", @to_list );
-
-	if($to_string eq ''){
-		$self->{'log'}->error("INFO: send_bulk_notification: No notification to send as there are no users in workgroup. ");
-	    	return 0;
-	}
-	
-	#we determined that there are several cases that can cause
-	#send to cause a die
-	eval{
-	    my $message = MIME::Lite::TT::HTML->new(
-		From    => $self->{'from_address'},
-		To      => $to_string,
-		Subject => $subject,
-		Encoding    => 'quoted-printable',
-		Timezone => 'UTC',
-		Template => {
-		    html => $self->{'template_path'} . "/notification_bulk.tt.html",
-		    text => $self->{'template_path'} . "/notification_bulk.tmpl"
-		},
-		TmplParams => \%vars,
-		TmplOptions => \%tmpl_options,
-		);
-	    
-	    
-	    $message->send( 'smtp', 'localhost' );
-	};
-	if($@){
-	    $self->{'log'}->error("Error sending Notification: " . $@);
-	}
-    }
-
 }
 
 =head2 C<send_notification()>
