@@ -9,6 +9,7 @@ import { Users } from "./pages/Users.jsx";
 import { Device } from "./pages/Device.jsx";
 import { Devices } from "./pages/Devices.jsx";
 import { Workgroups } from "./pages/workgroups/Workgroups.jsx";
+import { Toast } from "./components/generic_components/Toast.jsx";
 
 import { BrowserRouter as Router, Switch, Route, Redirect } from "react-router-dom";
 
@@ -19,7 +20,6 @@ const App = () => {
   return (
     <Router basename="/oess/new/admin">
       <PageContextProvider>
-
         <div className="oess-page-container">
           <div className="oess-page-navigation">
             <NavBar />
@@ -30,6 +30,8 @@ const App = () => {
           </div>
 
           <div className="oess-page-content">
+            <Toast />
+
             <Switch>
               <Route exact path="/">
                 <Redirect to="/users" />

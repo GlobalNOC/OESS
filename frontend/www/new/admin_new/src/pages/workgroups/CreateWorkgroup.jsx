@@ -1,24 +1,22 @@
-import React from "react";
-import ReactDOM from "react-dom";
+import React, { useContext } from "react";
 import { withRouter } from "react-router-dom";
+
+import { createWorkgroup } from '../../api/workgroup.js';
+import { WorkgroupForm } from '../../components/workgroups/WorkgroupForm.jsx';
+import { PageContext } from "../../contexts/PageContext.jsx";
 
 import "../../style.css";
 
-
-import { createWorkgroup } from '../../api/workgroup.js';
-
-import { WorkgroupForm } from '../../components/workgroups/WorkgroupForm.jsx';
-
-
 const createWorkgroupComponent = (props) => {
   const { history } = props;
+  const { setStatus } = useContext(PageContext);
 
   let submitHandler = async (e) => {
     try {
-      let results = await createWorkgroup(e);
-      console.info(results);
+      await createWorkgroup(e);
+      setStatus({type:'success', message:`Workgroup '${e.name}' was successfully created.`});
     } catch (error) {
-      console.error(error);
+      setStatus({type:'error', message:error});
     }
     history.push('/workgroups');
   }

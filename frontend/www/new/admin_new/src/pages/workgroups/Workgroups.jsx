@@ -20,7 +20,7 @@ class Workgroups extends React.Component {
 	super(props);
 	this.state = {
       pageNumber: 0,
-      pageSize:   2,
+      pageSize:   4,
       filter:     '',
       workgroup:  null,
       workgroups: [],
@@ -49,13 +49,6 @@ class Workgroups extends React.Component {
   }
 
   render() {
-    var currComponent = this;
-
-    // https://developer.mozilla.org/en-US/docs/Web/API/URL_API
-    let url = new URL(document.location.href);
-    let workgroup_id = url.searchParams.get('workgroup_id');
-    console.log(url.pathname);
-
     let pageStart = this.state.pageSize * this.state.pageNumber;
     let pageEnd = pageStart + this.state.pageSize;
     let filteredItemCount = 0;
@@ -123,9 +116,9 @@ class Workgroups extends React.Component {
 
     return (
       <div>
-        <BaseModal visible={this.state.visible} header="Create Workgroup" modalID={modalID} onClose={() => this.setState({visible: false})}>
+        {/* <BaseModal visible={this.state.visible} header="Create Workgroup" modalID={modalID} onClose={() => this.setState({visible: false})}>
           <WorkgroupForm workgroup={null} />
-        </BaseModal>
+        </BaseModal> */}
 
         {/*<BaseModal visible={this.state.editModalVisible} header="Edit Workgroup" modalID="modal-edit-workgroup" onClose={() => this.setState({editModalVisible: false})} >
           <WorkgroupModal workgroup={this.state.workgroup} />

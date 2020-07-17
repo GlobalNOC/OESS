@@ -6,13 +6,16 @@ import getCurrentUser from '../api/user_menu.jsx';
 export const PageContext = React.createContext({
   user:         null,
   workgroup:    null,
-  setWorkgroup: () => {}
+  setWorkgroup: () => {},
+  status:       null,
+  setStatus:    () => {}
 });
 
 
 export const PageContextProvider = (props) => {
   const [user, setUser] = useState(null);
   const [workgroup, setWorkgroup] = useState(null);
+  const [status, setStatus] = useState({type: null, message: ''});
 
   const selectWorkgroup = (obj) => {
     sessionStorage.data = encodeURIComponent(JSON.stringify(obj));
@@ -75,7 +78,7 @@ export const PageContextProvider = (props) => {
   }
 
   return (
-    <PageContext.Provider value={{ user, workgroup, setWorkgroup }}>
+    <PageContext.Provider value={{ user, workgroup, setWorkgroup, status, setStatus }}>
       {props.children}
     </PageContext.Provider>
   );
