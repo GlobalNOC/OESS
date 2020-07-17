@@ -14,6 +14,7 @@ use GRNOC::WebService::Method;
 
 use OESS::Cloud;
 use OESS::DB;
+use OESS::DB::User;
 use OESS::DB::Circuit;
 use OESS::DB::Entity;
 use OESS::DB::User;
@@ -69,8 +70,8 @@ sub get {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    $user->load_workgroups;
 
+    $user->load_workgroups;
     my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id}->{value});
     if (!defined $workgroup && !$user->is_admin) {
         $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
@@ -208,8 +209,12 @@ sub provision {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if ($user->type eq 'read-only') {
-        $method->set_error("User '$user->{username}' is read-only.");
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
+                      username     => $ENV{REMOTE_USER},
+                      workgroup_id => $args->{workgroup_id}->{value},
+                      role         => 'normal');
+    if (defined $err) {
+        $method->set_error($err);
         return;
     }
 
@@ -232,7 +237,7 @@ sub provision {
     }
 
     $db->start_transaction;
-
+    
     my $circuit = new OESS::L2Circuit(
         db => $db,
         model => {
@@ -691,8 +696,13 @@ sub remove {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    if ($user->type eq 'read-only') {
-        $method->set_error("User '$user->{username}' is read-only.");
+
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
+                      username     => $ENV{REMOTE_USER},
+                      workgroup_id => $args->{workgroup_id}->{value},
+                      role         => 'normal');
+    if (defined $err) {
+        $method->set_error($err);
         return;
     }
 

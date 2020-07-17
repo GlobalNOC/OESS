@@ -28,8 +28,7 @@ my $user = $db->edit_user(user_id => '11',
                           family_name => 'User 11',
                           email_address => 'user_11@foo.net',
                           auth_names => ['aragusa'],
-                          status => 'active',
-                          type => 'normal');
+                          status => 'active');
                         
 ok(defined($user), "User updated");
 

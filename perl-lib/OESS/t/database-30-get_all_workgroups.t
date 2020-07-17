@@ -23,7 +23,7 @@ use Data::Dumper;
 my $db = OESS::Database->new(config => OESSDatabaseTester::getConfigFilePath());
 
 my $workgroups = $db->get_all_workgroups();
-is(@$workgroups, 30, '30 Workgroups Retrieved');
+is(@$workgroups, 29, '29 Workgroups Retrieved');
 
 my $workgroup = $workgroups->[0];
 

@@ -23,6 +23,7 @@ sub new{
         user_id => undef,
         username => undef,
         db => undef,
+        role => undef,
         @_
         );
 
@@ -59,15 +60,16 @@ sub to_hash{
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
     $obj->{'is_admin'} = $self->is_admin();
-    $obj->{'type'} = $self->type();
-
+    
     if (defined $self->{workgroups}) {
         $obj->{'workgroups'} = [];
         foreach my $wg (@{$self->{workgroups}}) {
             push @{$obj->{workgroups}}, $wg->to_hash;
         }
     }
-
+    if (defined $self->{'role'}) {
+        $obj->{role} = $self->roll();
+    }
     return $obj;
 }
 
@@ -83,9 +85,10 @@ sub from_hash{
     $self->{'first_name'} = $hash->{'given_names'};
     $self->{'last_name'} = $hash->{'family_name'};
     $self->{'email'} = $hash->{'email'};
-    $self->{'type'} = $hash->{'type'};
     $self->{'is_admin'} = $hash->{'is_admin'};
-
+    if (defined $hash->{'role'}) {
+        $self->{'role'} = $hash->{'role'};
+    }
     if (defined $hash->{workgroups}) {
         $self->{'workgroups'} = $hash->{'workgroups'};
     }
@@ -102,7 +105,8 @@ sub _fetch_from_db{
     my $user = OESS::DB::User::fetch(
         db => $self->{'db'},
         user_id => $self->{'user_id'},
-        username => $self->{'username'}
+        username => $self->{'username'},
+        role => $self->{'role'}
     );
     if (!defined $user) {
         return;
@@ -205,6 +209,14 @@ sub workgroups{
     return $self->{'workgroups'} || [];
 }
 
+=head2 role
+
+=cut
+sub role{
+    my $self = shift;
+    return $self->{role};
+}
+
 =head2 email
 
 =cut
@@ -236,14 +248,6 @@ sub in_workgroup{
         }
     }
     return 0;
-}
-
-=head2 type
-
-=cut
-sub type{
-    my $self = shift;
-    return $self->{'type'};
 }
 
 1;
