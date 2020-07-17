@@ -602,12 +602,13 @@ sub has_workgroup_access {
            }
        }
        my $is_sys_admin;
+       my $adminErr;
        if ($role eq 'read-only') {
-           $is_sys_admin = has_system_access(db =>$db, user_id => $user->{user_id}, role => 'read_only');
+           ($is_sys_admin, $adminErr) = has_system_access(db =>$db, user_id => $user->{user_id}, role => 'read_only');
        } else {
-           $is_sys_admin = has_system_access(db => $db, user_id => $user->{user_id}, role => 'normal');
+           ($is_sys_admin, $adminErr) = has_system_access(db => $db, user_id => $user->{user_id}, role => 'normal');
        }
-       if (!defined $is_sys_admin) {
+       if (!defined $adminErr) {
            $read_access = 1;
            $normal_access = 1;
            $admin_access = 1;
