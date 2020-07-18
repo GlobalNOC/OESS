@@ -876,7 +876,6 @@ CREATE TABLE `user` (
   `given_names` varchar(60) NOT NULL,
   `family_name` varchar(60) NOT NULL,
   `is_admin` int(10) NOT NULL DEFAULT '0',
-  `type` enum('normal','read-only') NOT NULL DEFAULT 'normal',
   `status` enum('active','decom') NOT NULL DEFAULT 'active',
   PRIMARY KEY (`user_id`),
   KEY `user_idx` (`email`)
@@ -908,6 +907,7 @@ DROP TABLE IF EXISTS `user_workgroup_membership`;
 CREATE TABLE `user_workgroup_membership` (
   `workgroup_id` int(10) NOT NULL,
   `user_id` int(10) NOT NULL,
+  `role` enum('admin','normal','read-only') NOT NULL DEFAULT 'read-only',
   PRIMARY KEY (`workgroup_id`,`user_id`),
   KEY `user_user_workgroup_membership_fk` (`user_id`),
   CONSTRAINT `user_user_workgroup_membership_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,

@@ -39,7 +39,6 @@ cmp_deeply($res,{
     'last_modified_by' => {
                                   'email' => 'user_221@foo.net',
                                   'is_admin' => '0',
-                                  'type' => 'normal',
                                   'auth_id' => '211',
                                   'given_names' => 'User 221',
                                   'user_id' => '221',
@@ -208,7 +207,6 @@ cmp_deeply($res,{
     'created_by' => {
                                   'email' => 'user_221@foo.net',
                                   'is_admin' => '0',
-                                  'type' => 'normal',
                                   'auth_id' => '211',
                                   'given_names' => 'User 221',
                                   'user_id' => '221',
