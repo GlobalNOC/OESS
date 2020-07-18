@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path/..";
 
 use Data::Dumper;
-use Test::More tests => 7;
+use Test::More tests => 31;
 
 use OESSDatabaseTester;
 
@@ -38,6 +38,35 @@ OESS::DB::Workgroup::add_user(db => $db, user_id => 911, workgroup_id => 1, role
 
 my ($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => 'user_911@foo.net', workgroup_id => 1, role => 'normal');
 ok(!defined $err, "Got expected undefined err meaning user has access on workgroup");
+my $user911_tests = [
+    { workgroup_id => 1,  username => 'user_911@foo.net', user_id => 911, role => 'read-only', result => 1, error => 0 },
+    { workgroup_id => 1,  username => 'user_911@foo.net', user_id => 911, role => 'normal',    result => 1, error => 0 },
+    { workgroup_id => 1,  username => 'user_911@foo.net', user_id => 911, role => 'admin',     result => 0, error => 1 },
+    { workgroup_id => 11, username => 'user_911@foo.net', user_id => 911, role => 'read-only', result => 0, error => 1 },
+    { workgroup_id => 11, username => 'user_911@foo.net', user_id => 911, role => 'normal',    result => 0, error => 1 },
+    { workgroup_id => 11, username => 'user_911@foo.net', user_id => 911, role => 'admin',     result => 0, error => 1 },
+
+    { workgroup_id => 1,  username => 'user_251@foo.net', user_id => 251, role => 'read-only', result => 1, error => 0 },
+    { workgroup_id => 1,  username => 'user_251@foo.net', user_id => 251, role => 'normal',    result => 1, error => 0 },
+    { workgroup_id => 1,  username => 'user_251@foo.net', user_id => 251, role => 'admin',     result => 1, error => 0 },
+    { workgroup_id => 11, username => 'user_251@foo.net', user_id => 251, role => 'read-only', result => 1, error => 0 },
+    { workgroup_id => 11, username => 'user_251@foo.net', user_id => 251, role => 'normal',    result => 1, error => 0 },
+    { workgroup_id => 11, username => 'user_251@foo.net', user_id => 251, role => 'admin',     result => 1, error => 0 }
+];
+
+# Test using user_id                                                                                                                                                                                                                                                             
+foreach my $args (@$user911_tests) {
+    my ($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, user_id => $args->{user_id}, workgroup_id => $args->{workgroup_id}, role => $args->{role});
+    my $error = (defined $err) ? 1 : 0;
+    ok($result == $args->{result} && $error == $args->{error}, "has_workgroup_access(user_id => $args->{user_id}, workgroup_id => $args->{workgroup_id}, role => $args->{role}) returned ($result, $error). Want ($args->{result}, $args->{error})");
+}
+
+# Test using username                                                                                                                                                                                                                                                            
+foreach my $args (@$user911_tests) {
+    my ($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => $args->{username}, workgroup_id => $args->{workgroup_id}, role => $args->{role});
+    my $error = (defined $err) ? 1 : 0;
+    ok($result == $args->{result} && $error == $args->{error}, "has_workgroup_access(username => $args->{username}, workgroup_id => $args->{workgroup_id}, role => $args->{role}) returned ($result, $error). Want ($args->{result}, $args->{error})");
+}
 
 ($result, $err) = OESS::DB::User::has_workgroup_access(db => $db, user_id => 911, workgroup_id => 1, role => 'admin');
 ok(defined $err, "Got expected error, $err");

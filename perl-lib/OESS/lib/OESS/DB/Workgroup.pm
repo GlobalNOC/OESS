@@ -5,6 +5,7 @@ use warnings;
 
 use OESS::User;
 use OESS::Interface;
+use OESS::DB::User;
 
 package OESS::DB::Workgroup;
 
@@ -268,7 +269,11 @@ sub add_user {
     return (undef, 'Required argument `user_id` is missing.') if !defined $args->{user_id};
     return (undef, 'Required argument `workgroup_id` is missing.') if !defined $args->{workgroup_id};
     return (undef, 'Required argument `role` is missing.') if !defined $args->{role};
-
+    my $userExistQuery = " SELECT * from user_workgroup_membership WHERE workgroup_id=? AND user_id=?";
+    my $pairExists = $args->{db}->execute_query($userExistQuery, [$args->{workgroup_id}, $args->{user_id}]);
+    if (defined $pairExists->[0]){
+        return (undef, "User already in workgroup");
+    }
     my $query = "
         insert into user_workgroup_membership (
             user_id, workgroup_id, role
