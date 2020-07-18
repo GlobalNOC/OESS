@@ -7,6 +7,8 @@
 .*.swo
 app/dist
 frontend/dist
+frontend/www/new/admin_new/.cache/
+frontend/www/new/admin_new/.vscode/
 perl-lib/OESS/Makefile
 perl-lib/OESS/MANIFEST.bak
 perl-lib/OESS/t/conf/SNMP/*
