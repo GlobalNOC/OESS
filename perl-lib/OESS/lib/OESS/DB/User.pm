@@ -391,7 +391,7 @@ sub get_workgroups {
         return (undef, "Returned 0 Workgroups");
     }
     my $length = @$datas;
-    return ($datas, $length);
+    return ($datas, undef);
 }
 
 =head2 find_user_by_remote_auth
