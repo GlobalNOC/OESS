@@ -93,7 +93,11 @@ sub new {
                                            callback    => $self->{'process_queues_handler'},
                                            description => 'Processes accumulated NSI queues');
     $self->{'router'}->register_method($method);
-
+    $method = GRNOC::RabbitMQ::Method->new(name        => 'is_online',
+                                           async       => 1,
+                                           topic       => 'OF.Notificiation.event'),
+                                           callback    => sub { return 1 },
+                                           desctiption => 'Returns if the service is currently online.'
     return $self;
 }
 

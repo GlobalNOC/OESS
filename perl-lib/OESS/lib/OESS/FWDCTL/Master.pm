@@ -459,6 +459,11 @@ sub _register_rpc_methods{
                                             callback => sub { $self->echo(@_) },
                                             description => "Always returns 1" );
     $d->register_method($method);
+
+    $method = GRNOC::RabbitMQ::Method-new( name        => 'is_online',
+                                           async       => 1,
+                                           callback    => sub { return 1 },
+                                           description => 'Checks if this service is currently online and relaying message');
 }
 
 

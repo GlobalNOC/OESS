@@ -138,6 +138,16 @@ sub register_webservice_methods {
     #register the get_rules_on_node() method
     $svc->register_method($method);
 
+    #get_oess_status()
+    $method = GRNOC::WebService::Method ->new(
+        name            => 'get_oess_status',
+        description     => "Returns a hash of three main services and their status as up or down",
+        callback        => sub { get_oess_status( @_ ) }
+        );
+    
+
+    #register the get_oess_status() method
+    $svc->register_method($method);
 }
 
 sub get_node_status{
@@ -249,22 +259,38 @@ sub send_json {
 }
 
 sub get_oess_status {
-    my $results;
+    my $result;
     my $serviceResult;
     
     return if !defined $mq;
 
-    $mq-> = 'OF.FWDCTL.RPC';
-    $serviceResult = $mq->is_connected();
+    $mq->{'topic'} = 'MPLS.Discovery.RPC';
+    $mq->{'timeout'} = 2;
+    $serviceResult = $mq->is_online();
+    if (defined $serviceResult->{error}) {
+        $result->{Discovery} = 'Down';
+    } else {
+        $result->{Discovery} = 'Up';
+    }
 
-    $result->{FWDCTL} = int($serviceResult->{'result'}->{'connected'});
+    $mq->{'topic'} = 'OF.Notification.event';
+    $serviceResult = $mq->is_online();
+    if (defined $serviceResult->{error}) {
+        $result->{Notification} = 'Down';
+    } else {
+        $result->{Notification} = 'Up';
+    }
 
-    $mq->{'topic'} = 'OF.Notification.RPC';
-    $serviceResult = $mq->is_connected();
+    $mq->{'topic'} = 'OF.FWDCTL.RPC';
+    $serviceResult = $mq->is_online();
+    if (defined $serviceResult->{error}) {
+        $result->{FWDCTL} = 'Down';
+     } else {
+        $result->{FWDCTL} = 'Up';
+     }
 
-    $result->{Notification} = int($serviceResult->{'result'}->{'connected'});
     
-    return $result
+    return $result;
 
 }
 
