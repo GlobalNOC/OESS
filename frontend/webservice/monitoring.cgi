@@ -259,7 +259,7 @@ sub send_json {
 }
 
 sub get_oess_status {
-    my $results;
+    my $result;
     my $serviceResult;
     
     return if !defined $mq;
