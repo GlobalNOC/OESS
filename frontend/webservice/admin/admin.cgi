@@ -1245,7 +1245,7 @@ sub add_workgroup {
     my ($method, $args) = @_;
 
     #my ($user, $err) = authorization(admin => 1, read_only => 0);
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'normal');
+    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'normal'); 
     if (defined $err) {
         $method->set_error($err);
         return;
@@ -1256,8 +1256,8 @@ sub add_workgroup {
         external_id => $args->{'external_id'}{'value'},
         type => $args->{'type'}{'value'}
     };
-    my ($new_wg_id, $createErr) = OESS::DB::Workgroup::create(db => $db2, model => $model);
 
+    my ($new_wg_id, $createErr) = OESS::DB::Workgroup::create(db => $db2, model => $model);
     if ( !defined $new_wg_id ) {
         $results->{'error'} = $createErr;
         $results->{'results'} = [ { success => 0 } ];
