@@ -160,6 +160,14 @@ sub _register_notification_events{
                                   required => 1,
                                   schema => { 'type' => 'integer'});
     $d->register_method($method);
+    #Named differently because both Notif and FWDCTL use same topic
+    $method = GRNOC::RabbitMQ::Method->new( name => 'is_online_notif',
+                                            async => 1,
+                                            callback => sub { my $method =shift;
+                                                             $method->{'success_callback'}({successful => 1});
+                                                         },
+                                            description => "Returns the 1 if we are able to connect to this service");
+    $d->register_method($method);                                                
 
 }
 

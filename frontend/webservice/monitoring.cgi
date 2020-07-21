@@ -268,28 +268,35 @@ sub get_oess_status {
     $mq->{'timeout'} = 2;
     $serviceResult = $mq->is_online();
     if (defined $serviceResult->{error}) {
-        $result->{Discovery} = 'Down';
+        push(@$result,{ServiceName => 'Discovery', Status => 'Down'});
     } else {
-        $result->{Discovery} = 'Up';
+        push(@$result,{ServiceName => 'Discovery', Status => 'Up'});
     }
-
-    $mq->{'topic'} = 'OF.Notification.event';
-    $serviceResult = $mq->is_online();
+    
+    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+    $serviceResult = $mq->echo();
     if (defined $serviceResult->{error}) {
-        $result->{Notification} = 'Down';
+        push(@$result,{ServiceName => 'FWDCTL', Status => 'Down'});
     } else {
-        $result->{Notification} = 'Up';
-    }
-
-    $mq->{'topic'} = 'OF.FWDCTL.RPC';
-    $serviceResult = $mq->is_online();
-    if (defined $serviceResult->{error}) {
-        $result->{FWDCTL} = 'Down';
+        push(@$result,{ServiceName => 'FWDCTL', Status => 'Up'});
+    } 
+     
+     $mq->{'topic'} = 'OF.FWDCTL.RPC';
+     $serviceResult = $mq->is_online_notif();
+     if (defined $serviceResult->{error}) {
+        push(@$result,{ServiceName => 'Notification', Status => 'Down'});
      } else {
-        $result->{FWDCTL} = 'Up';
+         push(@$result,{ServiceName => 'Notification', Status => 'Up'});
+     } 
+    
+     $mq->{'topic'} = 'OF.Notification.event';
+     $serviceResult = $mq->is_online();
+     if (defined $serviceResult->{error}) {
+         push(@$result,{ServiceName => 'NSI', Status => 'Down'});
+     } else {
+         push(@$result,{ServiceName => 'NSI', Status => 'Up'});
      }
 
-    
     return $result;
 
 }

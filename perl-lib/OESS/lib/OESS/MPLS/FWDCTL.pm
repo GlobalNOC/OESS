@@ -352,7 +352,7 @@ sub _write_cache{
 sub _register_rpc_methods{
     my $self = shift;
     my $d = shift;
-
+    $self->{'logger'}->error("REGISTERIGN RPC METHODS MPLS/FWDCTL");
     my $method = GRNOC::RabbitMQ::Method->new( name => "addVlan",
                                                async => 1,
 					       callback => sub { $self->addVlan(@_) },
@@ -521,7 +521,14 @@ sub _register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::INTEGER);
     $d->register_method($method);
-
+    $method = GRNOC::RabbitMQ::Method->new( name        => 'is_online',
+                                            async       => 1,
+                                            callback    => sub { my $method = shift;
+                                                                 $self->{'logger'}->error('Inside is_online FWDCTL');
+                                                                 $method->{'success_callback'}({successful => 1});
+                                                               },
+                                            description => 'Checks if this service is currently online and relaying message');
+    $d->register_method($method);
 }
 
 =head2 new_switch
