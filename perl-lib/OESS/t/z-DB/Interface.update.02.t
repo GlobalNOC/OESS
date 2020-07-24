@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 13;
+use Test::More tests => 15;
 
 use OESSDatabaseTester;
 
@@ -48,7 +48,7 @@ my $model = {
     cloud_interconnect_type => 'aws-hosted-connection',
     cloud_interconnect_id => 'dxcon_123456',
     bandwidth => 98765,
-    mtu => 9000
+    mtu => 9000,
 };
 
 my $err = OESS::DB::Interface::update(

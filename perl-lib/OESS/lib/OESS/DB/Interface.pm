@@ -14,6 +14,7 @@ use OESS::DB::Node;
 
 use Data::Dumper;
 
+
 =head2 fetch
 
 =cut
@@ -326,7 +327,6 @@ sub update {
 
     my $params = [];
     my $values = [];
-
     if (exists $args->{interface}->{cloud_interconnect_id}) {
         push @$params, 'cloud_interconnect_id=?';
         push @$values, $args->{interface}->{cloud_interconnect_id};
@@ -363,18 +363,18 @@ sub update {
         push @$params, 'workgroup_id=?';
         push @$values, $args->{interface}->{workgroup_id};
     }
-
     my $fields = join(', ', @$params);
     push @$values, $args->{interface}->{interface_id};
-
-    my $ok = $args->{db}->execute_query(
-        "UPDATE interface SET $fields WHERE interface_id=?",
-        $values
-    );
-    if (!defined $ok) {
-        return $args->{db}->get_error;
+    if ($fields ne ""){
+        my $ok = $args->{db}->execute_query(
+            "UPDATE interface SET $fields WHERE interface_id=?",
+            $values
+        );
+    
+        if (!defined $ok) {
+            return $args->{db}->get_error;
+        }
     }
-
     my $inst_params = [];
     my $inst_values = [];
     my $inst_update = 0;
@@ -389,11 +389,9 @@ sub update {
         push @$inst_values, $args->{interface}->{mtu};
         $inst_update = 1;
     }
-                                   
-    my $inst_fields = join(', ', @$inst_params);
-    push @$inst_values, $args->{interface}->{interface_id};
-                                
     if ($inst_update) {
+        my $inst_fields = join(', ', @$inst_params);
+        push @$inst_values, $args->{interface}->{interface_id};
         my $inst_ok = $args->{db}->execute_query(
             "UPDATE interface_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE interface_id=? and end_epoch = -1",
             [$args->{interface}->{interface_id}]
@@ -402,13 +400,12 @@ sub update {
             return $args->{db}->get_error;
         }
         $inst_ok = $args->{db}->execute_query(
-           "INSERT INTO interface_instantiation ($inst_fields, interface_id, start_epoch, end_epoch)
-            VALUES (?,?,?, UNIX_TIMESTAMP(NOW()), -1)",
+           "INSERT INTO interface_instantiation ($inst_fields, interface_id, admin_state, start_epoch, end_epoch)
+            VALUES (?,?,?, 'up', UNIX_TIMESTAMP(NOW()), -1)",
             $inst_values
         );
      }
-
-     return;                                          
+     return;
 }
 
 =head2 get_available_internal_vlan
