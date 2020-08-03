@@ -92,10 +92,11 @@ sub new {
         my $subscription_id = $conn->{subscription_id};
         my $tenant_id       = $conn->{tenant_id};
         my $base_url        = $conn->{base_url} || 'https://management.azure.com';
+        my $auth_url        = $conn->{auth_url} || "https://login.microsoftonline.com";
 
         my $ua = LWP::UserAgent->new();
         my $response = $ua->post(
-          "https://login.microsoftonline.com/$tenant_id/oauth2/token",
+          "$auth_url/$tenant_id/oauth2/token",
           {
               grant_type => 'client_credentials',
               client_id => $client_id,
