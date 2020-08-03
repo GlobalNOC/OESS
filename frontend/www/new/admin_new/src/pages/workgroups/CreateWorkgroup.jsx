@@ -19,7 +19,7 @@ const createWorkgroupComponent = (props) => {
       setStatus({type:'error', message:error});
     }
     history.push('/workgroups');
-  }
+  };
 
   let cancelHandler = async () => {
     history.push('/workgroups');

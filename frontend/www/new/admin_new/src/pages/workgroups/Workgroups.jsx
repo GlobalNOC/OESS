@@ -88,9 +88,7 @@ class Workgroups extends React.Component {
         <div>
           <button type="button" className="btn btn-default btn-xs" onClick={() => console.log('add',data)}>Add User</button>&nbsp;
           <div className="btn-group">
-            <button type="button" className="btn btn-default btn-xs" onClick={() => this.setState({editModalVisible: true, workgroup: data})}>
-              Edit Workgroup
-            </button>
+              <Link to={`/workgroups/${data.workgroup_id}`} className="btn btn-default btn-xs">Edit Workgroup</Link>
               <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <span>▾</span>{/* className="caret" doesn't work idk why */}
                 <span className="sr-only">Toggle Dropdown</span>

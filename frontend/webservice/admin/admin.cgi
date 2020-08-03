@@ -742,6 +742,10 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 0,
                                   description => '' );
+    $method->add_input_parameter( name        => 'type',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
+                                  description => '' );
     $method->add_input_parameter( name        => 'external_id',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 0,
@@ -2528,6 +2532,7 @@ sub edit_workgroup{
     
     my $workgroup_id            = $args->{'workgroup_id'}{'value'};
     my $workgroup_name          = $args->{'name'}{'value'};
+    my $workgroup_type          = $args->{'type'}{'value'};
     my $external_id             = $args->{'external_id'}{'value'};
     my $max_circuits            = $args->{'max_circuits'}{'value'};
     my $max_circuit_endpoints   = $args->{'max_circuit_endpoints'}{'value'};
@@ -2535,12 +2540,13 @@ sub edit_workgroup{
     my $model = {
         workgroup_id            => $workgroup_id,
         name                    => $workgroup_name,
+        type                    => $workgroup_type,
         external_id             => $external_id,
         max_mac_address_per_end => $max_mac_address_per_end,
         max_circuits            => $max_circuits,
         max_circuit_endpoints   => $max_circuit_endpoints,
     };
-    my ($res, $err2) = OESS::DB::workgroup::update(
+    my ($res, $err2) = OESS::DB::Workgroup::update(
         db => $db2,
         model => $model
     );
