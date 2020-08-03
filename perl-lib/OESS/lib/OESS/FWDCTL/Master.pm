@@ -459,6 +459,7 @@ sub _register_rpc_methods{
                                             callback => sub { $self->echo(@_) },
                                             description => "Always returns 1" );
     $d->register_method($method);
+
 }
 
 
