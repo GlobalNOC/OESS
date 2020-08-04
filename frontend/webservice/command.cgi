@@ -101,7 +101,7 @@ sub run_command {
     }
 
     my $user = OESS::DB::User::find_user_by_remote_auth(db => $db, remote_user => $ENV{'REMOTE_USER'});
-    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'});
+    $user = OESS::User->new(db => $db, user_id =>  $user);
     if (!defined $user) {
         $method->set_error("User $ENV{REMOTE_USER} is not in OESS.");
         return;
