@@ -36,7 +36,7 @@ sub get_current {
         remote_user => $ENV{'REMOTE_USER'}
     );
 
-    my $result = OESS::User->new(db => $db, user_id => $user);
+    my $result = OESS::User->new(db => $db, user_id => $user->{user_id});
     if (!defined $user) {
         $method->set_error("Couldn't find user $ENV{'REMOTE_USER'}.");
         return;

@@ -559,7 +559,7 @@ sub get_entity{
     #verify user is in workgroup
     my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
 
-    $user = OESS::User->new(db => $db, user_id =>  $user );
+    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
 
     if(!defined($user)){
         $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in OESS");
