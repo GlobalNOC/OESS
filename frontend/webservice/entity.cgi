@@ -455,7 +455,7 @@ sub get_entities{
     my $ref = shift;
 
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
-    
+
     my ($access, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => $username, workgroup_id => $workgroup_id, role => 'read-only');
     if (defined $err) {
         $method->set_error($err->{error});
@@ -463,7 +463,6 @@ sub get_entities{
     }
 
     my $entities = OESS::DB::Entity::get_entities(db => $db, name => $params->{name}{value});
-
     my $results = [];
     foreach my $entity (@$entities) {
         my %vlans;
@@ -745,6 +744,7 @@ sub _may_modify_entity {
     return 0 if !defined($user);
     my ($access, $err) = OESS::DB::User::has_system_access(db => $db, username => $username, role => 'normal');
     return $access;
+}
 
 sub main{
     register_ro_methods();

@@ -82,7 +82,7 @@ async function modifyACL(acl) {
     url += `&entity_id=${acl.entityID}`;
   }
 
-  if ('selectedWorkgroupID' in acl && acl.selectedWorkgroupID && acl.selectedWorkgroupID !== -1) {
+  if ('selectedWorkgroupID' in acl && acl.selectedWorkgroupID) {
       url += `&workgroup_id=${acl.selectedWorkgroupID}`;
   }
 
@@ -113,6 +113,7 @@ async function addACL(acl) {
   url += `&allow_deny=${acl.allow}`;
   url += `&vlan_start=${acl.low}`;
   url += `&interface_id=${acl.interfaceID}`;
+  url += `&entity_id=${acl.entityID}`;
   url += (acl.selectedWorkgroupID === -1 ? '' : `&workgroup_id=${acl.selectedWorkgroupID}`);
   url += `&vlan_end=${acl.high}`;
   url += `&notes=${acl.notes}`;

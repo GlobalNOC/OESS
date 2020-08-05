@@ -170,7 +170,11 @@ sub update {
 
     if (defined $args->{acl}->{workgroup_id}) {
         push @$params, 'workgroup_id=?';
-        push @$values, $args->{acl}->{workgroup_id};
+        if ($args->{acl}->{workgroup_id} != -1){
+            push @$values, $args->{acl}->{workgroup_id};
+        } else {
+            push @$values, undef;
+        }
     }
     if (defined $args->{acl}->{interface_id}) {
         push @$params, 'interface_id=?';

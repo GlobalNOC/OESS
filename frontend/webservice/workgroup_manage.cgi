@@ -431,9 +431,7 @@ sub update_acl {
     $acl->{start}         = $args->{vlan_start}{value};
     $acl->{end}           = $args->{vlan_end}{value};
     $acl->{notes}         = $args->{notes}{value};
-
     my $success = $acl->update_db();
-
 
     my $original_values =  get_acls($acl_id)->{'results'}[0];
     my $original_workgroup_name;
@@ -444,7 +442,7 @@ sub update_acl {
     }
 
     my $workgroup_name;
-    if ($workgroup_id){
+    if ($workgroup_id && $workgroup_id != -1){
         $workgroup_name = $db->get_workgroup_by_id(workgroup_id => $acl->{workgroup_id})->{'name'};
     } else{
         $workgroup_name = "All workgroups";
