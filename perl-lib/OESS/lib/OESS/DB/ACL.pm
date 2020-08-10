@@ -232,18 +232,14 @@ sub remove {
     return (0, "db is a required parameter") if !defined $args->{db};
     return (0, "interface_acl_id is a required parameter") if !defined $args->{interface_acl_id};
 
-    my $query = "select * from interface_acl where interface_acl_id = ?";
-    my $interface_acl = $args->{db}->execute_query($query,[$args->{interface_acl_id}]);
-    if (!$interface_acl) {
-        return(0, "Error removing acl");
-    }
-    $interface_acl= $interface_acl->[0];
-    $query = "DELETE FROM interface_acl WHERE interface_acl_id = ?";
+    my $query = "DELETE FROM interface_acl WHERE interface_acl_id = ?";
     my $count = $args->{db}->execute_query($query,[$args->{interface_acl_id}]);
     if (!defined $count) {
         return(0, "Error removing acl");
     }
-
+    if( $count == 0){
+        return(0, "Error interface_acl_id did not exist");
+    }
     return(1,undef);
 }
 
