@@ -486,14 +486,14 @@ sub remove_acl {
  
     my $interface_acl_id   = $args->{'interface_acl_id'}{'value'};
     
-    my $result = $db->remove_acl(
-        user_id      => $user_id,
+    my ($result,$error) = OESS::DB::ACL::remvoe(
+        db => $db,
         interface_acl_id => $interface_acl_id
     );
 
-    if ( !defined $result ) {
+    if ( defined $error ) {
         $logger->info("Failed to delete ACL with id $interface_acl_id at ". localtime() ." Action was initiated by $username.");
-	$method->set_error( $db->get_error() );
+	$method->set_error( $error );
     }
     else {
         $logger->info("Deleted ACL with id $interface_acl_id at ". localtime() . " Action was initiated by $username.");
