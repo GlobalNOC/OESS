@@ -214,4 +214,33 @@ sub update {
     );
 }
 
+=head2 remove
+
+    my ($output, $error) = OESS::DB::ACL::remove(
+        db => $db,
+        interface_acl_id => 1
+    );
+
+=cut
+
+sub remove {
+    my $args = {
+        db => undef,
+        interface_acl_id => undef,
+        @_
+    };
+    return (0, "db is a required parameter") if !defined $args->{db};
+    return (0, "interface_acl_id is a required parameter") if !defined $args->{interface_acl_id};
+
+    my $query = "DELETE FROM interface_acl WHERE interface_acl_id = ?";
+    my $count = $args->{db}->execute_query($query,[$args->{interface_acl_id}]);
+    if (!defined $count) {
+        return(0, "Error removing acl");
+    }
+    if( $count == 0){
+        return(0, "Error interface_acl_id did not exist");
+    }
+    return(1,undef);
+}
+
 return 1;
