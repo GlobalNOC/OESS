@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path/..";
 
 use Data::Dumper;
-use Test::More tests => 6;
+use Test::More tests => 7;
 use OESSDatabaseTester;
 
 use OESS::DB;
@@ -65,3 +65,5 @@ ok(defined $err, "Returned Err because no interface_acl_id was passed");
 ($delete, $err) = OESS::DB::ACL::remove(db => $db, interface_acl_id => $id);
 ok(!defined $err, "No error returned since both params were defined and ACL was deleted");
 
+($delete, $err) = OESS::DB::ACL::remove(db => $db, interface_acl_id => -1);
+ok(defined $err, "Returned an error due to no interface_acl with id of -1 existing");
