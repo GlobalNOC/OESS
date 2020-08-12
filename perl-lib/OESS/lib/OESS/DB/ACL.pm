@@ -148,7 +148,7 @@ sub fetch {
 
     my $acl = $args->{db}->execute_query(
         "select interface_acl_id, interface_acl.workgroup_id, workgroup.name as workgroup_name, interface_id, allow_deny, eval_position, interface_acl.vlan_start as start, vlan_end as end, notes, interface_acl.entity_id, entity.name as entity_name
-         from interface_acl JOIN entity ON interface_acl.entity_id = entity.entity_id
+         from interface_acl LEFT JOIN entity ON interface_acl.entity_id = entity.entity_id
          LEFT JOIN workgroup ON interface_acl.workgroup_id = workgroup.workgroup_id
          where interface_acl_id=?",
         [$args->{interface_acl_id}]
@@ -179,7 +179,7 @@ sub fetch_all {
         workgroup_id => undef,
         @_
     };
-
+    $logger->error("Inside Fetch All");
     die 'Required argument `db` is missing.' if !defined $args->{db};
 
     my $params = [];
@@ -202,11 +202,12 @@ sub fetch_all {
 
     my $acls = $args->{db}->execute_query(
         "select interface_acl_id, interface_acl.workgroup_id, workgroup.name as workgroup_name, interface_id, allow_deny, eval_position, interface_acl.vlan_start as start, vlan_end as end, notes, interface_acl.entity_id, entity.name as entity_name
-         from interface_acl JOIN entity ON entity.entity_id=interface_acl.entity_id 
+         from interface_acl LEFT JOIN entity ON entity.entity_id=interface_acl.entity_id 
          LEFT JOIN workgroup ON interface_acl.workgroup_id = workgroup.workgroup_id
          $where order by eval_position asc",
         $values
     );
+    $logger->error(Dumper($acls));
     return undef if (!defined $acls);
 
     return $acls;
