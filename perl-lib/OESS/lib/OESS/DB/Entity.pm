@@ -109,7 +109,6 @@ sub get_entities {
     if (@$args > 0) {
         $where = 'where' . $where;
     }
-    warn "$where";
 
     my $entities = $db->execute_query(
         "select entity.entity_id, entity.name from entity

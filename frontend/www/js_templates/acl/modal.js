@@ -86,8 +86,8 @@ class ACLModal extends Component {
       this.state.selectedWorkgroupID = acl.workgroup_id || -1;
       this.state.entityID = acl.entity_id;
       this.state.allow = acl.allow_deny;
-      this.state.high = acl.vlan_end;
-      this.state.low = acl.vlan_start;
+      this.state.high = acl.end;
+      this.state.low = acl.start;
       this.state.notes = acl.notes || '';
       this.state.position = acl.eval_position;
       this.state.interfaceID = acl.interface_id;
