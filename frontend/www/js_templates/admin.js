@@ -2523,14 +2523,15 @@ function setup_network_tab(){
                             {key: "unmoved_circuits"}
                         ],
                         metaFields: {
-                            error: "error"
+                            error: "error",
+                            error_text: "error_text"
                         }
                     };
                     ds.sendRequest(postVars,{
                         success: function(req, resp){
                             add_button.set('label', 'Add');
                             if (resp.meta.error){
-                                alert("Error moving circuits: " + resp.meta.error, null, {error: true});
+                                alert("Error moving circuits: " + resp.meta.error_text, null, {error: true});
                                 return;
                             }
                             var res = resp.results[0];
