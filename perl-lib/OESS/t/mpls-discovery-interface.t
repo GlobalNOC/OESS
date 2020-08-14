@@ -1,4 +1,4 @@
-#!/usr/bin/perl -T
+#!/usr/bin/perl -T 
 
 use strict;
 
@@ -33,7 +33,6 @@ sub callback{
 my $interface_discovery = OESS::MPLS::Discovery::Interface->new( db => $db,
 								 
     );
-
 my $example_node = "Node 1";
 my $example_data = [{
             'name' => 'e1/1',
@@ -53,7 +52,6 @@ my $example_data = [{
             'admin_state' => 'up',
             'operational_state' => 'down'
           }];
-
 my $res = $interface_discovery->process_results( node => $example_node, interfaces => $example_data );
 
 ok($res == 1, "Interface processing reports success");
@@ -80,7 +78,8 @@ my $intf_id = OESS::DB::Interface::get_interface(
     node => $example_node,
     interface => @$example_data[0]->{'name'}
     );
-$res = OESS::DB::Interface::fetch(db => $db,interface_id => $intf_id);
+$res = new OESS::Interface(db => $db,interface_id => $intf_id);
+$res = $res->to_hash();
 ok($res->{'name'} eq @$example_data[0]->{'name'}, "added interface name correct");
 ok($res->{'description'} eq @$example_data[0]->{'description'}, "added interface description correct");
 ok($res->{'operational_state'} eq @$example_data[0]->{'operational_state'}, "added interface operational state correct");
@@ -88,13 +87,8 @@ ok($res->{'operational_state'} eq @$example_data[0]->{'operational_state'}, "add
 @$example_data[0]->{'operational_state'} = "up";
 $res = $interface_discovery->process_results(node => $example_node, interfaces => $example_data);
 ok($res == 1, "Process didn't return an error");
-$intf_id = OESS::DB::Interface::get_interface(
-    db => $db,
-    node => $example_node,
-    interface => @$example_data[0]->{'name'}
-    );
 $res = OESS::DB::Interface::fetch(db => $db, interface_id => $intf_id);
-ok($res->{'operational_state'} eq "up", "operational state set to up");
+ok($res->{'operational_state'} eq @$example_data[0]->{'operational_state'}, "operational state set to up");
 
 @$example_data[0]->{'speed'} = '1212';
 @$example_data[0]->{'mtu'} = '1127';

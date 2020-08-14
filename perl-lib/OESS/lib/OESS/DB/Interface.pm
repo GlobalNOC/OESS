@@ -308,7 +308,8 @@ sub create {
             operational_state       => 'up',                    # Optional
             vlan_tag_range          => '-1',                    # Optional
             mpls_vlan_tag_range     => '1-4095',                # Optional
-            workgroup_id            => 1                        # Optional
+            workgroup_id            => 1,                       # Optional
+            instUpdate              => 1                        # Optional
         }
     );
     die $err if defined $err;
@@ -377,25 +378,22 @@ sub update {
     }
     my $inst_params = [];
     my $inst_values = [];
-    my $inst_update = 0;
-
-    if (exists $args->{interface}->{bandwidth}) {
-        push @$inst_params, 'capacity_mbps';
-        push @$inst_values, $args->{interface}->{bandwidth};
-        $inst_update = 1;
-    }
-    if (exists $args->{interface}->{mtu}) {
-        push @$inst_params, 'mtu_bytes';
-        push @$inst_values, $args->{interface}->{mtu};
-        $inst_update = 1;
-    }
-    if ($inst_update) {
+    if (defined $args->{interface}->{instUpdate} && $args->{interface}->{instUpdate} == 1) {
+        if (exists $args->{interface}->{bandwidth}) {
+            push @$inst_params, 'capacity_mbps';
+            push @$inst_values, $args->{interface}->{bandwidth};
+        }
+        if (exists $args->{interface}->{mtu}) {
+            push @$inst_params, 'mtu_bytes';
+            push @$inst_values, $args->{interface}->{mtu};
+        }
+    
         my $inst_fields = join(', ', @$inst_params);
         push @$inst_values, $args->{interface}->{interface_id};
         my $inst_ok = $args->{db}->execute_query(
             "UPDATE interface_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE interface_id=? and end_epoch = -1",
             [$args->{interface}->{interface_id}]
-        );                                                            
+        );
         if (!defined $inst_ok) {
             return $args->{db}->get_error;
         }
@@ -404,8 +402,11 @@ sub update {
             VALUES (?,?,?, 'up', UNIX_TIMESTAMP(NOW()), -1)",
             $inst_values
         );
+		if(!defined $inst_ok) {
+			return $args->{db}->get_error;
+		}
      }
-     return;
+     return; 
 }
 
 =head2 get_available_internal_vlan

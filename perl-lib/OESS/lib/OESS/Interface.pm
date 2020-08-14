@@ -142,10 +142,24 @@ sub update_db{
         $self->{'logger'}->error("Could not update Interface: No database object specified.");
         return;
     }
+    my $savedInterface = new OESS::Interface(db => $self->{'db'}, interface_id => $self->{'interface_id'});
+    $savedInterface = $savedInterface->to_hash();
+    my $currentInterface = $self->to_hash();
 
+    $currentInterface->{instUpdate} = 0;
+    foreach my $key (keys %$currentInterface) {
+        if (!defined $currentInterface->{$key} || $key eq 'instUpdate'){
+            next;
+        }
+        if ($savedInterface->{$key} ne $currentInterface->{$key}) {
+            if ($key eq 'speed' || $key eq 'mtu') {
+                $currentInterface->{instUpdate} = 1;
+            }
+        }
+    }
     my $err = OESS::DB::Interface::update(
         db => $self->{'db'},
-        interface => $self->to_hash
+        interface => $currentInterface
     );
     if (defined $err) {
         $self->{'logger'}->error("Could not update Interface: $err");

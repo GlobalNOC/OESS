@@ -49,14 +49,18 @@ my $model = {
     cloud_interconnect_id => 'dxcon_123456',
     bandwidth => 98765,
     mtu => 9000,
+    instUpdate => 1
 };
 
 my $err = OESS::DB::Interface::update(
     db => $db,
     interface => $model
 );
+
 ok(!defined $err, 'Interface updated');
-warn $err if defined $err;
+if (defined $err) {
+    warn "Err: $err";
+}
 
 
 my $intf = OESS::DB::Interface::fetch(
@@ -65,7 +69,10 @@ my $intf = OESS::DB::Interface::fetch(
 );
 
 foreach my $key (keys %$model) {
-    ok($intf->{$key} eq $model->{$key}, "got expected $key from db");
+    if ($key ne 'instUpdate') {
+        warn "Intf = ($key, $intf->{$key}) Model = ($key,$model->{$key}))";
+        ok($intf->{$key} eq $model->{$key}, "got expected $key from db");
+    }
 }
 
 my $inst_Results = $db->execute_query("SELECT end_epoch, start_epoch FROM interface_instantiation WHERE interface_id=41",[]);
