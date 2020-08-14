@@ -306,7 +306,7 @@ sub get_acls {
                                     db => $db,
                                     username => $username,
                                     workgroup_id => $request_workgroup,
-                                    role => 'normal'
+                                    role => 'read-only'
                                 );
         if (defined $err) {
             $method->set_error($err);
@@ -322,7 +322,7 @@ sub get_acls {
                                     db => $db,
                                     username => $username,
                                     workgroup_id => $request_workgroup,
-                                    role => 'normal'
+                                    role => 'read-only'
                                 );
         if (defined $err) {
             $method->set_error($err);
@@ -472,9 +472,7 @@ sub update_acl {
     $acl->{end}           = $args->{vlan_end}{value};
     $acl->{notes}         = $args->{notes}{value};
     my $aclUpdate = $acl->to_hash();
-    $logger->error("BEFORE GOING INTO UPDATE HASH IS $aclUpdate");
     my $success = OESS::DB::ACL::update(db => $db, acl => $aclUpdate);
-    $logger->error("After Coming out of UPDATE");
     # my $success = $acl->update_db();
 
     my $original_values =  $original_acl->to_hash();
