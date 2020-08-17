@@ -471,9 +471,7 @@ sub update_acl {
     $acl->{start}         = $args->{vlan_start}{value};
     $acl->{end}           = $args->{vlan_end}{value};
     $acl->{notes}         = $args->{notes}{value};
-    my $aclUpdate = $acl->to_hash();
-    my $success = OESS::DB::ACL::update(db => $db, acl => $aclUpdate);
-    # my $success = $acl->update_db();
+    my $success = $acl->update_db();
 
     my $original_values =  $original_acl->to_hash();
 

@@ -458,7 +458,7 @@ sub get_entities{
 
     my ($access, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => $username, workgroup_id => $workgroup_id, role => 'read-only');
     if (defined $err) {
-        $method->set_error($err->{error});
+        $method->set_error($err);
         return;
     }
 
@@ -564,7 +564,7 @@ sub get_entity{
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
     my ($access, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => $username, workgroup_id => $workgroup_id, role => 'read-only');
     if (defined $err) {
-        $method->set_error($err->{error});
+        $method->set_error($err);
         return;
     } 
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'entity_id'}{'value'});
