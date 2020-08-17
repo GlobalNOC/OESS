@@ -6,6 +6,10 @@ use warnings;
 package OESS::DB::ACL;
 
 use Data::Dumper;
+use Log::Log4perl;
+
+Log::Log4perl::init_and_watch('/etc/oess/logging.conf');
+my $logger = Log::Log4perl->get_logger("OESS.ACL");
 
 =head1 OESS::DB::ACL
 
@@ -38,6 +42,14 @@ sub create {
     die 'Required argument `db` is missing.' if !defined $args->{db};
     die 'Required argument `model` is missing.' if !defined $args->{model};
 
+    if (defined $args->{model}->{eval_position}) {
+        if ( _has_used_eval_position(db => $args->{db}, interface_id => $args->{model}->{interface_id}, eval_position => $args->{model}->{eval_position})) {
+            return (undef, $args->{db}->get_error());
+        }
+    } else {
+        $args->{model}->{eval_position} = _get_next_eval_position( db => $args->{db}, interface_id => $args->{model}->{interface_id} );
+    }
+
     my $error = undef;
     my $id = $args->{db}->execute_query(
         "insert into interface_acl (workgroup_id, interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes, entity_id) VALUES (?,?,?,?,?,?,?,?)",
@@ -59,6 +71,64 @@ sub create {
     return ($id, $error);
 }
 
+=head2 _has_used_eval_position
+
+Returns true if the acl's eval position is already used
+
+=cut
+sub _has_used_eval_position {
+    my %args = @_;
+
+    if (!defined $args{'interface_id'} || !defined $args{'eval_position'}) {
+        $args{'db'}->set_error("Must pass interface id and eval_position");
+        return;
+    }
+    my $result = $args{'db'}->execute_query(
+        "select 1 from interface_acl where interface_id = ? and eval_position = ?",
+        [$args{'interface_id'},$args{'eval_position'}]
+    );
+    if(!defined($result)) {
+        $args{'db'}->set_error("Could not query interface acl eval positions");
+        return;
+    }
+
+    if (@$result > 0) {
+        $args{'db'}->set_error("There is already an acl at eval position $args{'eval_position'}");
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+=head2 _get_next_eval_position
+
+Returns the max eval position plus ten
+
+=cut
+sub _get_next_eval_position {
+    my %args = @_;
+
+    if (!defined $args{'interface_id'}) {
+        $args{'db'}->set_error("Must pass in interface_id");
+        return;
+    }
+
+    my $result = $args{'db'}->execute_query(
+        "SELECT max(interface_acl.eval_position) as max_eval_position from interface_acl where interface_id = ?",
+        [$args{'interface_id'}]
+    );
+    if (!defined $result) {
+        $args{'db'}->set_error("Could not query max interface acl eval position");
+        return;
+    }
+
+    if (@$result <= 0) {
+        return 10;
+    } else {
+        return ($result->[0]{'max_eval_position'} + 10);
+    }
+}
+
 =head2 fetch
 
     my $acl = OESS::DB::ACL::fetch(db => $conn, interface_acl_id => 1);
@@ -77,8 +147,10 @@ sub fetch {
     die 'Required argument `interface_acl_id` is missing.' if !defined $args->{interface_acl_id};
 
     my $acl = $args->{db}->execute_query(
-        "select interface_acl_id, workgroup_id, interface_id, allow_deny, eval_position, vlan_start as start, vlan_end as end, notes, entity_id
-         from interface_acl where interface_acl_id=?",
+        "select interface_acl_id, interface_acl.workgroup_id, workgroup.name as workgroup_name, interface_id, allow_deny, eval_position, interface_acl.vlan_start as start, vlan_end as end, notes, interface_acl.entity_id, entity.name as entity_name
+         from interface_acl LEFT JOIN entity ON interface_acl.entity_id = entity.entity_id
+         LEFT JOIN workgroup ON interface_acl.workgroup_id = workgroup.workgroup_id
+         where interface_acl_id=?",
         [$args->{interface_acl_id}]
     );
     return undef if (!defined $acl || !defined $acl->[0]);
@@ -107,14 +179,14 @@ sub fetch_all {
         workgroup_id => undef,
         @_
     };
-
+    $logger->error("Inside Fetch All");
     die 'Required argument `db` is missing.' if !defined $args->{db};
 
     my $params = [];
     my $values = [];
 
     if (defined $args->{entity_id}) {
-        push @$params, 'entity_id=?';
+        push @$params, 'interface_acl.entity_id=?';
         push @$values, $args->{entity_id};
     }
     if (defined $args->{interface_id}) {
@@ -122,18 +194,21 @@ sub fetch_all {
         push @$values, $args->{interface_id};
     }
     if (defined $args->{workgroup_id}) {
-        push @$params, 'workgroup_id=?';
+        push @$params, 'interface_acl.workgroup_id=?';
         push @$values, $args->{workgroup_id};
     }
 
     my $where = (@$params > 0) ? 'where ' . join(' and ', @$params) : '';
 
     my $acls = $args->{db}->execute_query(
-        "select interface_acl_id, workgroup_id, interface_id, allow_deny, eval_position, vlan_start as start, vlan_end as end, notes, entity_id
-         from interface_acl $where order by eval_position asc",
+        "select interface_acl_id, interface_acl.workgroup_id, workgroup.name as workgroup_name, interface_id, allow_deny, eval_position, interface_acl.vlan_start as start, vlan_end as end, notes, interface_acl.entity_id, entity.name as entity_name
+         from interface_acl LEFT JOIN entity ON entity.entity_id=interface_acl.entity_id 
+         LEFT JOIN workgroup ON interface_acl.workgroup_id = workgroup.workgroup_id
+         $where order by eval_position asc",
         $values
     );
-    return [] if (!defined $acls);
+    $logger->error(Dumper($acls));
+    return undef if (!defined $acls);
 
     return $acls;
 }
@@ -164,7 +239,6 @@ sub update {
     };
 
     return if !defined $args->{acl}->{interface_acl_id};
-
     my $params = [];
     my $values = [];
 
@@ -204,8 +278,8 @@ sub update {
         push @$params, 'entity_id=?';
         push @$values, $args->{acl}->{entity_id};
     }
-
     my $fields = join(', ', @$params);
+    
     push @$values, $args->{acl}->{interface_acl_id};
 
     return $args->{db}->execute_query(

@@ -74,6 +74,7 @@ sub _build_from_model {
 
     $self->{interface_acl_id} = $self->{model}->{interface_acl_id};
     $self->{workgroup_id} = $self->{model}->{workgroup_id};
+    $self->{workgroup_name} = $self->{model}->{workgroup_name};
     $self->{interface_id} = $self->{model}->{interface_id};
     $self->{allow_deny} = $self->{model}->{allow_deny};
     $self->{eval_position} = $self->{model}->{eval_position};
@@ -81,6 +82,7 @@ sub _build_from_model {
     $self->{end} = (defined $self->{model}->{end}) ? $self->{model}->{end} : $self->{model}->{start};
     $self->{notes} = $self->{model}->{notes};
     $self->{entity_id} = $self->{model}->{entity_id};
+    $self->{entity_name} = $self->{model}->{entity_name};
 
     return 1;
 }
@@ -135,6 +137,7 @@ sub from_hash {
 
     $self->{interface_acl_id} = $hash->{interface_acl_id};
     $self->{workgroup_id} = $hash->{workgroup_id};
+    $self->{workgroup_name} = $hash->{workgroup_name};
     $self->{interface_id} = $hash->{interface_id};
     $self->{allow_deny} = $hash->{allow_deny};
     $self->{eval_position} = $hash->{eval_position};
@@ -142,6 +145,7 @@ sub from_hash {
     $self->{end} = (defined $hash->{end}) ? $hash->{end} : $hash->{start};
     $self->{notes} = $hash->{notes};
     $self->{entity_id} = $hash->{entity_id};
+    $self->{entity_name} = $hash->{entity_name};
 
     return 1;
 }
@@ -157,6 +161,7 @@ sub to_hash {
 
     $hash->{interface_acl_id} = $self->{interface_acl_id};
     $hash->{workgroup_id} = $self->{workgroup_id};
+    $hash->{workgroup_name} = $self->{workgroup_name};
     $hash->{interface_id} = $self->{interface_id};
     $hash->{allow_deny} = $self->{allow_deny};
     $hash->{eval_position} = $self->{eval_position};
@@ -164,6 +169,7 @@ sub to_hash {
     $hash->{end} = (defined $self->{end}) ? $self->{end} : $self->{start};
     $hash->{notes} = $self->{notes};
     $hash->{entity_id} = $self->{entity_id};
+    $hash->{entity_name} = $self->{entity_name};
 
     return $hash;
 }
