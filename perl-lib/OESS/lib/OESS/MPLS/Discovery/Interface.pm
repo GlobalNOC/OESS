@@ -11,6 +11,7 @@ use OESS::DB::Interface;
 use OESS::DB::Node;
 use Data::Dumper;
 use Log::Log4perl;
+Log::Log4perl::init_and_watch("/etc/oess/logging.conf");
 
 =head2 new
 
@@ -56,8 +57,8 @@ sub process_results{
     $self->{'db'}->start_transaction();
 
     foreach my $interface (@$interfaces) {
-        my $interface_id = OESS::DB::Interface::get_interface(db => $self->{'db'}, node => $node_name, interface => $interface->{'name'});
-        if (!defined($interface_id)) {
+        my $intf = new OESS::Interface(db => $self->{'db'}, node => $node_name, name => $interface->{'name'});
+        if (!defined($intf)) {
             $self->{'logger'}->warn("Couldn't find interface creating new");
             my $node = OESS::DB::Node::fetch(db => $self->{'db'}, name => $node_name);
             if (!defined($node)) {
@@ -86,20 +87,19 @@ sub process_results{
             }
         } else {
         $self->{'logger'}->warn('Found Interface');
-        my $intf = new OESS::Interface(db => $self->{'db'}, interface_id=> $interface_id);
         if (!defined($intf)) {
             $self->{'logger'}->warn($self->{'db'}->{'error'});
             $self->{'db'}->rollback();
             return;
         }
         if(defined $interface->{operational_state}) {
-            $intf->{operational_state} = $interface->{operational_state};
+            $intf->operational_state($interface->{operational_state});
         }
         if(defined $interface->{speed}){
-            $intf->{bandwidth} = $interface->{speed};
+            $intf->bandwidth($interface->{speed});
         }
         if(defined $interface->{mtu}){
-            $intf->{mtu} = $interface->{mtu};
+            $intf->mtu($interface->{mtu});
         }
         my $res = $intf->update_db();
         if (!defined($res)) {

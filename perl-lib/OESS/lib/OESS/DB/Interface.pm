@@ -14,7 +14,6 @@ use OESS::DB::Node;
 
 use Data::Dumper;
 
-
 =head2 fetch
 
 =cut
@@ -325,7 +324,6 @@ sub update {
     return 'Required argument `db` is missing.' if !defined $args->{db};
     return 'Required argument `interface` is missing.' if !defined $args->{interface};
     return 'Required argument `interface->interface_id` is missing.' if !defined $args->{interface}->{interface_id};
-
     my $params = [];
     my $values = [];
     if (exists $args->{interface}->{cloud_interconnect_id}) {

@@ -8,6 +8,7 @@ package OESS::Interface;
 use OESS::DB::Interface;
 use Data::Dumper;
 use Log::Log4perl;
+Log::Log4perl::init_and_watch("/etc/oess/logging.conf");
 
 =head2 new
 
@@ -98,7 +99,8 @@ sub to_hash{
                 workgroup_id => $self->workgroup_id(),
                 utilized_bandwidth => $self->{'utilized_bandwidth'},
                 bandwidth => $self->{'bandwidth'},
-                mtu => $self->{'mtu'} };
+                mtu => $self->{'mtu'},
+                instUpdate => $self->{'instUpdate'} };
 
     return $res;
 }
@@ -142,21 +144,8 @@ sub update_db{
         $self->{'logger'}->error("Could not update Interface: No database object specified.");
         return;
     }
-    my $savedInterface = new OESS::Interface(db => $self->{'db'}, interface_id => $self->{'interface_id'});
-    $savedInterface = $savedInterface->to_hash();
     my $currentInterface = $self->to_hash();
 
-    $currentInterface->{instUpdate} = 0;
-    foreach my $key (keys %$currentInterface) {
-        if (!defined $currentInterface->{$key} || $key eq 'instUpdate'){
-            next;
-        }
-        if ($savedInterface->{$key} ne $currentInterface->{$key}) {
-            if ($key eq 'speed' || $key eq 'mtu') {
-                $currentInterface->{instUpdate} = 1;
-            }
-        }
-    }
     my $err = OESS::DB::Interface::update(
         db => $self->{'db'},
         interface => $currentInterface
@@ -174,7 +163,42 @@ sub update_db{
 =cut
 sub operational_state{
     my $self = shift;
+    my $operational_state = shift;
+
+    if (defined $operational_state) {
+        $self->{'operational_state'} = $operational_state;
+    }
+
     return $self->{'operational_state'};
+}
+
+=head2 bandwidth
+
+=cut
+sub bandwidth{
+    my $self = shift;
+    my $bandwidth = shift;
+    if (defined $bandwidth) {
+        $self->{instUpdate} = 1;
+        $self->{'bandwidth'} = $bandwidth;
+    }
+
+    return $self->{'bandwidth'};
+}
+
+=head2 mtu
+
+=cut
+sub mtu{
+    my $self = shift;
+    my $mtu = shift;
+
+    if(defined $mtu) {
+        $self->{instUpdate} = 1;
+        $self->{'mtu'} = $mtu;
+    }
+
+    return $self->{'mtu'};
 }
 
 =head2 interface_id

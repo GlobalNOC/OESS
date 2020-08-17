@@ -94,10 +94,5 @@ ok($res->{'operational_state'} eq @$example_data[0]->{'operational_state'}, "ope
 @$example_data[0]->{'mtu'} = '1127';
 $res = $interface_discovery->process_results(node => $example_node, interfaces => $example_data);
 ok($res == 1, "Process didn't return an error");
-$intf_id = OESS::DB::Interface::get_interface(
-    db => $db,
-    node => $example_node,
-    interface => @$example_data[0]->{'name'}
-    );
 $res = OESS::DB::Interface::fetch(db=> $db, interface_id => $intf_id);
-ok($res->{'bandwidth'} eq '1212', "Speed was correctly updated");
+ok($res->{'bandwidth'} eq @$example_data[0]->{'speed'}, "Speed was correctly updated");
