@@ -68,7 +68,7 @@ sub to_hash{
         }
     }
     if (defined $self->{'role'}) {
-        $obj->{role} = $self->roll();
+        $obj->{role} = $self->role();
     }
     return $obj;
 }

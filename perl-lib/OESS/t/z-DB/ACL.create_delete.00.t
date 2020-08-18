@@ -14,7 +14,7 @@ BEGIN {
 use lib "$path/..";
 
 use Data::Dumper;
-use Test::More tests => 7;
+use Test::More tests => 9;
 use OESSDatabaseTester;
 
 use OESS::DB;
@@ -67,3 +67,17 @@ ok(!defined $err, "No error returned since both params were defined and ACL was 
 
 ($delete, $err) = OESS::DB::ACL::remove(db => $db, interface_acl_id => -1);
 ok(defined $err, "Returned an error due to no interface_acl with id of -1 existing");
+
+($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
+$model->{eval_position} += 10;
+($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
+$model->{eval_position} += 10;
+($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
+$model->{eval_position} += 10;
+($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
+
+($delete, $err) = OESS::DB::ACL::remove_all(db => $db);
+ok(defined $err, "Returned Err because no interface_id was passed");
+
+($delete, $err) = OESS::DB::ACL::remove_all(db => $db, interface_id => 1);
+ok($delete eq 5, "Deleted all four of the ACLs assigned to this Interface");

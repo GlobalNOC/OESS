@@ -73,6 +73,7 @@ sub to_hash {
     $hash->{name}         = $self->{name};
     $hash->{description}  = $self->{description};
     $hash->{type}         = $self->{type};
+    $hash->{status}       = $self->{status};
     $hash->{max_circuits} = $self->{max_circuits};
     $hash->{external_id}  = $self->{external_id};
     $hash->{interfaces}   = [] if defined $self->{interfaces};
@@ -170,6 +171,11 @@ sub update {
         );
         return $create_err if (defined $create_err);
     }
+    my ($ok,$err) = OESS::DB::Workgroup::update(
+        db => $self->{'db'},
+        model => $self->to_hash()
+    );
+    return $err if (defined $err);
 
     return;
 }

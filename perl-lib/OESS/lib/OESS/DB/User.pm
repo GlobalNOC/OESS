@@ -377,7 +377,7 @@ sub get_workgroups {
             SELECT workgroup.*
             FROM workgroup
             JOIN user_workgroup_membership ON workgroup.workgroup_id=user_workgroup_membership.workgroup_id
-            WHERE user_workgroup_membership.user_id=?
+            WHERE user_workgroup_membership.user_id=? AND workgroup.status='active'
             ORDER BY workgroup.name ASC
         ";
         $values = [$args->{user_id}];
