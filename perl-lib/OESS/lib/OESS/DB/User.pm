@@ -358,7 +358,7 @@ sub get_workgroups {
     };
 
     my $is_admin_query = "
-        SELECT workgroup.*
+        SELECT workgroup.*, user_workgroup_membership.role as role
         FROM workgroup
         JOIN user_workgroup_membership ON workgroup.workgroup_id=user_workgroup_membership.workgroup_id AND workgroup.type='admin'
         WHERE user_workgroup_membership.user_id=?
@@ -369,12 +369,12 @@ sub get_workgroups {
     my $values;
     my $datas;
     if (defined $is_admin && defined $is_admin->[0]) {
-        $query = "SELECT * from workgroup ORDER BY workgroup.name ASC";
+        $query = "SELECT *, ? as role from workgroup ORDER BY workgroup.name ASC";
         $values = [];
-        $datas = $args->{db}->execute_query($query);
+        $datas = $args->{db}->execute_query($query,[$is_admin->[0]->{role}]);
     } else {
         $query = "
-            SELECT workgroup.*
+            SELECT workgroup.* , user_workgroup_membership.role as role
             FROM workgroup
             JOIN user_workgroup_membership ON workgroup.workgroup_id=user_workgroup_membership.workgroup_id
             WHERE user_workgroup_membership.user_id=? AND workgroup.status='active'

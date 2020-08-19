@@ -52,7 +52,9 @@ sub from_hash {
     $self->{type}         = $hash->{type};
     $self->{max_circuits} = $hash->{max_circuits};
     $self->{external_id}  = $hash->{external_id};
-
+    if(defined $hash->{role}){
+        $self->{role} = $hash->{role};
+    }
     foreach my $i (@{$hash->{interfaces}}) {
         push @{$self->{interfaces}}, new OESS::Interface(db => $self->{db}, interface_id => $i->{interface_id});
     }
@@ -78,7 +80,7 @@ sub to_hash {
     $hash->{external_id}  = $self->{external_id};
     $hash->{interfaces}   = [] if defined $self->{interfaces};
     $hash->{users}        = [] if defined $self->{users};
-
+    $hash->{role}         = $self->{role} if defined $self->{role};
     if (defined $self->{interfaces}) {
         foreach my $i (@{$self->{interfaces}}) {
             push @{$hash->{interfaces}}, $i->to_hash;
