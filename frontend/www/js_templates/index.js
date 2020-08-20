@@ -10,7 +10,7 @@
     var checking_circuit_limit = false;
     new_circuit.on('click', function(e){
 	    //window.location = "index.cgi?action=endpoints";
-	    if([% is_read_only %] == 1){
+	    if(session.data.workgroup_role === 'read-only'){
 		alert('Your account is read-only and can not provision a circuit');
 		return;
 	    }

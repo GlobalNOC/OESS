@@ -226,7 +226,7 @@ sub update {
     }
 
     if (defined $args->{model}->{status}) {
-        push @$params, 'workgroup.workgroup_status=?';
+        push @$params, 'workgroup.status=?';
         push @$values, $args->{model}->{status};
     }
 

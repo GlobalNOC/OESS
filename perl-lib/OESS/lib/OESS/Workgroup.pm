@@ -52,7 +52,14 @@ sub from_hash {
     $self->{type}         = $hash->{type};
     $self->{max_circuits} = $hash->{max_circuits};
     $self->{external_id}  = $hash->{external_id};
-
+    if(defined $hash->{status}){
+        $self->{status} = $hash->{status};
+    } else {
+        $self->{status} = 'active';
+    }
+    if(defined $hash->{role}){
+        $self->{role} = $hash->{role};
+    }
     foreach my $i (@{$hash->{interfaces}}) {
         push @{$self->{interfaces}}, new OESS::Interface(db => $self->{db}, interface_id => $i->{interface_id});
     }
@@ -73,11 +80,12 @@ sub to_hash {
     $hash->{name}         = $self->{name};
     $hash->{description}  = $self->{description};
     $hash->{type}         = $self->{type};
+    $hash->{status}       = $self->{status};
     $hash->{max_circuits} = $self->{max_circuits};
     $hash->{external_id}  = $self->{external_id};
     $hash->{interfaces}   = [] if defined $self->{interfaces};
     $hash->{users}        = [] if defined $self->{users};
-
+    $hash->{role}         = $self->{role} if defined $self->{role};
     if (defined $self->{interfaces}) {
         foreach my $i (@{$self->{interfaces}}) {
             push @{$hash->{interfaces}}, $i->to_hash;
@@ -170,6 +178,11 @@ sub update {
         );
         return $create_err if (defined $create_err);
     }
+    my ($ok,$err) = OESS::DB::Workgroup::update(
+        db => $self->{'db'},
+        model => $self->to_hash()
+    );
+    return $err if (defined $err);
 
     return;
 }
