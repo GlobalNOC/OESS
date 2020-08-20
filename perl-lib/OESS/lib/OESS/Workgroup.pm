@@ -52,6 +52,11 @@ sub from_hash {
     $self->{type}         = $hash->{type};
     $self->{max_circuits} = $hash->{max_circuits};
     $self->{external_id}  = $hash->{external_id};
+    if(defined $hash->{status}){
+        $self->{status} = $hash->{status};
+    } else {
+        $self->{status} = 'active';
+    }
     if(defined $hash->{role}){
         $self->{role} = $hash->{role};
     }

@@ -2566,13 +2566,6 @@ sub edit_workgroup{
 sub decom_workgroup{
     my ($method, $args) = @_;
 
-    # my ($user, $err) = authorization(admin => 1, read_only => 0);
-    #Intial check to see if user is a normal system admin
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => 'normal'); 
-    if (defined $err) {
-        $method->set_error($err);
-        return;
-    }
     #Find the workgroup to be decommissioned
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
     my $workgroup = new OESS::Workgroup(db => $db2, workgroup_id => $workgroup_id);
@@ -2581,13 +2574,11 @@ sub decom_workgroup{
         $method->set_error("No workgroup with that ID found");
         return;
     }
-    #If the workgroup to be decommissioned is an admin type workgroup escalate the permissions needed to high admin
-    if ($workgroup->{type} eq 'admin'){
-        ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => 'admin');
-        if (defined $err) {
-            $method->set_error($err);
-            return;
-        }
+    #Check if the user is authorized to decom the workgroup if level of access depneding on type of workgroup
+    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => $workgroup->{type});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
     }
     # Gather interfaces to remove the acls and start the transaction
     my $interfaces = OESS::DB::Interface::get_interfaces(db => $db2, workgroup_id => $workgroup_id);
@@ -2602,15 +2593,16 @@ sub decom_workgroup{
             return;
         }
     }
-    $db2->commit();
     #After commiting changes for deleteing all ACLs switch workgroups status to decom and update the databse with the new status
     $workgroup->{'status'} = 'decom';
     my $updateErr = $workgroup->update();
     if (defined $updateErr){
         $method->set_error($updateErr);
+        $db2->rollback();
         return;
     }
-    warn $workgroup->{'status'};
+
+    $db2->commit();
     return;
 
 }
