@@ -79,6 +79,7 @@ sub fetch_all{
 
     my $res = $db->execute_query(" SELECT *
                                    FROM user
+                                   WHERE status='active'
                                    ORDER BY given_names", []);
     if (!defined $res || !defined $res->[0]) {
         return (undef, $db->get_error);
@@ -181,22 +182,23 @@ sub add_user {
 
    my $query = "INSERT INTO user (email, given_names, family_name, status) VALUES (?, ?, ?, 'active')";
    my $user_id = $db->execute_query($query,[$email,$given_name,$family_name]);
-
    if (!defined $user_id) {
        return (undef, "Unable to create new user.");
    }
 
    if (ref($auth_names) eq 'ARRAY') {
-       foreach my $name (@$auth_names){
+       foreach my $name (@$auth_names) {
            if (length($name) >=1) {
                $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-               $db->execute_query($query, [$name,$user_id]); 
+               my $ok = $db->execute_query($query, [$name,$user_id]);
+               return (undef, $db->get_error) if (!$ok);
            }
        }
    } else {
        if (length($auth_names) >=1) {
            $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-           $db->execute_query($query, [$auth_names, $user_id]);
+           my $ok = $db->execute_query($query, [$auth_names, $user_id]);
+           return (undef, $db->get_error) if (!$ok);
        } else {
            return (undef, "Username should be at least 1 character long");
        }
@@ -243,17 +245,10 @@ sub delete_user {
        return (undef, "Cannot delete the system user.");
     }
 
-
-    if (!defined $db->execute_query("DELETE FROM user_workgroup_membership WHERE user_id = ?", [$user_id])) {
-        return (undef, "Internal error delete user.");
+    my $count = $db->execute_query("update user set status='decom' where user_id=?", [$user_id]);
+    if (!defined $count) {
+        return (undef, "Internal error in delete_user: " . $db->get_error);
     }
-    if (!defined $db->execute_query("DELETE FROM remote_auth WHERE user_id = ?", [$user_id])) {
-        return (undef, "Internal error delete user.");
-    }
-    if (!defined $db->execute_query("DELETE FROM user WHERE user_id =?", [$user_id])) {
-        return (undef, "Internal error delete user.");
-    }
-
 
     return (1, undef);
 }
@@ -328,6 +323,9 @@ sub edit_user {
         return (undef, "Unable to edit user - does this user actually exist?");
     }
 
+    # TODO Blindly removing and adding remote_auth entries for a user
+    # causes a lot of churn in database ids. Modify this logic to only
+    # update the remote_auth table when required.
     $db->execute_query("DELETE FROM remote_auth WHERE user_id = ?", [$user_id]);
 
     if (ref($auth_names) eq 'ARRAY') {
@@ -342,7 +340,6 @@ sub edit_user {
          $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
          $db->execute_query($query, [$auth_names, $user_id]);
      }
-     $db->commit();
 
      return (1,undef)
 }
