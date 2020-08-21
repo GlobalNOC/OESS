@@ -384,9 +384,6 @@ sub get_workgroups {
     if (!defined $datas) {
         return (undef, $args->{db}->get_error);
     }
-    if (!defined $datas->[0]){
-        return (undef, "Returned 0 Workgroups");
-    }
     return ($datas, undef);
 }
 
