@@ -45,7 +45,7 @@ sub fetch{
             select type
             from workgroup
             join user_workgroup_membership on workgroup.workgroup_id=user_workgroup_membership.workgroup_id
-            where user_workgroup_membership.user_id=? and type='admin'
+            where user_workgroup_membership.user_id=? and workgroup.status='active' and type='admin'
         ) as is_admin;
     ";
     my $admin_result = $db->execute_query(
@@ -111,7 +111,7 @@ sub fetch_all{
                 SELECT type
                 FROM workgroup
                 JOIN user_workgroup_membership on workgroup.workgroup_id=user_workgroup_membership.workgroup_id
-                WHERE user_workgroup_membership.user_id=? AND type='admin'
+                WHERE user_workgroup_membership.user_id=? AND workgroup.status='active' AND type='admin'
             ) as is_admin;
         ";
         my $admin_result = $db->execute_query(
@@ -358,7 +358,7 @@ sub get_workgroups {
         SELECT workgroup.*, user_workgroup_membership.role as role
         FROM workgroup
         JOIN user_workgroup_membership ON workgroup.workgroup_id=user_workgroup_membership.workgroup_id AND workgroup.type='admin'
-        WHERE user_workgroup_membership.user_id=?
+        WHERE user_workgroup_membership.user_id=? AND workgroup.status='active'
     ";
     my $is_admin = $args->{db}->execute_query($is_admin_query, [$args->{user_id}]);
 
