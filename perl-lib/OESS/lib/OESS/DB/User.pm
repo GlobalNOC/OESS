@@ -245,7 +245,15 @@ sub delete_user {
        return (undef, "Cannot delete the system user.");
     }
 
-    my $count = $db->execute_query("update user set status='decom' where user_id=?", [$user_id]);
+    my $count = $db->execute_query("DELETE FROM user_workgroup_membership WHERE user_id = ?", [$user_id]);
+    if (!defined $count) {
+        return (undef, "Internal error in delete_user: " . $db->get_error);
+    }
+    $count = $db->execute_query("DELETE FROM remote_auth WHERE user_id = ?", [$user_id]);
+    if (!defined $count) {
+        return (undef, "Internal error in delete_user: " . $db->get_error);
+    }
+    $count = $db->execute_query("update user set status='decom' where user_id=?", [$user_id]);
     if (!defined $count) {
         return (undef, "Internal error in delete_user: " . $db->get_error);
     }
