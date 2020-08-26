@@ -49,6 +49,6 @@ const editWorkgroupComponent = (props) => {
       <WorkgroupForm workgroup={workgroup} onSubmit={submitHandler} onCancel={cancelHandler} />
     </div>
   );
-}
+};
 
 export const EditWorkgroup = withRouter(editWorkgroupComponent);

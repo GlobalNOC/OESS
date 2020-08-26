@@ -46,6 +46,7 @@ export async function createWorkgroup(workgroup) {
 
   let url = `${testConfig.user}services/admin/admin.cgi?method=add_workgroup`;
   url += `&name=${workgroup.name}`;
+  url += `&description=${workgroup.description}`;
   url += `&external_id=${workgroup.externalId}`;
   url += `&type=${workgroup.type}`;
 
@@ -74,6 +75,7 @@ export async function editWorkgroup(workgroup) {
 
   let url = `${testConfig.user}services/admin/admin.cgi?method=edit_workgroup`;
   url += `&name=${workgroup.name}`;
+  url += `&description=${workgroup.description}`;
   url += `&external_id=${workgroup.externalId}`;
   url += `&type=${workgroup.type}`;
   url += `&workgroup_id=${workgroup.workgroupId}`;
