@@ -1,31 +1,31 @@
 #!/usr/bin/perl
 #
 ##----- NDDI OESS Monitoring.cgi
-##-----                                                                                  
-##----- $HeadURL: $ 
+##-----
+##----- $HeadURL: $
 ##----- $Id: $
 ##----- $Date: $
 ##----- $LastChangedBy: $
-##-----                                                                                
+##-----
 ##----- Retrieves Monitoring information about the network
 ##
 ##-------------------------------------------------------------------------
 ##
-##                                                                                       
-## Copyright 2011 Trustees of Indiana University                                         
-##                                                                                       
-##   Licensed under the Apache License, Version 2.0 (the "License");                     
-##  you may not use this file except in compliance with the License.                     
-##   You may obtain a copy of the License at                                             
-##                                                                                       
-##       http://www.apache.org/licenses/LICENSE-2.0                                      
-##                                                                                       
-##   Unless required by applicable law or agreed to in writing, software                 
-##   distributed under the License is distributed on an "AS IS" BASIS,                   
-##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.            
-##   See the License for the specific language governing permissions and                 
-##   limitations under the License.                                                      
-#                                                 
+##
+## Copyright 2011 Trustees of Indiana University
+##
+##   Licensed under the Apache License, Version 2.0 (the "License");
+##  you may not use this file except in compliance with the License.
+##   You may obtain a copy of the License at
+##
+##       http://www.apache.org/licenses/LICENSE-2.0
+##
+##   Unless required by applicable law or agreed to in writing, software
+##   distributed under the License is distributed on an "AS IS" BASIS,
+##   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##   See the License for the specific language governing permissions and
+##   limitations under the License.
+#
 use strict;
 use warnings;
 
@@ -57,7 +57,7 @@ sub main {
     if (! $db){
 	send_json({"error" => "Unable to connect to database."});
 	exit(1);
-    }    
+    }
 
     if ( !$svc ){
 	send_json( {"error" => "Unable to access GRNOC::WebService" });
@@ -77,13 +77,12 @@ sub main {
     #handle the WebService request.
     $svc->handle_request();
 
-    
 }
 
 sub register_webservice_methods {
-    
+
     my $method;
-    
+
     #get_node_status
     $method = GRNOC::WebService::Method->new(
 	name            => "get_node_status",
@@ -116,7 +115,7 @@ sub register_webservice_methods {
         required        => 1,
         description     => "Name of the node to query the status."
         );
-    
+
     #register the get_node_status() method
     $svc->register_method($method);
 
@@ -138,6 +137,16 @@ sub register_webservice_methods {
     #register the get_rules_on_node() method
     $svc->register_method($method);
 
+    #get_oess_status()
+    $method = GRNOC::WebService::Method ->new(
+        name            => 'get_oess_status',
+        description     => "Returns a hash of three main services and their status as up or down",
+        callback        => sub { get_oess_status( @_ ) }
+        );
+
+
+    #register the get_oess_status() method
+    $svc->register_method($method);
 }
 
 sub get_node_status{
@@ -240,12 +249,55 @@ sub get_rules_on_node{
 
 sub send_json {
     my $output = shift;
-    
+
     if (!defined($output) || !$output) {
         $output =  { "error" => "Server error in accessing webservices." };
     }
-        
+
     print "Content-type: text/plain\n\n" . encode_json($output);
+}
+
+sub get_oess_status {
+    my $result;
+    my $serviceResult;
+
+    return if !defined $mq;
+
+    $mq->{'topic'} = 'MPLS.Discovery.RPC';
+    $mq->{'timeout'} = 2;
+    $serviceResult = $mq->is_online();
+    if (defined $serviceResult->{error}) {
+        push(@$result,{service_name => 'discovery', status => 'down'});
+    } else {
+        push(@$result,{service_name => 'discovery', status => 'up'});
+    }
+
+    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+    $serviceResult = $mq->echo();
+    if (defined $serviceResult->{error}) {
+        push(@$result,{service_name => 'fwdctl', status => 'down'});
+    } else {
+        push(@$result,{service_name => 'fwdctl', status => 'up'});
+    }
+
+    $mq->{'topic'} = 'OF.FWDCTL.RPC';
+    $serviceResult = $mq->is_online();
+    if (defined $serviceResult->{error}) {
+       push(@$result,{service_name => 'notification', status => 'down'});
+    } else {
+        push(@$result,{service_name => 'notification', status => 'up'});
+    }
+
+    $mq->{'topic'} = 'OF.Notification.event';
+    $serviceResult = $mq->is_online();
+    if (defined $serviceResult->{error}) {
+        push(@$result,{service_name => 'nsi', status => 'down'});
+    } else {
+        push(@$result,{service_name => 'nsi', status => 'up'});
+    }
+
+    return $result;
+
 }
 
 main();

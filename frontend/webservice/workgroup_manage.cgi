@@ -29,7 +29,9 @@ use URI::Escape;
 use MIME::Lite;
 
 use OESS::DB;
-use OESS::Database;
+use OESS::DB::Interface;
+use OESS::DB::ACL;
+use OESS::DB::User;
 
 use GRNOC::WebService;
 use OESS::Webservice;
@@ -38,7 +40,7 @@ use OESS::ACL;
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf');
 
-my $db   = new OESS::Database();
+my $db   = new OESS::DB();
 
 #register web service dispatcher
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
@@ -49,32 +51,6 @@ my $user_id;
 $| = 1;
 
 sub main {
-
-    if ( !$db ) {
-        send_json({ "error" => "Unable to connect to database." });
-        exit(1);
-    }
-
-    if ( !$svc ){
-	send_json({ "error" => "Unable to access GRNOC::WebService" });
-	exit(1);
-    }
-
-    $user_id = $db->get_user_id_by_auth_name( 'auth_name' => $username );
-
-    my $user = $db->get_user_by_id( user_id => $user_id)->[0];
-    
- 
-    if ($user->{'status'} eq 'decom') {
-	send_json({ "error" => "error" });
-	exit(1);
-    }
-    
-    if ($user->{'type'} eq 'read-only') {
-	send_json({ "error" => "Error: you are a readonly user" });
-	return;
-    }
-
     #register the WebService Methods
     register_webservice_methods();
 
@@ -84,9 +60,10 @@ sub main {
 }
 
 sub register_webservice_methods {
-    
+
     my $method;
-    
+
+    #ESS
     #get_all_workgroups()
      $method = GRNOC::WebService::Method->new(
 	 name            => "get_all_workgroups",
@@ -299,13 +276,22 @@ sub register_webservice_methods {
 }
 
 sub get_all_workgroups {
-    
+
     my ( $method, $args ) = @_ ;
     my $results;
+    
+    if (!defined $db) {
+        $method->set_error("Error connecting to Database");
+        return;
+    }
 
-    my $workgroups = $db->get_all_workgroups();
+    my ($workgroups, $error) = OESS::DB::Workgroup::fetch_all(db => $db);
+    if (defined $error) {
+        $method->set_error($error);
+        return;
+    }
 
-    return parse_results( res => $workgroups, method => $method );
+    return { results => $workgroups};
 }
 
 sub get_acls {
@@ -313,55 +299,97 @@ sub get_acls {
     my ( $method, $args ) = @_ ;
     my $results;
 
-    my %params;
+    my $acls;
     if($args->{'interface_id'}{'value'}){
-        $params{'interface_id'} = $args->{'interface_id'}{'value'};
+        my $request_workgroup = OESS::DB::Interface::fetch(db => $db, interface_id => $args->{'interface_id'}{'value'})->{workgroup_id};
+        my ($permission, $err) = OESS::DB::User::has_workgroup_access(
+                                    db => $db,
+                                    username => $username,
+                                    workgroup_id => $request_workgroup,
+                                    role => 'read-only'
+                                );
+        if (defined $err) {
+            $method->set_error($err);
+            return;
+        }
+
+        $acls = OESS::DB::ACL::fetch_all(db => $db, interface_id => $args->{'interface_id'}{'value'});
     }
     if($args->{'interface_acl_id'}{'value'}){
-        $params{'interface_acl_id'} = $args->{'interface_acl_id'}{'value'};
+        $acls->[0] = OESS::DB::ACL::fetch(db => $db, interface_acl_id => $args->{'interface_acl_id'}{'value'});
+        my $request_workgroup = OESS::DB::Interface::fetch(db => $db, interface_id => $acls->[0]->{interface_id})->{workgroup_id};
+        my ($permission, $err) = OESS::DB::User::has_workgroup_access(
+                                    db => $db,
+                                    username => $username,
+                                    workgroup_id => $request_workgroup,
+                                    role => 'read-only'
+                                );
+        if (defined $err) {
+            $method->set_error($err);
+            return;
+        }
+        
     }
-    
-    my $acls = $db->get_acls( %params );
-    
-    return parse_results( res => $acls , method => $method);
+    if (!defined $acls){
+        my $error = $db->get_error();
+        $method->set_error($error);
+        return;
+    }
+
+    return { results => $acls};
 }
 
 sub add_acl {
     
     my ( $method, $args ) = @_ ;
     my $results;
+    
+    if (!defined $db) {
+        $method->set_error("Error Connecting to Database");
+        return;
+    }
 
     my $workgroup_id = $args->{'workgroup_id'}{'value'} || undef;
     my $workgroup_name;
     if (!defined $workgroup_id){
         $workgroup_name = "all workgroups";
-    }
-    elsif ($db->get_user_admin_status(username=> $username)->[0]{'is_admin'}){
-        $workgroup_name = $db->get_workgroups(workgroup_id => $workgroup_id)->[1]{'name'};
-    }
-    else {
-        $workgroup_name = $db->get_workgroups(workgroup_id => $workgroup_id)->[0]{'name'};
+    } else {
+        $workgroup_name = OESS::DB::Workgroup::fetch(db => $db, workgroup_id => $workgroup_id)->{'name'};
     }
 
-    my $interface_name = $db->get_interface(interface_id => $args->{"interface_id"}{'value'})->{'name'};
+    my $interface = OESS::DB::Interface::fetch(db => $db, interface_id => $args->{"interface_id"}{'value'});
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(
+                                db => $db,
+                                username => $username,
+                                workgroup_id => $interface->{workgroup_id},
+                                role => 'normal'
+                            );
+    if (defined $err) {
+        $method-> set_error($err);
+        return;
+    }
+
+   
+    my $interface_name = $interface->{name};
     my $vlan_start = $args->{"vlan_start"}{'value'};
     my $vlan_end = $args->{"vlan_end"}{'value'};
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
     $logger->debug("Initiating creation of ACL at <time> for ");    
-    my $acl_id = $db->add_acl( 
+    my $acl_model = { 
         workgroup_id  => $args->{"workgroup_id"}{'value'} || undef,
         interface_id  => $args->{"interface_id"}{'value'},
         allow_deny    => $args->{"allow_deny"}{'value'},
         eval_position => $args->{"eval_position"}{'value'} || undef,
-        vlan_start    => $args->{"vlan_start"}{'value'},
-        vlan_end      => $args->{"vlan_end"}{'value'} || undef,
+        start    => $args->{"vlan_start"}{'value'},
+        end      => $args->{"vlan_end"}{'value'} || undef,
         notes         => $args->{"notes"}{'value'} || undef,
         entity_id     => $args->{"entity_id"}{'value'} || undef,
         user_id       => $user_id
-    );
-    if ( !defined $acl_id ) {
+    };
+    my ($acl_id, $acl_error) = OESS::DB::ACL::create(db => $db, model => $acl_model);
+    if ( defined $acl_error ) {
         $logger->error("Error creating ACL at ". localtime(). " for $workgroup_name, on $interface_name from vlans $vlan_start to $vlan_end. Action was initiated by $username");
-	$method->set_error( $db->get_error() );
+	$method->set_error( $acl_error );
 	return;
     }
     else {
@@ -384,16 +412,29 @@ sub update_acl {
     my $vlan_end     = $args->{vlan_end}{value};
     my $logger       = Log::Log4perl->get_logger("OESS.ACL");
 
-    my $db2 = OESS::DB->new();
+    if (!defined $db) {
+        $method->set_error("Error connecting to Database");
+        return;
+    }
+    my $request_interface = OESS::DB::ACL::fetch(db => $db, interface_acl_id => $acl_id)->{interface_id};
+    my $request_workgroup = OESS::DB::Interface::fetch(db => $db, interface_id => $request_interface)->{workgroup_id};
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(
+                                db => $db,
+                                username => $username,
+                                workgroup_id => $request_workgroup,
+                                role => 'normal'
+                            );
+    if (defined $err) {
+        $method-> set_error($err);
+        return;
+    }
 
-    my $original_acl = OESS::ACL->new(db => $db2, interface_acl_id => $acl_id);
-    my $acl = OESS::ACL->new(db => $db2, interface_acl_id => $acl_id);
-
-    $db2->start_transaction();
-
+    my $original_acl = OESS::ACL->new(db => $db, interface_acl_id => $acl_id);
+    my $acl = OESS::ACL->new(db => $db, interface_acl_id => $acl_id);
+    $db->start_transaction();
     if($acl->{'eval_position'} != $args->{eval_position}{value}){
         #doing an interface move... grab all the acls for this interface
-        my $interface = OESS::Interface->new( db => $db2, interface_id => $acl->{interface_id});
+        my $interface = OESS::Interface->new( db => $db, interface_id => $acl->{interface_id});
 
         foreach my $a (@{$interface->acls()}){
 	    next if $a->{acl_id} == $acl_id;
@@ -404,7 +445,7 @@ sub update_acl {
 		    $a->{eval_position} += 10;
 		    if(!$a->update_db()){
 			$method->set_error( $db->get_error() );
-			$db2->rollback();
+			$db->rollback();
 			return;
 		    }
 		}
@@ -414,14 +455,13 @@ sub update_acl {
 		    $a->{eval_position} -= 10;
 		    if(!$a->update_db()){
 			$method->set_error( $db->get_error() );
-                        $db2->rollback();
+                        $db->rollback();
                         return;
 		    }
 		}
 	    }
 	}
     }
-
 
     $acl->{workgroup_id}  = $args->{workgroup_id}{value};
     $acl->{interface_id}  = $args->{interface_id}{value};
@@ -431,36 +471,35 @@ sub update_acl {
     $acl->{start}         = $args->{vlan_start}{value};
     $acl->{end}           = $args->{vlan_end}{value};
     $acl->{notes}         = $args->{notes}{value};
-
     my $success = $acl->update_db();
 
+    my $original_values =  $original_acl->to_hash();
 
-    my $original_values =  get_acls($acl_id)->{'results'}[0];
     my $original_workgroup_name;
     if ($original_acl->{workgroup_id}) {
-        $original_workgroup_name = $db->get_workgroup_by_id(workgroup_id => $original_acl->{workgroup_id})->{name};
+        $original_workgroup_name = OESS::DB::Workgroup::fetch(db => $db, workgroup_id => $original_acl->{workgroup_id})->{name};
     } else{
         $original_workgroup_name = "All workgroups";
     }
 
     my $workgroup_name;
-    if ($workgroup_id){
-        $workgroup_name = $db->get_workgroup_by_id(workgroup_id => $acl->{workgroup_id})->{'name'};
+    if ($workgroup_id && $workgroup_id != -1){
+        $workgroup_name = OESS::DB::Workgroup::fetch(db => $db, workgroup_id => $acl->{workgroup_id})->{'name'};
     } else{
         $workgroup_name = "All workgroups";
     }
 
-    my $original_interface_name = $db->get_interface(interface_id => $original_acl->{interface_id})->{name};
-    my $interface_name = $db->get_interface(interface_id => $acl->{interface_id})->{'name'};
+    my $original_interface_name = OESS::DB::Interface::fetch(db => $db, interface_id => $original_acl->{interface_id})->{name};
+    my $interface_name = OESS::DB::Interface::fetch(db => $db, interface_id => $acl->{interface_id})->{'name'};
 
     if (!defined $success) {
         $logger->info("Failed to update acl with id $acl_id, at ". localtime() . " on $interface_name. Action was initiated by $username.");
         $method->set_error( $db->get_error() );
-	$db2->rollback();
+	$db->rollback();
         return;
     }
 
-    $db2->commit();
+    $db->commit();
 
     my $output_string = "Changed: ";
     if ($original_acl->{start} != $acl->{start}) {
@@ -488,17 +527,34 @@ sub remove_acl {
     my ( $method, $args ) = @_ ;
     my $results;
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
- 
+
+    if (!defined $db) {
+        $method->set_error("Error connecting to the Database");
+        return;
+    }
     my $interface_acl_id   = $args->{'interface_acl_id'}{'value'};
-    
-    my $result = $db->remove_acl(
-        user_id      => $user_id,
+    my $request_interface = OESS::DB::ACL::fetch(db => $db, interface_acl_id => $interface_acl_id)->{interface_id};
+    my $request_workgroup = OESS::DB::Interface::fetch(db => $db, interface_id => $request_interface)->{workgroup_id};
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(
+                                db => $db,
+                                username => $username,
+                                workgroup_id => $request_workgroup,
+                                role => 'normal'
+                            );
+    if (defined $err) {
+        $method-> set_error($err);
+        return;
+    }
+
+    my ($result,$error) = OESS::DB::ACL::remove(
+        db => $db,
         interface_acl_id => $interface_acl_id
     );
 
-    if ( !defined $result ) {
+    if ( defined $error ) {
         $logger->info("Failed to delete ACL with id $interface_acl_id at ". localtime() ." Action was initiated by $username.");
-	$method->set_error( $db->get_error() );
+	    $method->set_error( $error );
+        return;
     }
     else {
         $logger->info("Deleted ACL with id $interface_acl_id at ". localtime() . " Action was initiated by $username.");
@@ -506,31 +562,6 @@ sub remove_acl {
     }
 
     return $results;
-}
-
-sub parse_results {
-    my %args = @_;
-
-    my $res = $args{'res'};
-    my $method = $args{'method'};
-    my $results;
-     
-    if ( !defined $res ) {
-        $method->set_error( $db->get_error() );
-	return;
-    }else {
-        $results->{'results'} = $res;
-    }
-
-    return $results;
-}
-
-sub send_json {
-    my $output = shift;
-    if (!defined($output) || !$output) {
-        $output =  { "error" => "Server error in accessing webservices." };
-    }
-    print "Content-type: text/plain\n\n" . encode_json($output);
 }
 
 main();

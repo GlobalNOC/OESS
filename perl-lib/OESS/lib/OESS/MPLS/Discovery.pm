@@ -207,6 +207,13 @@ sub register_rpc_methods{
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
 
     $d->register_method($method);
+    $self->{'logger'}->error("Inside is online discover");
+    $method = GRNOC::RabbitMQ::Method->new( name  => "is_online",
+                                            async => 1,
+                           callback => sub { my $method = shift;
+                                             $method->{'success_callback'}({successful => 1 }); },
+                           description => "Checks if this service is onine and able to send repsonses back to monitoring");
+    $d->register_method($method);
 }
 
 =head2 new_switch

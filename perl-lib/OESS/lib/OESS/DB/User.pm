@@ -45,7 +45,7 @@ sub fetch{
             select type
             from workgroup
             join user_workgroup_membership on workgroup.workgroup_id=user_workgroup_membership.workgroup_id
-            where user_workgroup_membership.user_id=? and type='admin'
+            where user_workgroup_membership.user_id=? and workgroup.status='active' and type='admin'
         ) as is_admin;
     ";
     my $admin_result = $db->execute_query(
@@ -79,6 +79,7 @@ sub fetch_all{
 
     my $res = $db->execute_query(" SELECT *
                                    FROM user
+                                   WHERE status='active'
                                    ORDER BY given_names", []);
     if (!defined $res || !defined $res->[0]) {
         return (undef, $db->get_error);
@@ -110,7 +111,7 @@ sub fetch_all{
                 SELECT type
                 FROM workgroup
                 JOIN user_workgroup_membership on workgroup.workgroup_id=user_workgroup_membership.workgroup_id
-                WHERE user_workgroup_membership.user_id=? AND type='admin'
+                WHERE user_workgroup_membership.user_id=? AND workgroup.status='active' AND type='admin'
             ) as is_admin;
         ";
         my $admin_result = $db->execute_query(
@@ -181,22 +182,23 @@ sub add_user {
 
    my $query = "INSERT INTO user (email, given_names, family_name, status) VALUES (?, ?, ?, 'active')";
    my $user_id = $db->execute_query($query,[$email,$given_name,$family_name]);
-
    if (!defined $user_id) {
        return (undef, "Unable to create new user.");
    }
 
    if (ref($auth_names) eq 'ARRAY') {
-       foreach my $name (@$auth_names){
+       foreach my $name (@$auth_names) {
            if (length($name) >=1) {
                $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-               $db->execute_query($query, [$name,$user_id]); 
+               my $ok = $db->execute_query($query, [$name,$user_id]);
+               return (undef, $db->get_error) if (!$ok);
            }
        }
    } else {
        if (length($auth_names) >=1) {
            $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-           $db->execute_query($query, [$auth_names, $user_id]);
+           my $ok = $db->execute_query($query, [$auth_names, $user_id]);
+           return (undef, $db->get_error) if (!$ok);
        } else {
            return (undef, "Username should be at least 1 character long");
        }
@@ -243,17 +245,18 @@ sub delete_user {
        return (undef, "Cannot delete the system user.");
     }
 
-
-    if (!defined $db->execute_query("DELETE FROM user_workgroup_membership WHERE user_id = ?", [$user_id])) {
-        return (undef, "Internal error delete user.");
+    my $count = $db->execute_query("DELETE FROM user_workgroup_membership WHERE user_id = ?", [$user_id]);
+    if (!defined $count) {
+        return (undef, "Internal error in delete_user: " . $db->get_error);
     }
-    if (!defined $db->execute_query("DELETE FROM remote_auth WHERE user_id = ?", [$user_id])) {
-        return (undef, "Internal error delete user.");
+    $count = $db->execute_query("DELETE FROM remote_auth WHERE user_id = ?", [$user_id]);
+    if (!defined $count) {
+        return (undef, "Internal error in delete_user: " . $db->get_error);
     }
-    if (!defined $db->execute_query("DELETE FROM user WHERE user_id =?", [$user_id])) {
-        return (undef, "Internal error delete user.");
+    $count = $db->execute_query("update user set status='decom' where user_id=?", [$user_id]);
+    if (!defined $count) {
+        return (undef, "Internal error in delete_user: " . $db->get_error);
     }
-
 
     return (1, undef);
 }
@@ -328,6 +331,9 @@ sub edit_user {
         return (undef, "Unable to edit user - does this user actually exist?");
     }
 
+    # TODO Blindly removing and adding remote_auth entries for a user
+    # causes a lot of churn in database ids. Modify this logic to only
+    # update the remote_auth table when required.
     $db->execute_query("DELETE FROM remote_auth WHERE user_id = ?", [$user_id]);
 
     if (ref($auth_names) eq 'ARRAY') {
@@ -342,7 +348,6 @@ sub edit_user {
          $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
          $db->execute_query($query, [$auth_names, $user_id]);
      }
-     $db->commit();
 
      return (1,undef)
 }
@@ -358,10 +363,10 @@ sub get_workgroups {
     };
 
     my $is_admin_query = "
-        SELECT workgroup.*
+        SELECT workgroup.*, user_workgroup_membership.role as role
         FROM workgroup
         JOIN user_workgroup_membership ON workgroup.workgroup_id=user_workgroup_membership.workgroup_id AND workgroup.type='admin'
-        WHERE user_workgroup_membership.user_id=?
+        WHERE user_workgroup_membership.user_id=? AND workgroup.status='active'
     ";
     my $is_admin = $args->{db}->execute_query($is_admin_query, [$args->{user_id}]);
 
@@ -369,15 +374,15 @@ sub get_workgroups {
     my $values;
     my $datas;
     if (defined $is_admin && defined $is_admin->[0]) {
-        $query = "SELECT * from workgroup ORDER BY workgroup.name ASC";
+        $query = "SELECT *, ? as role from workgroup ORDER BY workgroup.name ASC";
         $values = [];
-        $datas = $args->{db}->execute_query($query);
+        $datas = $args->{db}->execute_query($query,[$is_admin->[0]->{role}]);
     } else {
         $query = "
-            SELECT workgroup.*
+            SELECT workgroup.* , user_workgroup_membership.role as role
             FROM workgroup
             JOIN user_workgroup_membership ON workgroup.workgroup_id=user_workgroup_membership.workgroup_id
-            WHERE user_workgroup_membership.user_id=?
+            WHERE user_workgroup_membership.user_id=? AND workgroup.status='active'
             ORDER BY workgroup.name ASC
         ";
         $values = [$args->{user_id}];
@@ -386,9 +391,6 @@ sub get_workgroups {
 
     if (!defined $datas) {
         return (undef, $args->{db}->get_error);
-    }
-    if (!defined $datas->[0]){
-        return (undef, "Returned 0 Workgroups");
     }
     return ($datas, undef);
 }

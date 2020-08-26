@@ -235,7 +235,7 @@ CREATE TABLE `entity` (
   PRIMARY KEY (`entity_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
+INSERT INTO `entity` (`name`,`description`) VALUES ('Root','Default Root Entity');
 --
 -- Table structure for table `entity_hierarchy`
 --
@@ -663,7 +663,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('2.0.10');
+INSERT INTO `oess_version` VALUES ('2.0.11');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 

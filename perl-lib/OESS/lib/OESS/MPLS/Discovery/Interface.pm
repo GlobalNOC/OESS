@@ -6,9 +6,12 @@ use warnings;
 package OESS::MPLS::Discovery::Interface;
 
 use OESS::Database;
-
+use OESS::DB;
+use OESS::DB::Interface;
+use OESS::DB::Node;
 use Data::Dumper;
 use Log::Log4perl;
+Log::Log4perl::init_and_watch("/etc/oess/logging.conf");
 
 =head2 new
 
@@ -24,7 +27,7 @@ sub new{
 
     my $self = \%args;
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Discovery.Interface');
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS');
     bless $self, $class;
 
     if(!defined($self->{'db'})){
@@ -32,7 +35,7 @@ sub new{
 	    $self->{'config'} = "/etc/oess/database.xml";
 	}
 	
-	$self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
+	$self->{'db'} = new OESS::DB( config => $self->{'config'} );
     }
 
     die if(!defined($self->{'db'}));
@@ -51,19 +54,19 @@ sub process_results{
     my $node_name = $params{'node'};
     my $interfaces = $params{'interfaces'};
 
-    $self->{'db'}->_start_transaction();
+    $self->{'db'}->start_transaction();
 
     foreach my $interface (@$interfaces) {
-        my $interface_id = $self->{'db'}->get_interface_id_by_names(node => $node_name, interface => $interface->{'name'});
-        if (!defined($interface_id)) {
-            my $node = $self->{'db'}->get_node_by_name(name => $node_name);
+        my $intf = new OESS::Interface(db => $self->{'db'}, node => $node_name, name => $interface->{'name'});
+        if (!defined($intf)) {
+            $self->{'logger'}->warn("Couldn't find interface creating new");
+            my $node = OESS::DB::Node::fetch(db => $self->{'db'}, name => $node_name);
             if (!defined($node)) {
-                $self->{'logger'}->warn($self->{'db'}->{'error'});
-                $self->{'db'}->_rollback();
+                $self->{'logger'}->warn($self->{'db'}->get_error);
+                $self->{'db'}->rollback();
                 return;
             }
-
-            my $res = $self->{'db'}->add_or_update_interface(
+            my $model = {
                 node_id => $node->{'node_id'},
                 name => $interface->{'name'},
                 operational_state => $interface->{'operational_state'},
@@ -73,38 +76,42 @@ sub process_results{
                 mpls_vlan_tag_range => "1-4095",
                 capacity_mbps => $interface->{'speed'},
                 mtu_bytes => $interface->{'mtu'}
-            );
-            if (!defined($res)) {
-                $self->{'logger'}->warn($self->{'db'}->{'error'});
-                $self->{'db'}->_rollback();
+            };
+            my ($res,$err) = OESS::DB::Interface::create( db=>$self->{'db'}, model=>$model);
+            if (defined($err)) {
+                $self->{'logger'}->warn($err);
+                $self->{'db'}->rollback();
                 return;
             } else {
                 next;
             }
-        }
-
-        my $intf = $self->{'db'}->get_interface(interface_id => $interface_id);
+        } else {
+        $self->{'logger'}->warn('Found Interface');
         if (!defined($intf)) {
             $self->{'logger'}->warn($self->{'db'}->{'error'});
-            $self->{'db'}->_rollback();
+            $self->{'db'}->rollback();
             return;
         }
-
-        if ($intf->{'operational_state'} ne $interface->{'operational_state'}) {
-            my $result = $self->{'db'}->update_interface_operational_state(
-                interface_id => $interface_id,
-                operational_state => $interface->{'operational_state'}
-            );
-            if (!defined($result)) {
-                $self->{'logger'}->warn($self->{'db'}->{'error'});
-                $self->{'db'}->_rollback();
-                return;
-            }
+        if(defined $interface->{operational_state}) {
+            $intf->operational_state($interface->{operational_state});
+        }
+        if(defined $interface->{speed}){
+            $intf->bandwidth($interface->{speed});
+        }
+        if(defined $interface->{mtu}){
+            $intf->mtu($interface->{mtu});
+        }
+        my $res = $intf->update_db();
+        if (!defined($res)) {
+            $self->{'logger'}->warn($self->{'db'}->get_error);
+            $self->{'db'}->rollback();
+            return;
+        }
         }
     }
 
     # all must have worked, commit and return success
-    $self->{'db'}->_commit();
+    $self->{'db'}->commit();
     return 1;
 }
 

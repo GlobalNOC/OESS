@@ -1265,7 +1265,7 @@ function setup_users_tab(){
                                        
                                        else{
                                            
-                                           var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id);
+                                           var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id + "&role=normal");
                                            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                                            ds.responseSchema = {
                                                resultsList: "results",
@@ -1700,7 +1700,7 @@ function setup_workgroup_tab(){
                             var first   = record.getData('first_name');
                             var last    = record.getData('family_name');
 
-                            var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + workgroup_id + "&user_id="+ user_id);
+                            var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + workgroup_id + "&user_id="+ user_id + "&role=normal");
                             ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                             ds.responseSchema = {
                                 resultsList: "results",
@@ -2523,14 +2523,15 @@ function setup_network_tab(){
                             {key: "unmoved_circuits"}
                         ],
                         metaFields: {
-                            error: "error"
+                            error: "error",
+                            error_text: "error_text"
                         }
                     };
                     ds.sendRequest(postVars,{
                         success: function(req, resp){
                             add_button.set('label', 'Add');
                             if (resp.meta.error){
-                                alert("Error moving circuits: " + resp.meta.error, null, {error: true});
+                                alert("Error moving circuits: " + resp.meta.error_text, null, {error: true});
                                 return;
                             }
                             var res = resp.results[0];
@@ -4380,7 +4381,7 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
                 //var first   = record.getData('first_name');
                 //var last    = record.getData('family_name');
                 var workgroup_id = record.getData('workgroup_id');
-                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + workgroup_id + "&user_id="+ user_id);
+                var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + workgroup_id + "&user_id="+ user_id + "&role=normal");
                 ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                 ds.responseSchema = {
                     resultsList: "results",
