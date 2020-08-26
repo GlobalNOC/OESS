@@ -37,10 +37,10 @@ sub fetch {
     my $wg;
 
     if (defined $args->{workgroup_id}) {
-        my $q = "select * from workgroup where workgroup_id=?";
+        my $q = "select * from workgroup where workgroup_id=? and status='active'";
         $wg = $args->{db}->execute_query($q, [$args->{workgroup_id}]);
     } else {
-        my $q = "select * from workgroup where name=?";
+        my $q = "select * from workgroup where name=? and status='active'";
         $wg = $args->{db}->execute_query($q, [$args->{name}]);
     }
     if (!defined $wg || !defined $wg->[0]) {
@@ -75,7 +75,7 @@ sub fetch_all {
         @_
     };
 
-    my $res = $args->{db}->execute_query("select * from workgroup", []);
+    my $res = $args->{db}->execute_query("select * from workgroup where status='active'", []);
     if (!defined $res) {
         return (undef, $args->{db}->get_error);
     }

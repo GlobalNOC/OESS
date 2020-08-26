@@ -39,7 +39,7 @@ my ($users, $error) = OESS::DB::User::fetch_all( db => $db );
 warn Dumper($users->[0]);
 ok(defined $users, "returned a value for fetch_all with no params");
 
-ok($#{$users} == 89, "Total number of users was 89, was " . $#{$users});
+ok($#{$users} == 88, "Total number of users was 88, got " . $#{$users});
                          
 cmp_deeply($users->[0], {
             'email' => 'user_1@foo.net',
