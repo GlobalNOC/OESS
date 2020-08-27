@@ -227,6 +227,7 @@ sub main{
     $vars->{'is_read_only'}       = $is_read_only;
     $vars->{'version'}            = OESS::Database::VERSION;
     $vars->{'network_type'}       = $config->network_type;
+    $vars->{'third_party_mgmt'}   = $config->third_party_mgmt;
     
 	#print STDERR Dumper($vars);
     if ($action eq 'view_l3vpn' || $action eq 'provision_cloud' || $action eq 'modify_cloud' || $action eq 'phonebook' || $action eq 'welcome') {

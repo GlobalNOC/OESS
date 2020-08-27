@@ -69,6 +69,7 @@ sub main{
         $vars->{'is_read_only'}       = 1;
         $vars->{'version'}            = OESS::Database::VERSION;
         $vars->{'network_type'}       = $config->network_type;
+        $vars->{'third_party_mgmt'}   = $config->third_party_mgmt;
 
         $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
         print "Content-type: text/html\n\n" . $output;
@@ -200,6 +201,7 @@ sub main{
     $vars->{'is_read_only'}       = $is_read_only;
     $vars->{'version'}            = OESS::Database::VERSION;
     $vars->{'network_type'}       = $config->network_type;
+    $vars->{'third_party_mgmt'}   = $config->third_party_mgmt;
 
     $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
     print "Content-type: text/html\n\n" . $output;

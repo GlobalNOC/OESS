@@ -145,7 +145,7 @@ sub main{
     my $tsds_password = required_parameter("TSDS Password: ");
     ReadMode('normal');
     my $grafana_url = optional_parameter("Grafana URL", "https://localhost/grafana");
-
+    my $third_party_mgmt = yes_or_no_parameter("Third party management?: ");
     #put all of this into a config file
     print "Creating Configuration file (/etc/oess/database.xml)\n";
     open(FILE, "> /etc/oess/database.xml");
@@ -170,6 +170,7 @@ END
     print FILE "  <process name='fvd' status='disabled' />\n";
     print FILE "  <process name='watchdog' status='disabled' />\n";
     print FILE "  <rabbitMQ user='guest' pass='guest' host='localhost' port='5672' vhost='/' />\n";
+    print FILE "  <third_party_mgmt>$third_party_mgmt</third_party_mgmt>";
     print FILE "</config>\n";
     close(FILE);
 

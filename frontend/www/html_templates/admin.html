@@ -7,8 +7,10 @@
     <ul class="yui-nav oess_yui_nav">
       <li class="selected"><a href="#tab1"><em>Discovery</em></a></li>
       <li><a href="#tab2"><em>Network</em></a></li>
+      [% IF third_party_mgmt == 'n' %]
       <li><a href="#tab3"><em>Users</em></a></li>
       <li><a href="#tab4"><em>Workgroups</em></a></li>
+      [% END %]
       <li><a href="#tab5"><em>Remote Links</em></a></li>
       <li><a href="#tab6"><em>Remote Devices</em></a></li>
       <li><a href="#tab7"><em>Maintenances</em></a></li>
@@ -74,6 +76,7 @@
       </div>
 
       <!-- Users -->
+      [% IF third_party_mgmt == 'n' %]
       <div id="users_content">
 	<center>
           
@@ -108,8 +111,9 @@
 
 	</center>
       </div>
-
+    [% END %]
       <!-- Workgroups -->
+    [% IF third_party_mgmt == 'n' %]
       <div id="workgroups_content">
 	<center>
 
@@ -138,7 +142,7 @@
 
 	</center>
       </div>
-
+    [% END %]
       <!-- Remote Links -->
       <div id="remote_content" style="padding-left: 10px;">
         <center>

@@ -14,9 +14,12 @@ use Template;
 use Switch;
 use FindBin;
 use OESS::Database();
+use OESS::Config;
 use Log::Log4perl;
 
 Log::Log4perl::init('/etc/oess/logging.conf');
+
+my $config = new OESS::Config();
 
 my $ADMIN_BREADCRUMBS = [
     { title => "Workgroups", url => "../index.cgi?action=workgroups" },
@@ -46,6 +49,7 @@ sub main {
         $vars->{'is_admin'}           = 0;
         $vars->{'is_read_only'}       = 1;
         $vars->{'version'}            = OESS::Database::VERSION;
+        $vars->{'third_party_mgmt'}   = $config->third_party_mgmt;
 
         $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
         print "Content-type: text/html\n\n" . $output;
@@ -64,7 +68,7 @@ sub main {
     my $user = $db->get_user_by_id( user_id => $db->get_user_id_by_auth_name( auth_name => $ENV{'REMOTE_USER'}))->[0]; 
     if($user->{'status'} eq 'decom'){
         $action = 'denied';
-    } 
+    }
     if ( $cgi->param('action') && $cgi->param('action') =~ /^(\w+)$/ ) {
         $action = $1;
     }
@@ -100,6 +104,7 @@ sub main {
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'path'}               = "../";
     $vars->{'admin_email'}        = $db->get_admin_email();
+    $vars->{'third_party_mgmt'}   = $config->third_party_mgmt;
     $tt->process( "html_templates/page_base.html", $vars, \$output )
       or warn $tt->error();
 
