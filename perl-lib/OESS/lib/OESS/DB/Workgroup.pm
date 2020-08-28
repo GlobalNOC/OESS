@@ -107,7 +107,7 @@ sub get_users_in_workgroup{
             next;
         }
         
-        push(@users, $user);
+        push(@users, $user->to_hash);
     }
     return (\@users,undef);
 }
