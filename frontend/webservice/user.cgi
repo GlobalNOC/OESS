@@ -5,12 +5,13 @@ use warnings;
 
 use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
+
 use OESS::DB;
-use OESS::DB::User;
-use OESS::VRF;
+use OESS::AccessController::Default;
 
+my $db = new OESS::DB();
+my $ac = new OESS::AccessController::Default(db => $db);
 
-my $db = OESS::DB->new();
 my $svc = GRNOC::WebService::Dispatcher->new();
 
 
@@ -31,16 +32,15 @@ sub get_current {
     my $method = shift;
     my $params = shift;
 
-    my $result = OESS::User->new(db => $db, username => $ENV{'REMOTE_USER'});
-    if (!defined $result) {
-        $method->set_error("Couldn't find user $ENV{'REMOTE_USER'}.");
+    my ($user, $err) = $ac->get_user(
+        username => $ENV{'REMOTE_USER'}
+    );
+    if (defined $err) {
+        $method->set_error($err);
         return;
     }
-    $result->load_workgroups;
-
-    my $hash = $result->to_hash();
-    $hash->{username} = $ENV{REMOTE_USER};
-    return { results => [$hash] };
+    $user->load_workgroups;
+    return { results => [ $user->to_hash ] };
 }
 
 sub main{
