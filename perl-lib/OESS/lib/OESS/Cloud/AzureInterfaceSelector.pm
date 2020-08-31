@@ -48,11 +48,12 @@ sub select_interface {
         return;
     }
 
+    my $interface_index = {};
     my $interconnect_id;
     foreach my $intf (@$intfs) {
         if ($intf->cloud_interconnect_type eq 'azure-express-route') {
             $interconnect_id = $intf->cloud_interconnect_id;
-            next;
+            $interface_index->{$intf->interface_id} = $intf;
         }
     }
     if (!$interconnect_id) {
@@ -86,7 +87,7 @@ sub select_interface {
     elsif (!defined $self->{selected_interfaces}->{$pri->{interface_id}}) {
         $self->{selected_interfaces}->{$pri->{interface_id}} = 1;
         $self->{logger}->info("Selected primary azure interface $pri->{interface_id}.");
-        return $pri;
+        return $interface_index->{$pri->{interface_id}};
     }
 
     my $sec = OESS::DB::Interface::fetch(
@@ -99,7 +100,7 @@ sub select_interface {
     elsif (!defined $self->{selected_interfaces}->{$sec->{interface_id}}) {
         $self->{selected_interfaces}->{$sec->{interface_id}} = 1;
         $self->{logger}->info("Selected secondary azure interface $pri->{interface_id}.");
-        return $sec;
+        return $interface_index->{$sec->{interface_id}};
     }
 
     return;
