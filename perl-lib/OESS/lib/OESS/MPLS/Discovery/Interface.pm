@@ -95,10 +95,10 @@ sub process_results{
         if(defined $interface->{operational_state}) {
             $intf->operational_state($interface->{operational_state});
         }
-        if(defined $interface->{speed}){
+        if(defined $interface->{speed} && $interface->{speed} ne 0){
             $intf->bandwidth($interface->{speed});
         }
-        if(defined $interface->{mtu}){
+        if(defined $interface->{mtu} && $interface->{mtu} ne 0){
             $intf->mtu($interface->{mtu});
         }
         my $res = $intf->update_db();
