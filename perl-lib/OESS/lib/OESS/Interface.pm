@@ -178,7 +178,7 @@ sub operational_state{
 sub bandwidth{
     my $self = shift;
     my $bandwidth = shift;
-    if (defined $bandwidth) {
+    if (defined $bandwidth && $bandwidth ne $self->{'bandwidth'}) {
         $self->{instUpdate} = 1;
         $self->{'bandwidth'} = $bandwidth;
     }
@@ -193,7 +193,7 @@ sub mtu{
     my $self = shift;
     my $mtu = shift;
 
-    if(defined $mtu) {
+    if(defined $mtu && $mtu ne $self->{'mtu'}) {
         $self->{instUpdate} = 1;
         $self->{'mtu'} = $mtu;
     }
