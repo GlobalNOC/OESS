@@ -67,6 +67,7 @@ sub from_hash{
     $self->{'acls'} = $hash->{'acls'};
     $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
     $self->{'used_vlans'} = $hash->{'used_vlans'};
+    $self->{'admin_state'} = $hash->{'admin_state'};
     $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'workgroup_id'} = $hash->{'workgroup_id'};
     $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
@@ -95,12 +96,12 @@ sub to_hash{
                 node_id => $self->node()->node_id(),
                 node => $self->node()->name(),
                 acls => $acl_models,
+                admin_state => $self->{'admin_state'},
                 operational_state => $self->{'operational_state'},
                 workgroup_id => $self->workgroup_id(),
                 utilized_bandwidth => $self->{'utilized_bandwidth'},
                 bandwidth => $self->{'bandwidth'},
-                mtu => $self->{'mtu'},
-                instUpdate => $self->{'instUpdate'} };
+                mtu => $self->{'mtu'} };
 
     return $res;
 }
@@ -144,11 +145,10 @@ sub update_db{
         $self->{'logger'}->error("Could not update Interface: No database object specified.");
         return;
     }
-    my $currentInterface = $self->to_hash();
 
     my $err = OESS::DB::Interface::update(
         db => $self->{'db'},
-        interface => $currentInterface
+        interface => $self->to_hash
     );
     if (defined $err) {
         $self->{'logger'}->error("Could not update Interface: $err");
@@ -156,6 +156,19 @@ sub update_db{
     }
 
     return 1;
+}
+
+=head2 admin_state
+
+=cut
+sub admin_state{
+    my $self = shift;
+    my $admin_state = shift;
+
+    if (defined $admin_state) {
+        $self->{admin_state} = $admin_state;
+    }
+    return $self->{'admin_state'};
 }
 
 =head2 operational_state
@@ -166,9 +179,8 @@ sub operational_state{
     my $operational_state = shift;
 
     if (defined $operational_state) {
-        $self->{'operational_state'} = $operational_state;
+        $self->{operational_state} = $operational_state;
     }
-
     return $self->{'operational_state'};
 }
 
@@ -178,11 +190,10 @@ sub operational_state{
 sub bandwidth{
     my $self = shift;
     my $bandwidth = shift;
-    if (defined $bandwidth) {
-        $self->{instUpdate} = 1;
-        $self->{'bandwidth'} = $bandwidth;
-    }
 
+    if (defined $bandwidth) {
+        $self->{bandwidth} = $bandwidth;
+    }
     return $self->{'bandwidth'};
 }
 
@@ -193,11 +204,9 @@ sub mtu{
     my $self = shift;
     my $mtu = shift;
 
-    if(defined $mtu) {
-        $self->{instUpdate} = 1;
-        $self->{'mtu'} = $mtu;
+    if (defined $mtu) {
+        $self->{mtu} = $mtu;
     }
-
     return $self->{'mtu'};
 }
 
