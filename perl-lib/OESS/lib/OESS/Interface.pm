@@ -27,10 +27,10 @@ sub new{
     );
 
     my $self = \%args;
-
     bless $self, $class;
 
     $self->{'logger'} = $logger;
+
 
     if (!defined $self->{'db'}) {
         $self->{'logger'}->warn("No Database Object specified");
@@ -120,9 +120,9 @@ sub _fetch_from_db{
             }
             $self->{'interface_id'} = $interface_id;
         } else {
-	    $self->{'logger'}->error("Unable to fetch interface $self->{name} on $self->{node} from the db!");
-	    return;
-	}
+            $self->{'logger'}->error("Unable to fetch interface $self->{name} on $self->{node} from the db!");
+            return;
+        }
     }
 
     my $info = OESS::DB::Interface::fetch(db => $self->{'db'}, interface_id => $self->{'interface_id'});
