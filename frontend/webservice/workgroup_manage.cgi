@@ -508,7 +508,7 @@ sub update_acl {
     if ($original_acl->{end} != $acl->{end}) {
         $output_string .= " vlan end from $original_acl->{end} to $acl->{end}";
     }
-    if ($original_acl->{allow_deny} != $acl->{allow_deny}) {
+    if ($original_acl->{allow_deny} ne $acl->{allow_deny}) {
         $output_string .= " permission from $original_acl->{allow_deny} to $acl->{allow_deny}";
     }
     if ($original_acl->{workgroup_id} != $acl->{workgroup_id}) {

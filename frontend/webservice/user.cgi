@@ -31,13 +31,8 @@ sub get_current {
     my $method = shift;
     my $params = shift;
 
-    my $user = OESS::DB::User::find_user_by_remote_auth(
-        db          => $db,
-        remote_user => $ENV{'REMOTE_USER'}
-    );
-
-    my $result = OESS::User->new(db => $db, user_id => $user->{user_id});
-    if (!defined $user) {
+    my $result = OESS::User->new(db => $db, username => $ENV{'REMOTE_USER'});
+    if (!defined $result) {
         $method->set_error("Couldn't find user $ENV{'REMOTE_USER'}.");
         return;
     }

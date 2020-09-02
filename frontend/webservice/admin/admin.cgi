@@ -1186,7 +1186,7 @@ sub get_workgroups {
     my ($method, $args) = @_;
 
     #my ($user, $err) = authorization(admin => 1, read_only => 1);
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'read-only'); 
+    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'read-only');
     if (defined $err) {
         $method->set_error($err);
         return;
@@ -1197,7 +1197,10 @@ sub get_workgroups {
     my $results;
     my $workgroups;
 
-    $workgroups = $db->get_workgroups(%parameters);
+    my $user = new OESS::User(db => $db2, username => $ENV{'REMOTE_USER'});
+    $user->load_workgroups();
+
+    $workgroups = $user->to_hash()->{workgroups};
 
     if ( !defined $workgroups ) {
         $results->{'error'}   = $db->get_error();
@@ -1300,6 +1303,7 @@ sub get_users_in_workgroup {
     my ($method, $args) = @_;
 
     #my ($user, $err) = authorization(admin => 0, read_only => 1);
+    warn "Before Auth";
     my ($result, $err) = OESS::DB::User::has_workgroup_access(db => $db2, 
                                                       username => $ENV{'REMOTE_USER'}, 
                                                       workgroup_id => $args->{'workgroup_id'}{'value'}, 
@@ -1308,23 +1312,23 @@ sub get_users_in_workgroup {
         $method->set_error($err);
         return;
     }
-
+    warn "After Auth";
     my $results;
 
     my $workgroup_id = $args->{'workgroup_id'}{'value'};
 
     my ($users, $err2) = OESS::DB::Workgroup::get_users_in_workgroup(db => $db2,  workgroup_id => $workgroup_id );
-
+    my $returnedUsers = [];
+    warn "After Getting users";
     if ( !defined $users ) {
         $results->{'error'}   = $err2;
         $results->{'results'} = [];
     }
     else {
-        my $resultUsers = [];
         foreach my $user (@$users) {
-            push(@$resultUsers,$user->to_hash);
+            push @$returnedUsers, $user->to_hash();
         }
-        $results->{'results'} = $resultUsers;
+        $results->{'results'} = $returnedUsers;
     }
 
     return $results;
@@ -2562,17 +2566,45 @@ sub edit_workgroup{
 sub decom_workgroup{
     my ($method, $args) = @_;
 
-    # my ($user, $err) = authorization(admin => 1, read_only => 0);
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => 'normal'); 
+    #Find the workgroup to be decommissioned
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
+    my $workgroup = new OESS::Workgroup(db => $db2, workgroup_id => $workgroup_id);
+
+    if (!defined $workgroup) {
+        $method->set_error("No workgroup with that ID found");
+        return;
+    }
+    #Check if the user is authorized to decom the workgroup if level of access depneding on type of workgroup
+    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => $workgroup->{type});
     if (defined $err) {
         $method->set_error($err);
         return;
     }
+    # Gather interfaces to remove the acls and start the transaction
+    my $interfaces = OESS::DB::Interface::get_interfaces(db => $db2, workgroup_id => $workgroup_id);
 
-    my $workgroup_id = $args->{'workgroup_id'}{'value'};
-    my $results;
+    $db2->start_transaction();
 
-    my $circuits = $db->get_circui
+    foreach my $interface (@$interfaces) {
+        my ($count, $acl_error) = OESS::DB::ACL::remove_all(db => $db2, interface_id => $interface);
+        if (defined $acl_error) {
+            $method->set_error($acl_error);
+            $db2->rollback();
+            return;
+        }
+    }
+    #After commiting changes for deleteing all ACLs switch workgroups status to decom and update the databse with the new status
+    $workgroup->{'status'} = 'decom';
+    my $updateErr = $workgroup->update();
+    if (defined $updateErr){
+        $method->set_error($updateErr);
+        $db2->rollback();
+        return;
+    }
+
+    $db2->commit();
+    return;
+
 }
 
 sub update_remote_device{
