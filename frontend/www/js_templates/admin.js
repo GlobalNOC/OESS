@@ -4135,7 +4135,7 @@ function makeWorkgroupUserTable(id){
         resultsList: "results",
         fields: [{key: "user_id", parser: "number"},
                  {key: "first_name"},
-                 {key: "family_name"},
+                 {key: "last_name"},
                  {key: "email_address"},
                  {key: "auth_name"}
                  ]
@@ -4145,7 +4145,7 @@ function makeWorkgroupUserTable(id){
     if (third_party_mgmt === 'n') {
         columns = [{key: "first_name", label: "Name", width: 140,
                     formatter: function(el, rec, col, data){
-                                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("family_name");
+                                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("last_name");
                                }
                    },
                    {label: "Remove", formatter: function(el, rec, col, data){
@@ -4157,7 +4157,7 @@ function makeWorkgroupUserTable(id){
     } else {
          columns = [{key: "first_name", label: "Name", width: 140,
                     formatter: function(el, rec, col, data){
-                                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("family_name");
+                                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("last_name");
                                }
                    }
                    ];

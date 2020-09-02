@@ -1320,7 +1320,11 @@ sub get_users_in_workgroup {
         $results->{'results'} = [];
     }
     else {
-        $results->{'results'} = $users;
+        my $resultUsers = [];
+        foreach my $user (@$users) {
+            push(@$resultUsers,$user->to_hash);
+        }
+        $results->{'results'} = $resultUsers;
     }
 
     return $results;
