@@ -2550,7 +2550,7 @@ sub edit_workgroup{
         max_circuits            => $max_circuits,
         max_circuit_endpoints   => $max_circuit_endpoints,
     };
-    my ($res, $err2) = OESS::DB::workgroup::update(db => $db2, 
+    my ($res, $err2) = OESS::DB::Workgroup::update(db => $db2, 
               model => $model
         );
 

@@ -227,4 +227,13 @@ sub base_url {
     return $self->{'config'}->{'base_url'};
 }
 
+=head2 third_party_mgmt
+
+=cut
+sub third_party_mgmt {
+    my $self = shift;
+    return 'n' if (!defined $self->{'config'}->{'third_party_mgmt'});
+    return $self->{'config'}->{'third_party_mgmt'};
+}
+
 1;
