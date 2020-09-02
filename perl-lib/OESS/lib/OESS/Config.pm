@@ -232,6 +232,7 @@ sub base_url {
 =cut
 sub third_party_mgmt {
     my $self = shift;
+    return 'n' if (!defined $self->{'config'}->{'third_party_mgmt'});
     return $self->{'config'}->{'third_party_mgmt'};
 }
 
