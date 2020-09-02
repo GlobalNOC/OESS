@@ -58,7 +58,7 @@ use constant FWDCTL_BLOCKED     => 4;
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $db   = new OESS::Database();
-
+my $db2  = new OESS::DB();
 
 #register web service dispatcher
 my $svc    = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
@@ -731,9 +731,11 @@ sub get_workgroups {
     
     my ( $method, $args ) = @_ ;
     my $results;
-
-    my $workgroups = $db->get_workgroups_by_auth_name( auth_name => $username );
-
+    
+    my $user = new OESS::User(db => $db2, username => $username);
+    $user->load_workgroups();
+    my $workgroups = $user->to_hash()->{workgroups};
+    
     if ( !defined $workgroups ) {
 	$method->set_error($db->get_error());
 	return;

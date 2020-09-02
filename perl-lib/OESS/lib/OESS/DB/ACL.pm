@@ -5,7 +5,6 @@ use warnings;
 
 package OESS::DB::ACL;
 
-use Data::Dumper;
 use Log::Log4perl;
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf');
@@ -179,7 +178,6 @@ sub fetch_all {
         workgroup_id => undef,
         @_
     };
-    $logger->error("Inside Fetch All");
     die 'Required argument `db` is missing.' if !defined $args->{db};
 
     my $params = [];
@@ -207,7 +205,6 @@ sub fetch_all {
          $where order by eval_position asc",
         $values
     );
-    $logger->error(Dumper($acls));
     return undef if (!defined $acls);
 
     return $acls;
@@ -315,6 +312,35 @@ sub remove {
         return(0, "Error interface_acl_id did not exist");
     }
     return(1,undef);
+}
+
+=head2 remove_all
+
+    my ($output, $error) = OESS::DB::ACL::remove_all(
+        db => $db,
+        interface_id => 1
+    );
+
+Deletes all ACLs on a given interface used during the workgroup decoming process
+=cut
+
+sub remove_all {
+    my $args = {
+        db => undef,
+        interface_id => undef,
+        @_
+    };
+
+    return (0,"db is a required parameter") if !defined $args->{db};
+    return (0,"interface_id is a required parameter") if !defined $args->{interface_id};
+
+    my $query = "DELETE FROM interface_acl WHERE interface_id = ?";
+    my $count = $args->{db}->execute_query($query,[$args->{interface_id}]);
+
+    if (!defined $count) {
+        return (-1, "Error removing acls");
+    }
+    return ($count, undef);
 }
 
 return 1;

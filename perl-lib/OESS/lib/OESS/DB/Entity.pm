@@ -45,20 +45,23 @@ sub fetch{
 
     my $children = $db->execute_query( "select entity.* from entity join entity_hierarchy on entity.entity_id = entity_hierarchy.entity_child_id where entity_hierarchy.entity_parent_id = ?",[$entity->{'entity_id'}]);
 
-    my @interfaces;
-
+    my $interface_objects = [];
     foreach my $int (@$interfaces){
-        push(@interfaces,OESS::Interface->new(db => $db, interface_id => $int->{'interface_id'}));
-
+        my $intf = new OESS::Interface(db => $db, interface_id => $int->{'interface_id'});
+        next if !defined($intf);
+        push @$interface_objects, $intf;
     }
 
-    my $users = $db->execute_query( "select user_id from user_entity_membership where entity_id = ?",[$entity->{'entity_id'}]);
-    
-    my @users;
+    my $users = $db->execute_query(
+        "select user_id from user_entity_membership where entity_id = ?",
+        [ $entity->{'entity_id'} ]
+    );
+
+    my $user_objects = [];
     foreach my $u (@$users){
         my $user = OESS::User->new( db => $db, user_id => $u->{'user_id'});
         next if !defined($user);
-        push(@users,$user);
+        push @$user_objects, $user;
     }
 
     return {entity_id => $entity->{'entity_id'},
@@ -67,9 +70,9 @@ sub fetch{
             url => $entity->{'url'},
             name => $entity->{'name'},
             parents => $parents,
-            interfaces => \@interfaces,
+            interfaces => $interface_objects,
             children => $children,
-            users => \@users };
+            users => $user_objects };
 }
 
 =head2 get_root_entities

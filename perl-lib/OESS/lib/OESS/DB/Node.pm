@@ -32,19 +32,7 @@ sub fetch{
     
     return if(!defined($node) || !defined($node->[0]));
 
-    $node = $node->[0];
-
-    my $res = $db->execute_query("select interface.interface_id from interface natural join interface_instantiation where interface.node_id = ? and interface_instantiation.end_epoch = -1",[$node->{'node_id'}]);
-    
-    my @ints;
-
-    foreach my $int_id (@$res){
-        my $int = OESS::Interface->new( db => $db, interface_id => $int_id);                                                                                                                                        
-        push(@ints, $int);
-    }
-
-    $node->{'interfaces'} = \@ints;
-    return $node;
+    return $node->[0];
 }
 
 =head2 get_node_interfaces

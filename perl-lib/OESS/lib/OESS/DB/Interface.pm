@@ -24,13 +24,28 @@ sub fetch{
     my $status = $params{'status'} || 'active';
 
     my $interface_id = $params{'interface_id'};
+    my $cloud_interconnect_id = $params{'cloud_interconnect_id'};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $params{interface_id}) {
+        push @$params, 'interface.interface_id=?';
+        push @$values, $params{interface_id};
+    }
+    if (defined $params{cloud_interconnect_id}) {
+        push @$params, 'interface.cloud_interconnect_id=?';
+        push @$values, $params{cloud_interconnect_id};
+    }
+    my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : 'WHERE 1 ';
+
 
     my $interface = $db->execute_query(
         "select *, interface_instantiation.capacity_mbps as bandwidth, interface_instantiation.mtu_bytes as mtu
          from interface
          join interface_instantiation on interface.interface_id=interface_instantiation.interface_id and interface_instantiation.end_epoch=-1
-         where interface.interface_id=?",
-        [$interface_id]
+         $where",
+        $values
     );
 
     return if (!defined($interface) || !defined($interface->[0]));
