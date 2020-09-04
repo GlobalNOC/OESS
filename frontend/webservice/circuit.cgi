@@ -217,6 +217,11 @@ sub provision {
         $method->set_error($err);
         return;
     }
+    my ($is_admin, $is_admin_err) = OESS::DB::User::has_system_access(
+        db       => $db,
+        role     => 'normal',
+        username => $ENV{REMOTE_USER}
+    );
 
     if (defined $args->{circuit_id}->{value} && $args->{circuit_id}->{value} != -1) {
         my $circuit = new OESS::L2Circuit(
@@ -298,9 +303,9 @@ sub provision {
             return;
         }
 
-        my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
+        my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth}, is_admin => $is_admin);
         if (!$valid_bandwidth) {
-            $method->set_error("Couldn't create Circuit: Specified bandwidth is invalid for $ep->{entity}.");
+            $method->set_error("Couldn't create Connection: Specified bandwidth is invalid for $ep->{entity}.");
             $db->rollback;
             return;
         }
@@ -393,7 +398,7 @@ sub provision {
 
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
-            OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints);
+            OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints, $is_admin);
 
             foreach my $ep (@{$circuit->endpoints}) {
                 # It's expected that layer2 connections to azure pass
@@ -438,6 +443,12 @@ sub update {
     my ($method, $args) = @_;
 
     $db->start_transaction;
+
+    my ($is_admin, $is_admin_err) = OESS::DB::User::has_system_access(
+        db       => $db,
+        role     => 'normal',
+        username => $ENV{REMOTE_USER}
+    );
 
     my $circuit = new OESS::L2Circuit(
         db => $db,
@@ -510,6 +521,13 @@ sub update {
             }
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
+                return;
+            }
+
+            my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth}, is_admin => $is_admin);
+            if (!$valid_bandwidth) {
+                $method->set_error("Couldn't edit Connection: Specified bandwidth is invalid for $ep->{entity}.");
+                $db->rollback;
                 return;
             }
 
@@ -623,7 +641,7 @@ sub update {
     if (!$args->{skip_cloud_provisioning}{value}) {
         eval {
             OESS::Cloud::cleanup_endpoints($del_endpoints);
-            OESS::Cloud::setup_endpoints($circuit->description, $add_endpoints);
+            OESS::Cloud::setup_endpoints($circuit->description, $add_endpoints, $is_admin);
 
             foreach my $ep (@{$circuit->endpoints}) {
                 # It's expected that layer2 connections to azure pass
@@ -752,9 +770,9 @@ sub remove {
         }
     }
 
-    my $err = $circuit->remove(user_id => $user->{user_id});
-    if (defined $err) {
-        $method->set_error("Couldn't remove Circuit: $err");
+    my $rm_err = $circuit->remove(user_id => $user->{user_id});
+    if (defined $rm_err) {
+        $method->set_error("Couldn't remove Circuit: $rm_err");
         $db->rollback;
         return;
     }

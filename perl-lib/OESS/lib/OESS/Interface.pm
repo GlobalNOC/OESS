@@ -6,6 +6,8 @@ use warnings;
 package OESS::Interface;
 
 use OESS::DB::Interface;
+use OESS::Cloud::BandwidthValidator;
+
 use Data::Dumper;
 use Log::Log4perl;
 Log::Log4perl::init_and_watch("/etc/oess/logging.conf");
@@ -427,24 +429,30 @@ interface as this interface's max capacity, otherwise we return C<0>.
 =cut
 sub is_bandwidth_valid {
     my $self   = shift;
-    my %params = @_;
+    my $args = {
+        bandwidth => undef,
+        is_admin  => undef,
+        @_
+    };
 
-    my $bandwidth = $params{bandwidth};
-
-    my $aws_conn = { 50 => 1, 100 => 1, 200 => 1, 300 => 1, 400 => 1, 500 => 1, 1000 => 1, 2000 => 1, 5000 => 1 };
-    my $azr_conn = { 0 => 1};
-    my $default  = { 0 => 1 };
-    my $gcp_part = { 50 => 1, 100 => 1, 200 => 1, 300 => 1, 400 => 1, 500 => 1, 1000 => 1, 2000 => 1, 5000 => 1, 10000 => 1 };
-
-    if ($self->cloud_interconnect_type eq 'aws-hosted-connection') {
-        if (defined $aws_conn->{$bandwidth}) { return 1; } else { return 0; }
-    } elsif ($self->cloud_interconnect_type eq 'azure-express-route') {
-        if (defined $azr_conn->{$bandwidth}) { return 1; } else { return 0; }
-    } elsif ($self->cloud_interconnect_type eq 'gcp-partner-interconnect') {
-        if (defined $gcp_part->{$bandwidth}) { return 1; } else { return 0; }
-    } else {
-        if (defined $default->{$bandwidth}) { return 1; } else { return 0; }
+    if (!defined $self->cloud_interconnect_type) {
+        return 1;
     }
+
+    if ($self->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+        return 1;
+    }
+
+    my $validator = new OESS::Cloud::BandwidthValidator(
+        config => "/etc/oess/interface-speed-config.xml",
+        interface => $self
+    );
+    $validator->load;
+
+    return $validator->is_bandwidth_valid(
+        bandwidth => $args->{bandwidth},
+        is_admin  => $args->{is_admin}
+    );
 }
 
 =head2 find_available_unit
