@@ -18,3 +18,9 @@ and is used to generate the navigation for each section.
 The links on each section's main page is **not** auto-generated and
 must be maintained manually. This allows for entering generic info
 about each section.
+
+## Run Documentation Server Locally
+
+```bash
+bundle exec jekyll serve --host 0.0.0.0 --port 1234
+```
