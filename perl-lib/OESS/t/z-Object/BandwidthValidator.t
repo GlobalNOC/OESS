@@ -42,7 +42,7 @@ my $intf = new OESS::Interface(db => $db, interface_id => 1);
 warn "Can't load interface from test database." if (!defined $intf);
 
 my $validator = new OESS::Cloud::BandwidthValidator(
-    config => "$path/../conf/interface-speed-config.xml",
+    config_path => "$path/../conf/interface-speed-config.xml",
     interface => new OESS::Interface(db => $db, interface_id => 1)
 );
 $validator->load;
@@ -50,7 +50,7 @@ $validator->load;
 my $ok = $validator->is_bandwidth_valid(bandwidth => 50, is_admin => 0);
 ok($ok, "Got a valid bandwidth");
 
-my $ok2 = $validator->is_bandwidth_valid(bandwidth => 5000, is_admin => 0);
+my $ok2 = $validator->is_bandwidth_valid(bandwidth => 10000, is_admin => 0);
 ok(!$ok2, "Got an invalid bandwidth");
 
 
@@ -60,7 +60,7 @@ $db->execute_query("update interface_instantiation set capacity_mbps=100000 wher
 
 
 my $validator2 = new OESS::Cloud::BandwidthValidator(
-    config => "$path/../conf/interface-speed-config.xml",
+    config_path => "$path/../conf/interface-speed-config.xml",
     interface => new OESS::Interface(db => $db, interface_id => 1)
 );
 $validator2->load;

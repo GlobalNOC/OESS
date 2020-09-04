@@ -45,6 +45,9 @@ sub new {
     return $self;
 }
 
+=head2 load
+
+=cut
 sub load {
     my $self = shift;
 
