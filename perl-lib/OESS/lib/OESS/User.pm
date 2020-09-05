@@ -115,6 +115,31 @@ sub _fetch_from_db{
     return $self->from_hash($user);
 }
 
+=head2 create
+
+=cut
+sub create {
+    my $self = shift;
+
+    if (!defined $self->{db}) {
+        return (undef, "Couldn't create User. Database handle is missing.");
+    }
+
+    my ($id, $err) = OESS::DB::User::add_user(
+        db          => $self->{db},
+        email       => $self->{model}->{email},
+        family_name => $self->{model}->{family_name},
+        given_name  => $self->{model}->{first_name},
+        auth_names  => $self->{model}->{username}
+    );
+    if (defined $err) {
+        return (undef, $err);
+    }
+
+    $self->{user_id} = $id;
+    return ($id, undef);
+}
+
 =head2 load_workgroups
 
 =cut

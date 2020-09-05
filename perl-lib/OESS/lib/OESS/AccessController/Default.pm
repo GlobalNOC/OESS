@@ -16,7 +16,28 @@ sub new {
     return bless $args, $class;
 }
 
-sub create_user { return; }
+sub create_user {
+    my $self = shift;
+    my $args = {
+        email      => undef,
+        first_name => undef,
+        last_name  => undef,
+        usernames  => undef,
+        @_
+    };
+
+    my $user = new OESS::User(
+        db    => $self->{db},
+        model => {
+            email      => $args->{email},
+            first_name => $args->{first_name},
+            last_name  => $args->{last_name},
+            username   => $args->{username}
+        }
+    );
+    return $user->create;
+}
+
 sub delete_user { return; }
 sub edit_user { return; }
 
@@ -33,8 +54,8 @@ sub get_user {
     }
 
     my $result = new OESS::User(
-        db => $self->{db},
-        user_id => $args->{user_id},
+        db       => $self->{db},
+        user_id  => $args->{user_id},
         username => $args->{username}
     );
     if (!defined $result) {
@@ -44,16 +65,29 @@ sub get_user {
 }
 
 sub get_users { return; }
-sub get_workgroup_users { return; }
+sub get_user_workgroups { return; }
 
 sub create_workgroup { return; }
 sub delete_workgroup { return; }
 sub edit_workgroup { return; }
-sub get_workgroup { return; }
+
+sub get_workgroup {
+    my $self = shift;
+    my $args = {
+        workgroup_id => undef,
+        @_
+    };
+
+    my $wg = new OESS::Workgroup(db => $self->{db}, workgroup_id => $args->{workgroup_id});
+    return (undef, "Couldn't find workgroup $args->{workgroup_id}.") if !defined $wg;
+
+    return ($wg, undef);
+}
+
 sub get_workgroups { return; }
-sub get_user_workgroups { return; }
 
 sub add_workgroup_user { return; }
+sub get_workgroup_users { return; }
 sub modify_workgroup_user { return; }
 sub remove_workgroup_user { return; }
 
