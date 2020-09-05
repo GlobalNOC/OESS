@@ -250,4 +250,40 @@ sub in_workgroup{
     return 0;
 }
 
+=head2 has_workgroup_access
+
+=cut
+sub has_workgroup_access {
+    my $self = shift;
+    my $args = {
+        role         => undef,
+        workgroup_id => undef,
+        @_
+    };
+
+    return OESS::DB::User::has_workgroup_access(
+        db           => $self->{db},
+        role         => $args->{role},
+        username     => $self->{username},
+        workgroup_id => $args->{workgroup_id}
+    );
+}
+
+=head2 has_system_access
+
+=cut
+sub has_system_access {
+    my $self = shift;
+    my $args = {
+        role => undef,
+        @_
+    };
+
+    return OESS::DB::User::has_system_access(
+        db       => $self->{db},
+        role     => $args->{role},
+        username => $self->{username}
+    );
+}
+
 1;
