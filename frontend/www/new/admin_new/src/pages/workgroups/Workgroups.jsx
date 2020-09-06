@@ -3,17 +3,12 @@ import ReactDOM from "react-dom";
 
 import { Link } from "react-router-dom";
 
+import { getAllWorkgroups } from '../../api/workgroup.js';
+import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
+import { Table } from '../../components/generic_components/Table.jsx';
+
 import "../../style.css";
 
-
-import { getAllWorkgroups } from '../../api/workgroup.js';
-
-import { WorkgroupForm } from '../../components/workgroups/WorkgroupForm.jsx';
-import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
-import { BaseModal } from '../../components/generic_components/BaseModal.jsx';
-
-
-import { Table } from '../../components/generic_components/Table.jsx';
 
 class Workgroups extends React.Component {
   constructor(props){
@@ -22,10 +17,7 @@ class Workgroups extends React.Component {
       pageNumber: 0,
       pageSize:   4,
       filter:     '',
-      workgroup:  null,
-      workgroups: [],
-      visible:    false,
-      editModalVisible: false
+      workgroups: []
 	};
 
     this.filterWorkgroups = this.filterWorkgroups.bind(this);
@@ -80,9 +72,6 @@ class Workgroups extends React.Component {
       }
     });
 
-    let modalID = "modal-addWorkgroup";
-
-
     const rowButtons = (data) => {
       return (
         <div>
@@ -114,14 +103,6 @@ class Workgroups extends React.Component {
 
     return (
       <div>
-        {/* <BaseModal visible={this.state.visible} header="Create Workgroup" modalID={modalID} onClose={() => this.setState({visible: false})}>
-          <WorkgroupForm workgroup={null} />
-        </BaseModal> */}
-
-        {/*<BaseModal visible={this.state.editModalVisible} header="Edit Workgroup" modalID="modal-edit-workgroup" onClose={() => this.setState({editModalVisible: false})} >
-          <WorkgroupModal workgroup={this.state.workgroup} />
-        </BaseModal>*/}
-
         <div>
           <p className="title"><b>Workgroups</b></p>
           <p className="subtitle">Create, edit, or delete Workgroups.</p>
