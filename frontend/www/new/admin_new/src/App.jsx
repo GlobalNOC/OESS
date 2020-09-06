@@ -16,6 +16,7 @@ import { BrowserRouter as Router, Switch, Route, Redirect } from "react-router-d
 import "./style.css";
 import { CreateWorkgroup } from "./pages/workgroups/CreateWorkgroup.jsx";
 import { EditWorkgroup } from "./pages/workgroups/EditWorkgroup.jsx";
+import { CreateUser } from "./pages/users/CreateUser.jsx";
 
 const App = () => {
   return (
@@ -36,6 +37,9 @@ const App = () => {
             <Switch>
               <Route exact path="/">
                 <Redirect to="/users" />
+              </Route>
+              <Route path="/users/new">
+                <CreateUser />
               </Route>
               <Route path="/users">
                 <Users />

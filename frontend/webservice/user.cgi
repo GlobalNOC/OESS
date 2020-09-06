@@ -16,6 +16,37 @@ my $db = new OESS::DB();
 my $ac = new OESS::AccessController::Default(db => $db);
 
 
+my $create_user = GRNOC::WebService::Method->new(
+    name        => "create_user",
+    description => "create_user adds a new user to OESS",
+    callback    => sub { create_user(@_) }
+);
+$create_user->add_input_parameter(
+    name        => 'email',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 1,
+    description => ''
+);
+$create_user->add_input_parameter(
+    name        => 'first_name',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 1,
+    description => ''
+);
+$create_user->add_input_parameter(
+    name        => 'last_name',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 1,
+    description => ''
+);
+$create_user->add_input_parameter(
+    name        => 'username',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 1,
+    description => ''
+);
+$ws->register_method($create_user);
+
 my $get_current = GRNOC::WebService::Method->new(
     name        => "get_current",
     description => "get_current returns the currently logged in user",

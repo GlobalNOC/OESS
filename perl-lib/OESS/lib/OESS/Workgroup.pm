@@ -18,7 +18,7 @@ sub new {
     my $self = {
         workgroup_id => undef,
         db     => undef,
-        modal  => undef,
+        model  => undef,
         logger => Log::Log4perl->get_logger("OESS.Workgroup"),
         @_
     };

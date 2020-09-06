@@ -1,11 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom";
+
+import { Link } from "react-router-dom";
+
 import UsersTable from "../components/user_table/UserTable.jsx";
 import getCurrentUser from '../api/user_menu.jsx';
 import { AdminNavBar } from "../components/nav_bar/AdminNavBar.jsx";
 import ModalTemplate2 from '../components/generic_components/ModalTemplate2.jsx';
 import { PageContextProvider } from '../contexts/PageContext.jsx';
 import NavBar from "../components/nav_bar/NavBar.jsx";
+
+import { UserForm } from '../components/users/UserForm.jsx';
 
 import "../style.css";
 
@@ -52,11 +57,12 @@ class Users extends React.Component {
             <input type="text" className="form-control" id="user_search" placeholder="Username" onKeyDown={this.handleKeyDown}/>
           </div>
           <button type="button" className="btn btn-primary" onClick={this.updateSearchQuery}>Search</button>
-          <button type="button" className="btn btn-default" data-target="#myModal2" data-toggle="modal">Add User</button>
+          <Link to="/users/new" className="btn btn-default">Create User</Link>
           <br />
         </form>
         <UsersTable  query={this.state.search_query} />
         <ModalTemplate2 />
+
       </div>
     );
   }
