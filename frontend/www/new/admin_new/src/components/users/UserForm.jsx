@@ -5,7 +5,7 @@ const validateForm = (e) => {
 };
 
 export const UserForm = (props) => {
-  let tEmail = (props.user && props.user.name) ? props.user.name : '';
+  let tEmail = (props.user && props.user.email) ? props.user.email : '';
   let tFirstName = (props.user && props.user.first_name) ? props.user.first_name : '';
   let tLastName = (props.user && props.user.last_name) ? props.user.last_name : '';
   let tUserId = (props.user && props.user.user_id) ? props.user.user_id : 0;

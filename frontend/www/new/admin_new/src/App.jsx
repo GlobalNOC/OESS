@@ -17,6 +17,7 @@ import "./style.css";
 import { CreateWorkgroup } from "./pages/workgroups/CreateWorkgroup.jsx";
 import { EditWorkgroup } from "./pages/workgroups/EditWorkgroup.jsx";
 import { CreateUser } from "./pages/users/CreateUser.jsx";
+import { EditUser } from "./pages/users/EditUser.jsx";
 
 const App = () => {
   return (
@@ -38,12 +39,11 @@ const App = () => {
               <Route exact path="/">
                 <Redirect to="/users" />
               </Route>
-              <Route path="/users/new">
-                <CreateUser />
-              </Route>
-              <Route path="/users">
-                <Users />
-              </Route>
+
+              <Route path="/users/new"><CreateUser /></Route>
+              <Route path="/users/:id" component={EditUser} />
+              <Route path="/users"><Users /></Route>
+
               <Route path="/workgroups/new">
                 <CreateWorkgroup />
               </Route>
