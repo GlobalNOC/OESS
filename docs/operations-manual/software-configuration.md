@@ -4,6 +4,26 @@ title: Software Configuration
 name: software-configuration
 ---
 
+## Third Party Access Control
+
+OESS currently supports two access control backends.
+
+- Built-in user and workgroup database
+- Grouper access management system
+
+### Configuration
+
+To configure an Access Control system other than the Built-In
+database, add the following configuration to
+`/etc/oess/database.xml`. By default `third_party_mgmt` will be set to
+`n`.
+
+#### **Example**
+
+```xml
+<third_party_mgmt>y</third_party_management>
+```
+
 ## Maximum Allowed Bandwidth for Cloud Provider Connections
 
 Each connection to a Cloud Provider will have some bandwidth
