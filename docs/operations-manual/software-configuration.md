@@ -24,6 +24,41 @@ database, add the following configuration to
 <third_party_mgmt>y</third_party_management>
 ```
 
+### Grouper Requirements
+
+Grouper requires a little setup before it may be used with
+OESS. Within the OESS stem create the three following Attribute Names
+and Attribute Definitions.
+
+**Attribute Name**
+- workgroup-external-id
+- workgroup-id
+- workgroup-type
+
+**Attribute Definition**
+- workgroup-external-id: Single value string
+- workgroup-id: Single value string
+- workgroup-type: Single value string
+
+**Grouper Layout**
+
+The OESS Grouper layout is composed of a stem for each OESS Workgroup
+and three Groups within each Workgroup stem. A `users` group within
+the OESS stem is created to identify all users who may access OESS.
+
+```
+oess/
+  admin/
+    admin
+    normal
+    read-only
+  alpha/
+    admin
+    normal
+    read-only
+  users
+```
+
 ## Maximum Allowed Bandwidth for Cloud Provider Connections
 
 Each connection to a Cloud Provider will have some bandwidth
