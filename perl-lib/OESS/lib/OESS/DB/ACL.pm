@@ -5,7 +5,6 @@ use warnings;
 
 package OESS::DB::ACL;
 
-use Data::Dumper;
 use Log::Log4perl;
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf');
@@ -179,7 +178,6 @@ sub fetch_all {
         workgroup_id => undef,
         @_
     };
-    $logger->error("Inside Fetch All");
     die 'Required argument `db` is missing.' if !defined $args->{db};
 
     my $params = [];
@@ -207,7 +205,6 @@ sub fetch_all {
          $where order by eval_position asc",
         $values
     );
-    $logger->error(Dumper($acls));
     return undef if (!defined $acls);
 
     return $acls;

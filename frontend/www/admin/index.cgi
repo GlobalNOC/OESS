@@ -13,7 +13,8 @@ use CGI;
 use Template;
 use Switch;
 use FindBin;
-use OESS::Database();
+use OESS::Database;
+use OESS::Config;
 use Log::Log4perl;
 
 Log::Log4perl::init('/etc/oess/logging.conf');
@@ -26,6 +27,7 @@ my $ADMIN_BREADCRUMBS = [
 sub main {
 
     my $cgi = new CGI;
+    my $config = new OESS::Config();
     my $db  = OESS::Database->new();
     my $tt  = Template->new( INCLUDE_PATH => "$FindBin::Bin/.." )
       || die $Template::ERROR;
@@ -100,6 +102,7 @@ sub main {
     $vars->{'current_breadcrumb'} = $current_breadcrumb;
     $vars->{'path'}               = "../";
     $vars->{'admin_email'}        = $db->get_admin_email();
+    $vars->{'third_party_mgmt'}   = $config->third_party_mgmt;
     $tt->process( "html_templates/page_base.html", $vars, \$output )
       or warn $tt->error();
 

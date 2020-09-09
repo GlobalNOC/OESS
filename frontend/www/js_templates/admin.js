@@ -11,7 +11,8 @@ var link_maint_table;
 var node_maint_table;
 var int_move_maint_table;
 var config_table;
-
+var third_party_mgmt = '[% third_party_mgmt %]';
+console.log(third_party_mgmt);
 function admin_init(){
 
     var tabs = new YAHOO.widget.TabView("admin_tabs", {orientation: "left"});
@@ -1054,8 +1055,8 @@ function setup_users_tab(){
         } 
     
     });
-
-    user_table.subscribe("rowClickEvent", function(oArgs){
+    if (third_party_mgmt === 'n'){
+        user_table.subscribe("rowClickEvent", function(oArgs){
 
             var record = this.getRecord(oArgs.target);
 
@@ -1082,6 +1083,7 @@ function setup_users_tab(){
 
             showUserInfoPanel.call(this, user_id, first, family, email, auth_names, type, status, [region.left, region.bottom], oArgs);
         });
+    }
 
     function showUserInfoPanel(user_id, first_name, family_name, email, auth_names, type, status, xy, target){
         
@@ -1325,10 +1327,10 @@ function setup_users_tab(){
         
     };
     
+    if (third_party_mgmt === 'n') {
+        var add_user = new YAHOO.widget.Button("add_user_button", {label: "New User"});
     
-    var add_user = new YAHOO.widget.Button("add_user_button", {label: "New User"});
-    
-    add_user.on("click", function(){
+        add_user.on("click", function(){
         
             var region = YAHOO.util.Dom.getRegion("users_content");
             
@@ -1338,6 +1340,7 @@ function setup_users_tab(){
         
             showUserInfoPanel.call(user_table, null, null, null, null, null, null, xy);
         });
+    }
     
 }
 
@@ -1429,8 +1432,7 @@ function setup_workgroup_tab(){
 
        wg_panel.render("workgroups_content");
 
-       var wg_edit_button = new YAHOO.widget.Button("edit_workgroup_button",
-                                                 {label: "Edit Workgroup Details"});
+       
         
        var close_panel = new YAHOO.widget.Button("close_panel_button", {label: "Done"});
         close_panel.on("click", function(){
@@ -1440,9 +1442,11 @@ function setup_workgroup_tab(){
             });
         
 
-           var add_new_user = new YAHOO.widget.Button("add_new_workgroup_user", {label: "Add User to Workgroup"});
            var add_new_owned_int = new YAHOO.widget.Button("add_new_owned_interfaces", {label: "Add Interface"});
-
+           if (third_party_mgmt === 'n'){
+           var add_new_user = new YAHOO.widget.Button("add_new_workgroup_user", {label: "Add User to Workgroup"});
+           var wg_edit_button = new YAHOO.widget.Button("edit_workgroup_button",
+                                                 {label: "Edit Workgroup Details"});
            wg_edit_button.on("click",function(){
                     wg_details_panel = new YAHOO.widget.Panel("workgroup_details_p",
                                                                   {width: 400,
@@ -1519,6 +1523,7 @@ function setup_workgroup_tab(){
                             wg_details_panel.hide();
                         });
                                              });
+            }
 
             var workgroup_user_table = makeWorkgroupUserTable(workgroup_id);
 
@@ -1629,6 +1634,7 @@ function setup_workgroup_tab(){
 
             
         // show user select
+            if (third_party_mgmt === 'n') {
             add_new_user.on("click", function(){
 
                     var region = YAHOO.util.Dom.getRegion("workgroups_content");
@@ -1735,6 +1741,7 @@ function setup_workgroup_tab(){
                         });
 
                 });
+            }
 
 
 
@@ -1915,7 +1922,7 @@ function setup_workgroup_tab(){
             });
         });
     
-    
+    if (third_party_mgmt === 'n') {
     var add_workgroup = new YAHOO.widget.Button("add_workgroup_button", {label: "New Workgroup"});
 
     add_workgroup.on("click", function(){
@@ -2014,6 +2021,7 @@ function setup_workgroup_tab(){
                 });
 
         });
+    }
 }
 
 function do_node_insert(link_id, map, delete_button, save_button, panel){
@@ -4127,15 +4135,17 @@ function makeWorkgroupUserTable(id){
         resultsList: "results",
         fields: [{key: "user_id", parser: "number"},
                  {key: "first_name"},
-                 {key: "family_name"},
+                 {key: "last_name"},
                  {key: "email_address"},
                  {key: "auth_name"}
                  ]
     };
 
-    var columns = [{key: "first_name", label: "Name", width: 140,
+    var columns;
+    if (third_party_mgmt === 'n') {
+        columns = [{key: "first_name", label: "Name", width: 140,
                     formatter: function(el, rec, col, data){
-                                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("family_name");
+                                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("last_name");
                                }
                    },
                    {label: "Remove", formatter: function(el, rec, col, data){
@@ -4144,7 +4154,14 @@ function makeWorkgroupUserTable(id){
                                                 }
                    }
                    ];
-
+    } else {
+         columns = [{key: "first_name", label: "Name", width: 140,
+                    formatter: function(el, rec, col, data){
+                                    el.innerHTML = rec.getData("first_name") + " " + rec.getData("last_name");
+                               }
+                   }
+                   ];
+    }
     var config = {
         paginator:  new YAHOO.widget.Paginator({rowsPerPage: 10,
                                                 containers: ["workgroup_user_table_nav"]
@@ -4297,8 +4314,7 @@ function makeUserWorkgroupTable(user_id,first_name,family_name) {
                    );
 
     });
-
-    var add_user_workgroup = new YAHOO.widget.Button('add_user_to_workgroup', {label: "Add User to Workgroup"});
+        var add_user_workgroup = new YAHOO.widget.Button('add_user_to_workgroup', {label: "Add User to Workgroup"});
 
         // show user select
         add_user_workgroup.on("click", function(){
