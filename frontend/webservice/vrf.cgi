@@ -452,11 +452,12 @@ sub provision_vrf{
                         $peer = new OESS::Peer(
                             db => $db,
                             model => {
-                                peer_asn => 12076,
-                                md5_key => '',
-                                local_ip => '192.168.100.249/30',
-                                peer_ip  => '192.168.100.250/30',
-                                ip_version  => 'ipv4'
+                                peer_asn    => 12076,
+                                md5_key     => '',
+                                local_ip    => '192.168.100.249/30',
+                                peer_ip     => '192.168.100.250/30',
+                                ip_version  => 'ipv4',
+                                bfd         => $peering->{bfd}
                             }
                         );
                     } else {
@@ -464,11 +465,12 @@ sub provision_vrf{
                         $peer = new OESS::Peer(
                             db => $db,
                             model => {
-                                peer_asn => 12076,
-                                md5_key => '',
-                                local_ip => '192.168.100.253/30',
-                                peer_ip  => '192.168.100.254/30',
-                                ip_version  => 'ipv4'
+                                peer_asn    => 12076,
+                                md5_key     => '',
+                                local_ip    => '192.168.100.253/30',
+                                peer_ip     => '192.168.100.254/30',
+                                ip_version  => 'ipv4',
+                                bfd         => $peering->{bfd}
                             }
                         );
                     }
