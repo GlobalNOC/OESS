@@ -23,7 +23,8 @@ export const UserForm = (props) => {
       email,
       firstName,
       lastName,
-      username
+      username,
+      userId
     };
     let ok = validateForm(user);
     if (!ok) return;

@@ -25,7 +25,7 @@ const editWorkgroupComponent = (props) => {
       await editWorkgroup(e);
       setStatus({type:'success', message:`Workgroup '${e.name}' was successfully edited.`});
     } catch (error) {
-      setStatus({type:'error', message:error});
+      setStatus({type:'error', message:error.toString()});
     }
     history.push('/workgroups');
   };

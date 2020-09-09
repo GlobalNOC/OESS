@@ -47,6 +47,43 @@ $create_user->add_input_parameter(
 );
 $ws->register_method($create_user);
 
+my $edit_user = GRNOC::WebService::Method->new(
+    name        => "edit_user",
+    description => "edit_user modifies an existing OESS user",
+    callback    => sub { edt_user(@_) }
+);
+$edit_user->add_input_parameter(
+    name        => 'email',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'Email address of user'
+);
+$edit_user->add_input_parameter(
+    name        => 'first_name',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'First name of user'
+);
+$edit_user->add_input_parameter(
+    name        => 'last_name',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'Last name of user'
+);
+$edit_user->add_input_parameter(
+    name        => 'username',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'Username of user'
+);
+$edit_user->add_input_parameter(
+    name        => 'user_id',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 1,
+    description => 'UserId of user'
+);
+$ws->register_method($edit_user);
+
 my $get_current = GRNOC::WebService::Method->new(
     name        => "get_current",
     description => "get_current returns the currently logged in user",
@@ -109,6 +146,43 @@ sub create_user {
         return;
     }
     return { results => [{ success => 1, user_id => $user_id }] };
+}
+
+sub edit_user {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+
+    my $has_access = 0;
+    if ($user->user_id eq $params->{user_id}{value}) {
+        $has_access = 1;
+    }
+    my ($ok, undef) = $user->has_system_access(role => 'normal');
+    if ($ok) {
+        $has_access = 1;
+    }
+    if (!$has_access) {
+        $method->set_error("User $ENV{REMOTE_USER} not authorized.");
+        return;
+    }
+
+    my ($user2, $user_err) = $ac->edit_user(
+        email      => $params->{email}{value},
+        first_name => $params->{first_name}{value},
+        last_name  => $params->{last_name}{value},
+        user_id    => $params->{user_id}{value},
+        username   => $params->{username}{value}
+    );
+    if (defined $user_err) {
+        $method->set_error($user_err);
+        return;
+    }
+    return { results => [{ success => 1, user_id => $user2 }] };
 }
 
 sub get_user {

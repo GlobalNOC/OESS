@@ -28,7 +28,7 @@ const editUserComponent = (props) => {
       await editUser(e);
       setStatus({type:'success', message:`User '${e.username}' was successfully edited.`});
     } catch (error) {
-      setStatus({type:'error', message:error});
+      setStatus({type:'error', message:error.toString()});
     }
     history.push('/users');
   };

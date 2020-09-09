@@ -39,7 +39,18 @@ sub create_user {
 }
 
 sub delete_user { return; }
-sub edit_user { return; }
+sub edit_user {
+    my $self = shift;
+    my $args = {
+        email      => undef,
+        first_name => undef,
+        last_name  => undef,
+        user_id    => undef,
+        username   => undef
+    };
+
+    return 1;
+}
 
 sub get_user {
     my $self = shift;

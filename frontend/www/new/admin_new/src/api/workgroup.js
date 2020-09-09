@@ -82,7 +82,7 @@ export async function editWorkgroup(workgroup) {
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
   const data = await resp.json();
-console.log(data);
+
   if (data.error_text) throw data.error_text;
   return data.results[0];
 }

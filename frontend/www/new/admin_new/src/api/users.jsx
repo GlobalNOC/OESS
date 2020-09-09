@@ -37,21 +37,17 @@ async function getUsers() {
 
 export async function editUser(user) {
   let url = `${path}services/user.cgi?method=edit_user`;
-  url += `&user_id=${user.user_id}`;
-  url += `&first_name=${user.first_name}`;
-  url += `&last_name=${user.last_name}`;
+  url += `&user_id=${user.userId}`;
+  url += `&first_name=${user.firstName}`;
+  url += `&last_name=${user.lastName}`;
   url += `&email=${user.email}`;
   url += `&username=${user.username}`;
 
-  try {
-    const resp = await fetch(url, { method: 'get', credentials: 'include' });
-    const data = await resp.json();
-    if (data.error_text) throw data.error_text;
-    return data;
-  } catch (error) {
-    console.error(`Failure occurred in editUser: ${error}`);
-    return null;
-  }
+  const resp = await fetch(url, { method: 'get', credentials: 'include' });
+  const data = await resp.json();
+
+  if (data.error_text) throw data.error_text;
+  return data.results;
 }
 
 export default getUsers;
