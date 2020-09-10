@@ -770,9 +770,9 @@ sub remove {
         }
     }
 
-    my $rm_err = $circuit->remove(user_id => $user->{user_id});
-    if (defined $rm_err) {
-        $method->set_error("Couldn't remove Circuit: $rm_err");
+    my $err_rm = $circuit->remove(user_id => $user->{user_id});
+    if (defined $err_rm) {
+        $method->set_error("Couldn't remove Circuit: $err_rm");
         $db->rollback;
         return;
     }

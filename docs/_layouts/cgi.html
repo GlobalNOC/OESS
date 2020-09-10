@@ -19,7 +19,7 @@
           <div class="nav-wrapper-content">
 
             {%- if page.title -%}
-              <h1 class="post-title">{{ page.title | escape }}</h1>
+              <h1 class="post-title cgi-module">{{ page.title | escape }}</h1>
             {%- endif -%}
             <hr/>
             <a href="{{ "/" | relative_url }}">OESS</a> | <a href="{{ "/the-basics" | relative_url }}">Introduction</a> | <a href="{{ "/the-basics/oess-api.html" | relative_url }}">OESS API</a> | <a href="{{ page.url | relative_url }}">{{ page.title }}</a>
@@ -39,12 +39,19 @@
                   <hr/>
                   <br/>
 
-                  <h2>{{ method.name }}</h2>
+                  <h2 class="cgi-method">{{ method.name }}</h2>
                   <p>{{ method.description }}</p>
 
-                  {% for input_param in method.input_params %}
-                  {% assign param = input_param[1] %}
-                  <h4>{{ param.name }} {% if param.required == 1 %}<i style="font-size: .75em">required</i>{% endif %}</h4>
+                  {% capture param_names %}
+                  {% for input_param in method.input_params %},{{ input_param[0] }},{% endfor %}
+                  {% endcapture %}
+
+                  {% assign sorted_p = param_names | split:"," | sort %}
+
+                  {% for name in sorted_p %}
+                  {% assign param = method.input_params[name] %}
+
+                  <h4 class="cgi-param">{{ param.name }} {% if param.required == 1 %}<span class="cgi-required">Required</span>{% endif %}</h4>
                   <p>{{ param.description }}</p>
                   {% endfor %}
                   {% endfor %}

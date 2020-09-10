@@ -29,7 +29,15 @@ foreach my $module (@$modules) {
     if ($help !~ m/(\{.*\})|(\[.*\])/gm) {
         next;
     }
-    my $methods = decode_json($2);
+
+    my $methods;
+    eval {
+        $methods = decode_json($2);
+    };
+    if ($@) {
+        warn "Error while decoding $module->{name}: $@";
+        next;
+    }
 
     my $title = $module->{source};
     $title =~ s/\.\.\/frontend\/webservice//g;
@@ -49,7 +57,7 @@ foreach my $module (@$modules) {
     }
 
     # Make directory in case it doesn't already exist.
-    `mkdir _data/api/$module->{name}/`;
+    `mkdir -p _data/api/$module->{name}/`;
 
     print "Loading method data for $module->{source}\n";
     foreach my $method (@$methods) {
