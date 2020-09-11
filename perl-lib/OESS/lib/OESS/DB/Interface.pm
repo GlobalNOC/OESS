@@ -389,20 +389,37 @@ sub update {
             return $args->{db}->get_error;
         }
     }
+
     my $inst_params = [];
     my $inst_values = [];
-    if (defined $args->{interface}->{instUpdate} && $args->{interface}->{instUpdate} == 1) {
-        if (exists $args->{interface}->{bandwidth}) {
-            push @$inst_params, 'capacity_mbps';
-            push @$inst_values, $args->{interface}->{bandwidth};
-        }
-        if (exists $args->{interface}->{mtu}) {
-            push @$inst_params, 'mtu_bytes';
-            push @$inst_values, $args->{interface}->{mtu};
-        }
-    
-        my $inst_fields = join(', ', @$inst_params);
-        push @$inst_values, $args->{interface}->{interface_id};
+
+    my $curr_inst = $args->{db}->execute_query(
+        "select * from interface_instantiation where end_epoch=-1 and interface_id=?",
+        [$args->{interface}->{interface_id}]
+    );
+    if (!defined $curr_inst) {
+        return $args->{db}->get_error;
+    }
+    if (!defined $curr_inst->[0]) {
+        return "Couldn't find instantiation for interface.";
+    }
+    $curr_inst = $curr_inst->[0];
+
+    my $inst_mod = 0;
+    if (exists $args->{interface}->{bandwidth} && $args->{interface}->{bandwidth} != $curr_inst->{capacity_mbps}) {
+        $inst_mod = 1;
+        $curr_inst->{capacity_mbps} = $args->{interface}->{bandwidth};
+    }
+    if (exists $args->{interface}->{mtu} && $args->{interface}->{mtu} != $curr_inst->{mtu_bytes}) {
+        $inst_mod = 1;
+        $curr_inst->{mtu_bytes} = $args->{interface}->{mtu};
+    }
+    if (exists $args->{interface}->{admin_state} && $args->{interface}->{admin_state} ne $curr_inst->{admin_state}) {
+        $inst_mod = 1;
+        $curr_inst->{admin_state} = $args->{interface}->{admin_state};
+    }
+
+    if ($inst_mod) {
         my $inst_ok = $args->{db}->execute_query(
             "UPDATE interface_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE interface_id=? and end_epoch = -1",
             [$args->{interface}->{interface_id}]
@@ -411,15 +428,16 @@ sub update {
             return $args->{db}->get_error;
         }
         $inst_ok = $args->{db}->execute_query(
-           "INSERT INTO interface_instantiation ($inst_fields, interface_id, admin_state, start_epoch, end_epoch)
-            VALUES (?,?,?, 'up', UNIX_TIMESTAMP(NOW()), -1)",
-            $inst_values
+            "INSERT INTO interface_instantiation (capacity_mbps, mtu_bytes, admin_state, interface_id, start_epoch, end_epoch)
+            VALUES (?,?,?,?, UNIX_TIMESTAMP(NOW()), -1)",
+            [$curr_inst->{capacity_mbps}, $curr_inst->{mtu_bytes}, $curr_inst->{admin_state}, $args->{interface}->{interface_id}]
         );
-		if(!defined $inst_ok) {
+		if (!defined $inst_ok) {
 			return $args->{db}->get_error;
 		}
      }
-     return; 
+
+     return;
 }
 
 =head2 get_available_internal_vlan

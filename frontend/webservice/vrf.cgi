@@ -283,15 +283,21 @@ sub provision_vrf{
         return;
     }
     #User must be in workgroup with at least normal priviledges
-    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
-                      username     => $ENV{REMOTE_USER},
-                      workgroup_id => $params->{workgroup_id}{value},
-                      role         => 'normal');
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(
+        db => $db,
+        username     => $ENV{REMOTE_USER},
+        workgroup_id => $params->{workgroup_id}{value},
+        role         => 'normal'
+    );
     if (defined $err) {
         $method->set_error($err);
         return;
-    
     }
+    my ($is_admin, $is_admin_err) = OESS::DB::User::has_system_access(
+        db       => $db,
+        role     => 'normal',
+        username => $ENV{REMOTE_USER}
+    );
 
     my $model = {};
     $model->{'description'} = $params->{'description'}{'value'};
@@ -399,9 +405,9 @@ sub provision_vrf{
                 return;
             }
 
-            my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth});
+            my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth}, is_admin => $is_admin);
             if (!$valid_bandwidth) {
-                $method->set_error("Couldn't create VRF: Specified bandwidth is invalid for $ep->{entity}.");
+                $method->set_error("Requested bandwidth reservation is invalid for Endpoint terminating on '$ep->{entity}'.");
                 $db->rollback;
                 return;
             }
@@ -684,7 +690,7 @@ sub provision_vrf{
     if (!$params->{skip_cloud_provisioning}{value}) {
         eval {
             OESS::Cloud::cleanup_endpoints($del_endpoints);
-            OESS::Cloud::setup_endpoints($vrf->name, $add_endpoints);
+            OESS::Cloud::setup_endpoints($vrf->name, $add_endpoints, $is_admin);
 
             foreach my $ep (@{$vrf->endpoints}) {
                 # It's expected that layer2 connections to azure pass
@@ -769,10 +775,12 @@ sub remove_vrf {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
-                      username     => $ENV{REMOTE_USER},
-                      workgroup_id => $params->{workgroup_id}{value},
-                      role         => 'normal');
+    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(
+        db => $db,
+        username     => $ENV{REMOTE_USER},
+        workgroup_id => $params->{workgroup_id}{value},
+        role         => 'normal'
+    );
     if (defined $err) {
         $model->set_error($err);
         return;

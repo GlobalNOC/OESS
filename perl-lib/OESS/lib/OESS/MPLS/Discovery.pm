@@ -48,6 +48,7 @@ use OESS::RabbitMQ::Dispatcher;
 use GRNOC::WebService::Client;
 use GRNOC::WebService::Regex;
 use OESS::Database;
+use OESS::DB;
 use JSON::XS;
 
 use OESS::Config;
@@ -108,7 +109,7 @@ sub new{
 
 
     $self->{'interface'} = OESS::MPLS::Discovery::Interface->new(
-        db => $self->{'db'},
+        db => new OESS::DB(config => $config_filename),
         lsp_processor => sub{ $self->lsp_handler(); }
     );
     die "Unable to create Interface processor\n" if !defined $self->{'interface'};
