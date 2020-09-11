@@ -16,4 +16,4 @@ permalink: /user-documentation/
 
 ## <a href="{{ "/user-documentation/network-entities.html" | relative_url }}">Creating and Managing Network Entities</a>
 
-## <a href="{{ "/user-documentation/cloud-providers.html" | relative_url }}">Cloud Providers</a>
+## <a href="{{ "/user-documentation/cloud-connections.html" | relative_url }}">Cloud Connections</a>

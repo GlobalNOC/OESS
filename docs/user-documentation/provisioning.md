@@ -45,21 +45,7 @@ OESS supports provisiong connections to AWS, Microsoft Azure, and
 Google Cloud Platform. As provisioning for each cloud is slightly
 different, use the videos in this section to setup your cloud enabled
 endpoints. Additional details may be
-found [here](/user-documentation/cloud-providers.html).
-
-#### AWS Hosted Connection
-
-<center>
-<iframe width="560" height="315" src="https://www.youtube.com/embed/J-L-JtDdKfE" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</center>
-
-#### Microsoft ExpressRoute
-
-<center>
-<iframe width="560" height="315" src="https://www.youtube.com/embed/LAcFWk_OiKY" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</center>
-
-#### Google Partner Interconnect
+found [here]({{ "/user-documentation/cloud-connections.html" | relative_url }}).
 
 ## Saving the Connection
 
