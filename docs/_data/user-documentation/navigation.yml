@@ -7,5 +7,5 @@ pages:
     url: /user-documentation/workgroups.html
   - title: Network Entities
     url: /user-documentation/network-entities.html
-  - title: Cloud Providers
-    url: /user-documentation/cloud-providers.html
+  - title: Cloud Connections
+    url: /user-documentation/cloud-connections.html

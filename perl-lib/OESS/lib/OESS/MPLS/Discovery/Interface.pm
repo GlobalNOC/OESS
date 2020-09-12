@@ -27,7 +27,7 @@ sub new{
 
     my $self = \%args;
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS');
+    $self->{'logger'} = Log::Log4perl->get_logger('OESS.Discovery.Interface');
     bless $self, $class;
 
     if(!defined($self->{'db'})){
@@ -58,14 +58,16 @@ sub process_results{
 
     foreach my $interface (@$interfaces) {
         my $intf = new OESS::Interface(db => $self->{'db'}, node => $node_name, name => $interface->{'name'});
-        if (!defined($intf)) {
-            $self->{'logger'}->warn("Couldn't find interface creating new");
+        if (!defined $intf) {
+            $self->{'logger'}->info("New interface $interface->{name} on $node_name found.");
+
             my $node = OESS::DB::Node::fetch(db => $self->{'db'}, name => $node_name);
-            if (!defined($node)) {
-                $self->{'logger'}->warn($self->{'db'}->get_error);
+            if (!defined $node) {
+                $self->{'logger'}->error($self->{'db'}->get_error);
                 $self->{'db'}->rollback();
                 return;
             }
+
             my $model = {
                 node_id => $node->{'node_id'},
                 name => $interface->{'name'},
@@ -77,40 +79,27 @@ sub process_results{
                 capacity_mbps => $interface->{'speed'},
                 mtu_bytes => $interface->{'mtu'}
             };
-            my ($res,$err) = OESS::DB::Interface::create( db=>$self->{'db'}, model=>$model);
-            if (defined($err)) {
-                $self->{'logger'}->warn($err);
+            my ($res, $err) = OESS::DB::Interface::create(db => $self->{'db'}, model => $model);
+            if (defined $err) {
+                $self->{'logger'}->error($err);
                 $self->{'db'}->rollback();
                 return;
-            } else {
-                next;
             }
         } else {
-        $self->{'logger'}->warn('Found Interface');
-        if (!defined($intf)) {
-            $self->{'logger'}->warn($self->{'db'}->{'error'});
-            $self->{'db'}->rollback();
-            return;
-        }
-        if(defined $interface->{operational_state}) {
             $intf->operational_state($interface->{operational_state});
-        }
-        if(defined $interface->{speed}){
+            $intf->admin_state($interface->{admin_state});
             $intf->bandwidth($interface->{speed});
-        }
-        if(defined $interface->{mtu}){
             $intf->mtu($interface->{mtu});
-        }
-        my $res = $intf->update_db();
-        if (!defined($res)) {
-            $self->{'logger'}->warn($self->{'db'}->get_error);
-            $self->{'db'}->rollback();
-            return;
-        }
+
+            my $res = $intf->update_db();
+            if (!defined $res) {
+                $self->{'logger'}->error($self->{'db'}->get_error);
+                $self->{'db'}->rollback();
+                return;
+            }
         }
     }
 
-    # all must have worked, commit and return success
     $self->{'db'}->commit();
     return 1;
 }
