@@ -120,9 +120,9 @@ sub delete_workgroup {
         return;
     }
 
-    my $err = $ac->delete_workgroup(workgroup_id => $params->{workgroup_id}{value});
-    if (defined $err) {
-        $method->set_error($err);
+    my $wg_err = $ac->delete_workgroup(workgroup_id => $params->{workgroup_id}{value});
+    if (defined $wg_err) {
+        $method->set_error($wg_err);
         return;
     }
     return { results => [{ success => 1 }] };

@@ -47,6 +47,19 @@ $create_user->add_input_parameter(
 );
 $ws->register_method($create_user);
 
+my $delete_user = GRNOC::WebService::Method->new(
+    name        => "delete_user",
+    description => "delete_user deletes user user_id",
+    callback    => sub { delete_user(@_) }
+);
+$delete_user->add_input_parameter(
+    name        => 'user_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'identifier used to lookup the user'
+);
+$ws->register_method($delete_user);
+
 my $edit_user = GRNOC::WebService::Method->new(
     name        => "edit_user",
     description => "edit_user modifies an existing OESS user",
@@ -146,6 +159,31 @@ sub create_user {
         return;
     }
     return { results => [{ success => 1, user_id => $user_id }] };
+}
+
+sub delete_user {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+
+    my ($sys_access, undef) = $user->has_system_access(role => 'normal');
+    if ($params->{user_id}{value} != $user->user_id && !$sys_access) {
+        $method->set_error("User $ENV{REMOTE_USER} not authorized.");
+        return;
+    }
+
+    my $user_err = $ac->delete_user(user_id => $params->{user_id}{value});
+    if (defined $user_err) {
+        $method->set_error($user_err);
+        return;
+    }
+
+    return { results => [{ success => 1 }] };
 }
 
 sub edit_user {

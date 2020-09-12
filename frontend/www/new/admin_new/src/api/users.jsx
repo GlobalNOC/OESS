@@ -35,6 +35,22 @@ async function getUsers() {
     }
 }
 
+/**
+ * @param {integer} user_id Id of this user
+ * 
+ * @returns {object} resp
+ * @returns {number} resp.success Set to 1 if request was successful
+ */
+export async function deleteUser(user_id) {
+  let url = `${testConfig.user}services/user.cgi?method=delete_user`;
+  url += `&user_id=${user_id}`;
+
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  const data = await resp.json();
+  if (data.error_text) throw data.error_text;
+  return data.results[0];
+}
+
 export async function editUser(user) {
   let url = `${path}services/user.cgi?method=edit_user`;
   url += `&user_id=${user.userId}`;

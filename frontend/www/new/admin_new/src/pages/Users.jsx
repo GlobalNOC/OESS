@@ -3,7 +3,8 @@ import ReactDOM from "react-dom";
 
 import { Link } from "react-router-dom";
 
-import getUsers from '../api/users.jsx';
+import getUsers, { deleteUser } from '../api/users.jsx';
+import { PageContext } from "../contexts/PageContext.jsx";
 import { PageSelector } from '../components/generic_components/PageSelector.jsx';
 import { Table } from '../components/generic_components/Table.jsx';
 
@@ -21,6 +22,7 @@ class Users extends React.Component {
     };
 
     this.filterUsers = this.filterUsers.bind(this);
+    this.deleteUser = this.deleteUser.bind(this);
   }
 
   async componentDidMount() {
@@ -38,6 +40,18 @@ class Users extends React.Component {
       filter:     e.target.value,
       pageNumber: 0
     });
+  }
+
+  async deleteUser(user) {
+    let ok = confirm(`Delete user '${user.username}'?`);
+    if (!ok) return;
+
+    try {
+      await deleteUser(user.user_id);
+      // location.reload();
+    } catch (error) {
+      this.context.setStatus({type:'error', message:error.toString()});
+    }
   }
 
   render() {
@@ -84,7 +98,7 @@ class Users extends React.Component {
               <span className="sr-only">Toggle Dropdown</span>
             </button>
             <ul className="dropdown-menu" style={{fontSize: '12px'}}>
-              <li><a href="#" onClick={() => console.log('delUser', data)}>Delete User</a></li>
+              <li><a href="#" onClick={() => this.deleteUser(data)}>Delete User</a></li>
             </ul>
           </div>
         </div>
@@ -126,5 +140,6 @@ class Users extends React.Component {
     );
   }
 }
+Users.contextType = PageContext;
 
 export { Users };

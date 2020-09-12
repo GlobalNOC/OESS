@@ -4,6 +4,9 @@ use strict;
 use warnings;
 
 use OESS::DB;
+use OESS::DB::ACL;
+use OESS::DB::Interface;
+use OESS::DB::User;
 use OESS::User;
 
 sub new {
@@ -38,7 +41,20 @@ sub create_user {
     return $user->create;
 }
 
-sub delete_user { return; }
+sub delete_user {
+    my $self = shift;
+    my $args = {
+        user_id => undef,
+        @_
+    };
+
+    my (undef, $err) = OESS::DB::User::delete_user(
+        db => $self->{db},
+        user_id => $args->{user_id}
+    );
+    return $err;
+}
+
 sub edit_user {
     my $self = shift;
     my $args = {
