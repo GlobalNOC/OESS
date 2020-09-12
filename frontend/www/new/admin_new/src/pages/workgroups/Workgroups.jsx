@@ -3,7 +3,8 @@ import ReactDOM from "react-dom";
 
 import { Link } from "react-router-dom";
 
-import { getAllWorkgroups } from '../../api/workgroup.js';
+import { deleteWorkgroup, getAllWorkgroups } from '../../api/workgroup.js';
+import { PageContext } from "../../contexts/PageContext.jsx";
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
 import { Table } from '../../components/generic_components/Table.jsx';
 
@@ -21,6 +22,7 @@ class Workgroups extends React.Component {
 	};
 
     this.filterWorkgroups = this.filterWorkgroups.bind(this);
+    this.deleteWorkgroup = this.deleteWorkgroup.bind(this);
   }
 
   async componentDidMount() {
@@ -38,6 +40,18 @@ class Workgroups extends React.Component {
       filter:     e.target.value,
       pageNumber: 0
     });
+  }
+
+  async deleteWorkgroup(workgroup) {
+    let ok = confirm(`Delete workgroup '${workgroup.name}'?`);
+    if (!ok) return;
+
+    try {
+      await deleteWorkgroup(workgroup.workgroup_id);
+      location.reload();
+    } catch (error) {
+      this.context.setStatus({type:'error', message:error.toString()});
+    }
   }
 
   render() {
@@ -83,7 +97,7 @@ class Workgroups extends React.Component {
                 <span className="sr-only">Toggle Dropdown</span>
               </button>
               <ul className="dropdown-menu" style={{fontSize: '12px'}}>
-                <li><a href="#" onClick={() => console.log('delWg', data)}>Delete Workgroup</a></li>
+                <li><a href="#" onClick={() => this.deleteWorkgroup(data)}>Delete Workgroup</a></li>
                 <li role="separator" className="divider" style={{margin: '4px 0'}}></li>
                 <li><a href="#" onClick={() => console.log('manIntf', data)}>Manage Interfaces</a></li>
                 <li><a href="#" onClick={() => console.log('manUsers', data)}>Manage Users</a></li>
@@ -127,5 +141,6 @@ class Workgroups extends React.Component {
     );
   }
 }
+Workgroups.contextType = PageContext;
 
 export { Workgroups };

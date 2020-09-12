@@ -282,6 +282,19 @@ sub interfaces{
     return $self->{interfaces};
 }
 
+=head2 status
+
+=cut
+sub status{
+    my $self = shift;
+    my $status = shift;
+
+    if (defined $status) {
+        $self->{status} = $status;
+    }
+    return $self->{status};
+}
+
 =head2 type
 
 =cut
