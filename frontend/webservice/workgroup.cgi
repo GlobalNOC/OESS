@@ -88,7 +88,7 @@ sub create_workgroup {
     my ($ok, $access_err) = $user->has_system_access(role => 'normal');
     return (undef, $access_err) if defined $access_err;
 
-    my ($wg, $wg_err) = $ac->create_workgroup(
+    my ($workgroup_id, $wg_err) = $ac->create_workgroup(
         description => $params->{description}{value},
         external_id => $params->{external_id}{value},
         name        => $params->{name}{value},
@@ -98,7 +98,7 @@ sub create_workgroup {
         $method->set_error($wg_err);
         return;
     }
-    return { results => [{ success => 1, workgroup_id => $wg->workgroup_id }] };
+    return { results => [{ success => 1, workgroup_id => $workgroup_id }] };
 }
 
 sub delete_workgroup {

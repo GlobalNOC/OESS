@@ -109,12 +109,7 @@ sub create_workgroup {
             type        => $args->{type}
         }
     );
-    my (undef, $err) = $wg->create;
-    if (defined $err) {
-        return (undef, $err);
-    }
-
-    return ($wg, undef);
+    return $wg->create;
 }
 
 sub delete_workgroup {
