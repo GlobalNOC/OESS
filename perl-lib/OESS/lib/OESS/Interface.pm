@@ -10,7 +10,12 @@ use OESS::Cloud::BandwidthValidator;
 
 use Data::Dumper;
 use Log::Log4perl;
-Log::Log4perl::init_and_watch("/etc/oess/logging.conf");
+
+=head1 OESS::Interface
+
+    use OESS::Interface
+
+=cut
 
 =head2 new
 
