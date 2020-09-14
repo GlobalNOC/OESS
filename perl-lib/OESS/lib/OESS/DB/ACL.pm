@@ -7,7 +7,6 @@ package OESS::DB::ACL;
 
 use Log::Log4perl;
 
-Log::Log4perl::init_and_watch('/etc/oess/logging.conf');
 my $logger = Log::Log4perl->get_logger("OESS.ACL");
 
 =head1 OESS::DB::ACL
