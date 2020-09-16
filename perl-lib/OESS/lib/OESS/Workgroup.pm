@@ -258,12 +258,10 @@ sub name{
     my $self = shift;
     my $name = shift;
 
-    if(!defined($name)){
-        return $self->{'name'};
-    }else{
-        $self->{'name'} = $name;
-        return $self->{'name'};
+    if (defined $name) {
+        $self->{name} = $name;
     }
+    return $self->{name};
 }
 
 =head2 users
@@ -302,12 +300,23 @@ sub type{
     my $self = shift;
     my $type = shift;
 
-    if(!defined($type)){
-        return $self->{'type'};
-    }else{
-        $self->{'type'} = $type;
-        return $self->{'type'};
+    if (defined $type) {
+        $self->{type} = $type;
     }
+    return $self->{type};
+}
+
+=head2 description
+
+=cut
+sub description{
+    my $self = shift;
+    my $description = shift;
+
+    if (defined $description) {
+        $self->{description} = $description;
+    }
+    return $self->{description};
 }
 
 =head2 external_id
@@ -315,7 +324,12 @@ sub type{
 =cut
 sub external_id{
     my $self = shift;
-    return $self->{'external_id'};
+    my $external_id = shift;
+
+    if (defined $external_id) {
+        $self->{external_id} = $external_id;
+    }
+    return $self->{external_id};
 }
 
 1;

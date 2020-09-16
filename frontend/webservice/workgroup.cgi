@@ -63,6 +63,43 @@ $delete_workgroup->add_input_parameter(
 );
 $ws->register_method($delete_workgroup);
 
+my $edit_workgroup = GRNOC::WebService::Method->new(
+    name        => 'edit_workgroup',
+    description => 'edit_workgroup edits workgroup workgroup_id',
+    callback    => sub { edit_workgroup(@_) }
+);
+$edit_workgroup->add_input_parameter(
+    name        => 'description',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'Description of workgroup'
+);
+$edit_workgroup->add_input_parameter(
+    name        => 'external_id',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'External ID of workgroup'
+);
+$edit_workgroup->add_input_parameter(
+    name        => 'name',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'Name of workgroup'
+);
+$edit_workgroup->add_input_parameter(
+    name        => 'type',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'Type of workgroup'
+);
+$edit_workgroup->add_input_parameter(
+    name        => 'workgroup_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'identifier used to lookup the workgroup'
+);
+$ws->register_method($edit_workgroup);
+
 my $get_workgroup = GRNOC::WebService::Method->new(
     name        => "get_workgroup",
     description => "get_workgroup returns workgroup workgroup_id",
@@ -121,6 +158,46 @@ sub delete_workgroup {
     }
 
     my $wg_err = $ac->delete_workgroup(workgroup_id => $params->{workgroup_id}{value});
+    if (defined $wg_err) {
+        $method->set_error($wg_err);
+        return;
+    }
+    return { results => [{ success => 1 }] };
+}
+
+sub edit_workgroup {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($wg_access, undef) = $user->has_workgroup_access(
+        role         => 'admin',
+        workgroup_id => $params->{workgroup_id}{value},
+    );
+    my ($sys_access, undef) = $user->has_system_access(role => 'normal');
+    if (!$wg_access && !$sys_access) {
+        $method->set_error("User $ENV{REMOTE_USER} not authorized.");
+        return;
+    }
+
+    if (!defined $params->{description}{value} && $params->{description}{is_set}) {
+        $params->{description}{value} = "";
+    }
+    if (!defined $params->{external_id}{value} && $params->{external_id}{is_set}) {
+        $params->{external_id}{value} = "";
+    }
+
+    my $wg_err = $ac->edit_workgroup(
+        description  => $params->{description}{value},
+        external_id  => $params->{external_id}{value},
+        name         => $params->{name}{value},
+        type         => $params->{type}{value},
+        workgroup_id => $params->{workgroup_id}{value}
+    );
     if (defined $wg_err) {
         $method->set_error($wg_err);
         return;

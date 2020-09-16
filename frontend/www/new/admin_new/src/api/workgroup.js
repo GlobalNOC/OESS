@@ -89,7 +89,7 @@ export async function editWorkgroup(workgroup) {
     throw `Invalid type '${workgroup.type}' used in editWorkgroup.`;
   }
 
-  let url = `${testConfig.user}services/admin/admin.cgi?method=edit_workgroup`;
+  let url = `${testConfig.user}services/workgroup.cgi?method=edit_workgroup`;
   url += `&name=${workgroup.name}`;
   url += `&description=${workgroup.description}`;
   url += `&external_id=${workgroup.externalId}`;

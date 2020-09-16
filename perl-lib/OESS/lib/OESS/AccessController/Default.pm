@@ -171,9 +171,24 @@ sub delete_workgroup {
 sub edit_workgroup {
     my $self = shift;
     my $args = {
+        description  => undef,
+        external_id  => undef,
+        name         => undef,
+        type         => undef,
+        workgroup_id => undef,
         @_
     };
-    return;
+
+    my $wg = new OESS::Workgroup(
+        db => $self->{db},
+        workgroup_id => $args->{workgroup_id}
+    );
+    $wg->description($args->{description});
+    $wg->external_id($args->{external_id});
+    $wg->name($args->{name});
+    $wg->type($args->{type});
+
+    return $wg->update;
 }
 
 sub get_workgroup {
