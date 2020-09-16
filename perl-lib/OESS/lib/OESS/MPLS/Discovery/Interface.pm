@@ -11,7 +11,6 @@ use OESS::DB::Interface;
 use OESS::DB::Node;
 use Data::Dumper;
 use Log::Log4perl;
-Log::Log4perl::init_and_watch("/etc/oess/logging.conf");
 
 =head2 new
 
