@@ -553,15 +553,18 @@ sub handle_vrf_stats{
                            values => $rib,
                            meta => $meta});
 
-        if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$rib_stats) == 0){
-            my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
-            if(!defined($tsds_res)){
-                $self->{'logger'}->error("Error submitting results to TSDS: " . $self->{'tsds_svc'}->get_error());
-            }else{
-                $self->{'logger'}->debug("TSDS Result: " . Dumper($tsds_res));
-                if($tsds_res->{'error'}){
-                    $self->{'logger'}->error("Error submitting data to TSDS: " . $tsds_res->{'error_text'});
+        if (scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$rib_stats) == 0) {
+            eval {
+                my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+                if (!defined $tsds_res) {
+                    die $self->{'tsds_svc'}->get_error;
                 }
+                if (defined $tsds_res->{'error'}) {
+                    die $tsds_res->{'error_text'};
+                }
+            };
+            if ($@) {
+                $self->{'logger'}->error("Error submitting results to TSDS: $@");
             }
             $tsds_val = ();
         }
@@ -621,16 +624,18 @@ sub handle_vrf_stats{
                            values => $vals,
                            meta => $meta});
 
-        if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$peer_stats) == 0){
-            $self->{'logger'}->debug("Sending: " . Dumper($tsds_val));
-            my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
-            if(!defined($tsds_res)){
-                $self->{'logger'}->error("Error submitting data to TSDS: " . $self->{'tsds_svc'}->get_error());
-            }else{
-                $self->{'logger'}->debug(Dumper("TSDS Response: " . Dumper($tsds_res)));
-                if($tsds_res->{'error'}){
-                    $self->{'logger'}->error("Error submitting data to TSDS: " . $tsds_res->{'error_text'});
+        if (scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$peer_stats) == 0) {
+            eval {
+                my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+                if (!defined $tsds_res) {
+                    die $self->{'tsds_svc'}->get_error;
                 }
+                if (defined $tsds_res->{'error'}) {
+                    die $tsds_res->{'error_text'};
+                }
+            };
+            if ($@) {
+                $self->{'logger'}->error("Error submitting results to TSDS: $@");
             }
             $tsds_val = ();
         }

@@ -1450,7 +1450,7 @@ function setup_workgroup_tab(){
            wg_edit_button.on("click",function(){
                     wg_details_panel = new YAHOO.widget.Panel("workgroup_details_p",
                                                                   {width: 400,
-                                                                   height: 200,
+                                                                   height: 150,
                                                                    draggable: true,
                                                                    close: true,
                                                                    fixedcenter: true,
@@ -1469,14 +1469,8 @@ function setup_workgroup_tab(){
                 "<label>External ID:</label>"+
                 "<input type='text' id='workgroup_external_edit' value='" + workgroup_external + "'>" +
                 "<br>"+
-                "<label>Node MAC Address Limit:</label>"+
-                "<input type='text' id='workgroup_max_mac_address_per_end_edit' value='" + max_mac_address_per_end + "'>" +
-                "<br>"+
                 "<label>Circuit Limit:</label>"+
                 "<input type='text' id='workgroup_max_circuits_edit' value='" + max_circuits + "'>" +
-                "<br>"+
-                "<label>Circuit Endpoint Limit:</label>"+
-                "<input type='text' id='workgroup_max_circuit_endpoints_edit' value='" + max_circuit_endpoints + "'>" +
                 "<br>"+
                 "<div style='text-align: right; font-size: 85%'>" +
                 "<div id='submit_edit_workgroup'></div>" +
@@ -1488,23 +1482,12 @@ function setup_workgroup_tab(){
             var wg_submit_edit = new YAHOO.widget.Button("submit_edit_workgroup",
                                                                  {label: "submit"});
                     wg_submit_edit.on("click", function(){
-                max_mac_address_per_end = document.getElementById("workgroup_max_mac_address_per_end_edit").value;
                 max_circuits = document.getElementById("workgroup_max_circuits_edit").value;
-                max_circuit_endpoints = document.getElementById("workgroup_max_circuit_endpoints_edit").value;
-                if(!max_mac_address_per_end.match(/\d+/)){
-                    alert("Node mac limit must be an integer");
-                    return;
-                }
                 if(!max_circuits.match(/\d+/)){
                     alert("Circuits limit must be an integer");
                     return;
                 }
-                if(!max_circuit_endpoints.match(/\d+/)){
-                    alert("Circuit endpoints limit must be an integer");
-                    return;
-                }
-                //construct url
-                var submit_ds_url= "../services/admin/admin.cgi?method=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&max_mac_address_per_end=" + max_mac_address_per_end + "&max_circuits=" + max_circuits + "&max_circuit_endpoints=" + max_circuit_endpoints;
+                var submit_ds_url= "../services/admin/admin.cgi?method=edit_workgroup&workgroup_id=" + workgroup_id + "&name=" + encodeURI(document.getElementById('workgroup_name_edit').value) + "&max_circuits=" + max_circuits;
                 //determine if workgroup external id is defined
                 workgroup_external = document.getElementById('workgroup_external_edit').value;
                 if( (workgroup_external !== undefined) &&

@@ -22,8 +22,8 @@
             {key: "interface_id", parser: "number"},
             {key: "allow_deny"},
             {key: "eval_position"},
-            {key: "vlan_start"},
-            {key: "vlan_end"},
+            {key: "start"},
+            {key: "end"},
             {key: "notes"}
         ]};
 
@@ -37,8 +37,8 @@
             }},
             {key: "allow_deny", label: "Permission",sortable:false},
             {label: "VLAN Range", formatter: function(el, rec, col, data){
-                var vlan_start  = rec.getData('vlan_start');
-                var vlan_end    = rec.getData('vlan_end');
+                var vlan_start  = rec.getData('start');
+                var vlan_end    = rec.getData('end');
                 if(vlan_start == -1){
                     vlan_start = 'untagged';
                 }
@@ -74,8 +74,8 @@
             ws_params: [
                 "interface_acl_id",
                 "allow_deny",
-                "vlan_start",
-                "vlan_end",
+                "start",
+                "end",
                 "interface_id",
                 "entity_id",
                 "workgroup_id",

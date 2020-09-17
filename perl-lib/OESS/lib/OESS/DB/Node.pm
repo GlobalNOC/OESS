@@ -23,15 +23,14 @@ sub fetch{
     my $details;
 
     my $node;
-    
-    if (defined $node_id) {
-        $node = $db->execute_query("select * from node natural join node_instantiation where node_id = ? and node_instantiation.end_epoch = -1", [$node_id]);   
-    } else {
-        $node = $db->execute_query("SELECT * FROM node NATUARAL JOIN node_instantiation WHERE name = ? and node_instantiation.end_epoch = -1", [$node_name]);
-    }
-    
-    return if(!defined($node) || !defined($node->[0]));
 
+    if (defined $node_id) {
+        $node = $db->execute_query("select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node.node_id=? and node_instantiation.end_epoch=-1", [ $node_id ]);
+    } else {
+        $node = $db->execute_query("select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node.name=? and node_instantiation.end_epoch=-1", [ $node_name ]);
+    }
+
+    return if (!defined $node || !defined $node->[0]);
     return $node->[0];
 }
 
