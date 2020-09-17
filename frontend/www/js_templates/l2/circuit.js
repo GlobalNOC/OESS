@@ -83,7 +83,7 @@ class CircuitDetails extends Component {
         </div>
         <div class="form-group">
           <label class="col-sm-3 control-label">Modified on</label>
-          <div class="col-sm-9"><p class="form-control-static">${props.last_edited}</p></div>
+          <div class="col-sm-9"><p class="form-control-static">${props.last_modified_on}</p></div>
         </div>
         <div class="form-group">
           <label class="col-sm-3 control-label">Modified by</label>
