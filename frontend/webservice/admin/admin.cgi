@@ -46,6 +46,7 @@ use OESS::DB::Workgroup;
 use OESS::ACL;
 use OESS::Endpoint;
 use OESS::Interface;
+use OESS::Workgroup;
 
 #use Time::HiRes qw( gettimeofday tv_interval);
 
@@ -2529,13 +2530,18 @@ sub gen_topology{
 sub edit_workgroup{
     my ($method, $args) = @_;
 
-    # my ($user, $err) = authorization(admin => 1, read_only => 0);
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => 'normal'); 
+    my $workgroup = new OESS::Workgroup(db => $db2, workgroup_id => $args->{workgroup_id}{value});
+    if (!defined $workgroup) {
+        $method->set_error("Workgroup $args->{workgroup_id}{value} not found.");
+        return;
+    }
+
+    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => $workgroup->{type});
     if (defined $err) {
         $method->set_error($err);
         return;
     }
-    
+
     my $workgroup_id            = $args->{'workgroup_id'}{'value'};
     my $workgroup_name          = $args->{'name'}{'value'};
     my $external_id             = $args->{'external_id'}{'value'};
