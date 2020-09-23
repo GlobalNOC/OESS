@@ -246,7 +246,7 @@ sub node_maintenances {
     my $results;
     my $node_id = $args->{'node_id'}{'value'};
 
-    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'read-only');
     if (defined $err) {
         $method->get_error($err);
         return;
@@ -354,8 +354,8 @@ sub link_maintenances {
     my ( $method, $args ) = @_ ;
     my $results;
     my $link_id = $args->{'link_id'}{'value'};
-    
-    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'read-only');
     if (defined $err) {
         $method->get_error($err);
         return;
@@ -369,7 +369,7 @@ sub link_maintenances {
 
     if (!defined $data) {
         $method->set_error("Failed to retrieve links under maintenance.");
-	return;
+        return;
     }
     $results->{'results'} = $data;
     return $results;

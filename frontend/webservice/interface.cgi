@@ -162,6 +162,17 @@ sub get_workgroup_interfaces{
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
     my $vlan = $params->{'vlan'}{'value'};
 
+    my ($ok, $err) = OESS::DB::User::has_workgroup_access(
+        db           => $db,
+        username     => $ENV{REMOTE_USER},
+        workgroup_id => $args->{workgroup_id}->{value},
+        role         => 'read-only'
+    );
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+
     my $workgroup = OESS::Workgroup->new( workgroup_id => $workgroup_id, db => $db);
     my $interfaces = $workgroup->interfaces();
 
