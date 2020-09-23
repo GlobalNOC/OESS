@@ -1262,7 +1262,7 @@ sub add_workgroup {
     my $user = new OESS::User(db => $db2, username => $ENV{REMOTE_USER});
     $user->load_workgroups;
     foreach my $wg (@{$user->workgroups}) {
-        if ($wg->role eq 'admin') {
+        if ($wg->{role} eq 'admin') {
             $ok = 1;
             last;
         }
