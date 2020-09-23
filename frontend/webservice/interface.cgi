@@ -165,7 +165,7 @@ sub get_workgroup_interfaces{
     my ($ok, $err) = OESS::DB::User::has_workgroup_access(
         db           => $db,
         username     => $ENV{REMOTE_USER},
-        workgroup_id => $args->{workgroup_id}->{value},
+        workgroup_id => $params->{workgroup_id}->{value},
         role         => 'read-only'
     );
     if (defined $err) {
