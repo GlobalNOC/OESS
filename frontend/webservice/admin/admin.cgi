@@ -696,11 +696,6 @@ sub register_webservice_methods {
                                               callback    => sub { get_remote_links(@_) } );
     $svc->register_method($method);
 
-    $method = GRNOC::WebService::Method->new( name        => 'submit_topology',
-                                              description => '',
-                                              callback    => sub { submit_topology(@_) } );
-    $svc->register_method($method);
-
     $method = GRNOC::WebService::Method->new( name        => 'get_remote_devices',
                                               description => '',
                                               callback    => sub { get_remote_devices(@_) } );
@@ -881,6 +876,12 @@ sub get_diffs {
     my ( $method, $args ) = @_ ;
     my $approved = $args->{'approved'}{'value'};
 
+    my ($ok, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => 'read-only');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+
     my $diffs = $db->get_diffs($approved);
     if (!defined $diffs) {
         $method->set_error($db->get_error());
@@ -892,6 +893,12 @@ sub get_diffs {
 
 sub get_diff_text {
     my ( $method, $args ) = @_ ;
+
+    my ($ok, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => 'read-only');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
 
     my $node_id = $args->{'node_id'}{'value'};
     require OESS::RabbitMQ::Client;
@@ -930,6 +937,12 @@ sub set_diff_approval {
     my $approved = $args->{'approved'}{'value'};
     my $node_id  = $args->{'node_id'}{'value'};
 
+    my ($ok, $err) = OESS::DB::User::has_system_access(db => $db2, role => 'normal', username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+
     if ($approved != 1) {
         $method->set_error("Diffs may only be approved via the web API.");
         return;
@@ -947,8 +960,6 @@ sub set_diff_approval {
 sub get_circuits_on_interface{
     my ($method, $args) = @_;
 
-    
-    #my ($user, $err) = authorization(admin => 1, read_only => 1);
     my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'read-only');
     if (defined $err) {
         $method->set_error($err);
@@ -989,8 +1000,7 @@ sub insert_node_in_path{
 sub is_new_node_in_path{
     my ($method, $args) = @_;
 
-    #my ($user, $err) = authorization(admin => 1, read_only => 0);
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username =>$ENV{'REMOTE_USER'}, role=> 'normal');
+    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username =>$ENV{'REMOTE_USER'}, role=> 'read-only');
     if (defined $err) {
         $method->set_error($err);
         return;
@@ -1007,8 +1017,7 @@ sub is_new_node_in_path{
 sub is_ok_to_decom{
     my ($method, $args) = @_;
 
-    #my ($user, $err) = authorization(admin => 1, read_only => 0);
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'normal');
+    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => 'read-only');
     if (defined $err) {
         $method->set_error($err);
         return;
@@ -1248,12 +1257,29 @@ sub update_interface_owner {
 sub add_workgroup {
     my ($method, $args) = @_;
 
-    #my ($user, $err) = authorization(admin => 1, read_only => 0);
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'normal'); 
-    if (defined $err) {
-        $method->set_error($err);
+    my $ok;
+
+    my $user = new OESS::User(db => $db2, username => $ENV{REMOTE_USER});
+    $user->load_workgroups;
+    foreach my $wg (@{$user->workgroups}) {
+        if ($wg->{role} eq 'admin') {
+            $ok = 1;
+            last;
+        }
+    }
+    if (!$ok) {
+        ($ok, undef) = OESS::DB::User::has_system_access(db => $db2, role => 'normal', username => $ENV{REMOTE_USER});
+    }
+    if (!$ok) {
+        $method->set_error('Not authorized.');
         return;
     }
+
+
+    #my ($user, $err) = authorization(admin => 1, read_only => 0);
+    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'normal'); 
+
+
     my $results;
     my $model = {
         name => $args->{'name'}{'value'},
@@ -2506,8 +2532,7 @@ sub get_pending_links {
 sub gen_topology{
     my ($method, $args) = @_;
 
-    # my ($user, $err) = authorization(admin => 1, read_only => 1);
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => 'read-only'); 
+    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => 'read-only');
     if (defined $err) {
         $method->set_error($err);
         return;
@@ -2520,7 +2545,7 @@ sub gen_topology{
         $results->{'results'} = [];
         $results->{'error'} = 1;
         $results->{'error_text'} = $db->get_error();
-    }   
+    }
     else {
         $results->{'results'} = [{'topo' => $topo}];
     }
@@ -2536,7 +2561,13 @@ sub edit_workgroup{
         return;
     }
 
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => $workgroup->{type});
+    my $ok;
+    my $err;
+    if ($workgroup->type eq 'admin') {
+        ($ok, $err) = OESS::DB::User::has_system_access(db => $db2, role => 'admin', username => $ENV{REMOTE_USER});
+    } else {
+        ($ok, $err) = OESS::DB::User::has_workgroup_access(db => $db2, role => 'admin', username => $ENV{REMOTE_USER}, workgroup_id => $args->{workgroup_id}{value});
+    }
     if (defined $err) {
         $method->set_error($err);
         return;
@@ -2580,12 +2611,19 @@ sub decom_workgroup{
         $method->set_error("No workgroup with that ID found");
         return;
     }
-    #Check if the user is authorized to decom the workgroup if level of access depneding on type of workgroup
-    my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role => $workgroup->{type});
+
+    my $ok;
+    my $err;
+    if ($workgroup->type eq 'admin') {
+        ($ok, $err) = OESS::DB::User::has_system_access(db => $db2, role => 'admin', username => $ENV{REMOTE_USER});
+    } else {
+        ($ok, $err) = OESS::DB::User::has_workgroup_access(db => $db2, role => 'admin', username => $ENV{REMOTE_USER}, workgroup_id => $args->{workgroup_id}{value});
+    }
     if (defined $err) {
         $method->set_error($err);
         return;
     }
+
     # Gather interfaces to remove the acls and start the transaction
     my $interfaces = OESS::DB::Interface::get_interfaces(db => $db2, workgroup_id => $workgroup_id);
 
