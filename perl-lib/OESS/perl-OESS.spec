@@ -1,7 +1,7 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.10
-Release: 2%{?dist}
+Version: 2.0.11
+Release: 1%{?dist}
 License: APL 2.0
 Group: Network
 URL: http://globalnoc.iu.edu
@@ -122,8 +122,6 @@ make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L3VPN
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{template_dir}
 %__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{template_dir}/
-%__install etc/notification_bulk.tmpl $RPM_BUILD_ROOT/%{template_dir}/
-%__install etc/notification_bulk.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_templates_vrf.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_vrf.tt.html $RPM_BUILD_ROOT/%{template_dir}/
@@ -214,8 +212,6 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
 %doc %{_mandir}/man3/OESS::Webservice.3pm.gz
 %{template_dir}/notification_templates.tmpl
-%{template_dir}/notification_bulk.tmpl
-%{template_dir}/notification_bulk.tt.html
 %{template_dir}/notification.tt.html
 %{template_dir}/notification_vrf.tt.html
 %{template_dir}/notification_templates_vrf.tmpl

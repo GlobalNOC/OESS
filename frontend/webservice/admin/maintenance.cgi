@@ -33,6 +33,8 @@ use warnings;
 use Data::Dumper;
 use JSON;
 use OESS::Database;
+use OESS::DB;
+use OESS::DB::User;
 use OESS::RabbitMQ::Client;
 use Switch;
 use Log::Log4perl;
@@ -41,6 +43,7 @@ use GRNOC::WebService;
 Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db = new OESS::Database();
+my $db2 = new OESS::DB();
 my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
                                       timeout  => 60 );
 
@@ -55,7 +58,10 @@ sub main {
         send_json( { "error" => "Unable to connect to database." } );
         exit(1);
     }
-
+    if (!$db2) {
+        send_json( { "error" => "Unable to connect to database." } );
+        exit(1);
+    }
     if ( !$svc ){
 	send_json( {"error" => "Unable to access GRNOC::WebService" });
 	exit(1);
@@ -71,23 +77,13 @@ sub main {
 	send_json({"error" => "Unable to lookup user."});
 	exit(1);
     }
-
-    my $authorization = $db->get_user_admin_status( 'username' => $ENV{'REMOTE_USER'});
-    if ( $authorization->[0]{'is_admin'} != 1 ) {
-        my $output = {
-            error => "User " . $ENV{'REMOTE_USER'} . " does not have admin privileges",
-        };
-        return ( send_json($output) );
-    }
-
     if(!defined($user)){
         return send_json({error => "unable to find user"});
-    }
+    } 
 
-    if ($user->{'type'} eq 'read-only') {
-	send_json('You are a read-only user and unable start or end maintenance.');
-	exit(1);
-    }
+    
+   
+
 
     #register the WebService Methods
     register_webservice_methods();
@@ -250,6 +246,11 @@ sub node_maintenances {
     my $results;
     my $node_id = $args->{'node_id'}{'value'};
 
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'read-only');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
     my $data;
     if (defined $node_id) {
         $data = $db->get_node_maintenance($node_id);
@@ -272,6 +273,11 @@ sub start_node_maintenance {
     my $node_id = $args->{'node_id'}{'value'};
     my $description = $args->{'description'}{'value'};
 
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'normal');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    } 
     if (!defined $node_id) {
         $method->set_error("Parameter node_id must be provided.");
         return;
@@ -317,7 +323,12 @@ sub end_node_maintenance {
     my ( $method, $args ) = @_ ;
     my $results;
     my $node_id = $args->{'node_id'}{'value'};
-
+    
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'normal');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    } 
     my $data = $db->end_node_maintenance($node_id);
     if (!defined $data) {
         $method->set_error("Failed to take node out of maintenance mode.");
@@ -344,6 +355,11 @@ sub link_maintenances {
     my $results;
     my $link_id = $args->{'link_id'}{'value'};
 
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'read-only');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    } 
     my $data;
     if (defined $link_id) {
         $data = $db->get_link_maintenance($link_id);
@@ -353,7 +369,7 @@ sub link_maintenances {
 
     if (!defined $data) {
         $method->set_error("Failed to retrieve links under maintenance.");
-	return;
+        return;
     }
     $results->{'results'} = $data;
     return $results;
@@ -365,7 +381,12 @@ sub start_link_maintenance {
     my $results     = {};
     my $link_id     = $args->{'link_id'}{'value'};
     my $description = $args->{'description'}{'value'};
-
+    
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'normal');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    } 
     if (!defined $link_id) {
         $method->set_error(error => "Parameter link_id must be provided.");
         return;
@@ -407,6 +428,11 @@ sub end_link_maintenance {
     my $results;
     my $link_id = $args->{'link_id'}{'value'};
     
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'normal');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    } 
     my $data = $db->end_link_maintenance($link_id);
     if (!defined $data) {
         $method->set_error("Failed to take link out of maintenance mode.");

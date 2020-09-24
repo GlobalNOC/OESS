@@ -28,8 +28,7 @@ my $user = $db->edit_user(user_id => '11',
                           family_name => 'User 11',
                           email_address => 'user_11@foo.net',
                           auth_names => ['aragusa'],
-                          status => 'active',
-                          type => 'normal');                        
+                          status => 'active');
 ok(defined($user), "User updated");
 
 
@@ -104,7 +103,7 @@ $res = $db->provision_circuit('description' => "Trunk test",
                               'workgroup_id' => $trunk_iface_workgroup_id,
                               'external_id' => undef);
 $err = $db->get_error();
-ok($res, "Trunk circuit provisioned.");
+ok($res, "Trunk circuit provisioned. $err");
 
 my $trunk_circuit_id = $res->{'circuit_id'};
 
@@ -416,13 +415,12 @@ my $correct_result =  {
           'operational_state' => 'up',
           'created_by' => {
                                   'status' => 'active',
-                                  'auth_id' => '970',
+                                  'auth_id' => '962',
                                   'family_name' => 'User 11',
                                   'email' => 'user_11@foo.net',
                                   'is_admin' => '0',
                                   'user_id' => '11',
                                   'given_names' => 'User 11',
-                                  'type' => 'normal',
                                   'auth_name' => 'aragusa'
                                 },
           'tertiary_links' => [],

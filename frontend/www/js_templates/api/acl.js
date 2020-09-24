@@ -75,18 +75,18 @@ async function modifyACL(acl) {
   let url = `[% path %]services/workgroup_manage.cgi?method=update_acl&interface_acl_id=${acl.aclID}`;
   url += `&eval_position=${acl.position}`;
   url += `&allow_deny=${acl.allow}`;
-  url += `&vlan_start=${acl.low}`;
+  url += `&start=${acl.low}`;
   url += ('interfaceID' in acl ? `&interface_id=${acl.interfaceID}` : '');
 
   if ('entityID' in acl && acl.entityID && acl.entityID !== -1) {
     url += `&entity_id=${acl.entityID}`;
   }
 
-  if ('selectedWorkgroupID' in acl && acl.selectedWorkgroupID && acl.selectedWorkgroupID !== -1) {
+  if ('selectedWorkgroupID' in acl && acl.selectedWorkgroupID) {
       url += `&workgroup_id=${acl.selectedWorkgroupID}`;
   }
 
-  url += `&vlan_end=${acl.high}`;
+  url += `&end=${acl.high}`;
   url += ('notes' in acl ? `&notes=${acl.notes}` : '');
 
   try {
@@ -113,6 +113,7 @@ async function addACL(acl) {
   url += `&allow_deny=${acl.allow}`;
   url += `&vlan_start=${acl.low}`;
   url += `&interface_id=${acl.interfaceID}`;
+  url += `&entity_id=${acl.entityID}`;
   url += (acl.selectedWorkgroupID === -1 ? '' : `&workgroup_id=${acl.selectedWorkgroupID}`);
   url += `&vlan_end=${acl.high}`;
   url += `&notes=${acl.notes}`;

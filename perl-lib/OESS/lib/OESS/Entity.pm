@@ -5,9 +5,11 @@ use warnings;
 
 package OESS::Entity;
 
+use Data::Dumper;
 use Log::Log4perl;
 
 use OESS::Cloud::Azure;
+use OESS::Cloud::AzureInterfaceSelector;
 use OESS::DB::Endpoint;
 use OESS::DB::Entity;
 use OESS::User;
@@ -242,7 +244,6 @@ sub select_interface {
         $self->{logger}->warn('Interface selection may not return accurate results as database object not defined.');
     }
 
-    my $azure = new OESS::Cloud::Azure();
 
     # Get number of Endpoints using the provided azure service key.
     # If cloud_account_id is already in use on another endpoint we'll
@@ -280,23 +281,25 @@ sub select_interface {
         if (defined $intf->cloud_interconnect_type && $intf->cloud_interconnect_type eq 'azure-express-route') {
             if (!defined $args->{cloud_account_id}) {
                 warn 'Azure Service key was not provided.';
-                return undef;
+                return;
             }
 
-            my ($conn, $err) = $azure->get_cross_connection_by_id($intf->cloud_interconnect_id, $args->{cloud_account_id});
-            if (defined $err) {
-                $self->{logger}->error($err);
-                next;
-            }
-
-            if ($cloud_account_ep_count == 0 && $intf->cloud_interconnect_id eq $conn->{properties}->{primaryAzurePort}) {
-                warn 'Selecting primary Azure port.';
-            }
-            elsif ($cloud_account_ep_count == 1 && $intf->cloud_interconnect_id eq $conn->{properties}->{secondaryAzurePort}) {
-                warn 'Selecting secondary Azure port.';
-            }
-            else {
-                next;
+            # This selector goes through all interfaces associated
+            # with cloud_account_id so if a failure occurs we can bail
+            # right away. The only reason we iterate though this
+            # entities interfaces is to determine the 'type' of the
+            # entity; Really this should be a part of the entity's
+            # definition.
+            my $intf_selector = new OESS::Cloud::AzureInterfaceSelector(
+                db          => $self->{db},
+                azure       => new OESS::Cloud::Azure(),
+                entity      => $self,
+                service_key => $args->{cloud_account_id}
+            );
+            $intf = $intf_selector->select_interface;
+            if (!defined $intf) {
+                warn "Couldn't find an available interface for azure connection.";
+                return;
             }
         }
 

@@ -15,6 +15,9 @@ use OESS::DB::Endpoint;
 use Data::Dumper;
 use Data::UUID;
 
+=head1 OESS::Cloud
+
+=cut
 
 =head2 setup_endpoints
 
@@ -31,7 +34,9 @@ a replacement for the parent VRF's endpoints.
 =cut
 sub setup_endpoints {
     my $vrf_name   = shift;
-    my $endpoints  = shift;
+    my $endpoints  = shift; # OESS::Endpoint
+    my $is_admin   = shift; # 1 or 0
+
     my $result     = [];
 
     my $config = OESS::Config->new();
@@ -171,6 +176,13 @@ sub setup_endpoints {
             }
 
             my $conn = $azure->expressRouteCrossConnection($ep->cloud_interconnect_id, $ep->cloud_account_id);
+
+            # Validate that configured bandwidth reservation allowed
+            my $ep_intf = new OESS::Interface(db => $ep->{db}, interface_id => $ep->interface_id);
+            if (!$ep_intf->is_bandwidth_valid(bandwidth => $conn->{properties}->{bandwidthInMbps}, is_admin  => $is_admin)) {
+                die "Bandwidth configured on Azure endpoint is not supported.";
+            }
+
             my $res = $azure->set_cross_connection_state_to_provisioned(
                 interconnect_id  => $ep->cloud_interconnect_id,
                 service_key      => $ep->cloud_account_id,

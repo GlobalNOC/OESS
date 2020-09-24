@@ -48,6 +48,7 @@ use OESS::RabbitMQ::Dispatcher;
 use GRNOC::WebService::Client;
 use GRNOC::WebService::Regex;
 use OESS::Database;
+use OESS::DB;
 use JSON::XS;
 
 use OESS::Config;
@@ -108,7 +109,7 @@ sub new{
 
 
     $self->{'interface'} = OESS::MPLS::Discovery::Interface->new(
-        db => $self->{'db'},
+        db => new OESS::DB(config => $config_filename),
         lsp_processor => sub{ $self->lsp_handler(); }
     );
     die "Unable to create Interface processor\n" if !defined $self->{'interface'};
@@ -206,6 +207,13 @@ sub register_rpc_methods{
                                   required => 1,
                                   pattern => $GRNOC::WebService::Regex::NUMBER_ID);
 
+    $d->register_method($method);
+    $self->{'logger'}->error("Inside is online discover");
+    $method = GRNOC::RabbitMQ::Method->new( name  => "is_online",
+                                            async => 1,
+                           callback => sub { my $method = shift;
+                                             $method->{'success_callback'}({successful => 1 }); },
+                           description => "Checks if this service is onine and able to send repsonses back to monitoring");
     $d->register_method($method);
 }
 
@@ -545,8 +553,19 @@ sub handle_vrf_stats{
                            values => $rib,
                            meta => $meta});
 
-        if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$rib_stats) == 0){
-            $self->{'logger'}->debug(Dumper($self->{'tsds_svc'}->add_data(data => encode_json($tsds_val))));
+        if (scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$rib_stats) == 0) {
+            eval {
+                my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+                if (!defined $tsds_res) {
+                    die $self->{'tsds_svc'}->get_error;
+                }
+                if (defined $tsds_res->{'error'}) {
+                    die $tsds_res->{'error_text'};
+                }
+            };
+            if ($@) {
+                $self->{'logger'}->error("Error submitting results to TSDS: $@");
+            }
             $tsds_val = ();
         }
     }
@@ -605,13 +624,22 @@ sub handle_vrf_stats{
                            values => $vals,
                            meta => $meta});
 
-        if(scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$peer_stats) == 0){
-            $self->{'logger'}->debug("Sending: " . Dumper($tsds_val));
-            $self->{'logger'}->debug(Dumper("Response: " . Dumper($self->{'tsds_svc'}->add_data(data => encode_json($tsds_val)))));
+        if (scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$peer_stats) == 0) {
+            eval {
+                my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+                if (!defined $tsds_res) {
+                    die $self->{'tsds_svc'}->get_error;
+                }
+                if (defined $tsds_res->{'error'}) {
+                    die $tsds_res->{'error_text'};
+                }
+            };
+            if ($@) {
+                $self->{'logger'}->error("Error submitting results to TSDS: $@");
+            }
             $tsds_val = ();
         }
-        
-    }   
+    }
     $self->{'db'}->_commit();
 }
 

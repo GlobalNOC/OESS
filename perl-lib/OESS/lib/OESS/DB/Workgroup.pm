@@ -5,6 +5,7 @@ use warnings;
 
 use OESS::User;
 use OESS::Interface;
+use OESS::DB::User;
 
 package OESS::DB::Workgroup;
 
@@ -36,10 +37,10 @@ sub fetch {
     my $wg;
 
     if (defined $args->{workgroup_id}) {
-        my $q = "select * from workgroup where workgroup_id=?";
+        my $q = "select * from workgroup where workgroup_id=? and status='active'";
         $wg = $args->{db}->execute_query($q, [$args->{workgroup_id}]);
     } else {
-        my $q = "select * from workgroup where name=?";
+        my $q = "select * from workgroup where name=? and status='active'";
         $wg = $args->{db}->execute_query($q, [$args->{name}]);
     }
     if (!defined $wg || !defined $wg->[0]) {
@@ -74,7 +75,7 @@ sub fetch_all {
         @_
     };
 
-    my $res = $args->{db}->execute_query("select * from workgroup", []);
+    my $res = $args->{db}->execute_query("select * from workgroup where status='active'", []);
     if (!defined $res) {
         return (undef, $args->{db}->get_error);
     }
@@ -90,22 +91,25 @@ sub get_users_in_workgroup{
     my $db = $params{'db'};
     my $workgroup_id = $params{'workgroup_id'};
     
-    my $users = $db->execute_query("select user_id from user_workgroup_membership where workgroup_id = ?",[$workgroup_id]);
+    return (undef, 'Required argument `db` is missing.') if !defined $db;
+    return (undef, 'Required argument `workgroup_id` is missing.') if !defined $workgroup_id;
+
+    my $users = $db->execute_query("select user_id, role from user_workgroup_membership where workgroup_id = ?",[$workgroup_id]);
     if(!defined($users)){
-        return;
+        return (undef, "Unable to find any users in workgroup of that workgroup_id");
     }
     
     my @users;
     
     foreach my $u (@$users){
-        my $user = OESS::User->new(db => $db, user_id => $u->{'user_id'});
+        my $user = OESS::User->new(db => $db, user_id => $u->{'user_id'}, role => $u->{role});
         if(!defined($user)){
             next;
         }
         
         push(@users, $user);
     }
-    return \@users;
+    return (\@users,undef);
 }
 
 =head2 create
@@ -121,8 +125,9 @@ sub create {
     return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
     return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
     return (undef, 'Required argument `model->name` is missing.') if !defined $args->{model}->{name};
-    return (undef, 'Required argument `model->description` is missing.') if !exists $args->{model}->{description};
-
+    if (!defined $args->{model}->{description}) {
+        $args->{model}->{description} = "";
+    }
     $args->{model}->{type} = $args->{model}->{type} || 'normal';
     my $type_ok = 0;
     my $valid_types = ['normal','admin','demo'];
@@ -221,7 +226,7 @@ sub update {
     }
 
     if (defined $args->{model}->{status}) {
-        push @$params, 'workgroup.workgroup_status=?';
+        push @$params, 'workgroup.status=?';
         push @$values, $args->{model}->{status};
     }
 
@@ -256,27 +261,76 @@ sub add_user {
         db             => undef,
         user_id        => undef,
         workgroup_id        => undef,
+        role           => undef,
         @_
     };
 
     return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
     return (undef, 'Required argument `user_id` is missing.') if !defined $args->{user_id};
     return (undef, 'Required argument `workgroup_id` is missing.') if !defined $args->{workgroup_id};
-
+    return (undef, 'Required argument `role` is missing.') if !defined $args->{role};
+    my $userExistQuery = " SELECT * from user_workgroup_membership WHERE workgroup_id=? AND user_id=?";
+    my $pairExists = $args->{db}->execute_query($userExistQuery, [$args->{workgroup_id}, $args->{user_id}]);
+    if (defined $pairExists->[0]){
+        return (undef, "User already in workgroup");
+    }
     my $query = "
         insert into user_workgroup_membership (
-            user_id, workgroup_id
-        ) VALUES (?, ?)
+            user_id, workgroup_id, role
+        ) VALUES (?, ?, ?)
     ";
     my $res = $args->{db}->execute_query($query, [
         $args->{user_id},
-        $args->{workgroup_id}
+        $args->{workgroup_id},
+        $args->{role}
     ]);
     if (!defined $res) {
         return (undef, $args->{db}->get_error);
     }
 
     return ($res, undef);
+}
+
+=head2 edit_user_role
+    my ($ok, $err) = OESS::DB::Workgroup::edit_user_role(
+        db => $db
+        workgroup+id => 100,
+        user_id => 10,
+        role => read-only
+    );
+    warn $err if (defined $err);
+
+edit_user_role changes the C<user_workgroup_membership> identified by
+C<workgroup_id> and C<user_id>. It takes in a C<role> and modifies
+the table to change the C<role> of the specified userin
+the specified workgroup identified by C<workgroup_id>
+
+=cut
+sub edit_user_role {
+    my $args = {
+        db           => undef,
+        user_id      => undef,
+        workgroup_id => undef,
+        role         => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `user_id` is missing.') if !defined $args->{user_id};
+    return (undef, 'Required argument `workgroup_id` is missing.') if !defined $args->{workgroup_id};
+    return (undef, 'Required argument `role` is missing.') if !defined $args->{role};
+
+
+    my $query = "UPDATE user_workgroup_membership SET role = ? WHERE workgroup_id = ? AND user_id = ?";
+
+    my $result = $args->{db}->execute_query($query, [$args->{role}, $args->{workgroup_id}, $args->{user_id}]);
+
+    if ($result == 0) {
+       return (undef, "Unable to edit role - does this user belong to this workgroup?");
+    }
+
+    return (1, undef);
+
 }
 
 =head2 remove_user

@@ -3,6 +3,7 @@
 # tests of OESS::Entity's to_hash and save-to-DB functionality
 
 use strict;
+use warnings;
 
 use FindBin;
 my $path;
@@ -34,16 +35,6 @@ sub _interface {
         superhashof({interface_id => $id, node_id => ignore(), name => ignore()}),
     );
 }
-
-sub _user {
-    my $id = shift;
-    return all(
-        OESS::User->new(user_id => $id, db => $db)->to_hash,
-        # second half of the test is a sanity-check that the method calls in the first half didn't fail
-        superhashof({user_id => $id, type => ignore(), email => ignore()}),
-    );
-}
-
 
 
 $db = OESS::DB->new( config => OESSDatabaseTester::getConfigFilePath() );
@@ -110,7 +101,7 @@ ok($ent1a->description() eq 'Those that are included in this classification', 'E
 
 
 my $ent2 = OESS::Entity->new( entity_id => 14, db => $db );
-
+warn Dumper($ent2->to_hash());
 cmp_deeply(
     $ent2->to_hash(),
     {
@@ -122,7 +113,24 @@ cmp_deeply(
         logo_url    => undef,
 
         interfaces  => bag( _interface(35961) ),
-        contacts    => bag( _user(121), _user(881) ),
+        contacts    => bag( 
+                            {
+                             'email' => 'user_121@foo.net',
+                             'is_admin' => '1',
+                             'user_id' => '121',
+                             'last_name' => 'User 121',
+                             'first_name' => 'User 121',
+                             'username' => 'user_121@foo.net'
+                            },
+                            {
+                             'email' => 'user_881@foo.net',
+                             'is_admin' => '0',
+                             'user_id' => '881',
+                             'last_name' => 'User 881',
+                             'first_name' => 'User 881',
+                             'username' => 'user_881@foo.net'
+                            }
+                          ),
         parents     => bag(
             {
                 entity_id   => 6,
@@ -168,8 +176,16 @@ cmp_deeply(
         logo_url    => 'https://example.edu/icon',
 
         interfaces  => bag( _interface(35961) ),
-        contacts    => bag( _user(881) ),
-        parents     => bag(
+        contacts    => bag(  {
+                              'email' => 'user_881@foo.net',
+                              'is_admin' => '0',
+                              'user_id' => '881',
+                              'last_name' => 'User 881',
+                              'first_name' => 'User 881',
+                              'username' => 'user_881@foo.net'
+                             }
+                            ),
+        parents     => bag(                                                                                                                     
             {
                 entity_id   => 6,
                 name        => 'B University',

@@ -1,8 +1,8 @@
--- MySQL dump 10.16  Distrib 10.1.22-MariaDB, for Linux (x86_64)
+-- MySQL dump 10.14  Distrib 5.5.65-MariaDB, for Linux (x86_64)
 --
 -- Host: localhost    Database: discovery
 -- ------------------------------------------------------
--- Server version	10.1.22-MariaDB
+-- Server version	5.5.65-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -929,7 +929,6 @@ CREATE TABLE `user` (
   `given_names` varchar(60) NOT NULL,
   `family_name` varchar(60) NOT NULL,
   `is_admin` int(10) NOT NULL DEFAULT '0',
-  `type` enum('normal','read-only') NOT NULL DEFAULT 'normal',
   `status` enum('active','decom') NOT NULL DEFAULT 'active',
   PRIMARY KEY (`user_id`),
   KEY `user_idx` (`email`)
@@ -979,6 +978,7 @@ DROP TABLE IF EXISTS `user_workgroup_membership`;
 CREATE TABLE `user_workgroup_membership` (
   `workgroup_id` int(10) NOT NULL,
   `user_id` int(10) NOT NULL,
+  `role` enum('admin','normal','read-only') NOT NULL DEFAULT 'read-only',
   PRIMARY KEY (`workgroup_id`,`user_id`),
   KEY `user_user_workgroup_membership_fk` (`user_id`),
   CONSTRAINT `user_user_workgroup_membership_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
@@ -1165,4 +1165,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2019-05-13 15:26:34
+-- Dump completed on 2020-06-24 15:25:54

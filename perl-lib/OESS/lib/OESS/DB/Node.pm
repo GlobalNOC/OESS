@@ -19,26 +19,19 @@ sub fetch{
     my $status = $params{'status'} || 'active';
 
     my $node_id = $params{'node_id'};
-
+    my $node_name = $params{'name'};
     my $details;
 
-    my $node = $db->execute_query("select * from node natural join node_instantiation where node_id = ? and node_instantiation.end_epoch = -1", [$node_id]);
+    my $node;
 
-    return if(!defined($node) || !defined($node->[0]));
-
-    $node = $node->[0];
-
-    my $res = $db->execute_query("select interface.interface_id from interface natural join interface_instantiation where interface.node_id = ? and interface_instantiation.end_epoch = -1");
-    
-    my @ints;
-
-    foreach my $int_id (@$res){
-        my $int = OESS::Interface->new( db => $db, interface_id => $int_id);
-        push(@ints, $int);
+    if (defined $node_id) {
+        $node = $db->execute_query("select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node.node_id=? and node_instantiation.end_epoch=-1", [ $node_id ]);
+    } else {
+        $node = $db->execute_query("select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node.name=? and node_instantiation.end_epoch=-1", [ $node_name ]);
     }
 
-    $node->{'interfaces'} = \@ints;
-    return $node;
+    return if (!defined $node || !defined $node->[0]);
+    return $node->[0];
 }
 
 =head2 get_node_interfaces

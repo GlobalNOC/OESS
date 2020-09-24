@@ -235,7 +235,7 @@ CREATE TABLE `entity` (
   PRIMARY KEY (`entity_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
+INSERT INTO `entity` (`name`,`description`) VALUES ('Root','Default Root Entity');
 --
 -- Table structure for table `entity_hierarchy`
 --
@@ -663,7 +663,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('2.0.10');
+INSERT INTO `oess_version` VALUES ('2.0.11');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -876,7 +876,6 @@ CREATE TABLE `user` (
   `given_names` varchar(60) NOT NULL,
   `family_name` varchar(60) NOT NULL,
   `is_admin` int(10) NOT NULL DEFAULT '0',
-  `type` enum('normal','read-only') NOT NULL DEFAULT 'normal',
   `status` enum('active','decom') NOT NULL DEFAULT 'active',
   PRIMARY KEY (`user_id`),
   KEY `user_idx` (`email`)
@@ -908,6 +907,7 @@ DROP TABLE IF EXISTS `user_workgroup_membership`;
 CREATE TABLE `user_workgroup_membership` (
   `workgroup_id` int(10) NOT NULL,
   `user_id` int(10) NOT NULL,
+  `role` enum('admin','normal','read-only') NOT NULL DEFAULT 'read-only',
   PRIMARY KEY (`workgroup_id`,`user_id`),
   KEY `user_user_workgroup_membership_fk` (`user_id`),
   CONSTRAINT `user_user_workgroup_membership_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
@@ -1001,6 +1001,7 @@ CREATE TABLE `vrf_ep_peer` (
   `operational_state` int(1) DEFAULT NULL,
   `state` enum('active','decom') DEFAULT NULL,
   `local_ip` varchar(255) DEFAULT NULL,
+  `ip_version` ENUM('ipv4','ipv6') DEFAULT NULL,
   `md5_key` varchar(255) DEFAULT NULL,
   `circuit_ep_id` int(11) DEFAULT NULL,
   `bfd` int(1) NOT NULL DEFAULT 0,

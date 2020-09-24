@@ -24,13 +24,28 @@ sub fetch{
     my $status = $params{'status'} || 'active';
 
     my $interface_id = $params{'interface_id'};
+    my $cloud_interconnect_id = $params{'cloud_interconnect_id'};
+
+    my $params = [];
+    my $values = [];
+
+    if (defined $params{interface_id}) {
+        push @$params, 'interface.interface_id=?';
+        push @$values, $params{interface_id};
+    }
+    if (defined $params{cloud_interconnect_id}) {
+        push @$params, 'interface.cloud_interconnect_id=?';
+        push @$values, $params{cloud_interconnect_id};
+    }
+    my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : 'WHERE 1 ';
+
 
     my $interface = $db->execute_query(
         "select *, interface_instantiation.capacity_mbps as bandwidth, interface_instantiation.mtu_bytes as mtu
          from interface
          join interface_instantiation on interface.interface_id=interface_instantiation.interface_id and interface_instantiation.end_epoch=-1
-         where interface.interface_id=?",
-        [$interface_id]
+         $where",
+        $values
     );
 
     return if (!defined($interface) || !defined($interface->[0]));
@@ -242,12 +257,11 @@ sub create {
         @_
     };
 
-    return 'Required argument `db` is missing.' if !defined $args->{db};
-    return 'Required argument `model` is missing.' if !defined $args->{model};
-    return 'Required argument `model->description` is missing.' if !defined $args->{model}->{description};
-    return 'Required argument `model->name` is missing.' if !defined $args->{model}->{name};
-    return 'Required argument `model->node_id` is missing.' if !defined $args->{model}->{node_id};
-    return 'Required argument `model->role` is missing.' if !defined $args->{model}->{role};
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
+    return (undef, 'Required argument `model->description` is missing.') if !defined $args->{model}->{description};
+    return (undef, 'Required argument `model->name` is missing.') if !defined $args->{model}->{name};
+    return (undef, 'Required argument `model->node_id` is missing.') if !defined $args->{model}->{node_id};
 
     $args->{model}->{bandwidth} = (exists $args->{model}->{bandwidth}) ? $args->{model}->{bandwidth} : 10000;
     $args->{model}->{cloud_interconnect_id} = (exists $args->{model}->{cloud_interconnect_id}) ? $args->{model}->{cloud_interconnect_id} : undef;
@@ -307,7 +321,8 @@ sub create {
             operational_state       => 'up',                    # Optional
             vlan_tag_range          => '-1',                    # Optional
             mpls_vlan_tag_range     => '1-4095',                # Optional
-            workgroup_id            => 1                        # Optional
+            workgroup_id            => 1,                       # Optional
+            instUpdate              => 1                        # Optional
         }
     );
     die $err if defined $err;
@@ -323,10 +338,8 @@ sub update {
     return 'Required argument `db` is missing.' if !defined $args->{db};
     return 'Required argument `interface` is missing.' if !defined $args->{interface};
     return 'Required argument `interface->interface_id` is missing.' if !defined $args->{interface}->{interface_id};
-
     my $params = [];
     my $values = [];
-
     if (exists $args->{interface}->{cloud_interconnect_id}) {
         push @$params, 'cloud_interconnect_id=?';
         push @$values, $args->{interface}->{cloud_interconnect_id};
@@ -363,18 +376,67 @@ sub update {
         push @$params, 'workgroup_id=?';
         push @$values, $args->{interface}->{workgroup_id};
     }
-
     my $fields = join(', ', @$params);
     push @$values, $args->{interface}->{interface_id};
+    if ($fields ne ""){
+        my $ok = $args->{db}->execute_query(
+            "UPDATE interface SET $fields WHERE interface_id=?",
+            $values
+        );
+    
+        if (!defined $ok) {
+            return $args->{db}->get_error;
+        }
+    }
 
-    my $ok = $args->{db}->execute_query(
-        "UPDATE interface SET $fields WHERE interface_id=?",
-        $values
+    my $inst_params = [];
+    my $inst_values = [];
+
+    my $curr_inst = $args->{db}->execute_query(
+        "select * from interface_instantiation where end_epoch=-1 and interface_id=?",
+        [$args->{interface}->{interface_id}]
     );
-    if (!defined $ok) {
+    if (!defined $curr_inst) {
         return $args->{db}->get_error;
     }
-    return;
+    if (!defined $curr_inst->[0]) {
+        return "Couldn't find instantiation for interface.";
+    }
+    $curr_inst = $curr_inst->[0];
+
+    my $inst_mod = 0;
+    if (exists $args->{interface}->{bandwidth} && $args->{interface}->{bandwidth} != $curr_inst->{capacity_mbps}) {
+        $inst_mod = 1;
+        $curr_inst->{capacity_mbps} = $args->{interface}->{bandwidth};
+    }
+    if (exists $args->{interface}->{mtu} && $args->{interface}->{mtu} != $curr_inst->{mtu_bytes}) {
+        $inst_mod = 1;
+        $curr_inst->{mtu_bytes} = $args->{interface}->{mtu};
+    }
+    if (exists $args->{interface}->{admin_state} && $args->{interface}->{admin_state} ne $curr_inst->{admin_state}) {
+        $inst_mod = 1;
+        $curr_inst->{admin_state} = $args->{interface}->{admin_state};
+    }
+
+    if ($inst_mod) {
+        my $inst_ok = $args->{db}->execute_query(
+            "UPDATE interface_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE interface_id=? and end_epoch = -1",
+            [$args->{interface}->{interface_id}]
+        );
+        if (!defined $inst_ok) {
+            return $args->{db}->get_error;
+        }
+        $inst_ok = $args->{db}->execute_query(
+            "INSERT INTO interface_instantiation (capacity_mbps, mtu_bytes, admin_state, interface_id, start_epoch, end_epoch)
+            VALUES (?,?,?,?, UNIX_TIMESTAMP(NOW()), -1)",
+            [$curr_inst->{capacity_mbps}, $curr_inst->{mtu_bytes}, $curr_inst->{admin_state}, $args->{interface}->{interface_id}]
+        );
+		if (!defined $inst_ok) {
+			return $args->{db}->get_error;
+		}
+     }
+
+     return;
 }
 
 =head2 get_available_internal_vlan

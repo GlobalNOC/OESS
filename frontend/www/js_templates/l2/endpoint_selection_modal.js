@@ -325,22 +325,38 @@ class EndpointSelectionModal2 {
         disabled = 'disabled';
         notAllow = 'cursor: not-allowed;';
       }
-
       let elem = document.createElement('li');
       elem.setAttribute('class', `list-group-item ${disabled}`);
+      if (child.cloud_interconnect_type != null){
       elem.innerHTML = `
-        <div class="radio" style="margin: 0; padding: 0;">
-          <label style="width: 100%; ${notAllow}">
-            <input type="radio"
-                   name="optionsRadios"
-                   id="${child.node} ${child.name}"
-                   value="${child.node} ${child.name}"
-                   ${checked}
-                   ${disabled}
-            />
-            <b>${child.node}</b> ${child.name} <br/><span>${child.utilized_bandwidth}Mb reserved / ${child.bandwidth}Mb total</span>
-          </label>
-        </div>`;
+            <div class="radio" style="margin: 0; padding: 0;">
+              <label style="width: 100%; ${notAllow}">
+                <input type="radio"
+                       name="optionsRadios"
+                       id="${child.node} ${child.name}"
+                       value="${child.node} ${child.name}"
+                       ${checked}
+                       ${disabled}
+                />
+                <b> ${child.node}</b> ${child.name} <br/><span>${child.utilized_bandwidth}Mb reserved / ${child.bandwidth}Mb total</span>    
+                </label>
+            </div>`;
+      }
+      else{
+      elem.innerHTML = `
+           <div class="radio" style="margin: 0; padding: 0;">
+              <label style="width: 100%; ${notAllow}">
+                <input type="radio"
+                       name="optionsRadios"
+                       id="${child.node} ${child.name}"
+                       value="${child.node} ${child.name}"
+                       ${checked}
+                       ${disabled}
+                />
+                <b> ${child.node}</b> ${child.name}</br>    
+                </label>
+            </div>`; 
+      }
       elem.addEventListener('click', function(e) {
         selectedInterface = child.name;
         selectedNode = child.node;

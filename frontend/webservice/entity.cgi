@@ -456,8 +456,13 @@ sub get_entities{
 
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
 
-    my $entities = OESS::DB::Entity::get_entities(db => $db, name => $params->{name}{value});
+    my ($access, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => $username, workgroup_id => $workgroup_id, role => 'read-only');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
 
+    my $entities = OESS::DB::Entity::get_entities(db => $db, name => $params->{name}{value});
     my $results = [];
     foreach my $entity (@$entities) {
         my %vlans;
@@ -506,7 +511,7 @@ sub get_entity_children{
     my $method = shift;
     my $params = shift;
     my $ref = shift;
-
+    
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'entity_id'}{'value'});
 
     if(!defined($entity)){
@@ -526,7 +531,7 @@ sub get_entity_interfaces{
     my $method = shift;
     my $params = shift;
     my $ref    = shift;
-
+    
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'entity_id'}{'value'});
 
     if(!defined($entity)){
@@ -546,20 +551,22 @@ sub get_entity{
     my $method = shift;
     my $params = shift;
     my $ref =  shift;
-
+    
     my $vrf_id = $params->{'vrf_id'}{'value'};
     my $circuit_id = $params->{'circuit_id'}{'value'};
     #verify user is in workgroup
     my $user = OESS::DB::User::find_user_by_remote_auth( db => $db, remote_user => $ENV{'REMOTE_USER'} );
-
     $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'} );
-
-    if(!defined($user)){
+       if(!defined($user)){
         $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in OESS");
         return;
     }
-
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
+    my ($access, $err) = OESS::DB::User::has_workgroup_access(db => $db, username => $username, workgroup_id => $workgroup_id, role => 'read-only');
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    } 
     my $entity = OESS::Entity->new(db => $db, entity_id => $params->{'entity_id'}{'value'});
 
     if(!defined($entity)){
@@ -731,7 +738,8 @@ sub _may_modify_entity {
     # Else, if the user is an admin, they may modify the entity:
     my $user = OESS::User->new(db => $db, user_id => $user_id);
     return 0 if !defined($user);
-    return $user->is_admin && $user->type ne 'read-only';
+    my ($access, $err) = OESS::DB::User::has_system_access(db => $db, username => $username, role => 'normal');
+    return $access;
 }
 
 sub main{

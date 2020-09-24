@@ -46,7 +46,8 @@ function Cookie(){
 	      resultsList: "results",
 	      fields: [{key: "name"},
                        {key: "workgroup_id"},
-                       {key: "username"}
+                       {key: "username"},
+                       {key: "role"}
 		       ],
 	      metafields: {
 		  error: "error"
@@ -58,6 +59,7 @@ function Cookie(){
 			    if(resp.results[i].workgroup_id == workgroup_id){
 				this.data.workgroup_name = resp.results[i].name;
 				this.data.username = resp.results[i].username;
+                this.data.workgroup_role = resp.results[i].username;
 				YAHOO.util.Dom.get("active_workgroup_name").innerHTML = this.data.workgroup_name;
 				break;
 			    }
@@ -116,6 +118,7 @@ function Cookie(){
       var id   = this.data.workgroup_id;
       var name = this.data.workgroup_name;
       var wtype = this.data.workgroup_type;
+      var role = this.data.workgroup_role;
       var username = this.data.username;
       this.data = {};
 
@@ -124,6 +127,7 @@ function Cookie(){
 	  this.data.workgroup_id   = id;
 	  this.data.workgroup_name = name;
           this.data.workgroup_type = wtype;
+          this.data.workgroup_role = role;
           this.data.username = username;
       }
 

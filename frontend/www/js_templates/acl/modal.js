@@ -86,12 +86,18 @@ class ACLModal extends Component {
       this.state.selectedWorkgroupID = acl.workgroup_id || -1;
       this.state.entityID = acl.entity_id;
       this.state.allow = acl.allow_deny;
-      this.state.high = acl.vlan_end;
-      this.state.low = acl.vlan_start;
+      this.state.high = acl.end;
+      this.state.low = acl.start;
       this.state.notes = acl.notes || '';
       this.state.position = acl.eval_position;
       this.state.interfaceID = acl.interface_id;
     }
+    let allowDenyArray = ['allow','deny'];
+    let allowDenyOptions = allowDenyArray.map((ad) => {
+        let selected = ad == this.state.allow ? 'selected' : '';
+        return `<option value="${ad}" ${selected}>${ad}</option>`;
+    }). join('');
+
     workgroups.unshift({workgroup_id: -1, name: 'all'});
 
     let workgroupOptions = workgroups.map((w) => {
@@ -121,8 +127,7 @@ class ACLModal extends Component {
               <div class="form-group">
                 <label for="allowdeny">Allow / Deny</label><br/>
                 <select id="allowdeny" class="form-control" onchange="document.components[${this._id}].setAllow(this)">
-                  <option>allow</option>
-                  <option>deny</option>
+                  ${allowDenyOptions}
                 </select>
               </div>
               <div class="form-group">

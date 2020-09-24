@@ -6,8 +6,16 @@ use warnings;
 package OESS::Interface;
 
 use OESS::DB::Interface;
+use OESS::Cloud::BandwidthValidator;
+
 use Data::Dumper;
 use Log::Log4perl;
+
+=head1 OESS::Interface
+
+    use OESS::Interface
+
+=cut
 
 =head2 new
 
@@ -26,10 +34,10 @@ sub new{
     );
 
     my $self = \%args;
-
     bless $self, $class;
 
     $self->{'logger'} = $logger;
+
 
     if (!defined $self->{'db'}) {
         $self->{'logger'}->warn("No Database Object specified");
@@ -66,6 +74,7 @@ sub from_hash{
     $self->{'acls'} = $hash->{'acls'};
     $self->{'mpls_vlan_tag_range'} = $hash->{'mpls_vlan_tag_range'};
     $self->{'used_vlans'} = $hash->{'used_vlans'};
+    $self->{'admin_state'} = $hash->{'admin_state'};
     $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'workgroup_id'} = $hash->{'workgroup_id'};
     $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
@@ -94,6 +103,7 @@ sub to_hash{
                 node_id => $self->node()->node_id(),
                 node => $self->node()->name(),
                 acls => $acl_models,
+                admin_state => $self->{'admin_state'},
                 operational_state => $self->{'operational_state'},
                 workgroup_id => $self->workgroup_id(),
                 utilized_bandwidth => $self->{'utilized_bandwidth'},
@@ -118,9 +128,9 @@ sub _fetch_from_db{
             }
             $self->{'interface_id'} = $interface_id;
         } else {
-	    $self->{'logger'}->error("Unable to fetch interface $self->{name} on $self->{node} from the db!");
-	    return;
-	}
+            $self->{'logger'}->error("Unable to fetch interface $self->{name} on $self->{node} from the db!");
+            return;
+        }
     }
 
     my $info = OESS::DB::Interface::fetch(db => $self->{'db'}, interface_id => $self->{'interface_id'});
@@ -155,12 +165,56 @@ sub update_db{
     return 1;
 }
 
+=head2 admin_state
+
+=cut
+sub admin_state{
+    my $self = shift;
+    my $admin_state = shift;
+
+    if (defined $admin_state) {
+        $self->{admin_state} = $admin_state;
+    }
+    return $self->{'admin_state'};
+}
+
 =head2 operational_state
 
 =cut
 sub operational_state{
     my $self = shift;
+    my $operational_state = shift;
+
+    if (defined $operational_state) {
+        $self->{operational_state} = $operational_state;
+    }
     return $self->{'operational_state'};
+}
+
+=head2 bandwidth
+
+=cut
+sub bandwidth{
+    my $self = shift;
+    my $bandwidth = shift;
+
+    if (defined $bandwidth) {
+        $self->{bandwidth} = $bandwidth;
+    }
+    return $self->{'bandwidth'};
+}
+
+=head2 mtu
+
+=cut
+sub mtu{
+    my $self = shift;
+    my $mtu = shift;
+
+    if (defined $mtu) {
+        $self->{mtu} = $mtu;
+    }
+    return $self->{'mtu'};
 }
 
 =head2 interface_id
@@ -380,24 +434,30 @@ interface as this interface's max capacity, otherwise we return C<0>.
 =cut
 sub is_bandwidth_valid {
     my $self   = shift;
-    my %params = @_;
+    my $args = {
+        bandwidth => undef,
+        is_admin  => undef,
+        @_
+    };
 
-    my $bandwidth = $params{bandwidth};
-
-    my $aws_conn = { 50 => 1, 100 => 1, 200 => 1, 300 => 1, 400 => 1, 500 => 1, 1000 => 1, 2000 => 1, 5000 => 1 };
-    my $azr_conn = { 0 => 1};
-    my $default  = { 0 => 1 };
-    my $gcp_part = { 50 => 1, 100 => 1, 200 => 1, 300 => 1, 400 => 1, 500 => 1, 1000 => 1, 2000 => 1, 5000 => 1, 10000 => 1 };
-
-    if ($self->cloud_interconnect_type eq 'aws-hosted-connection') {
-        if (defined $aws_conn->{$bandwidth}) { return 1; } else { return 0; }
-    } elsif ($self->cloud_interconnect_type eq 'azure-express-route') {
-        if (defined $azr_conn->{$bandwidth}) { return 1; } else { return 0; }
-    } elsif ($self->cloud_interconnect_type eq 'gcp-partner-interconnect') {
-        if (defined $gcp_part->{$bandwidth}) { return 1; } else { return 0; }
-    } else {
-        if (defined $default->{$bandwidth}) { return 1; } else { return 0; }
+    if (!defined $self->cloud_interconnect_type) {
+        return 1;
     }
+
+    if ($self->cloud_interconnect_type eq 'aws-hosted-vinterface') {
+        return 1;
+    }
+
+    my $validator = new OESS::Cloud::BandwidthValidator(
+        config => "/etc/oess/interface-speed-config.xml",
+        interface => $self
+    );
+    $validator->load;
+
+    return $validator->is_bandwidth_valid(
+        bandwidth => $args->{bandwidth},
+        is_admin  => $args->{is_admin}
+    );
 }
 
 =head2 find_available_unit

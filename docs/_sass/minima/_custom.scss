@@ -18,3 +18,27 @@
     list-style-type: none;
     margin: 0;
 }
+
+/**
+ * CGI Documentation styles
+ */
+
+.cgi-module {
+    font-weight: bold;
+}
+
+.cgi-method {
+    font-weight: bold;
+}
+
+h4.cgi-param {
+    font-family: "Lucida Console", Monaco, monospace;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.cgi-required {
+    font-size: .75em;
+    color: #777;
+}
