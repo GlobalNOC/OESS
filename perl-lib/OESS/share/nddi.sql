@@ -996,7 +996,7 @@ DROP TABLE IF EXISTS `vrf_ep_peer`;
 CREATE TABLE `vrf_ep_peer` (
   `vrf_ep_peer_id` int(10) NOT NULL AUTO_INCREMENT,
   `peer_ip` varchar(255) NOT NULL,
-  `peer_asn` int(10) NOT NULL,
+  `peer_asn` int(10) unsigned DEFAULT NULL,
   `vrf_ep_id` int(11) DEFAULT NULL,
   `operational_state` int(1) DEFAULT NULL,
   `state` enum('active','decom') DEFAULT NULL,
