@@ -7,6 +7,8 @@ lib/OESS/Circuit.pm
 lib/OESS/Cloud.pm
 lib/OESS/Cloud/AWS.pm
 lib/OESS/Cloud/Azure.pm
+lib/OESS/Cloud/AzureInterfaceSelector.pm
+lib/OESS/Cloud/BandwidthValidator.pm
 lib/OESS/Cloud/GCP.pm
 lib/OESS/Config.pm
 lib/OESS/Database.pm
