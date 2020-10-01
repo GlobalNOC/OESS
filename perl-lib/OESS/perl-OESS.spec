@@ -238,6 +238,8 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Cloud.pm
 %{perl_vendorlib}/OESS/Cloud/AWS.pm
 %{perl_vendorlib}/OESS/Cloud/Azure.pm
+%{perl_vendorlib}/OESS/Cloud/AzureInterfaceSelector.pm
+%{perl_vendorlib}/OESS/Cloud/BandwidthValidator.pm
 %{perl_vendorlib}/OESS/Cloud/GCP.pm
 %{perl_vendorlib}/OESS/Config.pm
 %{perl_vendorlib}/OESS/Endpoint.pm
