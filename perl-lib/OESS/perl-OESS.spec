@@ -148,6 +148,8 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Cloud.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::AWS.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::Azure.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::AzureInterfaceSelector.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::BandwidthValidator.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::GCP.3pm.gz
 %doc %{_mandir}/man3/OESS::Config.3pm.gz
 %doc %{_mandir}/man3/OESS::DB.3pm.gz
