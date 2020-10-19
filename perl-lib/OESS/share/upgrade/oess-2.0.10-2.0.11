@@ -67,7 +67,10 @@ sub upgrade{
 
     $sth = $dbh->prepare("ALTER TABLE user DROP COLUMN type");
     $sth->execute() or die "Unable to drop column 'type' in user table";
-    
+
+    $sth = $dbh->prepare("alter table vrf_ep_peer modify column peer_asn int(10) unsigned");
+    $sth->execute() or die "Unable to make peer_asn unsigned in vrf_ep_peer table";
+
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";

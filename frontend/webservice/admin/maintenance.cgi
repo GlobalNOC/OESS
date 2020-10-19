@@ -246,9 +246,9 @@ sub node_maintenances {
     my $results;
     my $node_id = $args->{'node_id'}{'value'};
 
-    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'read-only');
     if (defined $err) {
-        $method->get_error($err);
+        $method->set_error($err);
         return;
     }
     my $data;
@@ -273,9 +273,9 @@ sub start_node_maintenance {
     my $node_id = $args->{'node_id'}{'value'};
     my $description = $args->{'description'}{'value'};
 
-    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'normal');
     if (defined $err) {
-        $method->get_error($err);
+        $method->set_error($err);
         return;
     } 
     if (!defined $node_id) {
@@ -324,9 +324,9 @@ sub end_node_maintenance {
     my $results;
     my $node_id = $args->{'node_id'}{'value'};
     
-    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'normal');
     if (defined $err) {
-        $method->get_error($err);
+        $method->set_error($err);
         return;
     } 
     my $data = $db->end_node_maintenance($node_id);
@@ -354,10 +354,10 @@ sub link_maintenances {
     my ( $method, $args ) = @_ ;
     my $results;
     my $link_id = $args->{'link_id'}{'value'};
-    
-    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'read-only');
     if (defined $err) {
-        $method->get_error($err);
+        $method->set_error($err);
         return;
     } 
     my $data;
@@ -369,7 +369,7 @@ sub link_maintenances {
 
     if (!defined $data) {
         $method->set_error("Failed to retrieve links under maintenance.");
-	return;
+        return;
     }
     $results->{'results'} = $data;
     return $results;
@@ -382,9 +382,9 @@ sub start_link_maintenance {
     my $link_id     = $args->{'link_id'}{'value'};
     my $description = $args->{'description'}{'value'};
     
-    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'normal');
     if (defined $err) {
-        $method->get_error($err);
+        $method->set_error($err);
         return;
     } 
     if (!defined $link_id) {
@@ -428,9 +428,9 @@ sub end_link_maintenance {
     my $results;
     my $link_id = $args->{'link_id'}{'value'};
     
-    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_AUTH}, role => 'normal');
+    my ($auth, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{REMOTE_USER}, role => 'normal');
     if (defined $err) {
-        $method->get_error($err);
+        $method->set_error($err);
         return;
     } 
     my $data = $db->end_link_maintenance($link_id);

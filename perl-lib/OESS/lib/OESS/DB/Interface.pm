@@ -257,12 +257,11 @@ sub create {
         @_
     };
 
-    return 'Required argument `db` is missing.' if !defined $args->{db};
-    return 'Required argument `model` is missing.' if !defined $args->{model};
-    return 'Required argument `model->description` is missing.' if !defined $args->{model}->{description};
-    return 'Required argument `model->name` is missing.' if !defined $args->{model}->{name};
-    return 'Required argument `model->node_id` is missing.' if !defined $args->{model}->{node_id};
-    return 'Required argument `model->role` is missing.' if !defined $args->{model}->{role};
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
+    return (undef, 'Required argument `model->description` is missing.') if !defined $args->{model}->{description};
+    return (undef, 'Required argument `model->name` is missing.') if !defined $args->{model}->{name};
+    return (undef, 'Required argument `model->node_id` is missing.') if !defined $args->{model}->{node_id};
 
     $args->{model}->{bandwidth} = (exists $args->{model}->{bandwidth}) ? $args->{model}->{bandwidth} : 10000;
     $args->{model}->{cloud_interconnect_id} = (exists $args->{model}->{cloud_interconnect_id}) ? $args->{model}->{cloud_interconnect_id} : undef;

@@ -230,7 +230,7 @@ sub register_webservice_methods {
 
     #add the required input paramter vlan_start
     $method->add_input_parameter(
-        name            => 'vlan_start',
+        name            => 'start',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => "the start vlan tag."
@@ -238,7 +238,7 @@ sub register_webservice_methods {
 
     #add the optional input paramter vlan_end
     $method->add_input_parameter(
-        name            => 'vlan_end',
+        name            => 'end',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 0,
         description     => "the end vlan tag."
@@ -408,8 +408,8 @@ sub update_acl {
 
     my $acl_id       = $args->{interface_acl_id}{value};
     my $workgroup_id = $args->{workgroup_id}{value};
-    my $vlan_start   = $args->{vlan_start}{value};
-    my $vlan_end     = $args->{vlan_end}{value};
+    my $vlan_start   = $args->{start}{value};
+    my $vlan_end     = $args->{end}{value};
     my $logger       = Log::Log4perl->get_logger("OESS.ACL");
 
     if (!defined $db) {
@@ -468,8 +468,8 @@ sub update_acl {
     $acl->{entity_id}     = $args->{entity_id}{value};
     $acl->{allow_deny}    = $args->{allow_deny}{value};
     $acl->{eval_position} = $args->{eval_position}{value};
-    $acl->{start}         = $args->{vlan_start}{value};
-    $acl->{end}           = $args->{vlan_end}{value};
+    $acl->{start}         = $args->{start}{value};
+    $acl->{end}           = $args->{end}{value};
     $acl->{notes}         = $args->{notes}{value};
     my $success = $acl->update_db();
 

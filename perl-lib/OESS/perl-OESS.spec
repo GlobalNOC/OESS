@@ -1,7 +1,7 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
 Version: 2.0.11
-Release: 1%{?dist}
+Release: 3%{?dist}
 License: APL 2.0
 Group: Network
 URL: http://globalnoc.iu.edu
@@ -148,6 +148,8 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Cloud.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::AWS.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::Azure.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::AzureInterfaceSelector.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::BandwidthValidator.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::GCP.3pm.gz
 %doc %{_mandir}/man3/OESS::Config.3pm.gz
 %doc %{_mandir}/man3/OESS::DB.3pm.gz
@@ -238,6 +240,8 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Cloud.pm
 %{perl_vendorlib}/OESS/Cloud/AWS.pm
 %{perl_vendorlib}/OESS/Cloud/Azure.pm
+%{perl_vendorlib}/OESS/Cloud/AzureInterfaceSelector.pm
+%{perl_vendorlib}/OESS/Cloud/BandwidthValidator.pm
 %{perl_vendorlib}/OESS/Cloud/GCP.pm
 %{perl_vendorlib}/OESS/Config.pm
 %{perl_vendorlib}/OESS/Endpoint.pm

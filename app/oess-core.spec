@@ -1,6 +1,6 @@
 Name:		oess-core
 Version:	2.0.11
-Release:	1%{?dist}
+Release:	3%{?dist}
 Summary:	The core OESS service providers
 
 Group:		Network
