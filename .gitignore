@@ -51,3 +51,4 @@ perl-lib/OESS/lib/OESS/pod2htmi.tmp
 perl-lib/OESS/lib/OESS/t/conf/database.xml
 frontend/.htpasswd
 *.DS_Store
+.env
