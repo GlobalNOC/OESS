@@ -82,6 +82,14 @@ sub db_credentials {
             password => $password};
 }
 
+=head2 filename
+
+=cut
+sub filename {
+    my $self = shift;
+    return $self->{config_filename};
+}
+
 =head2 fwdctl_enabled
 
 =cut
@@ -138,7 +146,7 @@ sub network_type {
     }
 
     my $type = $self->{'config'}->{'network_type'};
-    my $valid_types = ['openflow', 'vpn-mpls', 'evpn-vxlan'];
+    my $valid_types = ['openflow', 'vpn-mpls', 'evpn-vxlan', 'nso'];
     foreach my $valid_type (@$valid_types) {
         if ($type eq $valid_type) {
             return $type;

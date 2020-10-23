@@ -7,7 +7,7 @@ use AnyEvent;
 use Data::Dumper;
 use GRNOC::RabbitMQ::Method;
 use JSON;
-use Log::Log4per;
+use Log::Log4perl;
 
 use OESS::Config;
 use OESS::DB;
@@ -23,15 +23,17 @@ use OESS::RabbitMQ::Dispatcher;
 sub new {
     my $class = shift;
     my $args  = {
-        config => '/etc/oess/database.xml',
-        logger => Log::Log4perl->get_logger('OESS.NSO.Discovery'),
+        config          => undef,
+        config_filename => '/etc/oess/database.xml',
+        logger          => Log::Log4perl->get_logger('OESS.NSO.Discovery'),
         @_
     };
     my $self = bless $args, $class;
 
-    $self->{config_filename} = $self->{config};
-    $self->{config} = new OESS::Config(config_filename => $self->{config_filename});
-    $self->{db} = new OESS::DB(config => $self->{config_filename});
+    if (!defined $self->{config}) {
+        $self->{config} = new OESS::Config(config_filename => $self->{config_filename});
+    }
+    $self->{db} = new OESS::DB(config => $self->{config}->filename);
 
     # When this process receives sigterm send an event to notify all
     # children to exit cleanly.
@@ -82,9 +84,16 @@ sub link_handler {
 
 =cut
 sub new_switch {
-    my $self = shift;
+    my $self   = shift;
+    my $method = shift;
+    my $params = shift;
 
-    return 1;
+    my $success = $method->{'success_callback'};
+    my $error   = $method->{'error_callback'};
+
+    warn "new_switch: $params->{node_id}{value}";
+
+    return &$success({ status => 1 });
 }
 
 =head2 start
@@ -115,8 +124,10 @@ sub start {
     );
 
     $self->{dispatcher} = new OESS::RabbitMQ::Dispatcher(
-        queue => 'oess-discovery',
-        topic => 'oess.discovery.rpc'
+        # queue => 'oess-discovery',
+        # topic => 'oess.discovery.rpc'
+        queue => 'MPLS-Discovery',
+        topic => 'MPLS.Discovery.RPC'
     );
 
     my $new_switch = new GRNOC::RabbitMQ::Method(
