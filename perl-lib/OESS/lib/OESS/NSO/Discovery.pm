@@ -11,6 +11,7 @@ use Log::Log4perl;
 
 use OESS::Config;
 use OESS::DB;
+use OESS::DB::Node;
 use OESS::RabbitMQ::Dispatcher;
 
 =head1 OESS::NSO::Discovery
@@ -34,6 +35,7 @@ sub new {
         $self->{config} = new OESS::Config(config_filename => $self->{config_filename});
     }
     $self->{db} = new OESS::DB(config => $self->{config}->filename);
+    $self->{nodes} = {};
 
     # When this process receives sigterm send an event to notify all
     # children to exit cleanly.
@@ -55,19 +57,34 @@ sub connection_handler {
 
 =head2 device_handler
 
+device_handler queries each devices for basic system info:
+- loopback address
+- firmware version
+
 =cut
 sub device_handler {
     my $self = shift;
 
+    $self->{logger}->info("Calling device_handler.");
+    foreach my $key (%{$self->{nodes}}) {
+
+    }
     return 1;
 }
 
 =head2 interface_handler
 
+interface_handler queries each device for interface configuration and
+operational state.
+
 =cut
 sub interface_handler {
     my $self = shift;
 
+    $self->{logger}->info("Calling interface_handler.");
+    foreach my $key (%{$self->{nodes}}) {
+
+    }
     return 1;
 }
 
@@ -91,7 +108,13 @@ sub new_switch {
     my $success = $method->{'success_callback'};
     my $error   = $method->{'error_callback'};
 
-    warn "new_switch: $params->{node_id}{value}";
+    my $node = OESS::DB::Node::fetch(db => $self->{db}, node_id => $params->{node_id}{value});
+    if (!defined $node) {
+        my $err = "Couldn't lookup node $params->{node_id}{value}. Discovery will not properly complete on this node.";
+        $self->{logger}->error($err);
+        &$error($err);
+    }
+    $self->{nodes}->{$params->{node_id}{value}} = $node;
 
     return &$success({ status => 1 });
 }
