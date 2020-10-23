@@ -162,7 +162,11 @@ sub peer_asn{
 =cut
 sub md5_key{
     my $self = shift;
-    return $self->{'md5_key'};
+    my $md5_key = shift;
+    if (defined $md5_key) {
+        $self->{md5_key} = $md5_key;
+    }
+    return $self->{md5_key};
 }
 
 =head2 vrf_ep_id

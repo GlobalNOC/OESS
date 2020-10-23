@@ -200,6 +200,10 @@ sub update {
         push @$params, 'bfd=?';
         push @$values, $args->{peer}->{bfd};
     }
+    if (defined $args->{peer}->{md5_key}) {
+        push @$params, 'md5_key=?';
+        push @$values, $args->{peer}->{md5_key};
+    }
 
     my $fields = join(', ', @$params);
     push @$values, $args->{peer}->{vrf_ep_peer_id};
