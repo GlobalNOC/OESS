@@ -20,6 +20,7 @@ sleep 7
 # Populate OESS config with mysql credentials
 sed -i "s/oess_test/oess/" /etc/oess/database.xml
 sed -i "s/test/$MYSQL_PASSWORD/" /etc/oess/database.xml
+sed -i "s/vpn\-mpls/$OESS_NETWORK_TYPE/" /etc/oess/database.xml
 
 # Start OESS
 /usr/bin/oess-notify.pl &
