@@ -34,6 +34,16 @@ sub fetch{
     return $node->[0];
 }
 
+=head2 fetch_all
+
+=cut
+sub fetch_all {
+    my %params = @_;
+    my $db = $params{'db'};
+
+    return $db->execute_query("select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node_instantiation.end_epoch=-1", []);
+}
+
 =head2 get_node_interfaces
 
 =cut

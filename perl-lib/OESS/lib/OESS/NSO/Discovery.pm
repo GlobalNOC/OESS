@@ -6,9 +6,11 @@ package OESS::NSO::Discovery;
 use AnyEvent;
 use Data::Dumper;
 use GRNOC::RabbitMQ::Method;
+use HTTP::Request::Common;
 use JSON;
 use Log::Log4perl;
-
+use LWP::UserAgent;
+use XML::LibXML;
 use OESS::Config;
 use OESS::DB;
 use OESS::DB::Node;
@@ -37,6 +39,11 @@ sub new {
     $self->{db} = new OESS::DB(config => $self->{config}->filename);
     $self->{nodes} = {};
 
+    $self->{www} = new LWP::UserAgent;
+    my $host = $self->{config}->nso_host;
+    $host =~ s/http(s){0,1}:\/\///g; # Strip http:// or https:// from string
+    $self->{www}->credentials($host, "restconf", $self->{config}->nso_username, $self->{config}->nso_password);
+
     # When this process receives sigterm send an event to notify all
     # children to exit cleanly.
     $SIG{TERM} = sub {
@@ -64,10 +71,38 @@ device_handler queries each devices for basic system info:
 =cut
 sub device_handler {
     my $self = shift;
-
     $self->{logger}->info("Calling device_handler.");
-    foreach my $key (%{$self->{nodes}}) {
 
+    foreach my $key (keys %{$self->{nodes}}) {
+        my $node = $self->{nodes}->{$key};
+
+        my $dom = eval {
+            my $res = $self->{www}->get($self->{config}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}");
+            return XML::LibXML->load_xml(string => $res->content);
+        };
+        if ($@) {
+            warn 'tailf-ncs:devices:' . $@;
+            $self->{logger}->error('tailf-ncs:devices:' . $@);
+            next;
+        }
+
+        my $device = eval {
+            return {
+                name          => $dom->findvalue('/ncs:device/ncs:name'),
+                platform      => $dom->findvalue('/ncs:device/ncs:platform/ncs:name'),
+                version       => $dom->findvalue('/ncs:device/ncs:platform/ncs:version'),
+                model         => $dom->findvalue('/ncs:device/ncs:platform/ncs:model'),
+                serial_number => $dom->findvalue('/ncs:device/ncs:platform/ncs:serial-number')
+            };
+        };
+        if ($@) {
+            warn 'device:' . $@;
+            $self->{logger}->error('device:' . $@);
+            next;
+        }
+
+        # TODO save nso queried data into db
+        warn 'device: ' . Dumper($device);
     }
     return 1;
 }
@@ -80,10 +115,45 @@ operational state.
 =cut
 sub interface_handler {
     my $self = shift;
-
     $self->{logger}->info("Calling interface_handler.");
-    foreach my $key (%{$self->{nodes}}) {
 
+    foreach my $key (keys %{$self->{nodes}}) {
+        my $node = $self->{nodes}->{$key};
+
+        my $dom = eval {
+            my $res = $self->{www}->get($self->{config}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}/config/tailf-ned-cisco-ios-xr:interface");
+            return XML::LibXML->load_xml(string => $res->content);
+        };
+        if ($@) {
+            warn 'tailf-ned-cisco-ios-xr:interface:' . $@;
+            $self->{logger}->error('tailf-ned-cisco-ios-xr:interface:' . $@);
+            next;
+        }
+
+        my $ports = eval {
+            my $result = [];
+
+            my @gb_ports = $dom->findnodes('/cisco-ios-xr:interface/cisco-ios-xr:GigabitEthernet');
+            foreach my $port (@gb_ports) {
+                my $port_info = {
+                    admin_state => $port->exists('./cisco-ios-xr:shutdown') ? 'down' : 'up',
+                    bandwidth   => $port->findvalue('./cisco-ios-xr:speed') || 1000,
+                    description => $port->findvalue('./cisco-ios-xr:description') || '',
+                    mtu         => $port->findvalue('./cisco-ios-xr:mtu') || 0,
+                    name        => $port->findvalue('./cisco-ios-xr:id')
+                };
+                push @$result, $port_info;
+            }
+            return $result;
+        };
+        if ($@) {
+            warn 'port_info:' . $@;
+            $self->{logger}->error('port_info:' . $@);
+            next;
+        }
+
+        # TODO save nso queried data into db
+        warn 'ports: ' . Dumper($ports);
     }
     return 1;
 }
@@ -116,6 +186,12 @@ sub new_switch {
     }
     $self->{nodes}->{$params->{node_id}{value}} = $node;
 
+    warn "Switch $node->{name} registered with discovery.";
+    $self->{logger}->info("Switch $node->{name} registered with discovery.");
+
+    $self->device_handler;
+    $self->interface_handler;
+
     return &$success({ status => 1 });
 }
 
@@ -125,6 +201,17 @@ sub new_switch {
 sub start {
     my $self = shift;
 
+    # Load devices from database
+    my $nodes = OESS::DB::Node::fetch_all(db => $self->{db});
+    if (!defined $nodes) {
+        warn "Couldn't lookup nodes. Discovery will not collect data on any existing nodes.";
+        $self->{logger}->error("Couldn't lookup nodes. Discovery will not collect data on any existing nodes.");
+    }
+    foreach my $node (@$nodes) {
+        $self->{nodes}->{$node->{node_id}} = $node;
+    }
+
+    # Setup polling subroutines
     $self->{connection_timer} = AnyEvent->timer(
         after    => 20,
         interval => 60,

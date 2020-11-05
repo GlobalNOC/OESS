@@ -21,6 +21,9 @@ sleep 7
 sed -i "s/oess_test/oess/" /etc/oess/database.xml
 sed -i "s/test/$MYSQL_PASSWORD/" /etc/oess/database.xml
 sed -i "s/vpn\-mpls/$OESS_NETWORK_TYPE/" /etc/oess/database.xml
+sed -i "s/NSO_HOST/$NSO_HOST/" /etc/oess/database.xml
+sed -i "s/NSO_PASSWORD/$NSO_PASSWORD/" /etc/oess/database.xml
+sed -i "s/NSO_USERNAME/$NSO_USERNAME/" /etc/oess/database.xml
 
 # Start OESS
 /usr/bin/oess-notify.pl &

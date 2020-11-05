@@ -244,4 +244,31 @@ sub third_party_mgmt {
     return $self->{'config'}->{'third_party_mgmt'};
 }
 
+=head2 nso_host
+
+=cut
+sub nso_host {
+    my $self = shift;
+    return if (!defined $self->{config}->{nso});
+    return $self->{config}->{nso}->{host};
+}
+
+=head2 nso_password
+
+=cut
+sub nso_password {
+    my $self = shift;
+    return if (!defined $self->{config}->{nso});
+    return $self->{config}->{nso}->{password};
+}
+
+=head2 nso_username
+
+=cut
+sub nso_username {
+    my $self = shift;
+    return if (!defined $self->{config}->{nso});
+    return $self->{config}->{nso}->{username};
+}
+
 1;
