@@ -11,9 +11,12 @@ use JSON;
 use Log::Log4perl;
 use LWP::UserAgent;
 use XML::LibXML;
+
 use OESS::Config;
 use OESS::DB;
+use OESS::DB::Interface;
 use OESS::DB::Node;
+use OESS::Node;
 use OESS::RabbitMQ::Dispatcher;
 
 =head1 OESS::NSO::Discovery
@@ -86,7 +89,7 @@ sub device_handler {
             next;
         }
 
-        my $device = eval {
+        my $data = eval {
             return {
                 name          => $dom->findvalue('/ncs:device/ncs:name'),
                 platform      => $dom->findvalue('/ncs:device/ncs:platform/ncs:name'),
@@ -101,8 +104,14 @@ sub device_handler {
             next;
         }
 
-        # TODO save nso queried data into db
-        warn 'device: ' . Dumper($device);
+        $self->{db}->start_transaction;
+        my $device = new OESS::Node(db => $self->{db}, name => $data->{name});
+        $device->name($data->{name});
+        $device->model($data->{model});
+        $device->sw_version($data->{version});
+        $device->vendor('Cisco') if ($data->{platform} eq 'ios-xr');
+        $device->update;
+        $self->{db}->commit;
     }
     return 1;
 }
@@ -125,8 +134,11 @@ sub interface_handler {
             return XML::LibXML->load_xml(string => $res->content);
         };
         if ($@) {
-            warn 'tailf-ned-cisco-ios-xr:interface:' . $@;
-            $self->{logger}->error('tailf-ned-cisco-ios-xr:interface:' . $@);
+            # Don't log Empty String error as there are simply no interfaces
+            if ($@ !~ /Empty String/g) {
+                warn 'tailf-ned-cisco-ios-xr:interface:' . $@;
+                $self->{logger}->error('tailf-ned-cisco-ios-xr:interface:' . $@);
+            }
             next;
         }
 

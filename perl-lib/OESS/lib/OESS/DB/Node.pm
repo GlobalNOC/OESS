@@ -176,7 +176,7 @@ sub _process_tag_string{
             model                  => 'mx',              # Optional
             sw_version             => '13.3R3',          # Optional
             mgmt_addr              => '192.168.1.1',     # Optional
-            loopback_addr          => '10.0.0.1',        # Optional
+            loopback_address       => '10.0.0.1',        # Optional
             tcp_port               => 830                # Optional
         }
     );
@@ -291,8 +291,9 @@ sub update {
     $inst_ok = $args->{db}->execute_query("
         INSERT INTO node_instantiation (
             admin_state, vendor, model, sw_version, mgmt_addr,
-            loopback_address, tcp_port, node_id, start_epoch, end_epoch
-        ) VALUES (?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
+            loopback_address, tcp_port, node_id, openflow, mpls,
+            start_epoch, end_epoch
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
         ",
         [
             $node->{admin_state},
@@ -302,7 +303,10 @@ sub update {
             $node->{mgmt_addr},
             $node->{loopback_address},
             $node->{tcp_port},
-            $args->{node}->{node_id}]
+            $args->{node}->{node_id},
+            $args->{node}->{openflow} || 0,
+            $args->{node}->{mpls} || 1
+        ]
     );
     if (!defined $inst_ok) {
         return $args->{db}->get_error;
