@@ -106,6 +106,10 @@ sub device_handler {
 
         $self->{db}->start_transaction;
         my $device = new OESS::Node(db => $self->{db}, name => $data->{name});
+        if (!defined $device) {
+            warn "Couldn't find node $data->{name}.";
+            $self->{logger}->error("Couldn't find node $data->{name}.");
+        }
         $device->name($data->{name});
         $device->model($data->{model});
         $device->sw_version($data->{version});
@@ -166,6 +170,36 @@ sub interface_handler {
 
         # TODO save nso queried data into db
         warn 'ports: ' . Dumper($ports);
+        $self->{db}->start_transaction;
+        foreach my $data (@$ports) {
+            my $port = new OESS::Interface(db => $self->{db}, node => $node->{name}, name => $data->{name});
+            if (defined $port) {
+                $port->admin_state($data->{admin_state});
+                $port->bandwidth($data->{bandwidth});
+                $port->description($data->{description});
+                $port->mtu($data->{mtu});
+                $port->update_db;
+            } else {
+                warn "Couldn't find interface $node->{name} $data->{name}; Creating interface.";
+                $self->{logger}->warn("Couldn't find interface $node->{name} $data->{name}; Creating interface.");
+
+                $port = new OESS::Interface(db => $self->{db}, model => {
+                    admin_state => $data->{admin_state},
+                    bandwidth => $data->{bandwidth},
+                    description => $data->{description},
+                    mtu => $data->{mtu},
+                    name => $data->{name},
+                    operational_state => $data->{admin_state} # Using admin_state as best guess for now
+                });
+                
+                my ($port_id, $port_err) = $port->create(node_id => $node->{node_id});
+                if (defined $port_err) {
+                    warn "Couldn't create interface $node->{name} $data->{name}.";
+                    $self->{logger}->error("Couldn't create interface $node->{name} $data->{name}.")
+                }
+            }
+        }
+        $self->{db}->commit;
     }
     return 1;
 }
