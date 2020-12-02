@@ -302,7 +302,7 @@ sub delete_user {
 sub edit_user {
     my %params = @_;
     my $db = $params{'db'};
-    
+
     my $user_id      = $params{'user_id'};
     my $given_name   = $params{'given_name'};
     my $family_name  = $params{'family_name'};
@@ -317,37 +317,50 @@ sub edit_user {
     return (undef, 'Required argument `email` is missing.') if !defined $email;
     return (undef, 'Required argument `auth_names` is missing.') if !defined $auth_names;
     return (undef, 'Required argument `status` is missing.') if !defined $status;
-     
+
     if ($given_name =~ /^system$/ || $family_name =~ /^system$/) {
         return(undef, "User 'system' is reserved.");
     }
 
+    my $query = "UPDATE user SET email = ?, given_names = ?, family_name = ?, status = ? WHERE user_id = ?";
 
-    my $query = "UPDATE user SET email = ?, given_names = ?, family_name = ?, status = ? WHERE user_id = $user_id";
-
-    my $results = $db->execute_query($query, [$email, $given_name, $family_name, $status]);
-
+    my $results = $db->execute_query($query, [$email, $given_name, $family_name, $status, $user_id]);
     if (!defined $user_id || $results == 0) {
         return (undef, "Unable to edit user - does this user actually exist?");
     }
 
-    # TODO Blindly removing and adding remote_auth entries for a user
-    # causes a lot of churn in database ids. Modify this logic to only
-    # update the remote_auth table when required.
-    $db->execute_query("DELETE FROM remote_auth WHERE user_id = ?", [$user_id]);
+    if (ref($auth_names) ne 'ARRAY') {
+        $auth_names = [$auth_names];
+    }
 
-    if (ref($auth_names) eq 'ARRAY') {
-        foreach my $name (@$auth_names){
-            if (length $name >=1) {
-                $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-                $db->execute_query($query, [$name,$user_id]);
-            }
+    my $uindex = {};
+    my $usernames = $db->execute_query("select * from remote_auth where user_id=?", [$user_id]);
+    if (!defined $usernames) {
+        warn "edit_user called on user without any known usernames.";
+        $usernames = [];
+    }
+    foreach my $u (@$usernames) {
+        $uindex->{$u->{auth_name}} = $u;
+    }
+
+    foreach my $name (@$auth_names) {
+        if (defined $uindex->{$name}) {
+            delete $uindex->{$name};
+            next;
         }
-     } else {
-         return (undef, 'Auth_Names is required to be at least 1 character.') if length $auth_names <1;
-         $query = "INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)";
-         $db->execute_query($query, [$auth_names, $user_id]);
-     }
+
+        return (undef, 'auth_names is required to be at least 1 character.') if length $auth_names < 1;
+
+        my $ok = $db->execute_query("INSERT INTO remote_auth (auth_name, user_id) VALUES (?, ?)", [$name, $user_id]);
+        return (undef, $db->get_error) if !defined $ok;
+
+        delete $uindex->{$name};
+    }
+
+    foreach my $name (keys %$uindex) {
+        my $ok = $db->execute_query("delete from remote_auth where auth_name=?", [$name]);
+        return (undef, $db->get_error) if !defined $ok;
+    }
 
      return (1,undef)
 }
