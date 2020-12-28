@@ -10,7 +10,6 @@ use Proc::Daemon;
 use Data::Dumper;
 
 use OESS::Config;
-use OESS::Database;
 use OESS::MPLS::Discovery;
 use OESS::NSO::Discovery;
 
@@ -18,8 +17,7 @@ my $pid_file = "/var/run/oess/mpls_discovery.pid";
 my $cnf_file = "/etc/oess/database.xml";
 
 sub core{
-    #basic init stuffs
-    Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
+    Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
     my $config = new OESS::Config(config_filename => $cnf_file);
     if ($config->network_type eq 'nso') {
@@ -32,8 +30,10 @@ sub core{
         AnyEvent->condvar->recv;
     }
     else {
-        die "Unexpected network type configured."
+        die "Unexpected network type configured.";
     }
+
+    Log::Log4perl->get_logger('OESS.MPLS.Discovery.APP')->info("Starting OESS.MPLS.Discovery event loop.");
 }
 
 sub main{

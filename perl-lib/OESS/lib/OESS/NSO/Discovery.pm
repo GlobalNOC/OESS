@@ -224,6 +224,11 @@ sub new_switch {
     my $success = $method->{'success_callback'};
     my $error   = $method->{'error_callback'};
 
+    if (defined $self->{nodes}->{$params->{node_id}{value}}) {
+        $self->{logger}->warn("Node $params->{node_id}{value} already registered with Discovery.");
+        return &$success({ status => 1 });
+    }
+
     my $node = OESS::DB::Node::fetch(db => $self->{db}, node_id => $params->{node_id}{value});
     if (!defined $node) {
         my $err = "Couldn't lookup node $params->{node_id}{value}. Discovery will not properly complete on this node.";
@@ -232,9 +237,10 @@ sub new_switch {
     }
     $self->{nodes}->{$params->{node_id}{value}} = $node;
 
-    warn "Switch $node->{name} registered with discovery.";
-    $self->{logger}->info("Switch $node->{name} registered with discovery.");
+    warn "Switch $node->{name} registered with Discovery.";
+    $self->{logger}->info("Switch $node->{name} registered with Discovery.");
 
+    # Make first invocation of polling subroutines
     $self->device_handler;
     $self->interface_handler;
 
@@ -288,7 +294,7 @@ sub start {
 
     my $new_switch = new GRNOC::RabbitMQ::Method(
         name        => 'new_switch',
-        description => 'Add a new switch to the database',
+        description => 'Add a new switch process to Discovery',
         async       => 1,
         callback    => sub { $self->new_switch(@_); }
     );
