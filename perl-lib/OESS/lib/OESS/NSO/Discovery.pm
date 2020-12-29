@@ -148,17 +148,20 @@ sub interface_handler {
 
         my $ports = eval {
             my $result = [];
+            my $types  = ["GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
 
-            my @gb_ports = $dom->findnodes('/cisco-ios-xr:interface/cisco-ios-xr:GigabitEthernet');
-            foreach my $port (@gb_ports) {
-                my $port_info = {
-                    admin_state => $port->exists('./cisco-ios-xr:shutdown') ? 'down' : 'up',
-                    bandwidth   => $port->findvalue('./cisco-ios-xr:speed') || 1000,
-                    description => $port->findvalue('./cisco-ios-xr:description') || '',
-                    mtu         => $port->findvalue('./cisco-ios-xr:mtu') || 0,
-                    name        => $port->findvalue('./cisco-ios-xr:id')
-                };
-                push @$result, $port_info;
+            foreach my $type (@$types) {
+                my @gb_ports = $dom->findnodes("/cisco-ios-xr:interface/cisco-ios-xr:$type");
+                foreach my $port (@gb_ports) {
+                    my $port_info = {
+                        admin_state => $port->exists('./cisco-ios-xr:shutdown') ? 'down' : 'up',
+                        bandwidth   => $port->findvalue('./cisco-ios-xr:speed') || 1000,
+                        description => $port->findvalue('./cisco-ios-xr:description') || '',
+                        mtu         => $port->findvalue('./cisco-ios-xr:mtu') || 0,
+                        name        => $type . $port->findvalue('./cisco-ios-xr:id')
+                    };
+                    push @$result, $port_info;
+                }
             }
             return $result;
         };
@@ -168,8 +171,6 @@ sub interface_handler {
             next;
         }
 
-        # TODO save nso queried data into db
-        warn 'ports: ' . Dumper($ports);
         $self->{db}->start_transaction;
         foreach my $data (@$ports) {
             my $port = new OESS::Interface(db => $self->{db}, node => $node->{name}, name => $data->{name});
