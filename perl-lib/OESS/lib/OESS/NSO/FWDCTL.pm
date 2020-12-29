@@ -75,8 +75,12 @@ sub start {
         $self->{nodes}->{$node->{node_id}} = $node;
     }
 
-    # Setup polling subroutines here:
-    # See OESS::NSO::Discovery::start for examples
+    # Setup polling subroutines
+    $self->{connection_timer} = AnyEvent->timer(
+        after    => 5,
+        interval => 300,
+        cb       => sub { $self->diff(@_); }
+    );
 
     $self->{dispatcher} = new OESS::RabbitMQ::Dispatcher(
         # queue => 'oess-fwdctl',
@@ -351,6 +355,19 @@ sub modifyVrf {
     return &$success({ status => 1 });
 }
 
+=head2 diff
+
+diff reads all connections from cache, loads all connections from nso,
+determines if a configuration change within nso is required, and if so, make
+the change.
+
+=cut
+sub diff {
+    my $self = shift;
+
+    return 1;
+}
+
 =head2 get_diff_text
 
 =cut
@@ -392,8 +409,8 @@ sub new_switch {
     warn "Switch $node->{name} registered with FWDCTL.";
     $self->{logger}->info("Switch $node->{name} registered with FWDCTL.");
 
-    # Make first invocation of polling subroutines here:
-    # See OESS::NSO::Discovery::start for examples
+    # Make first invocation of polling subroutines
+    $self->diff;
 
     return &$success({ status => 1 });
 }
