@@ -118,6 +118,59 @@ sub delete_l2connection {
     return;
 }
 
+=head2 edit_l2connection
+
+    my $err = edit_l2connection($l2connection);
+
+=cut
+sub edit_l2connection {
+    my $self = shift;
+    my $conn = shift; # OESS::L2Circuit
+    warn Dumper($conn->to_hash);
+
+    my $eps = [];
+    foreach my $ep (@{$conn->endpoints}) {
+        my $obj = {
+            endpoint_id => $ep->circuit_ep_id,
+            bandwidth   => $ep->bandwidth,
+            device      => $ep->node,
+            interface   => $ep->interface,
+            tag         => $ep->tag
+        };
+        if (defined $ep->inner_tag) {
+            $obj->{inner_tag} = $ep->inner_tag;
+        }
+        push(@$eps, $obj);
+    }
+
+    my $conn_id = $conn->circuit_id;
+    my $payload = {
+        "internet2-l2connection:internet2-l2connection" => [
+            {
+                "connection_id" => $conn_id,
+                "endpoint" => $eps
+            }
+        ]
+    };
+
+    eval {
+        my $res = $self->{www}->put(
+            $self->{config}->nso_host . "/restconf/data/internet2-l2connection:internet2-l2connection=$conn_id",
+            'Content-type' => 'application/yang-data+json',
+            'Content'      => encode_json($payload)
+        );
+        return if ($res->content eq ''); # Empty payload indicates success
+
+        my $result = decode_json($res->content);
+        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+    };
+    if ($@) {
+        my $err = $@;
+        warn $err;
+        return $err;
+    }
+    return;
+}
 
 =head2 get_json_errors
 

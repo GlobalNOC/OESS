@@ -517,32 +517,33 @@ sub _process_circuit_details{
     $self->{'has_tertiary_path'} = (defined $hash->{'tertiary_links'} && @{$hash->{'tertiary_links'}} > 0) ? 1 : 0;
 
     # TODO Load endpoints
-
-    foreach my $endpoint (@{$hash->{'endpoints'}}){
-        if (!defined $self->{endpoints}) {
-            $self->{endpoints} = [];
+    if (defined $hash->{endpoints}) {
+        $self->{endpoints} = [];
+        foreach my $ep (@{$hash->{endpoints}}) {
+            push(@{$self->{endpoints}}, new OESS::Endpoint(db => $self->{db}, model => $ep));
         }
-
-        if ($endpoint->{'local'} == 0) {
-            $self->{'interdomain'} = 1;
-        }
-
-        my $entity = OESS::Entity->new(
-            db => $self->{'db'},
-            interface_id => $endpoint->{'interface_id'},
-            vlan => $endpoint->{'tag'}
-        );
-        if (!defined $entity) {
-            next;
-        }
-
-        push @{$self->{endpoints}}, $entity;
-        # $endpoint->{'entity'} = $entity->to_hash();
     }
 
-    # warn Dumper($self);
-    # if (!$self->{'just_display'}) {
-    #     $self->_create_graph();
+    # foreach my $endpoint (@{$hash->{'endpoints'}}){
+    #     if (!defined $self->{endpoints}) {
+    #         $self->{endpoints} = [];
+    #     }
+
+    #     if ($endpoint->{'local'} == 0) {
+    #         $self->{'interdomain'} = 1;
+    #     }
+
+    #     my $entity = OESS::Entity->new(
+    #         db => $self->{'db'},
+    #         interface_id => $endpoint->{'interface_id'},
+    #         vlan => $endpoint->{'tag'}
+    #     );
+    #     if (!defined $entity) {
+    #         next;
+    #     }
+
+    #     push @{$self->{endpoints}}, $entity;
+    #     # $endpoint->{'entity'} = $entity->to_hash();
     # }
 }
 

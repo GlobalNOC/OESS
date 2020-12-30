@@ -325,6 +325,15 @@ sub modifyVlan {
     my $success = $method->{success_callback};
     my $error = $method->{error_callback};
 
+    my $pending_hash = decode($params->{pending}{value});
+    my $pending_conn = new OESS::L2Circuit(db => $self->{db}, model => $pending_hash);
+
+    my $err = $self->{nso}->edit_l2connection($pending_conn);
+    if (defined $err) {
+        $self->{logger}->error($err);
+        return &$error($err);
+    }
+
     return &$success({ status => 1 });
 }
 
