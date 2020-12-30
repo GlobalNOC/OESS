@@ -13,8 +13,11 @@ use XML::LibXML;
 use OESS::Config;
 use OESS::DB;
 use OESS::DB::Node;
+use OESS::L2Circuit;
 use OESS::Node;
+use OESS::NSO::Client;
 use OESS::RabbitMQ::Dispatcher;
+use OESS::VRF;
 
 use constant FWDCTL_WAITING     => 2;
 use constant FWDCTL_SUCCESS     => 1;
@@ -44,11 +47,7 @@ sub new {
     }
     $self->{db} = new OESS::DB(config => $self->{config}->filename);
     $self->{nodes} = {};
-
-    $self->{www} = new LWP::UserAgent;
-    my $host = $self->{config}->nso_host;
-    $host =~ s/http(s){0,1}:\/\///g; # Strip http:// or https:// from string
-    $self->{www}->credentials($host, "restconf", $self->{config}->nso_username, $self->{config}->nso_password);
+    $self->{nso} = new OESS::NSO::Client(config => $self->{config});
 
     # When this process receives sigterm send an event to notify all
     # children to exit cleanly.
@@ -282,7 +281,18 @@ sub addVlan {
     my $success = $method->{success_callback};
     my $error = $method->{error_callback};
 
-    return &$success({ status => 1 });
+    my $conn = new OESS::L2Circuit(
+        db => $self->{db},
+        circuit_id => $params->{circuit_id}{value}
+    );
+    $conn->load_endpoints;
+
+    my $err = $self->{nso}->create_l2connection($conn);
+    if (defined $err) {
+        $self->{logger}->error($err);
+        return &$error($err);
+    }
+    return &$success({ status => FWDCTL_SUCCESS });
 }
 
 =head2 deleteVlan
@@ -296,7 +306,12 @@ sub deleteVlan {
     my $success = $method->{success_callback};
     my $error = $method->{error_callback};
 
-    return &$success({ status => 1 });
+    my $err = $self->{nso}->delete_l2connection($params->{circuit_id}{value});
+    if (defined $err) {
+        $self->{logger}->error($err);
+        return &$error($err);
+    }
+    return &$success({ status => FWDCTL_SUCCESS });
 }
 
 =head2 modifyVlan
