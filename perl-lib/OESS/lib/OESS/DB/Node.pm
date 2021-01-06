@@ -292,8 +292,8 @@ sub update {
         INSERT INTO node_instantiation (
             admin_state, vendor, model, sw_version, mgmt_addr,
             loopback_address, tcp_port, node_id, openflow, mpls,
-            start_epoch, end_epoch
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
+            dpid, start_epoch, end_epoch
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
         ",
         [
             $node->{admin_state},
@@ -305,7 +305,8 @@ sub update {
             $node->{tcp_port},
             $args->{node}->{node_id},
             $args->{node}->{openflow} || 0,
-            $args->{node}->{mpls} || 1
+            $args->{node}->{mpls} || 1,
+            $node->{dpid}
         ]
     );
     if (!defined $inst_ok) {
