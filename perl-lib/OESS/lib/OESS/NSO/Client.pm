@@ -46,7 +46,6 @@ sub new {
 sub create_l2connection {
     my $self = shift;
     my $conn = shift; # OESS::L2Circuit
-    warn Dumper($conn->to_hash);
 
     my $eps = [];
     foreach my $ep (@{$conn->endpoints}) {
@@ -172,10 +171,61 @@ sub edit_l2connection {
     return;
 }
 
+=head2 get_l2connections
+
+    my ($connections, $err) = get_l2connections();
+
+=cut
+sub get_l2connections {
+    my $self = shift;
+
+    my $connections;
+    eval {
+        my $res = $self->{www}->get(
+            $self->{config}->nso_host . "/restconf/data/internet2-l2connection:internet2-l2connection",
+            'Content-type' => 'application/yang-data+json'
+        );
+        if ($res->content eq '') { # Empty payload indicates success
+            $connections = [];
+        } else {
+            my $result = decode_json($res->content);
+            die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+            $connections = $result->{"internet2-l2connection:internet2-l2connection"};
+        }
+    };
+    if ($@) {
+        my $err = $@;
+        warn $err;
+        return (undef, $err);
+    }
+    return ($connections, undef);
+}
+
 =head2 get_json_errors
 
 get_json_errors is a helper method to extract errors returned from nso's rest
 api.
+
+Response code:
+- 201 on success
+- 204 on success no content
+- 400 on error
+- 409 on error conflict
+
+Response body:
+
+    {
+      "errors": {
+        "error": [
+          {
+            "error-message": "object already exists: /internet2-l2connection:internet2-l2connection[internet2-l2connection:connection_id='124']",
+            "error-path": "",
+            "error-tag": "data-exists",
+            "error-type": "application"
+          }
+        ]
+      }
+    }
 
 =cut
 sub get_json_errors {

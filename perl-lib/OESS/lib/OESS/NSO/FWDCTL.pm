@@ -45,6 +45,7 @@ sub new {
     if (!defined $self->{config}) {
         $self->{config} = new OESS::Config(config_filename => $self->{config_filename});
     }
+    $self->{cache} = {};
     $self->{db} = new OESS::DB(config => $self->{config}->filename);
     $self->{nodes} = {};
     $self->{nso} = new OESS::NSO::Client(config => $self->{config});
@@ -60,6 +61,9 @@ sub new {
 
 =head2 start
 
+start configures polling timers, loads in-memory cache of l2 and l3
+connections, and sets up a rabbitmq dispatcher for RCP calls into FWDCTL.
+
 =cut
 sub start {
     my $self = shift;
@@ -74,16 +78,16 @@ sub start {
         $self->{nodes}->{$node->{node_id}} = $node;
     }
 
+    $self->_update_cache;
+
     # Setup polling subroutines
     $self->{connection_timer} = AnyEvent->timer(
         after    => 5,
-        interval => 300,
+        interval => 30,
         cb       => sub { $self->diff(@_); }
     );
 
     $self->{dispatcher} = new OESS::RabbitMQ::Dispatcher(
-        # queue => 'oess-fwdctl',
-        # topic => 'oess.fwdctl.rpc'
         queue => 'MPLS-FWDCTL',
         topic => 'MPLS.FWDCTL.RPC'
     );
@@ -292,6 +296,8 @@ sub addVlan {
         $self->{logger}->error($err);
         return &$error($err);
     }
+
+    $self->_add_connection_to_cache($conn);
     return &$success({ status => FWDCTL_SUCCESS });
 }
 
@@ -306,11 +312,19 @@ sub deleteVlan {
     my $success = $method->{success_callback};
     my $error = $method->{error_callback};
 
+    my $conn = new OESS::L2Circuit(
+        db => $self->{db},
+        circuit_id => $params->{circuit_id}{value}
+    );
+    $conn->load_endpoints;
+
     my $err = $self->{nso}->delete_l2connection($params->{circuit_id}{value});
     if (defined $err) {
         $self->{logger}->error($err);
         return &$error($err);
     }
+
+    $self->_del_connection_from_cache($conn);
     return &$success({ status => FWDCTL_SUCCESS });
 }
 
@@ -334,6 +348,7 @@ sub modifyVlan {
         return &$error($err);
     }
 
+    $self->_add_connection_to_cache($conn);
     return &$success({ status => 1 });
 }
 
@@ -385,9 +400,68 @@ diff reads all connections from cache, loads all connections from nso,
 determines if a configuration change within nso is required, and if so, make
 the change.
 
+In the case of a large change (effects > N connections), the diff is put
+into a pending state. Diff states are tracked on a per-node basis.
+
 =cut
 sub diff {
     my $self = shift;
+
+    my ($connections, $err) = $self->{nso}->get_l2connections();
+    if (defined $err) {
+        $self->{logger}->error($err);
+        return;
+    }
+
+    # After a connection has been sync'd to NSO we remove it from our hash of
+    # nso connections. Any connections left in this hash after syncing are not
+    # known by OESS and should be removed.
+    my $nso_l2connections = {};
+    foreach my $conn (@{$connections}) {
+        $nso_l2connections->{$conn->{connection_id}} = $conn;
+    }
+
+    # Connections are stored in-memory multiple times under each node they're
+    # associed with. Keep a record of connections as they're sync'd to prevent a
+    # connection from being sync'd more than once.
+    my $syncd_connections = {};
+
+    foreach my $node_id (keys %{$self->{cache}}) {
+        foreach my $conn_id (keys %{$self->{cache}->{$node_id}}) {
+
+            # Skip connections if they're already sync'd.
+            next if defined $syncd_connections->{$conn_id};
+            $syncd_connections->{$conn_id} = 1;
+
+            # Compare cached connection against NSO connection. If no difference
+            # continue with next connection, otherwise update NSO to align with
+            # cache.
+            my $conn = $self->{cache}->{$node_id}->{$conn_id};
+            if (!$self->_nso_connection_equal_to_cached($conn, $nso_l2connections->{$conn_id})) {
+                my $err = $self->{nso}->edit_l2connection($conn);
+                if (defined $err) {
+                    $self->{logger}->error($err);
+                    warn $err;
+                }
+            }
+
+            delete $nso_l2connections->{$conn_id};
+        }
+    }
+
+    foreach my $conn_id (keys %{$nso_l2connections}) {
+        my $err = $self->{nso}->delete_l2connection($conn_id);
+        if (defined $err) {
+            $self->{logger}->error($err);
+        }
+    }
+
+    # TODO Queue up all required changes into an array. If size greater than
+    # auto-diff cutoff set diff to pending. Changes should be tracked on a per
+    # device basis.
+    # Ex. [ {type => 'add-l2', value => OESS::L2Circuit } ]
+
+    warn 'Syncd Connections: ' . Dumper($syncd_connections);
 
     return 1;
 }
@@ -441,6 +515,8 @@ sub new_switch {
 
 =head2 update_cache
 
+update_cache is a rabbitmq proxy method to _update_cache.
+
 =cut
 sub update_cache {
     my $self   = shift;
@@ -450,7 +526,189 @@ sub update_cache {
     my $success = $method->{success_callback};
     my $error = $method->{error_callback};
 
+    my $err = $self->_update_cache;
+    if (defined $err) {
+        $self->{logger}->error($err);
+        return &$error($err);
+    }
     return &$success({ status => 1 });
+}
+
+=head2 _update_cache
+
+_update_cache reads all connections from the database and loads them into an
+in-memory cache.
+
+In memory connection cache:
+{
+    "node-id-1": {
+        "conn-id-1": { "eps" : [ "node-id-1", "node-id-2" ] }
+    },
+    "node-id-2": {
+        "conn-id-1": { "eps" : [ "node-id-1", "node-id-2" ] }
+    }
+}
+
+This implies that a connection is stored under each node. This allows us to
+query all connections associated with a single node. Additionally this helps us
+track large changes that may effect multiple connections on a single node.
+
+=cut
+sub _update_cache {
+    my $self = shift;
+
+    my $l2connections = OESS::DB::Circuit::fetch_circuits(
+        db => $self->{db}
+    );
+    if (!defined $l2connections) {
+        return "Couldn't load l2connections in update_cache.";
+    }
+
+    foreach my $conn (@$l2connections) {
+        my $conn_obj = new OESS::L2Circuit(db => $self->{db}, model => $conn);
+        $conn_obj->load_endpoints;
+        $self->_add_connection_to_cache($conn_obj);
+    }
+
+    return;
+}
+
+=head2 _del_connection_from_cache
+
+_del_connection_in_cache is a simple helper to correctly remove a connection
+object from memory.
+
+=cut
+sub _del_connection_from_cache {
+    my $self = shift;
+    my $conn = shift;
+
+    foreach my $ep (@{$conn->endpoints}) {
+        if (!defined $self->{cache}->{$ep->node_id}) {
+            next;
+        }
+        delete $self->{cache}->{$ep->node_id}->{$conn->circuit_id};
+    }
+
+    return 1;
+}
+
+=head2 _add_connection_to_cache
+
+_add_connection_to_cache is a simple helper to correctly place a connection
+object into memory.
+
+=cut
+sub _add_connection_to_cache {
+    my $self = shift;
+    my $conn = shift;
+
+    foreach my $ep (@{$conn->endpoints}) {
+        if (!defined $self->{cache}->{$ep->node_id}) {
+            $self->{cache}->{$ep->node_id} = {};
+        }
+        $self->{cache}->{$ep->node_id}->{$conn->circuit_id} = $conn;
+    }
+
+    return 1;
+}
+
+=head2 _nso_connection_equal_to_cached
+
+_nso_connection_equal_to_cached compares the NSO provided data structure against
+the cached connection object. If there is no difference return 1, otherwise
+return 0.
+
+NSO L2Connection:
+
+    {
+        'connection_id' => 3000,
+        'directly-modified' => {
+            'services' => [
+                '/i2-common:internal-services/sdp:sdp-attach[sdp:sdp=\'0\'][sdp:name=\'3000\']',
+                '/i2-common:internal-services/sdp:sdp-attach[sdp:sdp=\'1\'][sdp:name=\'3000\']'
+            ],
+            'devices' => [
+                'xr0'
+            ]
+        },
+        'endpoint' => [
+            {
+                'bandwidth' => 0,
+                'endpoint_id' => 1,
+                'interface' => 'GigabitEthernet0/0',
+                'tag' => 1,
+                'device' => 'xr0'
+            },
+            {
+                'bandwidth' => 0,
+                'endpoint_id' => 2,
+                'interface' => 'GigabitEthernet0/1',
+                'tag' => 1,
+                'device' => 'xr0'
+            }
+        ],
+        'device-list' => [
+            'xr0'
+        ],
+        'modified' => {
+            'services' => [
+                '/i2-common:internal-services/sdp:sdp-attach[sdp:sdp=\'1\'][sdp:name=\'3000\']',
+                '/i2-common:internal-services/sdp:sdp-attach[sdp:sdp=\'0\'][sdp:name=\'3000\']'
+            ],
+            'devices' => [
+                'xr0'
+            ]
+        }
+    }
+
+=cut
+sub _nso_connection_equal_to_cached {
+    my $self = shift;
+    my $conn = shift;
+    my $nsoc = shift; # NSOConnection
+
+    my $conn_ep_count = @{$conn->endpoints};
+    my $nsoc_ep_count = @{$nsoc->{endpoint}};
+    if (@{$conn->endpoints} != @{$nsoc->{endpoint}}) {
+        warn "ep count wrong";
+        return 0;
+    }
+
+    my $ep_index = {};
+    foreach my $ep (@{$conn->endpoints}) {
+        if (!defined $ep_index->{$ep->node}) {
+            $ep_index->{$ep->node} = {};
+        }
+        $ep_index->{$ep->node}->{$ep->interface} = $ep;
+    }
+
+    foreach my $ep (@{$nsoc->{endpoint}}) {
+        if (!defined $ep_index->{$ep->{device}}->{$ep->{interface}}) {
+            warn "ep not in cache";
+            return 0;
+        }
+        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{interface}};
+
+        warn "band" if $ep->{bandwidth} != $ref_ep->bandwidth;
+        warn "tag" if $ep->{tag} != $ref_ep->tag;
+        warn "inner_tag" if $ep->{inner_tag} != $ref_ep->inner_tag;
+
+        # Compare endpoints
+        return 0 if $ep->{bandwidth} != $ref_ep->bandwidth;
+        return 0 if $ep->{tag} != $ref_ep->tag;
+        return 0 if $ep->{inner_tag} != $ref_ep->inner_tag;
+
+        delete $ep_index->{$ep->{device}}->{$ep->{interface}};
+    }
+
+    foreach my $key (keys %{$ep_index}) {
+        my @leftovers = keys %{$ep_index->{$key}};
+        warn "leftover eps: ".Dumper(@leftovers) if @leftovers > 0;
+        return 0 if @leftovers > 0;
+    }
+
+    return 1;
 }
 
 1;
