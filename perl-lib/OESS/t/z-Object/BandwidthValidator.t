@@ -68,5 +68,5 @@ $validator2->load;
 my $ok3 = $validator2->is_bandwidth_valid(bandwidth => 10000, is_admin => 0);
 ok(!$ok3, "Got an invalid bandwidth");
 
-my $ok4 = $validator2->is_bandwidth_valid(bandwidth => 40000, is_admin => 1);
+my $ok4 = $validator2->is_bandwidth_valid(bandwidth => 10000, is_admin => 1);
 ok($ok4, "Got a valid bandwidth");
