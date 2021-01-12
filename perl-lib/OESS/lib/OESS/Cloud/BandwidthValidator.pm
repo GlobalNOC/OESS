@@ -82,7 +82,7 @@ sub is_bandwidth_valid {
         }
         # 1. Matched on interface interconnect type
 
-        if ($self->{interface}->bandwidth > $selector->{max_bandwidth} || $self->{interface}->bandwidth < $selector->{min_bandwidth}) {
+        if ($self->{interface}->{'bandwidth'} > $selector->{max_bandwidth} || $self->{interface}->{'bandwidth'} < $selector->{min_bandwidth}) {
             next;
         }
         # 2. Matched on interface speed
