@@ -514,7 +514,6 @@ sub diff {
 
     foreach my $change (@$changes) {
         if ($change->{type} eq 'edit-l2connection') {
-            # my $conn = $self->{flat_cache}->{$change->{value}};
             my $conn = $change->{value};
 
             # If conn endpoint on node with a blocked diff skip
@@ -639,7 +638,6 @@ sub get_diff_text {
     }
 
     foreach my $conn_id (keys %{$nso_l2connections}) {
-        # TODO Generate conn removal diff data and add to node diffs
         my $diff = $self->_nso_connection_diff(undef, $nso_l2connections->{$conn_id});
         foreach my $node (keys %$diff) {
             next if $diff->{$node} eq "";
