@@ -5,8 +5,9 @@ use warnings;
 
 package OESS::Workgroup;
 
-use OESS::DB::Workgroup;
 use Data::Dumper;
+
+use OESS::DB::Workgroup;
 
 =head2 new
 
@@ -211,6 +212,26 @@ sub add_user {
 
     push @{$self->{users_to_add}}, $user->user_id;
     push @{$self->{users}}, $user;
+}
+
+=head2 load_users
+
+    my $err = $workgroup->load_users;
+
+=cut
+sub load_users {
+    my $self = shift;
+
+    my ($users, $err) = OESS::DB::Workgroup::get_users_in_workgroup(
+        db => $self->{db},
+        workgroup_id => $self->{workgroup_id}
+    );
+    if (defined $err) {
+        $self->{users} = [];
+        return $err;
+    }
+    $self->{users} = $users;
+    return;
 }
 
 =head2 remove_user

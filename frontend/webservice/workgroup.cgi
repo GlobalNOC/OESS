@@ -113,6 +113,19 @@ $get_workgroup->add_input_parameter(
 );
 $ws->register_method($get_workgroup);
 
+my $get_workgroup_users = GRNOC::WebService::Method->new(
+    name        => "get_workgroup_users",
+    description => "get_workgroup_users returns the users of workgroup workgroup_id",
+    callback    => sub { get_workgroup_users(@_) }
+);
+$get_workgroup_users->add_input_parameter(
+    name        => 'workgroup_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'identifier used to lookup the workgroup'
+);
+$ws->register_method($get_workgroup_users);
+
 sub create_workgroup {
     my $method = shift;
     my $params = shift;
@@ -228,6 +241,37 @@ sub get_workgroup {
         return;
     }
     return $wg->to_hash;
+}
+
+sub get_workgroup_users {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_workgroup_access(
+        role         => 'read-only',
+        workgroup_id => $params->{workgroup_id}{value},
+    );
+    return (undef, $access_err) if defined $access_err;
+
+    my ($users, $users_err) = $ac->get_workgroup_users(
+        workgroup_id => $params->{workgroup_id}{value}
+    );
+    if (defined $users_err) {
+        $method->set_error($users_err);
+        return;
+    }
+
+    my $result = [];
+    foreach my $user (@$users) {
+        push @$result, $user->to_hash;
+    }
+
+    return $result;
 }
 
 $ws->handle_request;

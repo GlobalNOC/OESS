@@ -222,10 +222,17 @@ sub add_workgroup_user {
 sub get_workgroup_users {
     my $self = shift;
     my $args = {
+        workgroup_id => undef,
         @_
     };
-    return;
+
+    my $wg = new OESS::Workgroup(db => $self->{db}, workgroup_id => $args->{workgroup_id});
+    return (undef, "Couldn't find workgroup $args->{workgroup_id}.") if !defined $wg;
+
+    my $err = $wg->load_users;
+    return ($wg->users, $err);
 }
+
 sub modify_workgroup_user {
     my $self = shift;
     my $args = {
