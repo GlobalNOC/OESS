@@ -99,8 +99,8 @@ class Workgroups extends React.Component {
               <ul className="dropdown-menu" style={{fontSize: '12px'}}>
                 <li><a href="#" onClick={() => this.deleteWorkgroup(data)}>Delete Workgroup</a></li>
                 <li role="separator" className="divider" style={{margin: '4px 0'}}></li>
-                <li><a href="#" onClick={() => console.log('manIntf', data)}>Manage Interfaces</a></li>
-                <li><a href="#" onClick={() => console.log('manUsers', data)}>Manage Users</a></li>
+                <li><Link to={`/workgroups/${data.workgroup_id}/interfaces`}>Manage Interfaces</Link></li>
+                <li><Link to={`/workgroups/${data.workgroup_id}/users`}>Manage Users</Link></li>
               </ul>
             </div>
         </div>
@@ -125,9 +125,11 @@ class Workgroups extends React.Component {
 
         <form id="user_search_div" className="form-inline">
           <div className="form-group">
-            <input type="text" className="form-control" id="user_search" placeholder="Workgroup" onChange={(e) => this.filterWorkgroups(e)}/>
+            <div class="input-group">
+              <span class="input-group-addon" id="icon"><span class="glyphicon glyphicon-search" aria-hidden="true"></span></span>
+              <input type="text" className="form-control" id="user_search" placeholder="Search by name or id" aria-describedby="icon" onChange={(e) => this.filterWorkgroups(e)}/>
+            </div>
           </div>
-          <button type="button" className="btn btn-primary">Search</button>
           <Link to="/workgroups/new" className="btn btn-default">Create Workgroup</Link>
         </form>
         <br />

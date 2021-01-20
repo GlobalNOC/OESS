@@ -15,7 +15,7 @@ const adminNavBar = (props) => {
 
   let sideNavLinks = links.map((link, i) => {
     let classNames = '';
-    if (location.pathname.includes(link.url)) {
+    if (location.pathname.startsWith(link.url)) {
       classNames = 'active';
     }
     return (

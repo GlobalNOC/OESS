@@ -117,3 +117,18 @@ export async function getWorkgroup(workgroup_id) {
     return [];
   }
 }
+
+export async function getWorkgroupUsers(workgroup_id) {
+  let url = `${testConfig.user}services/workgroup.cgi?method=get_workgroup_users`;
+  url += `&workgroup_id=${workgroup_id}`;
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    if (data.error_text) throw data.error_text;
+    return data;
+  } catch(error) {
+    console.error('getWorkgroupUsers:', error);
+    return [];
+  }
+}

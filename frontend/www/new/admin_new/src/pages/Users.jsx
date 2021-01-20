@@ -124,9 +124,11 @@ class Users extends React.Component {
 
         <form id="user_search_div" className="form-inline">
           <div className="form-group">
-            <input type="text" className="form-control" id="user_search" placeholder="Username" onChange={(e) => this.filterUsers(e)} />
+            <div class="input-group">
+              <span class="input-group-addon" id="icon"><span class="glyphicon glyphicon-search" aria-hidden="true"></span></span>
+              <input type="text" className="form-control" id="user_search" placeholder="Search by name or email" aria-describedby="icon" onChange={(e) => this.filterUsers(e)} />
+            </div>
           </div>
-          <button type="button" className="btn btn-primary">Search</button>
           <Link to="/users/new" className="btn btn-default">Create User</Link>
         </form>
         <br />
