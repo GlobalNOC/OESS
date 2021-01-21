@@ -132,3 +132,23 @@ export async function getWorkgroupUsers(workgroup_id) {
     return [];
   }
 }
+
+export async function modifyWorkgroupUser(workgroup_id, user_id, role) {
+  let url = `${testConfig.user}services/workgroup.cgi?method=modify_workgroup_user`;
+  url += `&workgroup_id=${workgroup_id}`;
+  url += `&user_id=${user_id}`;
+  url += `&role=${role}`;
+
+  console.log(url);
+  return true;
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    if (data.error_text) throw data.error_text;
+    return data;
+  } catch(error) {
+    console.error('modifyWorkgroupUser:', error);
+    return [];
+  }
+}

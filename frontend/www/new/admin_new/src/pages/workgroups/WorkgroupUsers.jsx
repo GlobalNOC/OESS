@@ -1,12 +1,13 @@
 import React, { useContext, useState } from "react";
 import { withRouter } from "react-router-dom";
 
-import { getWorkgroupUsers } from '../../api/workgroup.js';
+import { getWorkgroupUsers, modifyWorkgroupUser } from '../../api/workgroup.js';
+import { PageContext } from "../../contexts/PageContext.jsx";
 import { Table } from '../../components/generic_components/Table.jsx';
 
 import "../../style.css";
 
-export class WorkgroupUsers extends React.Component {
+class WorkgroupUsers extends React.Component {
   constructor(props){
     super(props);
     this.state = {
@@ -17,6 +18,7 @@ export class WorkgroupUsers extends React.Component {
     };
 
     this.filterUsers = this.filterUsers.bind(this);
+    this.modifyWorkgroupUserHandler = this.modifyWorkgroupUserHandler.bind(this);
   }
 
   async componentDidMount() {
@@ -35,6 +37,15 @@ export class WorkgroupUsers extends React.Component {
       pageNumber: 0
     });
   }
+
+  async modifyWorkgroupUserHandler(user, role) {
+    try {
+      await modifyWorkgroupUser(this.props.match.params["id"], user.user_id, role);
+      this.context.setStatus({type:'success', message:`${user.username}'s role was successfully set to '${role}'.`});
+    } catch (error) {
+      this.context.setStatus({type:'error', message:error.toString()});
+    }
+  };
 
   render() {
     let pageStart = this.state.pageSize * this.state.pageNumber;
@@ -70,12 +81,22 @@ export class WorkgroupUsers extends React.Component {
       }
     });
 
+    const roleSelect = (data) => {
+      return (
+        <select className="form-control" onChange={(e) => this.modifyWorkgroupUserHandler(data, e.target.value)}>
+          <option value="read-only">Read-Only</option>
+          <option value="normal">Normal</option>
+          <option value="admin">Admin</option>
+        </select>
+      )
+    };
+
     let columns = [
       { name: 'ID', key: 'user_id' },
       { name: 'First Name', key: 'first_name' },
       { name: 'Last Name', key: 'last_name' },
       { name: 'Email', key: 'email' },
-      { name: 'Role', key: 'role' }
+      { name: 'Role', render: roleSelect, style: {width: '9em'} }
     ];
 
     return (
@@ -101,3 +122,6 @@ export class WorkgroupUsers extends React.Component {
     );
   }
 }
+WorkgroupUsers.contextType = PageContext;
+
+export { WorkgroupUsers };
