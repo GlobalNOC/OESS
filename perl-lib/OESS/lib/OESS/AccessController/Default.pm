@@ -236,8 +236,29 @@ sub get_workgroup_users {
 sub modify_workgroup_user {
     my $self = shift;
     my $args = {
+        user_id      => undef,
+        workgroup_id => undef,
+        role         => undef,
         @_
     };
+
+    if (!defined $args->{user_id} && !defined $args->{workgroup_id}) {
+        return "Required argument `user_id` or `workgroup_id` missing.";
+    }
+
+    $self->{db}->start_transaction;
+
+    my $wg = new OESS::Workgroup(db => $self->{db}, workgroup_id => $args->{workgroup_id});
+    return "Couldn't find workgroup $args->{workgroup_id}." if !defined $wg;
+
+    my $err = $wg->load_users;
+    return $err if defined $err;
+
+    $err = $wg->modify_user($args->{user_id}, $args->{role});
+    return $err if defined $err;
+
+    my $ok = $self->{db}->commit;
+    return "Couldn't modify workgroup user. Unknown error occurred." if !$ok;
     return;
 }
 sub remove_workgroup_user {

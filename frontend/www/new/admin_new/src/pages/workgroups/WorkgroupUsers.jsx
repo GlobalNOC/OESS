@@ -83,7 +83,7 @@ class WorkgroupUsers extends React.Component {
 
     const roleSelect = (data) => {
       return (
-        <select className="form-control" onChange={(e) => this.modifyWorkgroupUserHandler(data, e.target.value)}>
+        <select className="form-control" defaultValue={data.role} onChange={(e) => this.modifyWorkgroupUserHandler(data, e.target.value)}>
           <option value="read-only">Read-Only</option>
           <option value="normal">Normal</option>
           <option value="admin">Admin</option>

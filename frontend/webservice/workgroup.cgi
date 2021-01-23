@@ -126,6 +126,31 @@ $get_workgroup_users->add_input_parameter(
 );
 $ws->register_method($get_workgroup_users);
 
+my $modify_workgroup_user = GRNOC::WebService::Method->new(
+    name        => "modify_workgroup_user",
+    description => "modify_workgroup_user modifies the user's workgroup membership",
+    callback    => sub { modify_workgroup_user(@_) }
+);
+$modify_workgroup_user->add_input_parameter(
+    name        => 'user_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'identifier used to lookup the user'
+);
+$modify_workgroup_user->add_input_parameter(
+    name        => 'workgroup_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'identifier used to lookup the workgroup'
+);
+$modify_workgroup_user->add_input_parameter(
+    name        => 'role',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 1,
+    description => "user's workgroup role"
+);
+$ws->register_method($modify_workgroup_user);
+
 sub create_workgroup {
     my $method = shift;
     my $params = shift;
@@ -272,6 +297,37 @@ sub get_workgroup_users {
     }
 
     return $result;
+}
+
+sub modify_workgroup_user {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_workgroup_access(
+        role         => 'admin',
+        workgroup_id => $params->{workgroup_id}{value},
+    );
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
+
+    my $modify_err = $ac->modify_workgroup_user(
+        user_id => $params->{user_id}{value},
+        workgroup_id => $params->{workgroup_id}{value},
+        role => $params->{role}{value}
+    );
+    if (defined $modify_err) {
+        $method->set_error($modify_err);
+        return;
+    }
+
+    return { results => [{ success => 1 }] };
 }
 
 $ws->handle_request;

@@ -197,23 +197,6 @@ sub max_circuits{
     return $self->{'max_circuits'};
 }
 
-=head2 add_user
-
-    $path->add_user($user);
-
-add_user adds an C<OESS::User> to this Workgroup. If
-C<$user->{user_id}> isn't defined, C<$this->update> will not save your
-data.
-
-=cut
-sub add_user {
-    my $self = shift;
-    my $user = shift;
-
-    push @{$self->{users_to_add}}, $user->user_id;
-    push @{$self->{users}}, $user;
-}
-
 =head2 load_users
 
     my $err = $workgroup->load_users;
@@ -231,6 +214,48 @@ sub load_users {
         return $err;
     }
     $self->{users} = $users;
+    return;
+}
+
+=head2 add_user
+
+    $path->add_user($user);
+
+add_user adds an C<OESS::User> to this Workgroup. If
+C<$user->{user_id}> isn't defined, C<$this->update> will not save your
+data.
+
+=cut
+sub add_user {
+    my $self = shift;
+    my $user = shift;
+
+    push @{$self->{users_to_add}}, $user->user_id;
+    push @{$self->{users}}, $user;
+}
+
+=head2 modify_user
+
+    my $role = 'normal';
+    my $err  = $workgroup->modify_user($user_id, $role);
+
+modify_user updates the role of C<$user_id> in this workgroup.
+
+=cut
+sub modify_user {
+    my $self = shift;
+    my $user_id = shift;
+    my $role = shift;
+
+    return "Cannot modify workgroup user; No database connection." if !defined $self->{db};
+
+    my ($ok, $err) = OESS::DB::Workgroup::edit_user_role(
+        db           => $self->{db},
+        user_id      => $user_id,
+        workgroup_id => $self->{workgroup_id},
+        role         => $role
+    );
+    return $err if defined $err;
     return;
 }
 

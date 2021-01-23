@@ -139,16 +139,9 @@ export async function modifyWorkgroupUser(workgroup_id, user_id, role) {
   url += `&user_id=${user_id}`;
   url += `&role=${role}`;
 
-  console.log(url);
-  return true;
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  const data = await resp.json();
 
-  try {
-    const resp = await fetch(url, {method: 'get', credentials: 'include'});
-    const data = await resp.json();
-    if (data.error_text) throw data.error_text;
-    return data;
-  } catch(error) {
-    console.error('modifyWorkgroupUser:', error);
-    return [];
-  }
+  if (data.error_text) throw data.error_text;
+  return data.results[0];
 }
