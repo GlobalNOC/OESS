@@ -145,3 +145,15 @@ export async function modifyWorkgroupUser(workgroup_id, user_id, role) {
   if (data.error_text) throw data.error_text;
   return data.results[0];
 }
+
+export async function removeWorkgroupUser(workgroup_id, user_id) {
+  let url = `${testConfig.user}services/workgroup.cgi?method=remove_workgroup_user`;
+  url += `&workgroup_id=${workgroup_id}`;
+  url += `&user_id=${user_id}`;
+
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  const data = await resp.json();
+
+  if (data.error_text) throw data.error_text;
+  return data.results[0];
+}

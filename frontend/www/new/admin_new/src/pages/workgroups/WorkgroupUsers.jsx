@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { withRouter } from "react-router-dom";
 
-import { getWorkgroupUsers, modifyWorkgroupUser } from '../../api/workgroup.js';
+import { getWorkgroupUsers, modifyWorkgroupUser, removeWorkgroupUser } from '../../api/workgroup.js';
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { Table } from '../../components/generic_components/Table.jsx';
 
@@ -47,6 +47,18 @@ class WorkgroupUsers extends React.Component {
     }
   };
 
+  async removeWorkgroupUserHandler(user) {
+    let ok = confirm(`Remove '${user.username}' from workgroup?`);
+    if (!ok) return;
+
+    try {
+      await removeWorkgroupUser(this.props.match.params["id"], user.user_id);
+      location.reload();
+    } catch (error) {
+      this.context.setStatus({type:'error', message:error.toString()});
+    }
+  }
+
   render() {
     let pageStart = this.state.pageSize * this.state.pageNumber;
     let pageEnd = pageStart + this.state.pageSize;
@@ -83,7 +95,7 @@ class WorkgroupUsers extends React.Component {
 
     const roleSelect = (data) => {
       return (
-        <select className="form-control" defaultValue={data.role} onChange={(e) => this.modifyWorkgroupUserHandler(data, e.target.value)}>
+        <select className="form-control input-sm" style={{height: '22px', padding: '1px 5px'}} defaultValue={data.role} onChange={(e) => this.modifyWorkgroupUserHandler(data, e.target.value)}>
           <option value="read-only">Read-Only</option>
           <option value="normal">Normal</option>
           <option value="admin">Admin</option>
@@ -91,12 +103,17 @@ class WorkgroupUsers extends React.Component {
       )
     };
 
+    const rowButtons = (data) => {
+      return <button type="button" class="btn btn-default btn-xs" onClick={(e) => this.removeWorkgroupUserHandler(data)}>Remove User</button>;
+    }
+
     let columns = [
       { name: 'ID', key: 'user_id' },
       { name: 'First Name', key: 'first_name' },
       { name: 'Last Name', key: 'last_name' },
       { name: 'Email', key: 'email' },
-      { name: 'Role', render: roleSelect, style: {width: '9em'} }
+      { name: 'Role', render: roleSelect, style: {width: '9em'} },
+      { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];
 
     return (

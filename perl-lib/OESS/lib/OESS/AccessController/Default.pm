@@ -8,6 +8,7 @@ use OESS::DB::ACL;
 use OESS::DB::Interface;
 use OESS::DB::User;
 use OESS::User;
+use OESS::Workgroup;
 
 sub new {
     my $class = shift;
@@ -264,8 +265,31 @@ sub modify_workgroup_user {
 sub remove_workgroup_user {
     my $self = shift;
     my $args = {
+        user_id      => undef,
+        workgroup_id => undef,
         @_
     };
+
+    if (!defined $args->{user_id} && !defined $args->{workgroup_id}) {
+        return "Required argument `user_id` or `workgroup_id` missing.";
+    }
+
+    $self->{db}->start_transaction;
+
+    my $wg = new OESS::Workgroup(db => $self->{db}, workgroup_id => $args->{workgroup_id});
+    return "Couldn't find workgroup $args->{workgroup_id}." if !defined $wg;
+
+    my $err = $wg->load_users;
+    return $err if defined $err;
+
+    $err = $wg->remove_user($args->{user_id});
+    return $err if defined $err;
+
+    $err = $wg->update;
+    return $err if defined $err;
+
+    my $ok = $self->{db}->commit;
+    return "Couldn't remove workgroup user. Unknown error occurred." if !$ok;
     return;
 }
 

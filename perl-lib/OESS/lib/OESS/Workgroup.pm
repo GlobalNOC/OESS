@@ -232,6 +232,8 @@ sub add_user {
 
     push @{$self->{users_to_add}}, $user->user_id;
     push @{$self->{users}}, $user;
+
+    return;
 }
 
 =head2 modify_user
@@ -280,6 +282,8 @@ sub remove_user {
         }
     }
     $self->{users} = $new_users;
+
+    return;
 }
 
 =head2 workgroup_id

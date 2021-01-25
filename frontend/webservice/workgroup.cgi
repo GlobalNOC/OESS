@@ -151,6 +151,25 @@ $modify_workgroup_user->add_input_parameter(
 );
 $ws->register_method($modify_workgroup_user);
 
+my $remove_workgroup_user = GRNOC::WebService::Method->new(
+    name        => "remove_workgroup_user",
+    description => "remove_workgroup_user removes a user from the specified workgroup",
+    callback    => sub { remove_workgroup_user(@_) }
+);
+$remove_workgroup_user->add_input_parameter(
+    name        => 'user_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'identifier used to lookup the user'
+);
+$remove_workgroup_user->add_input_parameter(
+    name        => 'workgroup_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'identifier used to lookup the workgroup'
+);
+$ws->register_method($remove_workgroup_user);
+
 sub create_workgroup {
     my $method = shift;
     my $params = shift;
@@ -324,6 +343,36 @@ sub modify_workgroup_user {
     );
     if (defined $modify_err) {
         $method->set_error($modify_err);
+        return;
+    }
+
+    return { results => [{ success => 1 }] };
+}
+
+sub remove_workgroup_user {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_workgroup_access(
+        role         => 'admin',
+        workgroup_id => $params->{workgroup_id}{value},
+    );
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
+
+    my $remove_err = $ac->remove_workgroup_user(
+        user_id => $params->{user_id}{value},
+        workgroup_id => $params->{workgroup_id}{value}
+    );
+    if (defined $remove_err) {
+        $method->set_error($remove_err);
         return;
     }
 
