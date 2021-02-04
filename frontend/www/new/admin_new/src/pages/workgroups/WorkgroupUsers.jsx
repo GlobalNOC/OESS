@@ -4,8 +4,11 @@ import { withRouter } from "react-router-dom";
 import { getWorkgroupUsers, modifyWorkgroupUser, removeWorkgroupUser } from '../../api/workgroup.js';
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { Table } from '../../components/generic_components/Table.jsx';
+import { AddWorkgroupUserForm } from '../../components/workgroups/AddWorkgroupUserForm.jsx';
 
 import "../../style.css";
+
+import { AutoComplete } from '../../components/generic_components/AutoComplete.jsx';
 
 class WorkgroupUsers extends React.Component {
   constructor(props){
@@ -104,7 +107,7 @@ class WorkgroupUsers extends React.Component {
     };
 
     const rowButtons = (data) => {
-      return <button type="button" class="btn btn-default btn-xs" onClick={(e) => this.removeWorkgroupUserHandler(data)}>Remove User</button>;
+      return <button type="button" className="btn btn-default btn-xs" onClick={(e) => this.removeWorkgroupUserHandler(data)}>Remove User</button>;
     }
 
     let columns = [
@@ -116,6 +119,11 @@ class WorkgroupUsers extends React.Component {
       { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];
 
+
+    const onSubmit = (e) => {
+      console.log(e);
+    }
+
     return (
       <div>
         <div>
@@ -124,10 +132,18 @@ class WorkgroupUsers extends React.Component {
         </div>
         <br />
 
+        <div className="panel panel-primary">
+        <div className="panel-heading">Add User</div>
+          <div className="panel-body">
+            <AddWorkgroupUserForm workgroupId={parseInt(this.props.match.params["id"])} onSubmit={onSubmit} />
+          </div>
+        </div>
+        <br />
+
         <form id="user_search_div" className="form-inline">
           <div className="form-group">
-            <div class="input-group">
-              <span class="input-group-addon" id="icon"><span class="glyphicon glyphicon-search" aria-hidden="true"></span></span>
+            <div className="input-group">
+              <span className="input-group-addon" id="icon"><span className="glyphicon glyphicon-search" aria-hidden="true"></span></span>
               <input type="text" className="form-control" id="user_search" placeholder="Search by name or email" aria-describedby="icon" onChange={(e) => this.filterUsers(e)}/>
             </div>
           </div>

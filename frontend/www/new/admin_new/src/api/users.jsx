@@ -20,7 +20,7 @@ export async function getUser(user_id) {
   }
 }
 
-async function getUsers() {
+export async function getUsers() {
     let url = `${path}services/admin/admin.cgi?method=get_users`;
 
     try {
