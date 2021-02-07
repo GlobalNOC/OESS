@@ -1,14 +1,11 @@
 import React, { useContext, useState } from "react";
-import { withRouter } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { getWorkgroupUsers, modifyWorkgroupUser, removeWorkgroupUser } from '../../api/workgroup.js';
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { Table } from '../../components/generic_components/Table.jsx';
-import { AddWorkgroupUserForm } from '../../components/workgroups/AddWorkgroupUserForm.jsx';
 
 import "../../style.css";
-
-import { AutoComplete } from '../../components/generic_components/AutoComplete.jsx';
 
 class WorkgroupUsers extends React.Component {
   constructor(props){
@@ -119,24 +116,11 @@ class WorkgroupUsers extends React.Component {
       { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];
 
-
-    const onSubmit = (e) => {
-      console.log(e);
-    }
-
     return (
       <div>
         <div>
           <p className="title"><b>Workgroup Users</b></p>
           <p className="subtitle">Add, modify, or remove Workgroup Users.</p>
-        </div>
-        <br />
-
-        <div className="panel panel-primary">
-        <div className="panel-heading">Add User</div>
-          <div className="panel-body">
-            <AddWorkgroupUserForm workgroupId={parseInt(this.props.match.params["id"])} onSubmit={onSubmit} />
-          </div>
         </div>
         <br />
 
@@ -147,6 +131,7 @@ class WorkgroupUsers extends React.Component {
               <input type="text" className="form-control" id="user_search" placeholder="Search by name or email" aria-describedby="icon" onChange={(e) => this.filterUsers(e)}/>
             </div>
           </div>
+          <Link to={`/workgroups/${this.props.match.params["id"]}/users/add`} className="btn btn-default">Add User</Link>
         </form>
         <br />
 

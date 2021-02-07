@@ -17,6 +17,7 @@ import "./style.css";
 import { CreateWorkgroup } from "./pages/workgroups/CreateWorkgroup.jsx";
 import { EditWorkgroup } from "./pages/workgroups/EditWorkgroup.jsx";
 import { WorkgroupUsers } from "./pages/workgroups/WorkgroupUsers.jsx";
+import { AddWorkgroupUser } from "./pages/workgroups/users/AddWorkgroupUser.jsx";
 import { WorkgroupInterfaces } from "./pages/workgroups/WorkgroupInterfaces.jsx";
 import { CreateUser } from "./pages/users/CreateUser.jsx";
 import { EditUser } from "./pages/users/EditUser.jsx";
@@ -50,6 +51,7 @@ const App = () => {
                 <CreateWorkgroup />
               </Route>
               <Route path="/workgroups/:id/interfaces" component={WorkgroupInterfaces} />
+              <Route path="/workgroups/:id/users/add" component={AddWorkgroupUser} />
               <Route path="/workgroups/:id/users" component={WorkgroupUsers} />
               <Route path="/workgroups/:id" component={EditWorkgroup} />
               <Route path="/workgroups">

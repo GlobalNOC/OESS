@@ -23,19 +23,23 @@ export const AddWorkgroupUserForm = (props) => {
         setUsers(users);
       });
     } catch (error) {
-      // TODO Show error message to user
+      // TODO Show error message to user? If this fails users can't be loaded.
       setUsers([]);
       console.error(error);
-      // this.context.setStatus({type:'error', message:error.toString()});
     }
   }, []);
 
   let onSubmit = (e) => {
     e.preventDefault();
+
+    // A small hack to pass the choosen username to onSubmit callback.
+    let user = users.filter(user => user.user_id == userId);
+
     const payload = {
       role,
       userId,
-      workgroupId
+      workgroupId,
+      username: user[0].auth_name[0]
     };
     let ok = validateForm(payload);
     if (!ok) return;
@@ -63,17 +67,17 @@ export const AddWorkgroupUserForm = (props) => {
     <form onSubmit={onSubmit}>
       <div className="form-group">
         <label htmlFor="username">Username</label>
-        <AutoComplete id="username" placeholder="Search by username" value={userId} onChange={(e) => setUserId(e)} suggestions={suggestions} />
+        <AutoComplete id="username" name="username" placeholder="Search by username" value={userId} onChange={(e) => setUserId(e)} suggestions={suggestions} />
       </div>
 
       <label htmlFor="role">Role</label>
-      <select className="form-control" id="role" value={role} onChange={(e) => setRole(e.target.value)}>
+      <select className="form-control" id="role" name="role" value={role} onChange={(e) => setRole(e.target.value)}>
         <option value="read-only">Read-Only</option>
         <option value="normal">Normal</option>
         <option value="admin">Admin</option>
       </select>
 
-      <input type="hidden" name="workgroup-id" value={workgroupId} />
+      <input type="hidden" id="workgroup-id" name="workgroup_id" value={workgroupId} />
       <br/>
 
       <button type="submit" className="btn btn-primary" style={{margin: '0 2px'}}>Submit</button>

@@ -125,8 +125,8 @@ class Workgroups extends React.Component {
 
         <form id="user_search_div" className="form-inline">
           <div className="form-group">
-            <div class="input-group">
-              <span class="input-group-addon" id="icon"><span class="glyphicon glyphicon-search" aria-hidden="true"></span></span>
+            <div className="input-group">
+              <span className="input-group-addon" id="icon"><span className="glyphicon glyphicon-search" aria-hidden="true"></span></span>
               <input type="text" className="form-control" id="user_search" placeholder="Search by name or id" aria-describedby="icon" onChange={(e) => this.filterWorkgroups(e)}/>
             </div>
           </div>
