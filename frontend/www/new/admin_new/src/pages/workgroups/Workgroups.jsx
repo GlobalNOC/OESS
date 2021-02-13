@@ -89,7 +89,7 @@ class Workgroups extends React.Component {
     const rowButtons = (data) => {
       return (
         <div>
-          <button type="button" className="btn btn-default btn-xs" onClick={() => console.log('add',data)}>Add User</button>&nbsp;
+          <Link to={`/workgroups/${data.workgroup_id}/users/add`} className="btn btn-default btn-xs">Add User</Link>&nbsp;
           <div className="btn-group">
               <Link to={`/workgroups/${data.workgroup_id}`} className="btn btn-default btn-xs">Edit Workgroup</Link>
               <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

@@ -22,7 +22,7 @@ const addWorkgroupUserComponent = (props) => {
   };
 
   let cancelHandler = async () => {
-    history.push(`/workgroups/${match.params["id"]}/users`);
+    history.goBack();
   };
 
   return (
