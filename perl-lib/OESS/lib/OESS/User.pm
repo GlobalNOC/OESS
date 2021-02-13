@@ -211,6 +211,11 @@ sub workgroups{
 =cut
 sub role{
     my $self = shift;
+    my $role = shift;
+
+    if (defined $role) {
+        $self->{role} = $role;
+    }
     return $self->{role};
 }
 

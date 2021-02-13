@@ -125,7 +125,8 @@ sub create {
             my ($ok, $user_wg_err) = OESS::DB::Workgroup::add_user(
                 db           => $self->{db},
                 workgroup_id => $workgroup_id,
-                user_id      => $user->user_id
+                user_id      => $user->user_id,
+                role         => $user->role
             );
             if (defined $user_wg_err) {
                 return (undef, $user_wg_err);
@@ -171,11 +172,12 @@ sub update {
         return $rm_err if (defined $rm_err);
     }
 
-    foreach my $user_id (@{$self->{users_to_add}}) {
+    foreach my $user (@{$self->{users_to_add}}) {
         my ($create_ok, $create_err) = OESS::DB::Workgroup::add_user(
-            db => $self->{db},
-            user_id => $user_id,
-            workgroup_id => $self->workgroup_id
+            db           => $self->{db},
+            user_id      => $user->user_id,
+            workgroup_id => $self->workgroup_id,
+            role         => $user->role
         );
         return $create_err if (defined $create_err);
     }
@@ -230,7 +232,7 @@ sub add_user {
     my $self = shift;
     my $user = shift;
 
-    push @{$self->{users_to_add}}, $user->user_id;
+    push @{$self->{users_to_add}}, $user;
     push @{$self->{users}}, $user;
 
     return;

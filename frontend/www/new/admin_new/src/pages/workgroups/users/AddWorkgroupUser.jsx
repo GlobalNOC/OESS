@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { withRouter } from "react-router-dom";
 
-// import { addUser } from '../../api/workgroup.js';
+import { addWorkgroupUser } from '../../../api/workgroup.js';
 import { AddWorkgroupUserForm } from '../../../components/workgroups/AddWorkgroupUserForm.jsx';
 import { PageContext } from "../../../contexts/PageContext.jsx";
 
@@ -13,7 +13,7 @@ const addWorkgroupUserComponent = (props) => {
 
   let submitHandler = async (e) => {
     try {
-      // await addUser(e);
+      await addWorkgroupUser(e.workgroupId, e.userId, e.role);
       setStatus({type:'success', message:`User '${e.username}' was successfully added.`});
     } catch (error) {
       setStatus({type:'error', message:error});
@@ -33,7 +33,7 @@ const addWorkgroupUserComponent = (props) => {
       </div>
       <br />
 
-      <AddWorkgroupUserForm workgroup={null} onSubmit={submitHandler} onCancel={cancelHandler} />
+      <AddWorkgroupUserForm workgroupId={parseInt(match.params["id"])} onSubmit={submitHandler} onCancel={cancelHandler} />
     </div>
   );
 }

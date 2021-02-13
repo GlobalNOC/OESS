@@ -170,6 +170,31 @@ $remove_workgroup_user->add_input_parameter(
 );
 $ws->register_method($remove_workgroup_user);
 
+my $add_workgroup_user = GRNOC::WebService::Method->new(
+    name        => "add_workgroup_user",
+    description => "add_workgroup_user adds a user from the specified workgroup",
+    callback    => sub { add_workgroup_user(@_) }
+);
+$add_workgroup_user->add_input_parameter(
+    name        => 'user_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'identifier used to lookup the user'
+);
+$add_workgroup_user->add_input_parameter(
+    name        => 'workgroup_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'identifier used to lookup the workgroup'
+);
+$add_workgroup_user->add_input_parameter(
+    name        => 'role',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 1,
+    description => 'role of user in the workgroup'
+);
+$ws->register_method($add_workgroup_user);
+
 sub create_workgroup {
     my $method = shift;
     my $params = shift;
@@ -373,6 +398,37 @@ sub remove_workgroup_user {
     );
     if (defined $remove_err) {
         $method->set_error($remove_err);
+        return;
+    }
+
+    return { results => [{ success => 1 }] };
+}
+
+sub add_workgroup_user {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_workgroup_access(
+        role         => 'admin',
+        workgroup_id => $params->{workgroup_id}{value},
+    );
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
+
+    my $add_err = $ac->add_workgroup_user(
+        user_id      => $params->{user_id}{value},
+        workgroup_id => $params->{workgroup_id}{value},
+        role         => $params->{role}{value}
+    );
+    if (defined $add_err) {
+        $method->set_error($add_err);
         return;
     }
 
