@@ -53,7 +53,10 @@ class WorkgroupUsers extends React.Component {
 
     try {
       await removeWorkgroupUser(this.props.match.params["id"], user.user_id);
-      location.reload();
+      this.context.setStatus({type:'success', message:`${user.username} successfully removed from workgroup.`});
+      this.setState((state) => {
+        return { users: state.users.filter(u => u.user_id != user.user_id) };
+      });
     } catch (error) {
       this.context.setStatus({type:'error', message:error.toString()});
     }
