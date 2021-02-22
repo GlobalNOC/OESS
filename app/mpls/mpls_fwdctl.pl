@@ -43,10 +43,20 @@ sub core{
         my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
         AnyEvent->condvar->recv;
     }
+    elsif ($config->network_type eq 'nso+vpn-mpls') {
+        my $fwdctl = OESS::NSO::FWDCTL->new(config => $config);
+        $fwdctl->start;
+
+        my $FWDCTL = OESS::MPLS::FWDCTL->new();
+        my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
+        my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
+        my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
+        AnyEvent->condvar->recv;
+    }
     else {
         die "Unexpected network type configured.";
     }
-    
+
     Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.APP')->info("Starting OESS.MPLS.FWDCTL event loop.");
 }
 

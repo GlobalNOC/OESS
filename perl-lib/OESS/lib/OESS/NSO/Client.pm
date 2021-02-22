@@ -63,7 +63,7 @@ sub create_l2connection {
     }
 
     my $payload = {
-        "internet2-l2connection:internet2-l2connection" => [
+        "oess-l2connection:oess-l2connection" => [
             {
                 "connection_id" => $conn->circuit_id,
                 "endpoint" => $eps
@@ -101,7 +101,7 @@ sub delete_l2connection {
 
     eval {
         my $res = $self->{www}->delete(
-            $self->{config}->nso_host . "/restconf/data/internet2-l2connection:internet2-l2connection=$conn_id",
+            $self->{config}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection=$conn_id",
             'Content-type' => 'application/yang-data+json'
         );
         return if ($res->content eq ''); # Empty payload indicates success
@@ -144,7 +144,7 @@ sub edit_l2connection {
 
     my $conn_id = $conn->circuit_id;
     my $payload = {
-        "internet2-l2connection:internet2-l2connection" => [
+        "oess-l2connection:oess-l2connection" => [
             {
                 "connection_id" => $conn_id,
                 "endpoint" => $eps
@@ -154,7 +154,7 @@ sub edit_l2connection {
 
     eval {
         my $res = $self->{www}->put(
-            $self->{config}->nso_host . "/restconf/data/internet2-l2connection:internet2-l2connection=$conn_id",
+            $self->{config}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection=$conn_id",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
@@ -182,7 +182,7 @@ sub get_l2connections {
     my $connections;
     eval {
         my $res = $self->{www}->get(
-            $self->{config}->nso_host . "/restconf/data/internet2-l2connection:internet2-l2connection",
+            $self->{config}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection",
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->content eq '') { # Empty payload indicates success
@@ -190,7 +190,7 @@ sub get_l2connections {
         } else {
             my $result = decode_json($res->content);
             die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
-            $connections = $result->{"internet2-l2connection:internet2-l2connection"};
+            $connections = $result->{"oess-l2connection:oess-l2connection"};
         }
     };
     if ($@) {
@@ -218,7 +218,7 @@ Response body:
       "errors": {
         "error": [
           {
-            "error-message": "object already exists: /internet2-l2connection:internet2-l2connection[internet2-l2connection:connection_id='124']",
+            "error-message": "object already exists: /oess-l2connection:oess-l2connection[oess-l2connection:connection_id='124']",
             "error-path": "",
             "error-tag": "data-exists",
             "error-type": "application"

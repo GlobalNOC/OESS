@@ -148,7 +148,7 @@ sub interface_handler {
 
         my $ports = eval {
             my $result = [];
-            my $types  = ["GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
+            my $types  = ["Bundle-Ether", "GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
 
             foreach my $type (@$types) {
                 my @gb_ports = $dom->findnodes("/cisco-ios-xr:interface/cisco-ios-xr:$type");
