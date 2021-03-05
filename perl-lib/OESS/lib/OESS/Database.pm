@@ -1486,6 +1486,7 @@ sub get_map_layers {
     node.name as node_name,
     node.node_id,
     node.short_name,
+    node_instantiation.southbound,
     node_instantiation.openflow,
     node_instantiation.mpls,
     node_instantiation.vendor,
@@ -1556,6 +1557,7 @@ HERE
 							       "openflow"     => $row->{'openflow'},
 							       "mpls"         => $row->{'mpls'},
                                                                "short_name"   => $row->{'short_name'},
+                                                               "southbound"   => $row->{'southbound'},
                                                                "vendor"       => $row->{'vendor'},
                                                                "model"        => $row->{'model'},
                                                                "sw_version"   => $row->{'sw_version'},
@@ -7983,6 +7985,7 @@ sub get_node_by_interface_id {
                                    lat => $lat,
                                    long => $long,
                                    port => $port,
+                                   southbound => $southbound,
                                    vendor => $vendor,
                                    model => $model,
                                    sw_ver => $sw_ver);
@@ -7993,13 +7996,9 @@ sub add_mpls_node{
     my $self = shift;
     my %args = @_;
 
-    #TODO: PARAM CHECKS
-
-    warn Data::Dumper::Dumper(%args);
-
     $self->_start_transaction();
 
-    my $query = "insert into node (name, short_name, latitude, longitude, operational_state_mpls,network_id) VALUES (?,?,?,?,?,?)";
+    my $query = "insert into node (name, short_name, latitude, longitude, operational_state_mpls, network_id) VALUES (?,?,?,?,?,?)";
     my $res = $self->_execute_query($query, [$args{'name'},$args{'short_name'},$args{'lat'},$args{'long'},'unknown',1]);
 
     warn "New Node: " . Data::Dumper::Dumper($res);
@@ -8014,6 +8013,7 @@ sub add_mpls_node{
 					openflow => 0,
 					mpls => 1,
 					admin_state => 'active',
+					southbound => $args{'southbound'} || 'netconf',
 					vendor => $args{'vendor'},
 					model => $args{'model'},
 					sw_version => $args{'sw_ver'},
@@ -8131,16 +8131,14 @@ sub create_node_instance{
         $args{'dpid'} = unpack('N', $data);
     }
 
-    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
+    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,southbound,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'southbound'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
 
     if(!defined($res)){
 	$self->_set_error("Unable to create new node instantiation");
 	return;
     }
 
-
     return 1;
-
 }
 
 =head2 update_node_operational_state

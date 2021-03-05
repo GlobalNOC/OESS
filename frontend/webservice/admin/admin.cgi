@@ -797,17 +797,21 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
                                   description => '' );
-    $method->add_input_parameter( name        => 'vendor',
+    $method->add_input_parameter( name        => 'southbound',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'vendor',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'model',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'sw_ver',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
 				  description => '' );
 
     $svc->register_method($method);
@@ -2686,6 +2690,7 @@ sub add_mpls_switch{
     my $latitude = $args->{'latitude'}{'value'};
     my $longitude = $args->{'longitude'}{'value'};
     my $port = $args->{'port'}{'value'};
+    my $southbound = $args->{'southbound'}{'value'};
     my $vendor = $args->{'vendor'}{'value'};
     my $model = $args->{'model'}{'value'};
     my $sw_ver = $args->{'sw_ver'}{'value'};
@@ -2705,6 +2710,7 @@ sub add_mpls_switch{
 				   lat => $latitude,
 				   long => $longitude,
 				   port => $port,
+				   southbound => $southbound,
 				   vendor => $vendor,
 				   model => $model,
 				   sw_ver => $sw_ver);
