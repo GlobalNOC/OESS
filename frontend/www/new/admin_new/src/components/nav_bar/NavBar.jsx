@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-import { testConfig } from '../.././test.jsx';
+import { config } from '../.././config.jsx';
 
 import NavBrand from './NavBrand';
 import NavDropdown from './NavDropdown';
@@ -21,9 +21,7 @@ export default class NavBar extends React.Component{
     let user = this.context.user;
     let workgroup = this.context.workgroup;
 
-    console.log(this.props);
-
-    let path = testConfig.user;
+    let path = config.base_url;
 
     let adminLink = null;
     if (user.is_admin == "1") {

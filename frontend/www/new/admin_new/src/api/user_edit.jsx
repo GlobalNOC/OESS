@@ -1,6 +1,6 @@
-import { testConfig } from '.././test.jsx';
+import { config } from '.././config.jsx';
 
-let path = testConfig.user;
+let path = config.base_url;
 async function editUser(user_id, first_name, family_name, email_address, type, status, auth_name) {
     let url = `${path}services/admin/admin.cgi?method=edit_user&user_id=${user_id}&first_name=${first_name}&family_name=${family_name}&email_address=${email_address}&type=${type}&status=${status}&auth_name=${auth_name}`;
 

@@ -1,8 +1,8 @@
-import { testConfig } from '.././test.jsx';
+import { config } from '.././config.jsx';
 
 
 export async function createUser(user) {
-  let url = `${testConfig.user}services/user.cgi?method=create_user`;
+  let url = `${config.base_url}services/user.cgi?method=create_user`;
   url += `&email=${user.email}`;
   url += `&first_name=${user.firstName}`;
   url += `&last_name=${user.lastName}`;
@@ -14,7 +14,7 @@ export async function createUser(user) {
   return data.results[0];
 }
 
-let path = testConfig.user;
+let path = config.base_url;
 async function addUser(user_id, first_name, family_name, email_address, type, status, auth_name) {
     let url = `${path}services/admin/admin.cgi?method=add_user&user_id=${user_id}&first_name=${first_name}&family_name=${family_name}&email_address=${email_address}&type=${type}&status=${status}&auth_name=${auth_name}`;
 

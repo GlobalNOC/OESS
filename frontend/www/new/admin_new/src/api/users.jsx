@@ -1,12 +1,12 @@
-import { testConfig } from '.././test.jsx';
+import { config } from '.././config.jsx';
 
 //const config = require('./test.json');
 
 
-let path = testConfig.user;
+let path = config.base_url;
 
 export async function getUser(user_id) {
-  let url = `${testConfig.user}services/user.cgi?method=get_user`;
+  let url = `${config.base_url}services/user.cgi?method=get_user`;
   url += `&user_id=${user_id}`;
 
   try {
@@ -42,7 +42,7 @@ export async function getUsers() {
  * @returns {number} resp.success Set to 1 if request was successful
  */
 export async function deleteUser(user_id) {
-  let url = `${testConfig.user}services/user.cgi?method=delete_user`;
+  let url = `${config.base_url}services/user.cgi?method=delete_user`;
   url += `&user_id=${user_id}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});

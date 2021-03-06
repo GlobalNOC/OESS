@@ -1,6 +1,6 @@
-import { testConfig } from '.././test.jsx';
+import { config } from '.././config.jsx';
 
-let path = testConfig.user;
+let path = config.base_url;
 async function getCurrentUser() {
     let url = `${path}services/user.cgi?method=get_current`;
 
