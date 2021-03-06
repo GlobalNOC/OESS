@@ -57,7 +57,9 @@ export async function editUser(user) {
   url += `&first_name=${user.firstName}`;
   url += `&last_name=${user.lastName}`;
   url += `&email=${user.email}`;
-  url += `&username=${user.username}`;
+  for (let i = 0; i < user.usernames.length; i++) {
+    url += `&username=${user.usernames[i]}`;
+  }
 
   const resp = await fetch(url, { method: 'get', credentials: 'include' });
   const data = await resp.json();

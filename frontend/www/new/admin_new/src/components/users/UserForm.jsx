@@ -9,22 +9,25 @@ export const UserForm = (props) => {
   let tFirstName = (props.user && props.user.first_name) ? props.user.first_name : '';
   let tLastName = (props.user && props.user.last_name) ? props.user.last_name : '';
   let tUserId = (props.user && props.user.user_id) ? props.user.user_id : 0;
-  let tUsername = (props.user && props.user.username) ? props.user.username : '';
+  let tUsernames = (props.user && props.user.usernames) ? props.user.usernames.join(', ') : '';
 
   const [email, setEmail] = useState(tEmail);
   const [firstName, setFirstName] = useState(tFirstName);
   const [lastName, setLastName] = useState(tLastName);
   const [userId, setUserId] = useState(tUserId);
-  const [username, setUsername] = useState(tUsername);
+  const [usernames, setUsernames] = useState(tUsernames);
 
   let onSubmit = (e) => {
     e.preventDefault();
+    // Remove commas and spaces from start and end of string
+    let cleanedUpUsernames = usernames.replaceAll(/^[, ]*|[, ]*$/g, '');
+    let usernames_array = cleanedUpUsernames.split(',').map(s => s.trim());
     const user = {
+      userId,
       email,
       firstName,
       lastName,
-      username,
-      userId
+      usernames: usernames_array
     };
     let ok = validateForm(user);
     if (!ok) return;
@@ -61,7 +64,7 @@ export const UserForm = (props) => {
       </div>
       <div className="form-group">
         <label htmlFor="first-name">Username(s)</label>
-        <input className="form-control" type="text" id="username" name="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <input className="form-control" type="text" id="usernames" name="usernames" value={usernames} onChange={(e) => setUsernames(e.target.value)} />
       </div>
 
       <input type="hidden" name="user_id" value={userId} />

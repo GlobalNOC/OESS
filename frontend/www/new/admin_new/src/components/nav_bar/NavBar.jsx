@@ -62,7 +62,7 @@ export default class NavBar extends React.Component{
             </ul>
             <ul className="nav navbar-nav navbar-right">
               {adminLink}
-              <NavDropdown text={`${user.username} / ${workgroup.name}`} user={user}>
+              <NavDropdown text={`${user.usernames[0]} / ${workgroup.name}`} user={user}>
                 <NavLink linkTo={"#"}>
                   <b>{user.first_name} {user.last_name}</b><br/>
                   {user.username}<br/>

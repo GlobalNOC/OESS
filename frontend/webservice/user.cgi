@@ -63,7 +63,7 @@ $ws->register_method($delete_user);
 my $edit_user = GRNOC::WebService::Method->new(
     name        => "edit_user",
     description => "edit_user modifies an existing OESS user",
-    callback    => sub { edt_user(@_) }
+    callback    => sub { edit_user(@_) }
 );
 $edit_user->add_input_parameter(
     name        => 'email',
@@ -87,6 +87,7 @@ $edit_user->add_input_parameter(
     name        => 'username',
     pattern     => $GRNOC::WebService::Regex::TEXT,
     required    => 0,
+    multiple    => 1,
     description => 'Username of user'
 );
 $edit_user->add_input_parameter(
@@ -210,17 +211,17 @@ sub edit_user {
     }
 
     my ($user2, $user_err) = $ac->edit_user(
+        user_id    => $params->{user_id}{value},
         email      => $params->{email}{value},
         first_name => $params->{first_name}{value},
         last_name  => $params->{last_name}{value},
-        user_id    => $params->{user_id}{value},
-        username   => $params->{username}{value}
+        usernames  => $params->{username}{value}
     );
     if (defined $user_err) {
         $method->set_error($user_err);
         return;
     }
-    return { results => [{ success => 1, user_id => $user2 }] };
+    return { results => [{ success => 1, user_id => $params->{user_id}{value} }] };
 }
 
 sub get_user {
@@ -242,7 +243,7 @@ sub get_user {
     if (defined $params->{user_id}{value} && $params->{user_id}{value} == $user->user_id) {
         return $user->to_hash;
     }
-    if (defined $params->{username}{value} && $params->{username}{value} eq $user->username) {
+    if (defined $params->{username}{value} && $user->has_username($params->{username}{value})) {
         return $user->to_hash;
     }
 
@@ -258,6 +259,7 @@ sub get_user {
         $method->set_error($user2_err);
         return;
     }
+    $user2->load_workgroups;
     return $user2->to_hash;
 }
 

@@ -99,7 +99,7 @@ class Workgroups extends React.Component {
               <ul className="dropdown-menu" style={{fontSize: '12px'}}>
                 <li><a href="#" onClick={() => this.deleteWorkgroup(data)}>Delete Workgroup</a></li>
                 <li role="separator" className="divider" style={{margin: '4px 0'}}></li>
-                <li><Link to={`/workgroups/${data.workgroup_id}/interfaces`}>Manage Interfaces</Link></li>
+                {/* <li><Link to={`/workgroups/${data.workgroup_id}/interfaces`}>Manage Interfaces</Link></li> */}
                 <li><Link to={`/workgroups/${data.workgroup_id}/users`}>Manage Users</Link></li>
               </ul>
             </div>

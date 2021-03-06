@@ -3,6 +3,8 @@ package OESS::AccessController::Default;
 use strict;
 use warnings;
 
+use Data::Dumper;
+
 use OESS::DB;
 use OESS::DB::ACL;
 use OESS::DB::Interface;
@@ -56,17 +58,62 @@ sub delete_user {
     return $err;
 }
 
+=head2 edit_user
+
+    my $err = $access_controller->edit_user(
+        ...
+    );
+
+=cut
 sub edit_user {
     my $self = shift;
     my $args = {
-        email      => undef,
-        first_name => undef,
-        last_name  => undef,
-        user_id    => undef,
-        username   => undef
+        email       => undef,
+        first_name  => undef,
+        last_name   => undef,
+        user_id     => undef,
+        usernames   => undef,
+        @_
     };
 
-    return 1;
+    $self->{db}->start_transaction;
+
+    my $user = new OESS::User(
+        db      => $self->{db},
+        user_id => $args->{user_id}
+    );
+    $user->first_name($args->{first_name});
+    $user->last_name($args->{last_name});
+    $user->email($args->{email});
+
+    # Handle change in usernames
+    my $username_index = {};
+    foreach my $username (@{$user->usernames}) {
+        $username_index->{$username} = 1;
+    }
+
+    foreach my $username (@{$args->{usernames}}) {
+        if (defined $username_index->{$username}) {
+            delete $username_index->{$username};
+        }
+        $user->add_username($username);
+    }
+
+    foreach my $username (keys %{$username_index}) {
+        $user->remove_username($username);
+    }
+
+    my $err = $user->update;
+    if (defined $err) {
+        $self->{db}->rollback;
+        return ($user, $err);
+    }
+
+    my $ok = $self->{db}->commit;
+    if (!$ok) {
+        return ($user, "Couldn't update user: " . $self->{db}->get_error);
+    }
+    return ($user, undef);
 }
 
 sub get_user {
@@ -129,6 +176,13 @@ sub create_workgroup {
     return $wg->create;
 }
 
+=head2 delete_workgroup
+
+    my $err = $access_controller->delete_workgroup(
+        workgroup_id => 123
+    );
+
+=cut
 sub delete_workgroup {
     my $self = shift;
     my $args = {
@@ -166,7 +220,7 @@ sub delete_workgroup {
     }
 
     $self->{db}->commit;
-    return undef;
+    return;
 }
 
 sub edit_workgroup {

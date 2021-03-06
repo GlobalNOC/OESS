@@ -13,29 +13,30 @@ use OESS::Workgroup;
 =head2 new
 
 =cut
-sub new{
-    my $that  = shift;
-    my $class = ref($that) || $that;
-
-    my $self = {
+sub new {
+    my $class = shift;
+    my $args  = {
+        db      => undef,
         user_id => undef,
-        db => undef,
-        model => undef,
-        logger => Log::Log4perl->get_logger("OESS.User"),
+        model   => undef,
+        logger  => Log::Log4perl->get_logger("OESS.User"),
         @_
     };
-    bless $self, $class;
+    my $self = bless $args, $class;
+
+    $self->{usernames_to_add} = [];
+    $self->{usernames_to_remove} = [];
 
     if (defined $self->{db} && (defined $self->{user_id} || defined $self->{username})) {
-        $self->{model} = OESS::DB::User::fetch(
+        my $err;
+        ($self->{model}, $err) = OESS::DB::User::fetch_v2(
             db       => $self->{db},
             user_id  => $self->{user_id},
             username => $self->{username}
         );
+        warn $err if defined $err;
     }
-    if (!defined $self->{model}) {
-        return;
-    }
+    return if !defined $self->{model};
 
     $self->from_hash($self->{model});
     return $self;
@@ -44,21 +45,22 @@ sub new{
 =head2 to_hash
 
 =cut
-sub to_hash{
+sub to_hash {
     my $self = shift;
 
     my $obj = {};
 
-    $obj->{'username'} = $self->username();
+    $obj->{'usernames'} = $self->usernames();
     $obj->{'first_name'} = $self->first_name();
     $obj->{'last_name'} = $self->last_name();
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
-    $obj->{'is_admin'} = $self->is_admin();
+    $obj->{'is_admin'} = 0;
 
     if (defined $self->{workgroups}) {
         $obj->{'workgroups'} = [];
         foreach my $wg (@{$self->{workgroups}}) {
+            $obj->{'is_admin'} = 1 if $wg->type eq 'admin';
             push @{$obj->{workgroups}}, $wg->to_hash;
         }
     }
@@ -71,7 +73,7 @@ sub to_hash{
 =head2 from_hash
 
 =cut
-sub from_hash{
+sub from_hash {
     my $self = shift;
     my $hash = shift;
 
@@ -79,7 +81,7 @@ sub from_hash{
     $self->{first_name} = $hash->{first_name};
     $self->{last_name}  = $hash->{last_name};
     $self->{user_id}    = $hash->{user_id};
-    $self->{username}   = $hash->{username};
+    $self->{usernames}  = $hash->{usernames};
 
     if (defined $hash->{workgroups}) {
         $self->{workgroups} = $hash->{workgroups};
@@ -110,6 +112,46 @@ sub create {
 
     $self->{user_id} = $id;
     return ($id, undef);
+}
+
+=head2 update
+
+=cut
+sub update {
+    my $self = shift;
+
+    if (!defined $self->{db}) {
+        $self->{logger}->error("Couldn't update User: DB handle is missing.");
+        return "Couldn't update User: DB handle is missing.";
+    }
+
+    my $uerr = OESS::DB::User::update(
+        db         => $self->{db},
+        user_id    => $self->{user_id},
+        first_name => $self->{first_name},
+        last_name  => $self->{last_name},
+        email      => $self->{email}
+    );
+    return $uerr if defined $uerr;
+
+    foreach my $username (@{$self->{usernames_to_add}}) {
+        my $err = OESS::DB::User::add_username(
+            db       => $self->{db},
+            user_id  => $self->{user_id},
+            username => $username
+        );
+        return $err if defined $err;
+    }
+
+    foreach my $username (@{$self->{usernames_to_remove}}) {
+        my $err = OESS::DB::User::remove_username(
+            db       => $self->{db},
+            username => $username
+        );
+        return $err if defined $err;        
+    }
+
+    return;
 }
 
 =head2 load_workgroups
@@ -164,29 +206,84 @@ sub get_workgroup {
     return;
 }
 
-=head2 username
+=head2 usernames
 
 =cut
-sub username{
+sub usernames {
     my $self = shift;
-    return $self->{'username'};
+    return $self->{usernames};
+}
+
+=head2 add_username
+
+=cut
+sub add_username {
+    my $self = shift;
+    my $name = shift;
+
+    foreach my $username (@{$self->{usernames}}) {
+        return if ($username eq $name);
+    }
+
+    push @{$self->{usernames_to_add}}, $name;
+    push @{$self->{usernames}}, $name;
+    return;
+}
+
+=head2 remove_username
+
+=cut
+sub remove_username {
+    my $self = shift;
+    my $name = shift;
+
+    my $usernames = [];
+    foreach my $username (@{$self->{usernames}}) {
+        if ($username eq $name) {
+            push @{$self->{usernames_to_remove}}, $name;
+        } else {
+            push @$usernames, $username;
+        }
+    }
+    $self->{usernames} = $usernames;
+    return;
+}
+
+=head2 has_username
+
+=cut
+sub has_username {
+    my $self = shift;
+    my $username = shift;
+
+    foreach my $name (@{$self->{usernames}}) {
+        return 1 if $name eq $username;
+    }
+    return 0;
 }
 
 =head2 first_name
 
 =cut
-sub first_name{
+sub first_name {
     my $self = shift;
-    return $self->{'first_name'};
+    my $name = shift;
+    if (defined $name) {
+        $self->{first_name} = $name;
+    }
+    return $self->{first_name};
 }
 
 =head2 last_name
 
 =cut
-sub last_name{
+sub last_name {
     my $self = shift;
-    return $self->{'last_name'};
-
+    my $name = shift;
+    if (defined $name) {
+        $self->{last_name} = $name;
+    }
+    return $self->{last_name};
 }
 
 =head2 user_id
@@ -230,9 +327,12 @@ sub email{
 =head2 is_admin
 
 =cut
-sub is_admin{
+sub is_admin {
     my $self = shift;
-    return $self->{'is_admin'};
+    foreach my $wg (@{$self->{workgroups}}) {
+        return 1 if $wg->type eq 'admin';
+    }
+    return 0;
 }
 
 =head2 in_workgroup

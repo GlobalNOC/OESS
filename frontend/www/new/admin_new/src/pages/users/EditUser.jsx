@@ -26,7 +26,7 @@ const editUserComponent = (props) => {
   let submitHandler = async (e) => {
     try {
       await editUser(e);
-      setStatus({type:'success', message:`User '${e.username}' was successfully edited.`});
+      setStatus({type:'success', message:`User '${e.usernames[0]}' was successfully edited.`});
     } catch (error) {
       setStatus({type:'error', message:error.toString()});
     }

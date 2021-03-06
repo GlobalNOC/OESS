@@ -66,6 +66,61 @@ sub fetch{
     return $user->[0];
 }
 
+=head2 fetch_v2
+
+    my ($user, $err) = OESS::DB::User::fetch_v2(
+        db      => $db,
+        user_id => 123
+    );
+    die $err if defined $err;
+
+=cut
+sub fetch_v2 {
+    my $args = {
+        db       => undef,
+        user_id  => undef,
+        username => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required argument `user_id` or `username` is missing.') if (!defined $args->{user_id} && !defined $args->{username});
+
+    my $user_records;
+    if (defined $args->{user_id}) {
+        my $q = "
+            select remote_auth.auth_name as username, user.family_name as last_name, user.given_names as first_name, user.user_id, user.email
+            from user
+            join remote_auth on remote_auth.user_id=user.user_id
+            where user.user_id = ?
+        ";
+        $user_records = $args->{db}->execute_query($q, [$args->{user_id}]);
+    } else {
+        my $q = "
+            select remote_auth.auth_name as username, user.family_name as last_name, user.given_names as first_name, user.user_id, user.email
+            from user
+            join remote_auth on remote_auth.user_id=user.user_id
+            where user.user_id=(select user_id from remote_auth where auth_name=?);
+        ";
+        $user_records = $args->{db}->execute_query($q, [$args->{username}]);
+    }
+    if (!defined $user_records) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $user = $user_records->[0];
+    if (!defined $user) {
+        return (undef, "Unable to find user.");
+    }
+    $user->{usernames} = [];
+
+    foreach my $record (@$user_records) {
+        push @{$user->{usernames}}, $record->{username};
+        delete $record->{username};
+    }
+    return ($user, undef);
+}
+
 =head2 fetch_all
 
     my ($users, $error) = OESS::DB::User::fetch_all(
@@ -288,17 +343,19 @@ sub delete_user {
 
 =back
 
-    my ($result, $error) = OESS::DB::User::edit_user(db => $db,
-                                                      given_name => $given_name,
-                                                      family_name => $family_name,
-                                                      email => $email,
-                                                      auth_names => $auth_names,
-                                                      status => $status);
-    
-    Returns the result of 1 if edit is succesful and an error is neccessary 
+    my ($result, $error) = OESS::DB::User::edit_user(
+        db          => $db,
+        user_id     => $user_id
+        given_name  => $given_name,
+        family_name => $family_name,
+        email       => $email,
+        auth_names  => $auth_names,
+        status      => $status
+    );
+
+Returns the result of 1 if edit is succesful and an error is neccessary 
 
 =cut
-
 sub edit_user {
     my %params = @_;
     my $db = $params{'db'};
@@ -350,6 +407,104 @@ sub edit_user {
      }
 
      return (1,undef)
+}
+
+=head2 update
+
+=cut
+sub update {
+    my $args = {
+        db         => undef,
+        user_id    => undef,
+        first_name => undef,
+        last_name  => undef,
+        email      => undef,
+        status     => 'active',
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required arguemnt `user_id` is missing.' if !defined $args->{user_id}; 
+    return 'Required argument `first_name` is missing.' if !defined $args->{first_name};
+    return 'Required argument `last_name` is missing.' if !defined $args->{last_name};
+    return 'Required argument `email` is missing.' if !defined $args->{email};
+     
+    my $query = "UPDATE user SET email=?, given_names=?, family_name=?, status=? WHERE user_id=?";
+    my $results = $args->{db}->execute_query(
+        $query,
+        [
+            $args->{email},
+            $args->{first_name},
+            $args->{last_name},
+            $args->{status},
+            $args->{user_id}
+        ]
+    );
+    if (!defined $results) {
+        return $args->{db}->get_error;
+    }
+    return;
+}
+
+=head2 add_username
+
+    my ($auth_id, $err) = OESS::DB::User::add_username(
+        db       => $db,
+        user_id  => 123,
+        username => "demo"
+    );
+
+=cut
+sub add_username {
+    my $args = {
+        db       => undef,
+        user_id  => undef,
+        username => undef,
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+    return (undef, 'Required arguemnt `user_id` is missing.') if !defined $args->{user_id}; 
+    return (undef, 'Required arguemnt `username` is missing.') if !defined $args->{username}; 
+
+    my $query = "insert into remote_auth (user_id, auth_name) values (?, ?)";
+    my $auth_id = $args->{db}->execute_query(
+        $query,
+        [
+            $args->{user_id},
+            $args->{username}
+        ]
+    );
+    if (!defined $auth_id) {
+        return (undef, $args->{db}->get_error);
+    }
+    return ($auth_id, undef);
+}
+
+=head2 remove_username
+
+    my $err = OESS::DB::User::remove_username(
+        db       => $db,
+        username => "demo"
+    );
+
+=cut
+sub remove_username {
+    my $args = {
+        db       => undef,
+        username => undef,
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required arguemnt `username` is missing.' if !defined $args->{username}; 
+
+    my $query = "delete from remote_auth where auth_name=?";
+    my $result = $args->{db}->execute_query($query, [$args->{username}]);
+    if (!defined $result) {
+        return $args->{db}->get_error;
+    }
+    return;
 }
 
 =head2 get_workgroups
