@@ -136,17 +136,12 @@ sub get_user {
     if (!defined $result) {
         return (undef, "Couldn't find user $args->{username}.");
     }
+    $result->load_workgroups;
+
     return ($result, undef);
 }
 
 sub get_users {
-    my $self = shift;
-    my $args = {
-        @_
-    };
-    return;
-}
-sub get_user_workgroups {
     my $self = shift;
     my $args = {
         @_
@@ -267,6 +262,20 @@ sub get_workgroups {
     return;
 }
 
+sub get_workgroup_users {
+    my $self = shift;
+    my $args = {
+        workgroup_id => undef,
+        @_
+    };
+
+    my $wg = new OESS::Workgroup(db => $self->{db}, workgroup_id => $args->{workgroup_id});
+    return (undef, "Couldn't find workgroup $args->{workgroup_id}.") if !defined $wg;
+
+    my $err = $wg->load_users;
+    return ($wg->users, $err);
+}
+
 sub add_workgroup_user {
     my $self = shift;
     my $args = {
@@ -303,20 +312,6 @@ sub add_workgroup_user {
     my $ok = $self->{db}->commit;
     return "Couldn't add workgroup user. Unknown error occurred." if !$ok;
     return;
-}
-
-sub get_workgroup_users {
-    my $self = shift;
-    my $args = {
-        workgroup_id => undef,
-        @_
-    };
-
-    my $wg = new OESS::Workgroup(db => $self->{db}, workgroup_id => $args->{workgroup_id});
-    return (undef, "Couldn't find workgroup $args->{workgroup_id}.") if !defined $wg;
-
-    my $err = $wg->load_users;
-    return ($wg->users, $err);
 }
 
 sub modify_workgroup_user {

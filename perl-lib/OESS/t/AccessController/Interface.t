@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 45;
+use Test::More tests => 42;
 
 use OESS::AccessController::Base;
 use OESS::AccessController::Default;
@@ -41,7 +41,6 @@ foreach my $ctrl (@$ctrls) {
     ok($ctrl->can("edit_workgroup"), "Method `edit_workgroup` is defined.");
     ok($ctrl->can("get_workgroup"), "Method `get_workgroup` is defined.");
     ok($ctrl->can("get_workgroups"), "Method `get_workgroups` is defined.");
-    ok($ctrl->can("get_user_workgroups"), "Method `get_user_workgroups` is defined.");
 
     ok($ctrl->can("add_workgroup_user"), "Method `add_workgroup_user` is defined.");
     ok($ctrl->can("modify_workgroup_user"), "Method `modify_workgroup_user` is defined.");

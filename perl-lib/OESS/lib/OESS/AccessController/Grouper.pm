@@ -26,7 +26,6 @@ sub edit_user {
 
 sub get_user { return; }
 sub get_users { return; }
-sub get_user_workgroups { return; }
 
 sub create_workgroup { return; }
 sub delete_workgroup { return; }
