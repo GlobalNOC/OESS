@@ -8,7 +8,6 @@ const adminNavBar = (props) => {
   let links = [
     // { name: 'Devices',    url: '/devices' },
     // { name: 'Links',      url: '/links' },
-    // { name: 'Remote',     url: '/remote' },
     { name: 'Users',      url: '/users' },
     { name: 'Workgroups', url: '/workgroups' }
   ];
@@ -24,6 +23,14 @@ const adminNavBar = (props) => {
       </li>
     );
   });
+
+  // TODO Remove when admin section fully migrated
+  let legacyLink = (
+    <li key={-1} role="presentation">
+      <Link to={'/../../admin'} target="_blank">Other</Link>
+    </li>
+  );
+  sideNavLinks.push(legacyLink);
 
   return (
     <ul className="nav nav-pills nav-stacked">

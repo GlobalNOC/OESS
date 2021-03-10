@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { withRouter } from "react-router-dom";
 
-import { createUser } from '../../api/user_add.jsx';
+import { createUser } from '../../api/users.jsx';
 import { UserForm } from '../../components/users/UserForm.jsx';
 import { PageContext } from "../../contexts/PageContext.jsx";
 
@@ -14,7 +14,7 @@ const createUserComponent = (props) => {
   let submitHandler = async (e) => {
     try {
       await createUser(e);
-      setStatus({type:'success', message:`User '${e.username}' was successfully created.`});
+      setStatus({type:'success', message:`User '${e.usernames[0]}' was successfully created.`});
     } catch (error) {
       setStatus({type:'error', message:error});
     }

@@ -35,6 +35,21 @@ export async function getUsers() {
     }
 }
 
+export async function createUser(user) {
+  let url = `${config.base_url}services/user.cgi?method=create_user`;
+  url += `&email=${user.email}`;
+  url += `&first_name=${user.firstName}`;
+  url += `&last_name=${user.lastName}`;
+  for (let i = 0; i < user.usernames.length; i++) {
+    url += `&username=${user.usernames[i]}`;
+  }
+
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  const data = await resp.json();
+  if (data.error_text) throw data.error_text;
+  return data.results[0];
+}
+
 /**
  * @param {integer} user_id Id of this user
  * 

@@ -43,12 +43,15 @@ class Users extends React.Component {
   }
 
   async deleteUser(user) {
-    let ok = confirm(`Delete user '${user.username}'?`);
+    let ok = confirm(`Delete user '${user.usernames[0]}'?`);
     if (!ok) return;
 
     try {
       await deleteUser(user.user_id);
-      // location.reload();
+      this.context.setStatus({type:'success', message:`User '${user.usernames[0]}' was successfully deleted.`});
+      this.setState((state) => {
+        return {users: state.users.filter((u) => (u.user_id == user.user_id) ? false : true)};
+      })
     } catch (error) {
       this.context.setStatus({type:'error', message:error.toString()});
     }

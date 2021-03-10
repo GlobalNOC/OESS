@@ -45,7 +45,7 @@ const App = () => {
 
               <Route path="/users/new"><CreateUser /></Route>
               <Route path="/users/:id" component={EditUser} />
-              <Route path="/users"><Users /></Route>
+              <Route path="/users" component={Users}></Route>
 
               <Route path="/workgroups/new">
                 <CreateWorkgroup />
