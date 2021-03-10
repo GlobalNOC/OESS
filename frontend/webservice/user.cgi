@@ -124,6 +124,13 @@ $get_user->add_input_parameter(
 );
 $ws->register_method($get_user);
 
+my $get_users = GRNOC::WebService::Method->new(
+    name        => "get_users",
+    description => "get_users returns a list of all users",
+    callback    => sub { get_users(@_) }
+);
+$ws->register_method($get_users);
+
 sub get_current {
     my $method = shift;
     my $params = shift;
@@ -261,6 +268,29 @@ sub get_user {
     }
     $user2->load_workgroups;
     return $user2->to_hash;
+}
+
+sub get_users {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+
+    my ($users, $users_err) = $ac->get_users();
+    if (defined $users_err) {
+        $method->set_error($users_err);
+        return;
+    }
+    
+    my $result = [];
+    foreach my $user (@$users) {
+        push @$result, $user->to_hash;
+    }
+    return { results => $result };
 }
 
 $ws->handle_request;

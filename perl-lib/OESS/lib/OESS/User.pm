@@ -56,6 +56,7 @@ sub to_hash {
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
     $obj->{'is_admin'} = 0;
+    $obj->{'status'} = $self->{'status'};
 
     if (defined $self->{workgroups}) {
         $obj->{'workgroups'} = [];
@@ -82,9 +83,13 @@ sub from_hash {
     $self->{last_name}  = $hash->{last_name};
     $self->{user_id}    = $hash->{user_id};
     $self->{usernames}  = $hash->{usernames};
+    $self->{status}     = $hash->{status};
 
     if (defined $hash->{workgroups}) {
         $self->{workgroups} = $hash->{workgroups};
+    }
+    if (defined $hash->{usernames}) {
+        $self->{usernames} = $hash->{usernames};
     }
     return 1;
 }

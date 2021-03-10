@@ -141,12 +141,34 @@ sub get_user {
     return ($result, undef);
 }
 
+=head2 get_users
+
+    my ($users, $err) = $ac->get_users();
+
+=cut
 sub get_users {
     my $self = shift;
     my $args = {
         @_
     };
-    return;
+
+    my ($users, $err) = OESS::DB::User::fetch_all_v2(
+        db => $self->{db}
+    );
+    if (defined $err) {
+        return (undef, $err);
+    }
+
+    my $result = [];
+    foreach my $user_model (@$users) {
+        my $user = new OESS::User(
+            db    => $self->{db},
+            model => $user_model
+        );
+        push @$result, $user;
+    }
+
+    return ($result, undef);
 }
 
 sub create_workgroup {

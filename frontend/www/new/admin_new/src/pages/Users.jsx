@@ -108,8 +108,8 @@ class Users extends React.Component {
     let columns = [
       { name: 'ID', key: 'user_id' },
       { name: 'First Name', key: 'first_name' },
-      { name: 'Last Name', key: 'family_name' },
-      { name: 'Email', key: 'email_address' },
+      { name: 'Last Name', key: 'last_name' },
+      { name: 'Email', key: 'email' },
       { name: 'Status', key: 'status' },
       { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];

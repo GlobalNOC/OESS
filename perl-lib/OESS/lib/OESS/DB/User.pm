@@ -121,6 +121,43 @@ sub fetch_v2 {
     return ($user, undef);
 }
 
+sub fetch_all_v2 {
+    my $args = {
+        db     => undef,
+        status => 'active',
+        @_
+    };
+
+    return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
+
+    my $q = "
+        select user.family_name as last_name, user.given_names as first_name, user.user_id, user.email, user.status, remote_auth.auth_name as username
+        from user join remote_auth on user.user_id=remote_auth.user_id
+        where status=?
+    ";
+    my $users = $args->{db}->execute_query($q, [$args->{status}]);
+    if (!defined $users) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $result = [];
+    my $id     = -1;
+    my $u      = {};
+    foreach my $user (@$users) {
+        if (!$u || $u->{user_id} != $user->{user_id}) {
+            $u = $user;
+            $u->{usernames} = [$user->{username}];
+
+            push @{$result}, $u;
+            delete $user->{username};
+        } else {
+            push @{$u->{usernames}}, $user->{username};
+        }
+    }
+
+    return ($result, undef);
+}
+
 =head2 fetch_all
 
     my ($users, $error) = OESS::DB::User::fetch_all(

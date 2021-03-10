@@ -39,7 +39,7 @@ export const AddWorkgroupUserForm = (props) => {
       role,
       userId,
       workgroupId,
-      username: user[0].auth_name[0]
+      username: user[0].usernames[0]
     };
     let ok = validateForm(payload);
     if (!ok) return;
@@ -60,7 +60,7 @@ export const AddWorkgroupUserForm = (props) => {
   };
 
   let suggestions = users.map((user) => {
-    return {name: user.auth_name[0], value: parseInt(user.user_id)};
+    return {name: user.usernames[0], value: parseInt(user.user_id)};
   });
 
   return (
