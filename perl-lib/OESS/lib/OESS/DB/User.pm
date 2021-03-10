@@ -89,7 +89,7 @@ sub fetch_v2 {
     my $user_records;
     if (defined $args->{user_id}) {
         my $q = "
-            select remote_auth.auth_name as username, user.family_name as last_name, user.given_names as first_name, user.user_id, user.email
+            select remote_auth.auth_name as username, user.family_name as last_name, user.given_names as first_name, user.user_id, user.email, user.status
             from user
             join remote_auth on remote_auth.user_id=user.user_id
             where user.user_id = ?
@@ -97,7 +97,7 @@ sub fetch_v2 {
         $user_records = $args->{db}->execute_query($q, [$args->{user_id}]);
     } else {
         my $q = "
-            select remote_auth.auth_name as username, user.family_name as last_name, user.given_names as first_name, user.user_id, user.email
+            select remote_auth.auth_name as username, user.family_name as last_name, user.given_names as first_name, user.user_id, user.email, user.status
             from user
             join remote_auth on remote_auth.user_id=user.user_id
             where user.user_id=(select user_id from remote_auth where auth_name=?);

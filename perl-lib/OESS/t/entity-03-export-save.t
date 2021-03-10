@@ -120,6 +120,7 @@ cmp_deeply(
                              'user_id' => '121',
                              'last_name' => 'User 121',
                              'first_name' => 'User 121',
+                             'status' => 'active',
                              'usernames' => ['user_121@foo.net']
                             },
                             {
@@ -128,6 +129,7 @@ cmp_deeply(
                              'user_id' => '881',
                              'last_name' => 'User 881',
                              'first_name' => 'User 881',
+                             'status' => 'active',
                              'usernames' => ['user_881@foo.net']
                             }
                           ),
@@ -182,6 +184,7 @@ cmp_deeply(
                               'user_id' => '881',
                               'last_name' => 'User 881',
                               'first_name' => 'User 881',
+                              'status' => 'active',
                               'usernames' => ['user_881@foo.net']
                              }
                             ),
