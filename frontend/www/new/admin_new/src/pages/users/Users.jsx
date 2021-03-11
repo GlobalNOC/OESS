@@ -3,12 +3,12 @@ import ReactDOM from "react-dom";
 
 import { Link } from "react-router-dom";
 
-import getUsers, { deleteUser } from '../api/users.jsx';
-import { PageContext } from "../contexts/PageContext.jsx";
-import { PageSelector } from '../components/generic_components/PageSelector.jsx';
-import { Table } from '../components/generic_components/Table.jsx';
+import getUsers, { deleteUser } from '../../api/users.jsx';
+import { PageContext } from "../../contexts/PageContext.jsx";
+import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
+import { Table } from '../../components/generic_components/Table.jsx';
 
-import "../style.css";
+import "../../style.css";
 
 
 class Users extends React.Component {

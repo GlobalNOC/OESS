@@ -5,9 +5,7 @@ import { AdminNavBar } from "./components/nav_bar/AdminNavBar.jsx";
 import NavBar from "./components/nav_bar/NavBar.jsx";
 import { PageContextProvider } from './contexts/PageContext.jsx';
 
-import { Users } from "./pages/Users.jsx";
-import { Device } from "./pages/Device.jsx";
-import { Devices } from "./pages/Devices.jsx";
+import { Users } from "./pages/users/Users.jsx";
 import { Workgroups } from "./pages/workgroups/Workgroups.jsx";
 import { Toast } from "./components/generic_components/Toast.jsx";
 
@@ -56,10 +54,6 @@ const App = () => {
               <Route path="/workgroups/:id" component={EditWorkgroup} />
               <Route path="/workgroups">
                 <Workgroups />
-              </Route>
-              <Route path="/devices/:id" component={Device} />
-              <Route path="/devices">
-                <Devices />
               </Route>
             </Switch>
           </div>
