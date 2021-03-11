@@ -48,7 +48,10 @@ class Workgroups extends React.Component {
 
     try {
       await deleteWorkgroup(workgroup.workgroup_id);
-      location.reload();
+      this.context.setStatus({type:'success', message:`Workgroup '${workgroup.name}' was successfully deleted.`});
+      this.setState((state) => {
+        return {workgroups: state.workgroups.filter((w) => (w.workgroup_id == workgroup.workgroup_id) ? false : true)};
+      });
     } catch (error) {
       this.context.setStatus({type:'error', message:error.toString()});
     }

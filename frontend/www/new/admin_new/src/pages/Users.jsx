@@ -51,7 +51,7 @@ class Users extends React.Component {
       this.context.setStatus({type:'success', message:`User '${user.usernames[0]}' was successfully deleted.`});
       this.setState((state) => {
         return {users: state.users.filter((u) => (u.user_id == user.user_id) ? false : true)};
-      })
+      });
     } catch (error) {
       this.context.setStatus({type:'error', message:error.toString()});
     }
