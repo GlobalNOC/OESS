@@ -130,7 +130,7 @@ class Workgroups extends React.Component {
           <div className="form-group">
             <div className="input-group">
               <span className="input-group-addon" id="icon"><span className="glyphicon glyphicon-search" aria-hidden="true"></span></span>
-              <input type="text" className="form-control" id="user_search" placeholder="Search by name or id" aria-describedby="icon" onChange={(e) => this.filterWorkgroups(e)}/>
+              <input type="text" className="form-control" id="user_search" placeholder="Filter Workgroups" aria-describedby="icon" onChange={(e) => this.filterWorkgroups(e)}/>
             </div>
           </div>
           <Link to="/workgroups/new" className="btn btn-default">Create Workgroup</Link>
