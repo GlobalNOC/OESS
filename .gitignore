@@ -8,7 +8,8 @@
 app/dist
 frontend/dist
 frontend/www/new/admin_new/.cache/
-frontend/www/new/admin_new/.vscode/
+**/.vscode/
+frontend/www/new/admin_new/.env.production
 perl-lib/OESS/Makefile
 perl-lib/OESS/MANIFEST.bak
 perl-lib/OESS/t/conf/SNMP/*
