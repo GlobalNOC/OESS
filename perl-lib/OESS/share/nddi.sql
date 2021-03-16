@@ -606,6 +606,7 @@ CREATE TABLE `node_instantiation` (
   `mgmt_addr` varchar(255) DEFAULT NULL,
   `loopback_address` varchar(255) DEFAULT NULL,
   `tcp_port` int(6) DEFAULT '830',
+  `controller` enum('openflow','netconf','nso') NOT NULL DEFAULT 'nso',
   PRIMARY KEY (`node_id`,`end_epoch`),
   UNIQUE KEY `node_instantiation_idx` (`end_epoch`,`dpid`),
   CONSTRAINT `node_node_instantiation_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
