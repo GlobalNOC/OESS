@@ -289,8 +289,8 @@ sub start {
     $self->{dispatcher} = new OESS::RabbitMQ::Dispatcher(
         # queue => 'oess-discovery',
         # topic => 'oess.discovery.rpc'
-        queue => 'MPLS-Discovery',
-        topic => 'MPLS.Discovery.RPC'
+        queue => 'NSO-Discovery',
+        topic => 'NSO.Discovery.RPC'
     );
 
     my $new_switch = new GRNOC::RabbitMQ::Method(

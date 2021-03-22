@@ -95,8 +95,8 @@ sub start {
     );
 
     $self->{dispatcher} = new OESS::RabbitMQ::Dispatcher(
-        queue => 'MPLS-FWDCTL',
-        topic => 'MPLS.FWDCTL.RPC'
+        queue => 'NSO-FWDCTL',
+        topic => 'NSO.FWDCTL.RPC'
     );
 
     my $add_vlan = GRNOC::RabbitMQ::Method->new(
