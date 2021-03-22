@@ -19,21 +19,21 @@ OESS::NSO::Client provides a perl interface to the NSO web api.
 sub new {
     my $class = shift;
     my $args  = {
-        config          => undef,
+        config_obj      => undef,
         config_filename => '/etc/oess/database.xml',
         logger          => Log::Log4perl->get_logger('OESS.NSO.Client'),
         @_
     };
     my $self = bless $args, $class;
 
-    if (!defined $self->{config}) {
-        $self->{config} = new OESS::Config(config_filename => $self->{config_filename});
+    if (!defined $self->{config_obj}) {
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config_filename});
     }
 
     $self->{www} = new LWP::UserAgent;
-    my $host = $self->{config}->nso_host;
+    my $host = $self->{config_obj}->nso_host;
     $host =~ s/http(s){0,1}:\/\///g; # Strip http:// or https:// from string
-    $self->{www}->credentials($host, "restconf", $self->{config}->nso_username, $self->{config}->nso_password);
+    $self->{www}->credentials($host, "restconf", $self->{config_obj}->nso_username, $self->{config_obj}->nso_password);
 
     return $self;
 }
@@ -73,7 +73,7 @@ sub create_l2connection {
 
     eval {
         my $res = $self->{www}->post(
-            $self->{config}->nso_host . "/restconf/data/",
+            $self->{config_obj}->nso_host . "/restconf/data/",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
@@ -101,7 +101,7 @@ sub delete_l2connection {
 
     eval {
         my $res = $self->{www}->delete(
-            $self->{config}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection=$conn_id",
+            $self->{config_obj}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection=$conn_id",
             'Content-type' => 'application/yang-data+json'
         );
         return if ($res->content eq ''); # Empty payload indicates success
@@ -154,7 +154,7 @@ sub edit_l2connection {
 
     eval {
         my $res = $self->{www}->put(
-            $self->{config}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection=$conn_id",
+            $self->{config_obj}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection=$conn_id",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
@@ -182,7 +182,7 @@ sub get_l2connections {
     my $connections;
     eval {
         my $res = $self->{www}->get(
-            $self->{config}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection",
+            $self->{config_obj}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection",
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->content eq '') { # Empty payload indicates success

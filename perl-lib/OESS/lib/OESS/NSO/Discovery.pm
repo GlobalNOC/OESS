@@ -29,23 +29,23 @@ use OESS::RabbitMQ::Dispatcher;
 sub new {
     my $class = shift;
     my $args  = {
-        config          => undef,
+        config_obj      => undef,
         config_filename => '/etc/oess/database.xml',
         logger          => Log::Log4perl->get_logger('OESS.NSO.Discovery'),
         @_
     };
     my $self = bless $args, $class;
 
-    if (!defined $self->{config}) {
-        $self->{config} = new OESS::Config(config_filename => $self->{config_filename});
+    if (!defined $self->{config_obj}) {
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config_filename});
     }
-    $self->{db} = new OESS::DB(config => $self->{config}->filename);
+    $self->{db} = new OESS::DB(config => $self->{config_obj}->filename);
     $self->{nodes} = {};
 
     $self->{www} = new LWP::UserAgent;
-    my $host = $self->{config}->nso_host;
+    my $host = $self->{config_obj}->nso_host;
     $host =~ s/http(s){0,1}:\/\///g; # Strip http:// or https:// from string
-    $self->{www}->credentials($host, "restconf", $self->{config}->nso_username, $self->{config}->nso_password);
+    $self->{www}->credentials($host, "restconf", $self->{config_obj}->nso_username, $self->{config_obj}->nso_password);
 
     # When this process receives sigterm send an event to notify all
     # children to exit cleanly.
@@ -80,7 +80,7 @@ sub device_handler {
         my $node = $self->{nodes}->{$key};
 
         my $dom = eval {
-            my $res = $self->{www}->get($self->{config}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}");
+            my $res = $self->{www}->get($self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}");
             return XML::LibXML->load_xml(string => $res->content);
         };
         if ($@) {
@@ -134,7 +134,7 @@ sub interface_handler {
         my $node = $self->{nodes}->{$key};
 
         my $dom = eval {
-            my $res = $self->{www}->get($self->{config}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}/config/tailf-ned-cisco-ios-xr:interface");
+            my $res = $self->{www}->get($self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}/config/tailf-ned-cisco-ios-xr:interface");
             return XML::LibXML->load_xml(string => $res->content);
         };
         if ($@) {

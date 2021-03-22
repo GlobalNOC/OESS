@@ -40,22 +40,22 @@ use constant PENDING_DIFF_APPROVED => 3;
 sub new {
     my $class = shift;
     my $args  = {
-        config          => undef,
+        config_obj      => undef,
         config_filename => '/etc/oess/database.xml',
         logger          => Log::Log4perl->get_logger('OESS.NSO.FWDCTL'),
         @_
     };
     my $self = bless $args, $class;
 
-    if (!defined $self->{config}) {
-        $self->{config} = new OESS::Config(config_filename => $self->{config_filename});
+    if (!defined $self->{config_obj}) {
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config_filename});
     }
     $self->{cache} = {};
     $self->{flat_cache} = {};
     $self->{pending_diff} = {};
-    $self->{db} = new OESS::DB(config => $self->{config}->filename);
+    $self->{db} = new OESS::DB(config => $self->{config_obj}->filename);
     $self->{nodes} = {};
-    $self->{nso} = new OESS::NSO::Client(config => $self->{config});
+    $self->{nso} = new OESS::NSO::Client(config => $self->{config_obj});
 
     # When this process receives sigterm send an event to notify all
     # children to exit cleanly.
