@@ -234,12 +234,12 @@ sub new_switch {
     if (!defined $node) {
         my $err = "Couldn't lookup node $params->{node_id}{value}. Discovery will not properly complete on this node.";
         $self->{logger}->error($err);
-        &$error($err);
+        return &$error($err);
     }
     $self->{nodes}->{$params->{node_id}{value}} = $node;
 
-    warn "Switch $node->{name} registered with Discovery.";
-    $self->{logger}->info("Switch $node->{name} registered with Discovery.");
+    warn "Switch $node->{name} registered with NSO.Discovery.";
+    $self->{logger}->info("Switch $node->{name} registered with NSO.Discovery.");
 
     # Make first invocation of polling subroutines
     $self->device_handler;
@@ -255,7 +255,7 @@ sub start {
     my $self = shift;
 
     # Load devices from database
-    my $nodes = OESS::DB::Node::fetch_all(db => $self->{db});
+    my $nodes = OESS::DB::Node::fetch_all(db => $self->{db}, controller => 'nso');
     if (!defined $nodes) {
         warn "Couldn't lookup nodes. Discovery will not collect data on any existing nodes.";
         $self->{logger}->error("Couldn't lookup nodes. Discovery will not collect data on any existing nodes.");

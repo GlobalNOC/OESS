@@ -40,8 +40,12 @@ sub fetch{
 sub fetch_all {
     my %params = @_;
     my $db = $params{'db'};
+    my $controller = $params{'controller'} || 'netconf';
 
-    return $db->execute_query("select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node_instantiation.end_epoch=-1", []);
+    return $db->execute_query(
+        "select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node_instantiation.end_epoch=-1 and node_instantiation.controller=?",
+        [$controller]
+    );
 }
 
 =head2 get_node_interfaces
