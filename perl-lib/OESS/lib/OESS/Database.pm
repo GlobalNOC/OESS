@@ -129,6 +129,7 @@ sub new {
     my %args = (
 	config => '/etc/oess/database.xml' ,
 	topo   => undef,
+    config_obj => undef,
 	@_,
 	);
     my $self = \%args;
@@ -184,13 +185,23 @@ sub new {
 	topo => $config->{'oscars'}->{'topo'}
     };
     
-    my $dbh      = DBI->connect("DBI:mysql:$database", $username, $password,
-				{mysql_auto_reconnect => 1 }
-        );
-
-    if (! $dbh){
-      return ;
+    if (!defined $self->{config_obj}) {
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
     }
+
+    $database = $self->{config_obj}->mysql_database;
+    $username = $self->{config_obj}->mysql_user;
+    $password = $self->{config_obj}->mysql_pass;
+    my $host  = $self->{config_obj}->mysql_host;
+    my $port  = $self->{config_obj}->mysql_port;
+
+    my $dbh = DBI->connect(
+        "DBI:mysql:database=$database;host=$host;port=$port",
+        $username,
+        $password,
+        { mysql_auto_reconnect => 1 }
+    );
+    return if !$dbh;
 
     # set the defualt vlan range, if not defined in config default to 1-4096
     $self->default_vlan_range(range => $config->{'default_vlan_range'} || '1-4096');

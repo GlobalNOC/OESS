@@ -2,14 +2,15 @@
 use strict;
 use warnings;
 
-use OESS::MPLS::FWDCTL;
-
+use AnyEvent;
 use English;
-use Data::Dumper;
 use Getopt::Long;
 use Log::Log4perl;
 use Proc::Daemon;
 use XML::Simple;
+
+use OESS::Config;
+use OESS::MPLS::FWDCTL;
 
 my $pid_file = "/var/run/oess/mpls_fwdctl.pid";
 
@@ -27,7 +28,9 @@ sub get_diff_interval{
 sub core{
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
-    my $FWDCTL = OESS::MPLS::FWDCTL->new();
+    my $config = new OESS::Config(config_filename => '/etc/oess/database.xml');
+    my $FWDCTL = new OESS::MPLS::FWDCTL(config_obj => $config);
+
     my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
     my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
     my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
@@ -111,6 +114,7 @@ sub main{
     #not a daemon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
+        $SIG{INT} = sub{ exit(0); }; # Used to cleanly exit from `docker run`
         core();
     }
 

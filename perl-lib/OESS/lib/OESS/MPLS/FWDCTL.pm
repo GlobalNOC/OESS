@@ -64,30 +64,34 @@ create a new OESS Master process
 
 sub new {
     my $class = shift;
-    my %params = @_;
-    my $self = \%params;
-    bless $self, $class;
+    my $args  = {
+        config     => '/etc/oess/database.xml',
+        config_obj => undef,
+        logger     => Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.MASTER'),
+        share_file => '/var/run/oess/mpls_share',
+        @_
+    };
+    my $self = bless $args, $class;
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.MASTER');
+    if (!defined $self->{config_obj}) {
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
+    }
 
-    my $config_filename = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
-    $self->{'config'} = new OESS::Config(config_filename => $config_filename);
-
-    $self->{'db'} = OESS::Database->new( config_file => $config_filename );
-    $self->{'db2'} = OESS::DB->new();
+    $self->{'db'}  = new OESS::Database(config_obj => $self->{config_obj});
+    $self->{'db2'} = new OESS::DB(config_obj => $self->{config_obj});
 
     if (!$self->{object_only}) {
-        my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new(
-            queue => 'MPLS-FWDCTL',
-            topic => "MPLS.FWDCTL.RPC"
+        $self->{fwdctl_dispatcher} = OESS::RabbitMQ::Dispatcher->new(
+            config_obj => $self->{config_obj},
+            queue      => 'MPLS-FWDCTL',
+            topic      => 'MPLS.FWDCTL.RPC'
         );
-
-        $self->_register_rpc_methods( $fwdctl_dispatcher );
-        $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
+        $self->_register_rpc_methods($self->{fwdctl_dispatcher});
 
         $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
-            timeout => 120,
-            topic => 'MPLS.FWDCTL.event'
+            config_obj => $self->{config_obj},
+            timeout    => 120,
+            topic      => 'MPLS.FWDCTL.event'
         );
         $self->{'logger'}->info("RabbitMQ ready to go!");
 
@@ -98,20 +102,13 @@ sub new {
         };
     }
 
-
-    my $topo = OESS::Topology->new( db => $self->{'db'}, MPLS => 1 );
-    if (! $topo) {
+    $self->{topo} = new OESS::Topology(db => $self->{'db'}, MPLS => 1);
+    if (!$self->{topo}) {
         $self->{'logger'}->fatal("Could not initialize topo library");
         exit(1);
     }
     
-    $self->{'topo'} = $topo;
-    
     $self->{'uuid'} = new Data::UUID;
-    
-    if(!defined($self->{'share_file'})){
-        $self->{'share_file'} = '/var/run/oess/mpls_share';
-    }
     
     $self->{'circuit'} = {};
     $self->{'node_rules'} = {};
@@ -582,14 +579,8 @@ sub make_baby {
     my $node = $self->{'node_by_id'}->{$id};
     my %args;
     $args{'id'} = $id;
-    $args{'config'} = $self->{'config'}->{'config_filename'};
+    $args{'config'} = $self->{'config'};
     $args{'share_file'} = $self->{'share_file'}. "." . $id;
-    $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
-    $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
-    $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
-    $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
-    $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
-    $args{'topic'} = "MPLS.FWDCTL.Switch";
     $args{'type'} = 'fwdctl';
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
