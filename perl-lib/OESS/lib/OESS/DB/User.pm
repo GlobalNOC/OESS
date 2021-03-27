@@ -121,6 +121,9 @@ sub fetch_v2 {
     return ($user, undef);
 }
 
+=head2 fetch_all_v2
+
+=cut
 sub fetch_all_v2 {
     my $args = {
         db     => undef,

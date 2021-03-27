@@ -9,3 +9,9 @@ start:
 
 stop:
 	docker stack rm oess-dev
+
+TEST_FILES=
+
+test:
+	docker build . -f Dockerfile -t oess-test
+	docker run -it -e OESS_TEST_FILES="$(TEST_FILES)" --volume ${PWD}/perl-lib/OESS:/OESS oess-test

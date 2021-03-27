@@ -12,6 +12,9 @@ use OESS::DB::User;
 use OESS::User;
 use OESS::Workgroup;
 
+=head2 new
+
+=cut
 sub new {
     my $class = shift;
     my $args  = {
@@ -22,6 +25,9 @@ sub new {
     return bless $args, $class;
 }
 
+=head2 create_user
+
+=cut
 sub create_user {
     my $self = shift;
     my $args = {
@@ -44,6 +50,9 @@ sub create_user {
     return $user->create;
 }
 
+=head2 delete_user
+
+=cut
 sub delete_user {
     my $self = shift;
     my $args = {
@@ -116,6 +125,9 @@ sub edit_user {
     return ($user, undef);
 }
 
+=head2 get_user
+
+=cut
 sub get_user {
     my $self = shift;
     my $args = {
@@ -171,6 +183,9 @@ sub get_users {
     return ($result, undef);
 }
 
+=head2 create_workgroup
+
+=cut
 sub create_workgroup {
     my $self = shift;
     my $args = {
@@ -240,6 +255,9 @@ sub delete_workgroup {
     return;
 }
 
+=head2 edit_workgroup
+
+=cut
 sub edit_workgroup {
     my $self = shift;
     my $args = {
@@ -263,6 +281,9 @@ sub edit_workgroup {
     return $wg->update;
 }
 
+=head2 get_workgroup
+
+=cut
 sub get_workgroup {
     my $self = shift;
     my $args = {
@@ -276,6 +297,9 @@ sub get_workgroup {
     return ($wg, undef);
 }
 
+=head2 get_workgroups
+
+=cut
 sub get_workgroups {
     my $self = shift;
     my $args = {
@@ -284,6 +308,9 @@ sub get_workgroups {
     return;
 }
 
+=head2 get_workgroup_users
+
+=cut
 sub get_workgroup_users {
     my $self = shift;
     my $args = {
@@ -298,6 +325,9 @@ sub get_workgroup_users {
     return ($wg->users, $err);
 }
 
+=head2 add_workgroup_user
+
+=cut
 sub add_workgroup_user {
     my $self = shift;
     my $args = {
@@ -336,6 +366,9 @@ sub add_workgroup_user {
     return;
 }
 
+=head2 modify_workgroup_user
+
+=cut
 sub modify_workgroup_user {
     my $self = shift;
     my $args = {
@@ -365,6 +398,9 @@ sub modify_workgroup_user {
     return;
 }
 
+=head2 remove_workgroup_user
+
+=cut
 sub remove_workgroup_user {
     my $self = shift;
     my $args = {
