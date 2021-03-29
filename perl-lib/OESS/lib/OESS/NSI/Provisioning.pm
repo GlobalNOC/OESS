@@ -149,10 +149,13 @@ sub _do_provisioning{
         return;
     }
 
-    my $url = $self->{'websvc_location'} . "provisioning.cgi";
+    my $url = $self->{'websvc_location'} . "circuit.cgi";
     $self->{'websvc'}->set_url($url);
 
-    my $res = $self->{'websvc'}->provision_circuit(
+    my $endpointa = {node => $ckt->{'node'}->[0], interface => $ckt->{'interface'}->[0], tag => $ckt->{'tag'}->[0]};
+    my $endpointb = {node => $ckt->{'node'}->[1], interface => $ckt->{'interface'}->[1], tag => $ckt->{'tag'}->[1]};
+
+    my $res = $self->{'websvc'}->provision(
         state => 'provisioned',
         circuit_id => $connection_id,
         workgroup_id => $self->{'workgroup_id'},
@@ -163,10 +166,7 @@ sub _do_provisioning{
         bandwidth => $ckt->{'bandwidth'},
         provision_time => -1,
         remove_time => 1,
-        node => $ckt->{'node'},
-        interface => $ckt->{'interface'},
-        tag => $ckt->{'tag'}
-    );
+	endpoint => [$endpointa, $endpointb]);
     if (!defined $res) {
         log_error("Couldn't call provision_circuit using $url: Fatal webservice error occurred.");
         push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_FAILED, args => $args});
@@ -194,15 +194,16 @@ sub _get_circuit_details{
     my $self = shift;
     my $circuit_id = shift;
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/data.cgi");
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/circuit.cgi");
     
     log_debug("fetching circuit details");
 
-    my $circuit = $self->{'websvc'}->get_circuit_details(
-					  circuit_id => $circuit_id);
-
+    my $circuit = $self->{'websvc'}->get(
+	circuit_id => $circuit_id, workgroup_id => $self->{'workgroup_id'});
+    
     log_debug("Circuit Details: " . Data::Dumper::Dumper($circuit));
 
+    #ugh how to get this...
     my $scheduled_actions = $self->{'websvc'}->get_circuit_scheduled_events(
                                                     circuit_id => $circuit_id);
     
@@ -281,14 +282,14 @@ sub _do_terminate{
     my ($self, $args) = @_;
 
     my $connection_id = $args->{'connectionId'};
-    my $cgi = $self->{'websvc_location'} . "provisioning.cgi";
+    my $cgi = $self->{'websvc_location'} . "circuit.cgi";
 
     log_debug("_do_terminate - url: $cgi circuit: $connection_id");
 
     $self->{'websvc'}->set_url($cgi);
-    my $res = $self->{'websvc'}->remove_circuit(circuit_id => $connection_id,
-                                                workgroup_id => $self->{'workgroup_id'},
-                                                remove_time => -1);
+    my $res = $self->{'websvc'}->remove(circuit_id => $connection_id,
+					workgroup_id => $self->{'workgroup_id'},
+					remove_time => -1);
 
     log_debug("Results of remove_circuit: " . Data::Dumper::Dumper($res));
 
@@ -462,9 +463,9 @@ sub _do_release{
         $ckt->{'remove_time'} = -1;
     }
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/circuit.cgi");
 
-    my $res = $self->{'websvc'}->provision_circuit(
+    my $res = $self->{'websvc'}->provision(
                                       state => 'reserved',
                                       circuit_id => $connection_id,
                                       workgroup_id => $self->{'workgroup_id'},
@@ -475,9 +476,10 @@ sub _do_release{
                                       bandwidth => $ckt->{'bandwidth'},
                                       provision_time => $ckt->{'provision_time'},
                                       remove_time => $ckt->{'remove_time'},
-                                      node => $ckt->{'node'},
-                                      interface => $ckt->{'interface'},
-                                      tag => $ckt->{'tag'});
+	endpoint => [$endpointa, $endpointb]);
+                                      #node => $ckt->{'node'},
+                                      #interface => $ckt->{'interface'},
+                                      #tag => $ckt->{'tag'});
     
     if(defined($res) && defined($res->{'results'})){
         log_info("Release connectionId: " . $args->{'connectionId'} . " success!");

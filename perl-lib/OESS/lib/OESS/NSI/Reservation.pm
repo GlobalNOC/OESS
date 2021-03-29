@@ -183,9 +183,11 @@ sub reserve {
 #    
 #    my $backup_path = $self->get_shortest_path($ep1, $ep2, $primary_path);
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "circuit.cgi");
     
-    my $res = $self->{'websvc'}->provision_circuit(
+    my $endpoint1 = {'node' => $ep1->{'node'}, interface => $ep1->{'port'}, tag => $ep1->{'vlan'}};
+    my $endpoint2 = {'node' => $ep2->{'node'}, interface => $ep2->{'port'}, tag => $ep2->{'vlan'}};
+    my $res = $self->{'websvc'}->provision(
 				      state  => 'reserved',
                                       workgroup_id => $self->{'workgroup_id'},
                                       external_identifier => $gri,
@@ -197,9 +199,10 @@ sub reserve {
 #                                      backup_link => $backup_path,
                                       remote_url => $args->{'header'}->{'replyTo'},
                                       remote_requester => $args->{'header'}->{'requesterNSA'},
-                                      node => [$ep1->{'node'}, $ep2->{'node'}],
-                                      interface => [$ep1->{'port'}, $ep2->{'port'}],
-                                      tag => [$ep1->{'vlan'}, $ep2->{'vlan'}]);
+	                              endpoint => [$endpoint1, $endpoint2]);
+                                      #node => [$ep1->{'node'}, $ep2->{'node'}],
+                                      #interface => [$ep1->{'port'}, $ep2->{'port'}],
+                                      #tag => [$ep1->{'vlan'}, $ep2->{'vlan'}]);
     
     log_debug("Results of provision: " . Data::Dumper::Dumper($res));
 
@@ -243,8 +246,8 @@ sub _do_reserve_abort{
     
     log_info("reservationAbort: connectionId: " . $connection_id);
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
-    my $res = $self->{'websvc'}->remove_circuit(
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/circuit.cgi");
+    my $res = $self->{'websvc'}->remove(
                                       circuit_id => $connection_id,
                                       workgroup_id => $self->{'workgroup_id'},
                                       remove_time => -1);
@@ -352,7 +355,7 @@ sub validate_endpoint{
     #need to verify this is part of our network and actually exists and that we have permission!
     $self->{'log'}->info("Checking validity of port $ep->{'port'} on $ep->{'node'}.");
 
-    my $url = $self->{'websvc_location'} . "data.cgi";
+    my $url = $self->{'websvc_location'} . "circuit.cgi";
     $self->{'websvc'}->set_url($url);
     $self->{'log'}->debug("Requesting all resources for NSI workgroup from $url");
 
@@ -414,33 +417,6 @@ sub validate_endpoint{
 
     $self->{'log'}->error("not a valid endpoint, or not allowed via NSI workgroup: " . Dumper($res));
     return 0;
-}
-
-=head2 get_shortest_path
-
-=cut
-
-sub get_shortest_path{
-    my $self = shift;
-    my $ep1 = shift;
-    my $ep2 = shift;
-    my $links = shift;
-
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
-    my $shortest_path = $self->{'websvc'}->get_shortest_path(
-                                                node => [$ep1->{'node'},$ep2->{'node'}],
-                                                link => $links);
-    
-    log_debug("Shortest path: " . Data::Dumper::Dumper($shortest_path));
-    if(defined($shortest_path) && defined($shortest_path->{'results'})){
-	my @links = ();
-	foreach my $link (@{$shortest_path->{'results'}}){
-	    push(@links,$link->{'link'});
-	}
-	return \@links;
-    }
-    log_error("unable to find path");
-    return;
 }
 
 =head2 reserveCommit
@@ -750,9 +726,9 @@ sub _release_confirmed{
 sub _reserve_timeout{
     my ($self, $data) = @_;
     
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "circuit.cgi");
 
-    my $res = $self->{'websvc'}->remove_circuit(
+    my $res = $self->{'websvc'}->remove(
                                       circuit_id => $data->{'connection_id'},
                                       workgroup_id => $self->{'workgroup_id'});
 

@@ -135,8 +135,8 @@ sub query_summary{
 sub get_current_circuits{
     my $self = shift;
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
-    my $current_circuits = $self->{'websvc'}->get_existing_circuits(workgroup_id => $self->{'workgroup_id'});
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "circuit.cgi");
+    my $current_circuits = $self->{'websvc'}->get(workgroup_id => $self->{'workgroup_id'});
 
     if(defined($current_circuits) && defined($current_circuits->{'results'})){
         return $current_circuits->{'results'};
@@ -155,8 +155,8 @@ sub do_query_summarysync{
     my $self = shift;
     my $args = shift;
     
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
-    my $current_circuits = $self->{'websvc'}->get_existing_circuits(workgroup_id => $self->{'workgroup_id'});
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "circuit.cgi");
+    my $current_circuits = $self->{'websvc'}->get(workgroup_id => $self->{'workgroup_id'});
     
     my @ckts = ();
     
