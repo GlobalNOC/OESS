@@ -16,6 +16,7 @@ use Data::Dumper;
     my $id = OESS::DB::Circuit::create(
         db => $db,
         model => {
+            status              => $status,
             name                => $name,
             description         => $description,
             user_id             => $user_id,
@@ -38,11 +39,13 @@ sub create {
 
     return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
     return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
-
-    my $circuit_state = 'active';
-    if (defined $args->{model}->{provision_time}) {
-        # TODO add provision event
-        $circuit_state = 'scheduled';
+    my $circuit_state = $args->{model}->{status};
+    if(!defined($circuit_state)){
+	$circuit_state = 'active';
+	if (defined $args->{model}->{provision_time}) {
+	    # TODO add provision event
+	    $circuit_state = 'scheduled';
+	}
     }
 
     if (defined $args->{model}->{remove_time}) {
