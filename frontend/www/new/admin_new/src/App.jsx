@@ -6,6 +6,7 @@ import NavBar from "./components/nav_bar/NavBar.jsx";
 import { PageContextProvider } from './contexts/PageContext.jsx';
 
 import { Users } from "./pages/users/Users.jsx";
+import { Nodes } from "./pages/nodes/Nodes.jsx";
 import { Workgroups } from "./pages/workgroups/Workgroups.jsx";
 import { Toast } from "./components/generic_components/Toast.jsx";
 
@@ -44,6 +45,8 @@ const App = () => {
               <Route path="/users/new"><CreateUser /></Route>
               <Route path="/users/:id" component={EditUser} />
               <Route path="/users" component={Users}></Route>
+
+              <Route path="/nodes" component={Nodes}></Route>
 
               <Route path="/workgroups/new">
                 <CreateWorkgroup />
