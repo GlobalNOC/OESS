@@ -16,7 +16,7 @@ export const NodeForm = (props) => {
     console.log('submit:', user, 'validated:', ok);
 
     if (props.onSubmit) {
-      props.onSubmit(user);
+      props.onSubmit(node);
     }
   };
 

@@ -20,6 +20,7 @@ import { AddWorkgroupUser } from "./pages/workgroups/users/AddWorkgroupUser.jsx"
 import { WorkgroupInterfaces } from "./pages/workgroups/WorkgroupInterfaces.jsx";
 import { CreateUser } from "./pages/users/CreateUser.jsx";
 import { EditUser } from "./pages/users/EditUser.jsx";
+import { CreateNode } from "./pages/nodes/CreateNode.jsx";
 
 const App = () => {
   return (
@@ -46,6 +47,7 @@ const App = () => {
               <Route path="/users/:id" component={EditUser} />
               <Route path="/users" component={Users}></Route>
 
+              <Route path="/nodes/new"><CreateNode /></Route>
               <Route path="/nodes" component={Nodes}></Route>
 
               <Route path="/workgroups/new">
