@@ -1,8 +1,8 @@
--- MySQL dump 10.14  Distrib 5.5.65-MariaDB, for Linux (x86_64)
+-- MySQL dump 10.14  Distrib 5.5.68-MariaDB, for Linux (x86_64)
 --
 -- Host: localhost    Database: discovery
 -- ------------------------------------------------------
--- Server version	5.5.65-MariaDB
+-- Server version	5.5.68-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -658,6 +658,7 @@ CREATE TABLE `node_instantiation` (
   `mgmt_addr` varchar(255) DEFAULT NULL,
   `loopback_address` varchar(255) DEFAULT NULL,
   `tcp_port` int(6) DEFAULT '830',
+  `controller` enum('openflow','netconf','nso') NOT NULL DEFAULT 'nso',
   PRIMARY KEY (`node_id`,`end_epoch`),
   UNIQUE KEY `node_instantiation_idx` (`end_epoch`,`dpid`),
   CONSTRAINT `node_node_instantiation_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
@@ -670,7 +671,7 @@ CREATE TABLE `node_instantiation` (
 
 LOCK TABLES `node_instantiation` WRITE;
 /*!40000 ALTER TABLE `node_instantiation` DISABLE KEYS */;
-INSERT INTO `node_instantiation` VALUES (2,-1,1348237415,'active','00000002',0,1,'juniper','mx960','13.3R3','192.168.1.2','10.0.1.2',830),(3,-1,1348237415,'active','00000003',0,1,'juniper','mx960','13.3R3','192.168.1.3','10.0.1.3',830);
+INSERT INTO `node_instantiation` VALUES (2,-1,1348237415,'active','00000002',0,1,'juniper','mx960','13.3R3','192.168.1.2','10.0.1.2',830,'netconf'),(3,-1,1348237415,'active','00000003',0,1,'juniper','mx960','13.3R3','192.168.1.3','10.0.1.3',830,'netconf');
 /*!40000 ALTER TABLE `node_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -716,7 +717,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('2.0.3');
+INSERT INTO `oess_version` VALUES ('2.0.12');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1165,4 +1166,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-06-24 15:25:54
+-- Dump completed on 2021-04-02 22:30:31
