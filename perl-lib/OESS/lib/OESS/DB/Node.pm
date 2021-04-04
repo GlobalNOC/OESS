@@ -395,7 +395,7 @@ sub update {
     return;
 }
 
-=head2
+=head2 decom
 
     my $err = OESS::DB::Node::decom(
         db      => $db,
