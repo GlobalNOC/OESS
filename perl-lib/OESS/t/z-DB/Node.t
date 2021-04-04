@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 80;
+use Test::More tests => 83;
 
 use OESSDatabaseTester;
 
@@ -150,7 +150,7 @@ ok($node->{mgmt_addr} eq '192.168.1.2', "Node ip_address is $node->{mgmt_addr}."
 
 # Verify two instantiation table entries for node
 my $res = $db->execute_query("select * from node_instantiation where node_id=?", [$new_node_id]);
-ok(@$res == 2, "Got expected number of node_instantiations.");
+ok(@$res == 2, "Got expected number of node_instantiations entries.");
 
 
 # Must be 1 second between all node updates
@@ -181,4 +181,20 @@ ok($node->{mgmt_addr} eq '192.168.1.2', "Node ip_address is $node->{mgmt_addr}."
 
 # Verify three instantiation table entries for node
 my $res2 = $db->execute_query("select * from node_instantiation where node_id=?", [$new_node_id]);
-ok(@$res2 == 3, "Got expected number of node_instantiations.");
+ok(@$res2 == 3, "Got expected number of node_instantiations entries.");
+
+# Delete node
+my $del_err = OESS::DB::Node::delete(
+    db      => $db,
+    node_id => $new_node_id
+);
+ok(!defined $del_err, "No error generated during node delete.");
+warn $del_err if defined $del_err;
+
+# Verify zero entries for node
+my $res3 = $db->execute_query("select * from node where node_id=?", [$new_node_id]);
+ok(@$res3 == 0, "Got expected number of node entries.");
+
+# Verify zero instantiation table entries for node
+my $res4 = $db->execute_query("select * from node_instantiation where node_id=?", [$new_node_id]);
+ok(@$res4 == 0, "Got expected number of node_instantiations entries.");

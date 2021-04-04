@@ -462,4 +462,41 @@ sub decom {
     return;
 }
 
+=head2 delete
+
+    my $err = OESS::DB::Node::delete(
+        db      => $db,
+        node_id => 1234
+    );
+
+=cut
+sub delete {
+    my $args = {
+        db      => undef,
+        node_id => undef,
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `node_id` is missing.' if !defined $args->{node_id};
+
+    my $ok = $args->{db}->execute_query(
+        "DELETE FROM node_instantiation WHERE node_id=?",
+        [$args->{node_id}]
+    );
+    if (!defined $ok) {
+        return $args->{db}->get_error;
+    }
+
+    my $ok = $args->{db}->execute_query(
+        "DELETE FROM node WHERE node_id=?",
+        [$args->{node_id}]
+    );
+    if (!defined $ok) {
+        return $args->{db}->get_error;
+    }
+
+    return;
+}
+
 1;
