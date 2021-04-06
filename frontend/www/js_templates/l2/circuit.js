@@ -105,7 +105,7 @@ class CircuitHeader extends Component {
 
     return `
 <div class="col-sm-6">
-  <h2>${props.description} <small>${props.connectionId}</small></h2>
+  <h2><h2 id='header-description'>${props.description}</h2> <small>${props.connectionId}</small></h2>
 </div>
 
 <div class="col-sm-6" style="text-align: right; padding-top: 23px; display: ${displayEdits};">

@@ -54,10 +54,9 @@ class GlobalState extends Component {
     let provisionModal = $('#modify-loading');
     provisionModal.find('p').text("Give us a few seconds. We're modifying your connection now.");
     provisionModal.modal('show');
-
     provisionCircuit(
       session.data.workgroup_id,
-      this.circuit.description,
+      document.querySelector('#header-description').textContent,
       this.circuit.endpoints,
       this.circuit.provision_time,
       this.circuit.remove_time,
@@ -108,6 +107,41 @@ let modal = new EndpointSelectionModal2('#add-endpoint-modal');
 
 document.querySelector('.l2vpn-new-endpoint-button').addEventListener('click', function(e) {
   modal.display();
+});
+
+function doneEditingName(){
+  let name = document.querySelector('#header-description');
+  let button = document.getElementById("edit-description-button")
+  const newName = document.getElementById("description-input").value == "" ?  state.circuit.description : document.getElementById("description-input").value
+  name.innerHTML = "<h3 id='header-description'>" + newName + "</h3>"
+  document.getElementById("change-description-button").hidden = true
+  button.textContent = "Edit Name"
+}
+
+document.querySelector('.change-description-button').addEventListener('click', function(e) {
+  doneEditingName()
+})
+
+document.querySelector('.edit-description-button').addEventListener('click', function(e) {
+  let name = document.querySelector('#header-description');
+  let button = document.getElementById("edit-description-button")
+  
+  if(button.textContent.trim() == "Edit Name"){
+    name.innerHTML = "<input id='description-input' placeholder='"+ name.textContent +"'></input>"
+    name.addEventListener("keyup", function(event) {
+      // Number 13 is the "Enter" key on the keyboard
+      if (event.keyCode === 13) {
+        event.preventDefault();
+        doneEditingName()
+      }
+    });
+    button.textContent = "Revert" 
+    document.getElementById("change-description-button").hidden = false
+  }else{
+    name.innerHTML = "<h3 id='header-description'>" + state.circuit.description + "</h3>"
+    button.textContent = "Edit Name"
+    document.getElementById("change-description-button").hidden = true
+  }
 });
 
 let circuitHeader = null;
