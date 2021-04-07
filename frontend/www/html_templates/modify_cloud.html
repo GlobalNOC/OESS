@@ -31,6 +31,13 @@
   </div>
 
   <div class="row" id="circuit-header"></div>
+  <div id="circuit-header" class="row"></div>
+  <button id="change-description-button" class="btn-sm btn-primary change-description-button" type="button" hidden>
+    <span class="glyphicon "></span> Change
+  </button>
+  <button id="edit-description-button" class="btn-sm btn-primary edit-description-button" type="button">
+    <span class="glyphicon "></span> Edit Name
+  </button>
   <br/>
 
   <div class="row" style="margin-bottom: 15px">
@@ -94,6 +101,7 @@
     [% INCLUDE js_templates/l3/peering_modal.js  %]
 
     [% INCLUDE js_templates/modify_cloud.js  %]
+    
   </script>
 
 </div>

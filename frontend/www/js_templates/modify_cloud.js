@@ -130,12 +130,11 @@ class GlobalState extends Component {
 
     let addNetworkLoadingModal = $('#add-connection-loading');
     addNetworkLoadingModal.modal('show');
-
     try {
       let vrfID = await provisionVRF(
         session.data.workgroup_id,
         this.connection.name,
-        this.connection.description,
+        document.querySelector('#header-description').textContent,
         this.connection.endpoints,
         -1,
         -1,
@@ -195,6 +194,42 @@ document.addEventListener('DOMContentLoaded', async function() {
   let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
   addNetworkEndpoint.addEventListener('click', function(event) {
     modal.display(null);
+  });
+
+
+  function doneEditingName(){
+    let name = document.querySelector('#header-description');
+    let button = document.getElementById("edit-description-button")
+    const newName = document.getElementById("description-input").value == "" ?  state.connection.description : document.getElementById("description-input").value
+    name.innerHTML = "<h3 id='header-description'>" + newName + "</h3>"
+    document.getElementById("change-description-button").hidden = true
+    button.textContent = "Edit Name"
+  }
+  
+  document.querySelector('.change-description-button').addEventListener('click', function(e) {
+    doneEditingName()
+  })
+  
+  document.querySelector('.edit-description-button').addEventListener('click', function(e) {
+    let name = document.querySelector('#header-description');
+    let button = document.getElementById("edit-description-button")
+    
+    if(button.textContent.trim() == "Edit Name"){
+      name.innerHTML = "<input id='description-input' placeholder='"+ name.textContent +"'></input>"
+      name.addEventListener("keyup", function(event) {
+        // Number 13 is the "Enter" key on the keyboard
+        if (event.keyCode === 13) {
+          event.preventDefault();
+          doneEditingName()
+        }
+      });
+      button.textContent = "Revert" 
+      document.getElementById("change-description-button").hidden = false
+    }else{
+      name.innerHTML = "<h3 id='header-description'>" + state.connection.description + "</h3>"
+      button.textContent = "Edit Name"
+      document.getElementById("change-description-button").hidden = true
+    }
   });
 
   let map = new NDDIMap('map');
