@@ -6,6 +6,26 @@ const validateForm = (e) => {
 
 export const NodeForm = (props) => {
 
+  // let tName = (props.node && props.node.name) ? props.node.name : '';
+
+  let node = {};
+  if (props.node !== null) {
+    node = props.node;
+  }
+
+  const [name, setName] = useState(node.name || '');
+  const [shortName, setShortName] = useState(node.shortName || 'demo');
+  const [longitude, setLongitude] = useState(node.longitude || 0.0);
+  const [latitude, setLatitude] = useState(node.latitude || 0.0);
+  const [vlanRange, setVlanRange] = useState(node.vlanRange || '1-4095');
+  const [ipAddress, setIpAddress] = useState(node.ipAddress || '');
+  const [tcpPort, setTcpPort] = useState(node.tcpPort || 830);
+  const [make, setMake] = useState(node.make || '');
+  const [model, setModel] = useState(node.model || '');
+  const [controller, setController] = useState(node.controller || 'netconf');
+  const [overlay, setOverlay] = useState(node.overlay || 'vpn-mpls');
+  const [swVersion, setSwVersion] = useState(node.swVersion || 'unknown');
+
   let onSubmit = (e) => {
     e.preventDefault();
     const node = {
@@ -31,30 +51,43 @@ export const NodeForm = (props) => {
 
   return (
     <form onSubmit={onSubmit}>
-      <h4>Settings</h4>
+      <h4>Details</h4>
           <hr/>
       <div className="form-group">
-        <label htmlFor="exampleInputEmail1">Name</label>
-        <input type="text" className="form-control" id="exampleInputEmail1" placeholder="Email" />
+        <label htmlFor="name">Hostname</label>
+        <input type="text" className="form-control" id="name" placeholder="sw1.example.com" value={name} onChange={e => setName(e.target.value)} />
       </div>
       <div className="form-group">
-        <label htmlFor="exampleInputPassword1">IP Address</label>
-        <input type="text" className="form-control" id="exampleInputPassword1" placeholder="Password" />
+        <label htmlFor="ip-address">IP Address</label>
+        <input type="text" className="form-control" id="ip-address" placeholder="192.168.1.1" value={ipAddress} onChange={e => setIpAddress(e.target.value)} />
       </div>
       <div style={{display: 'inline-flex', width: '100%', gap: '12px'}}>
         <div className="form-group" style={{flex: '1'}}>
-          <label htmlFor="exampleInputEmail1">Latitude</label>
-          <input type="text" className="form-control" id="exampleInputEmail1" placeholder="Email" />
+          <label htmlFor="make">Make</label>
+          <input type="text" className="form-control" id="make" placeholder="Juniper" value={make} onChange={e => setMake(e.target.value)} />
         </div>
         <div className="form-group" style={{flex: '1'}}>
-          <label htmlFor="exampleInputPassword1">Longitude</label>
-          <input type="text" className="form-control" id="exampleInputPassword1" placeholder="Password" />
+          <label htmlFor="model">Model</label>
+          <input type="text" className="form-control" id="model" placeholder="MX" value={model} onChange={e => setModel(e.target.value)} />
         </div>
       </div>
-
+      <div style={{display: 'inline-flex', width: '100%', gap: '12px'}}>
+        <div className="form-group" style={{flex: '1'}}>
+          <label htmlFor="latitude">Latitude</label>
+          <input type="text" className="form-control" id="latitude" placeholder="0.0" value={latitude} onChange={e => setLatitude(e.target.value)} />
+        </div>
+        <div className="form-group" style={{flex: '1'}}>
+          <label htmlFor="longitude">Longitude</label>
+          <input type="text" className="form-control" id="longitude" placeholder="0.0" value={longitude} onChange={e => setLongitude(e.target.value)} />
+        </div>
+      </div>
       <div className="form-group">
-        <label htmlFor="exampleInputPassword1">Network Controller</label>
-        <select className="form-control" id="exampleInputPassword1">
+        <label htmlFor="sw-version">Firmware</label>
+        <input disabled type="text" className="form-control" id="sw-version" value={swVersion} onChange={e => setSwVersion(e.target.value)} />
+      </div>
+      <div className="form-group">
+        <label htmlFor="controller">Network Controller</label>
+        <select className="form-control" id="controller">
           <option>NETCONF</option>
           <option>NSO</option>
         </select>
@@ -64,20 +97,15 @@ export const NodeForm = (props) => {
       <h4>NETCONF</h4>
       <hr/>
       <div className="form-group">
-        <label htmlFor="exampleInputPassword1">TCP Port</label>
-        <input type="text" className="form-control" id="exampleInputPassword1" placeholder="Password" />
+        <label htmlFor="tcp-port">TCP Port</label>
+        <input type="text" className="form-control" id="tcp-port" placeholder="830" value={tcpPort} onChange={e => setTcpPort(e.target.value)} />
       </div>
       <div className="form-group">
-        <label htmlFor="exampleInputPassword1">Make</label>
-        <input type="text" className="form-control" id="exampleInputPassword1" placeholder="Password" />
-      </div>
-      <div className="form-group">
-        <label htmlFor="exampleInputPassword1">Model</label>
-        <input type="text" className="form-control" id="exampleInputPassword1" placeholder="Password" />
-      </div>
-      <div className="form-group">
-        <label htmlFor="exampleInputPassword1">Firmware</label>
-        <input disabled type="text" className="form-control" id="exampleInputPassword1" placeholder="Password" />
+        <label htmlFor="overlay">Network Overlay</label>
+        <select className="form-control" id="controller">
+          <option>VPN-MPLS</option>
+          <option>EVPN-VXLAN</option>
+        </select>
       </div>
 
       <br/>

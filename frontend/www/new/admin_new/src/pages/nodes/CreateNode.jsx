@@ -13,7 +13,7 @@ const createNodeComponent = (props) => {
 
   let submitHandler = async (e) => {
     try {
-      // await createUser(e);
+      // await createNode(e);
       // setStatus({type:'success', message:`User '${e.usernames[0]}' was successfully created.`});
       setStatus({type:'success', message:`Node '${'tmp'}' was successfully created.`});
     } catch (error) {
