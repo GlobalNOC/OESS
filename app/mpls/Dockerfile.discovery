@@ -11,7 +11,7 @@ RUN yum -y install grnoc-routerproxy inotify-tools
 
 COPY docker/rerunner.sh /bin/rerunner.sh
 
-COPY perl-lib/OESS/lib/OESS /usr/share/perl5/OESS
+COPY perl-lib/OESS/lib/OESS /usr/share/perl5/vendor_perl/OESS
 COPY docker/logging.conf    /etc/oess/logging.conf
 COPY docker/database.xml    /etc/oess/database.xml
 

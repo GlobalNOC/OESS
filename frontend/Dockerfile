@@ -13,7 +13,7 @@ RUN yum -y install perl-GRNOC-WebService-Client
 
 COPY docker/oess.conf       /etc/httpd/conf.d/oess.conf
 COPY frontend               /usr/share/oess-frontend
-COPY perl-lib/OESS/lib/OESS /usr/share/perl5/OESS
+COPY perl-lib/OESS/lib/OESS /usr/share/perl5/vendor_perl/OESS
 COPY docker/logging.conf    /etc/oess/logging.conf
 COPY docker/database.xml    /etc/oess/database.xml
 

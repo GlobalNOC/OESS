@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { withRouter } from "react-router-dom";
 
-// import { createUser } from '../../api/users.jsx';
+import { createNode } from '../../api/nodes.js';
 import { NodeForm } from '../../components/nodes/NodeForm.jsx';
 import { PageContext } from "../../contexts/PageContext.jsx";
 
@@ -13,9 +13,9 @@ const createNodeComponent = (props) => {
 
   let submitHandler = async (e) => {
     try {
-      // await createNode(e);
-      // setStatus({type:'success', message:`User '${e.usernames[0]}' was successfully created.`});
-      setStatus({type:'success', message:`Node '${'tmp'}' was successfully created.`});
+      await createNode(e);
+      console.log(e);
+      setStatus({type:'success', message:`Node '${e.name}' was successfully created.`});
     } catch (error) {
       setStatus({type:'error', message:error});
     }

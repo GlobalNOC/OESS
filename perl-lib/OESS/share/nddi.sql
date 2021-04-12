@@ -544,6 +544,9 @@ CREATE TABLE `network` (
   UNIQUE KEY `network_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+INSERT INTO `network` (network_id, name, latitude, longitude, is_local) VALUES (1,'Default',0,0,1);
+
 --
 -- Table structure for table `node`
 --

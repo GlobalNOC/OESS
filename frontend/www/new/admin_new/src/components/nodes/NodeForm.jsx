@@ -20,8 +20,8 @@ export const NodeForm = (props) => {
   const [vlanRange, setVlanRange] = useState(node.vlanRange || '1-4095');
   const [ipAddress, setIpAddress] = useState(node.ipAddress || '');
   const [tcpPort, setTcpPort] = useState(node.tcpPort || 830);
-  const [make, setMake] = useState(node.make || '');
-  const [model, setModel] = useState(node.model || '');
+  const [make, setMake] = useState(node.make || 'Juniper');
+  const [model, setModel] = useState(node.model || 'MX');
   const [controller, setController] = useState(node.controller || 'netconf');
   const [swVersion, setSwVersion] = useState(node.swVersion || 'unknown');
 
@@ -41,7 +41,7 @@ export const NodeForm = (props) => {
     };
     let ok = validateForm(node);
     if (!ok) return;
-    console.log('submit:', user, 'validated:', ok);
+    console.log('submit:', node, 'validated:', ok);
 
     if (props.onSubmit) {
       props.onSubmit(node);

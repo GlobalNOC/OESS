@@ -1,3 +1,4 @@
+import { config } from '.././config.jsx';
 
 /**
  * @param {object} node Node object

@@ -3,18 +3,22 @@
 use strict;
 use warnings;
 
+use AnyEvent;
+
 use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 
 use OESS::AccessController::Default;
+use OESS::Config;
 use OESS::DB;
 use OESS::Node;
+use OESS::RabbitMQ::Client;
 
-
-my $ws = new GRNOC::WebService::Dispatcher();
-
-my $db = new OESS::DB();
+my $config = new OESS::Config(config_filename => '/etc/oess/database.xml');
+my $db = new OESS::DB(config_obj => $config);
+my $mq = OESS::RabbitMQ::Client->new(config_obj => $config);
 my $ac = new OESS::AccessController::Default(db => $db);
+my $ws = new GRNOC::WebService::Dispatcher();
 
 
 my $create_node = GRNOC::WebService::Method->new(
@@ -112,10 +116,42 @@ sub create_node {
         }
     );
 
-    my $err = $node->create;
-    if (defined $err) {
-        $method->set_error($err);
+    my $create_err = $node->create;
+    if (defined $create_err) {
+        $method->set_error($create_err);
         return;
     }
+
+    my $discovery_topic;
+    my $fwdctl_topic;
+    if ($node->controller eq 'netconf') {
+        $discovery_topic = 'MPLS.Discovery.RPC';
+        $fwdctl_topic    = 'MPLS.FWDCTL.RPC';
+    } elsif ($node->controller eq 'nso') {
+        $discovery_topic = 'NSO.Discovery.RPC';
+        $fwdctl_topic    = 'NSO.FWDCTL.RPC';
+    } else {
+        $discovery_topic = 'OF.Discovery.RPC';
+        $fwdctl_topic    = 'OF.FWDCTL.RPC';
+    }
+
+    my $cv = AnyEvent->condvar;
+
+    $mq->{topic} = $fwdctl_topic;
+    $mq->new_switch(
+        node_id        => $node->node_id,
+        async_callback => sub { $cv->send; }
+    );
+    $cv->recv;
+
+    $mq->{topic} = $discovery_topic;
+    $mq->new_switch(
+        node_id => $node->{node_id},
+        async_callback => sub { $cv->send; }
+    );
+    $cv->recv;
+
     return { results => [{ success => 1, node_id => $node->node_id }] };
 }
+
+$ws->handle_request;
