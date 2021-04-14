@@ -18,10 +18,9 @@ use OESS::Endpoint;
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
-my $logger;
+my $logger = Log::Log4perl->get_logger('OESS.Cloud.Azure.Syncer');;
 
 sub main{
-    my $logger = Log::Log4perl->get_logger('OESS.Cloud.Azure.Syncer');
     my $config = OESS::Config->new();
     my $db = OESS::DB->new();
 
@@ -75,7 +74,6 @@ sub reconcile_oess_endpoints {
     my $endpoints = shift;
     my $azure_connections = shift;
     my $cloud_interconnect_id = shift;
-    my $logger = Log::Log4perl->get_logger('OESS.Cloud.Azure.Syncer');
 
     foreach my $endpoint (@$endpoints) {
         my $azure_connection = get_connection_by_id(
@@ -89,12 +87,12 @@ sub reconcile_oess_endpoints {
         next if(! $cloud_interconnect_id eq $ep->cloud_interconnect_id());
 
         my $could_account_id = $azure_connection->{name};
-        my $azure_subnet = find_matching_azure_connection($azure_connection, $cloud_interconnect_id);
+        my $azure_subnet = find_matching_azure_subnet($azure_connection, $cloud_interconnect_id);
         my $endpoint_peer = get_endpoint_peer($ep, $cloud_interconnect_id, $could_account_id);
 
         next if(!defined $azure_subnet || !defined $endpoint_peer);
-        
-        if(!(increment_ip($endpoint_peer->{local_ip}, -1) eq $azure_subnet)){
+
+        if(increment_ip($endpoint_peer->{local_ip}, -1) ne $azure_subnet){
             $logger->info("MISMATCH: on could_account_id: $could_account_id cloud_interconnect_id: $cloud_interconnect_id azure_subnet: $azure_subnet but OESS is peering on $endpoint_peer->{local_ip}");
             update_endpoint_peer_ips($db, $azure_subnet, $endpoint_peer);
         }
@@ -113,7 +111,7 @@ sub reconcile_oess_endpoints {
     }
 }
 
-sub find_matching_azure_connection{
+sub find_matching_azure_subnet{
     my $azure_connection_info = shift;
     my $cloud_interconnect_id = shift;
     my $azure_peering_subnet;
@@ -124,7 +122,7 @@ sub find_matching_azure_connection{
         }elsif($cloud_interconnect_id =~ m/-PRI-/){
             $azure_peering_subnet = $ip->{properties}->{primaryPeerAddresssubnet};
         }else{
-            $azure_peering_subnet = "";
+            $azure_peering_subnet = undef;
         }
     }
     return $azure_peering_subnet;
@@ -155,12 +153,10 @@ sub update_endpoint_peer_ips{
     my $peer = shift;
     my $new_oess_ip = increment_ip($azure_subnet, 1);
     my $new_azure_ip = increment_ip($azure_subnet, 2);
-    my $logger = Log::Log4perl->get_logger('OESS.Cloud.Azure.Syncer');
     $logger->info("UPDATEING AZURE PEERING: changing $peer->{local_ip} to $new_oess_ip, and changing $peer->{peer_ip} to $new_azure_ip");
     $peer->{local_ip} = $new_oess_ip;
     $peer->{peer_ip} = $new_azure_ip;
-    $peer->update($db, $peer->to_hash());
-    
+    $peer->update;
 }
 
 sub increment_ip{
