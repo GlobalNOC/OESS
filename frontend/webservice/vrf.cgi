@@ -322,8 +322,10 @@ sub provision_vrf{
     my $previous_vrf = undef;
 
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
-        $vrf = OESS::VRF->new(db => $db, vrf_id => $model->{vrf_id});
-        $vrf->description($params->{description}{value});
+        $model = {};
+        $model->{'description'} = $params->{'description'}{'value'};
+        $model->{'vrf_id'} = $params->{'vrf_id'}{'value'} || undef;
+        $vrf = OESS::VRF->new(db => $db, model => $model);
         if (!defined $vrf) {
             $method->set_error("Couldn't load VRF");
             $db->rollback;
