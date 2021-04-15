@@ -13,13 +13,13 @@ import "../../style.css";
 
 class Workgroups extends React.Component {
   constructor(props){
-	super(props);
-	this.state = {
-      pageNumber: 0,
-      pageSize:   4,
-      filter:     '',
-      workgroups: []
-	};
+    super(props);
+    this.state = {
+        pageNumber: 0,
+        pageSize:   4,
+        filter:     '',
+        workgroups: []
+    };
 
     this.filterWorkgroups = this.filterWorkgroups.bind(this);
     this.deleteWorkgroup = this.deleteWorkgroup.bind(this);

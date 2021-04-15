@@ -57,18 +57,10 @@ export const getNode = async (nodeId) => {
 };
 
 export const getNodes = async () => {
-  return [
-    {
-      longitude: 10,
-      short_name: "mx960-1",
-      sw_ver: "13.3R3",
-      name: "mx960-1.sdn-test.grnoc.iu.edu",
-      model: "MX",
-      port: 830,
-      latitude: 10,
-      ip_address: "192.168.1.1",
-      vendor: "Juniper",
-      node_id: nodeId
-    }
-  ];
+  let url = `${config.base_url}services/node.cgi?method=get_nodes`;
+
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  const data = await resp.json();
+  if (data.error_text) throw data.error_text;
+  return data.results;
 };
