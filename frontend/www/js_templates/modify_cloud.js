@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       description: state.connection.description,
       editable: editable
     });
-
+    addEditNameEvents(state.connection.description);
   });
 
   let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
@@ -196,47 +196,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     modal.display(null);
   });
 
-
-  function doneEditingName(){
-    let name = document.querySelector('#header-description');
-    let button = document.getElementById("edit-description-button")
-    const newName = document.getElementById("description-input").value == "" ?  state.connection.description : document.getElementById("description-input").value
-    name.innerHTML = "<h3 id='header-description'>" + newName + "</h3>"
-    document.getElementById("change-description-button").hidden = true
-    button.textContent = "Edit Name"
-  }
-  
-  document.querySelector('.change-description-button').addEventListener('click', function(e) {
-    doneEditingName()
-  })
-  
-  document.querySelector('.edit-description-button').addEventListener('click', function(e) {
-    let name = document.querySelector('#header-description');
-    let button = document.getElementById("edit-description-button")
-    
-    if(button.textContent.trim() == "Edit Name"){
-      name.innerHTML = "<input id='description-input' placeholder='"+ name.textContent +"'></input>"
-      name.addEventListener("keyup", function(event) {
-        // Number 13 is the "Enter" key on the keyboard
-        if (event.keyCode === 13) {
-          event.preventDefault();
-          doneEditingName()
-        }
-      });
-      button.textContent = "Revert" 
-      document.getElementById("change-description-button").hidden = false
-    }else{
-      name.innerHTML = "<h3 id='header-description'>" + state.connection.description + "</h3>"
-      button.textContent = "Edit Name"
-      document.getElementById("change-description-button").hidden = true
-    }
-  });
-
   let map = new NDDIMap('map');
   map.on("loaded", function(){
     this.updateMapFromSession(session);
   });
-
 });
 
 async function update() {
