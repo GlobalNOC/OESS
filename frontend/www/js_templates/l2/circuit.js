@@ -104,7 +104,7 @@ class CircuitHeader extends Component {
     let displayEdits = (props.editable) ? 'inline-block' : 'none';
 
     return `
-      <div class="col-sm-6">
+      <div class="col-sm-8">
         <h2 style="display: inline;"><div style="display: inline;" id='header-description'>${props.description}</div> <small>${props.connectionId}</small></h2>
         <button id="change-description-button" class="btn-sm btn-link change-description-button" type="button" hidden>
           <span class="glyphicon "></span> Change
@@ -114,7 +114,7 @@ class CircuitHeader extends Component {
         </button>
       </div>
 
-      <div class="col-sm-6" style="text-align: right; padding-top: 23px; display: ${displayEdits};">
+      <div class="col-sm-4" style="text-align: right; padding-top: 23px; display: ${displayEdits};">
         <button class="btn-sm btn-success" type="button" onclick="state.saveCircuit();">
           <span class="glyphicon glyphicon-floppy-disk"></span> Save
         </button>
