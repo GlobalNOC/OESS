@@ -109,40 +109,40 @@ document.querySelector('.l2vpn-new-endpoint-button').addEventListener('click', f
   modal.display();
 });
 
-function doneEditingName(){
-  let name = document.querySelector('#header-description');
+function doneEditingName(name){
+  let description = document.querySelector('#header-description');
   let button = document.getElementById("edit-description-button")
-  const newName = document.getElementById("description-input").value == "" ?  state.circuit.description : document.getElementById("description-input").value
-  name.innerHTML = "<h3 id='header-description'>" + newName + "</h3>"
+  description.innerHTML = "<div id='header-description' style='display: inline;'>" + name +  "</div> "
   document.getElementById("change-description-button").hidden = true
   button.textContent = "Edit Name"
 }
+function addEditNameEvents(){
+  document.querySelector('.change-description-button').addEventListener('click', function(e) {
+    const newName = document.getElementById("description-input").value == "" ?  state.circuit.description : document.getElementById("description-input").value
+    doneEditingName(newName)
+  })
 
-document.querySelector('.change-description-button').addEventListener('click', function(e) {
-  doneEditingName()
-})
-
-document.querySelector('.edit-description-button').addEventListener('click', function(e) {
-  let name = document.querySelector('#header-description');
-  let button = document.getElementById("edit-description-button")
-  
-  if(button.textContent.trim() == "Edit Name"){
-    name.innerHTML = "<input id='description-input' placeholder='"+ name.textContent +"'></input>"
-    name.addEventListener("keyup", function(event) {
-      // Number 13 is the "Enter" key on the keyboard
-      if (event.keyCode === 13) {
-        event.preventDefault();
-        doneEditingName()
-      }
-    });
-    button.textContent = "Revert" 
-    document.getElementById("change-description-button").hidden = false
-  }else{
-    name.innerHTML = "<h3 id='header-description'>" + state.circuit.description + "</h3>"
-    button.textContent = "Edit Name"
-    document.getElementById("change-description-button").hidden = true
-  }
-});
+  document.querySelector('.edit-description-button').addEventListener('click', function(e) {
+    let name = document.querySelector('#header-description');
+    let button = document.getElementById("edit-description-button")
+    
+    if(button.textContent.trim() == "Edit Name"){
+      name.innerHTML = "<input id='description-input' style='display: inline-block;' placeholder='"+ name.textContent +"'></input>"
+      name.addEventListener("keyup", function(event) {
+        // Number 13 is the "Enter" key on the keyboard
+        if (event.keyCode === 13) {
+          event.preventDefault();
+          const newName = document.getElementById("description-input").value == "" ?  state.circuit.description : document.getElementById("description-input").value
+          doneEditingName(newName)
+        }
+      });
+      button.textContent = "Revert" 
+      document.getElementById("change-description-button").hidden = false
+    }else{
+      doneEditingName(state.circuit.description)
+    }
+  });
+}
 
 let circuitHeader = null;
 let details = null;
@@ -181,6 +181,8 @@ async function update(props) {
     let elem = NewEndpoint(e);
     list.appendChild(elem);
   });
+
+  addEditNameEvents()
 }
 
 document.addEventListener('DOMContentLoaded', async function() {

@@ -101,21 +101,27 @@ class CircuitHeader extends Component {
   }
 
   async render(props) {
-    let displayEdits = (props.editable) ? 'block' : 'none';
+    let displayEdits = (props.editable) ? 'inline-block' : 'none';
 
     return `
-<div class="col-sm-6">
-  <h2><h2 id='header-description'>${props.description}</h2> <small>${props.connectionId}</small></h2>
-</div>
+      <div class="col-sm-6">
+        <h2 style="display: inline;"><div style="display: inline;" id='header-description'>${props.description}</div> <small>${props.connectionId}</small></h2>
+        <button id="change-description-button" class="btn-sm btn-link change-description-button" type="button" hidden>
+          <span class="glyphicon "></span> Change
+        </button>
+        <button id="edit-description-button" class="btn-sm btn-link edit-description-button" type="button">
+          <span class="glyphicon "></span> Edit Name
+        </button>
+      </div>
 
-<div class="col-sm-6" style="text-align: right; padding-top: 23px; display: ${displayEdits};">
-  <button class="btn-sm btn-success" type="button" onclick="state.saveCircuit();">
-    <span class="glyphicon glyphicon-floppy-disk"></span> Save
-  </button>
-  <button class="btn-sm btn-danger" type="button" onclick="state.deleteCircuit();">
-    <span class="glyphicon glyphicon-trash"></span> Delete
-  </button>
-</div>
-`;
+      <div class="col-sm-6" style="text-align: right; padding-top: 23px; display: ${displayEdits};">
+        <button class="btn-sm btn-success" type="button" onclick="state.saveCircuit();">
+          <span class="glyphicon glyphicon-floppy-disk"></span> Save
+        </button>
+        <button class="btn-sm btn-danger" type="button" onclick="state.deleteCircuit();">
+          <span class="glyphicon glyphicon-trash"></span> Delete
+        </button>
+      </div>
+    `;
   }
 }
