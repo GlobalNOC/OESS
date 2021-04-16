@@ -105,7 +105,12 @@ class CircuitHeader extends Component {
 
     return `
       <div class="col-sm-8">
-        <h2 style="display: inline;"><div style="display: inline;" id='header-description'>${props.description}</div> <small>${props.connectionId}</small></h2>
+        <h2 style="display: inline-block;">
+          <div style="display: inline-block;" id='header-description'>${props.description}</div>  
+          <label for='connectionId' class='sr-only'>connection Id</label>
+          <small name='connectionId'>${props.connectionId}</small>
+        </h2>
+
         <button id="change-description-button" class="btn-sm btn-link change-description-button" type="button" hidden>
           <span class="glyphicon "></span> Change
         </button>

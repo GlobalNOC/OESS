@@ -16,7 +16,10 @@ function addEditNameEvents(default_name){
         let button = document.getElementById("edit-description-button")
         
         if(button.textContent.trim() == "Edit Name"){
-            name.innerHTML = "<input id='description-input' style='display: inline-block;' placeholder='"+ name.textContent +"'></input>"
+            name.innerHTML = `
+                <label for='name-edit' class='sr-only'>new name input: </label> 
+                <input name='name-edit' id='description-input' style='display: inline-block;' placeholder='`+ name.textContent +`'></input>
+            `;
             name.addEventListener("keyup", function(event) {
             // Number 13 is the "Enter" key on the keyboard
             if (event.keyCode === 13) {
