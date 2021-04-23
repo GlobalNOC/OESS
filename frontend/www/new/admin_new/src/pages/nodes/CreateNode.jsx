@@ -19,7 +19,7 @@ const createNodeComponent = (props) => {
     } catch (error) {
       setStatus({type:'error', message:error});
     }
-    // history.push('/nodes');
+    history.push('/nodes');
   };
 
   let cancelHandler = async () => {

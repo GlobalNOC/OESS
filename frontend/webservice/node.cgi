@@ -162,22 +162,13 @@ sub create_node {
 }
 
 sub get_nodes {
-    return {
-        results => [
-            {
-                longitude => 10,
-                short_name => "mx960-1",
-                sw_version => "13.3R3",
-                name => "mx960-1.sdn-test.grnoc.iu.edu",
-                model => "MX",
-                port => 830,
-                latitude => 10,
-                ip_address => "192.168.1.1",
-                make => "Juniper",
-                node_id => 123
-            }
-        ]
-    };
+    my $nodes = OESS::DB::Node::fetch_all(db => $db);
+    my $result = [];
+    foreach my $node (@$nodes) {
+        my $obj = new OESS::Node(db => $db, model => $node);
+        push @$result, $obj->to_hash;
+    }
+    return { results => $result };
 }
 
 $ws->handle_request;

@@ -121,7 +121,7 @@ class Users extends React.Component {
       <div>
         <div>
           <p className="title"><b>Users</b></p>
-          <p className="subtitle">Add, remove, or update users.</p>
+          <p className="subtitle">Create, edit, or delete Users</p>
         </div>
         <br />
 

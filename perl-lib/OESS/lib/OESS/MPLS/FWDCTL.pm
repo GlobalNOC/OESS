@@ -542,6 +542,10 @@ sub new_switch{
     
     my $success = $m_ref->{'success_callback'};
 
+    # Respond to request immediately. It's FWDCTL's responsibility to create any
+    # helper processes.
+    &$success({status => FWDCTL_SUCCESS});
+
     $self->make_baby($node_id);
     $self->{'logger'}->debug("Baby was created!");
     $self->update_cache(
@@ -549,7 +553,7 @@ sub new_switch{
         { circuit_id => { value => -1 } }
     );
 
-    &$success({status => FWDCTL_SUCCESS});
+    return 1;
 }
 
 =head2 create_nodes

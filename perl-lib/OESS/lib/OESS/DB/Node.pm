@@ -35,6 +35,77 @@ sub fetch{
     return $node->[0];
 }
 
+=head2 fetch_v2
+
+=cut
+sub fetch_v2 {
+    my %params = @_;
+    my $db = $params{'db'};
+
+    my $status = $params{'status'} || 'active';
+
+    my $node_id = $params{'node_id'};
+    my $node_name = $params{'name'};
+    my $details;
+
+    my $node;
+
+    if (defined $node_id) {
+        $node = $db->execute_query("
+            select node.node_id, node_instantiation.controller,
+            node_instantiation.mgmt_addr as ip_address, node.latitude,
+            node.longitude, node_instantiation.loopback_address,
+            node_instantiation.vendor as make, node_instantiation.model,
+            node.name, node.short_name, node_instantiation.sw_version,
+            node.vlan_tag_range as vlan_range
+            from node join node_instantiation on node.node_id=node_instantiation.node_id
+            where node.node_id=? and node_instantiation.end_epoch=-1
+            ",
+            [ $node_id ]
+        );
+    } else {
+        $node = $db->execute_query("
+            select node.node_id, node_instantiation.controller,
+            node_instantiation.mgmt_addr as ip_address, node.latitude,
+            node.longitude, node_instantiation.loopback_address,
+            node_instantiation.vendor as make, node_instantiation.model,
+            node.name, node.short_name, node_instantiation.sw_version,
+            node.vlan_tag_range as vlan_range
+            from node join node_instantiation on node.node_id=node_instantiation.node_id
+            where node.name=? and node_instantiation.end_epoch=-1
+            ",
+            [ $node_name ]
+        );
+    }
+
+    return if (!defined $node || !defined $node->[0]);
+    return $node->[0];
+}
+
+=head2 fetch_v2
+
+=cut
+sub fetch_all {
+    my %params = @_;
+    my $db = $params{'db'};
+
+    my $nodes = $db->execute_query("
+        select node.node_id, node_instantiation.controller,
+        node_instantiation.mgmt_addr as ip_address, node.latitude,
+        node.longitude, node_instantiation.loopback_address,
+        node_instantiation.vendor as make, node_instantiation.model,
+        node.name, node.short_name, node_instantiation.sw_version,
+        node.vlan_tag_range as vlan_range
+        from node join node_instantiation on node.node_id=node_instantiation.node_id
+        where node_instantiation.end_epoch=-1
+        ",
+        []
+    );
+
+    return if (!defined $nodes);
+    return $nodes;
+}
+
 =head2 get_node_interfaces
 
 =cut

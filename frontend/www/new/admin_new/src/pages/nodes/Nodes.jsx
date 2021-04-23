@@ -17,6 +17,9 @@ class Nodes extends React.Component {
       filter:     '',
       nodes:      []
     };
+
+    this.filterNodes = this.filterNodes.bind(this);
+    this.deleteNode = this.deleteNode.bind(this);
   }
   
   async componentDidMount() {
@@ -34,6 +37,21 @@ class Nodes extends React.Component {
       filter:     e.target.value,
       pageNumber: 0
     });
+  }
+
+  async deleteNode(node) {
+    let ok = confirm(`Delete node '${node.name}'?`);
+    if (!ok) return;
+
+    // try {
+    //   await deleteWorkgroup(workgroup.workgroup_id);
+    //   this.context.setStatus({type:'success', message:`Workgroup '${workgroup.name}' was successfully deleted.`});
+    //   this.setState((state) => {
+    //     return {workgroups: state.workgroups.filter((w) => (w.workgroup_id == workgroup.workgroup_id) ? false : true)};
+    //   });
+    // } catch (error) {
+    //   this.context.setStatus({type:'error', message:error.toString()});
+    // }
   }
 
   render() {
@@ -68,20 +86,41 @@ class Nodes extends React.Component {
       }
     });
 
+    const rowButtons = (data) => {
+      return (
+        <div>
+          <Link to={`/nodes/${data.node_id}/users/add`} className="btn btn-default btn-xs">Preview Changes</Link>&nbsp;
+          <div className="btn-group">
+              <Link to={`/nodes/${data.node_id}`} className="btn btn-default btn-xs">Edit Node</Link>
+              <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <span>▾</span>{/* className="caret" doesn't work idk why */}
+                <span className="sr-only">Toggle Dropdown</span>
+              </button>
+              <ul className="dropdown-menu" style={{fontSize: '12px'}}>
+                <li><a href="#" onClick={() => this.deleteNode(data)}>Delete Node</a></li>
+                <li role="separator" className="divider" style={{margin: '4px 0'}}></li>
+                <li><Link to={`/nodes/${data.node_id}/interfaces`}>Manage Interfaces</Link></li>
+              </ul>
+            </div>
+        </div>
+      );
+    };
+
     let columns = [
       { name: 'ID', key: 'node_id' },
       { name: 'Name', key: 'name' },
       { name: 'IP Address', key: 'ip_address' },
       { name: 'Make', key: 'make' },
       { name: 'Model', key: 'model' },
-      { name: 'Firmware', key: 'sw_version' }
+      { name: 'Firmware', key: 'sw_version' },
+      { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];
     
     return (
       <div>
         <div>
           <p className="title"><b>Nodes</b></p>
-          <p className="subtitle">Add, remove, or update nodes.</p>
+          <p className="subtitle">Create, edit, or delete Nodes</p>
         </div>
         <br />
 

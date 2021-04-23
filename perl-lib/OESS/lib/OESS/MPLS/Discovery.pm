@@ -70,6 +70,11 @@ use constant TSDS_RIB_TYPE => 'rib_table';
 use constant TSDS_PEER_TYPE => 'bgp_peer';
 use constant VRF_STATS_INTERVAL => 60;
 
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
+
 =head2 new
 
 instantiates a new OESS::MPLS::Discovery object, which intern creates
@@ -228,6 +233,10 @@ sub new_switch{
 
     my $node_id = $p_ref->{'node_id'}{'value'};
 
+    # Respond to request immediately. It's Discovery's responsibility to create
+    # any helper processes.
+    &$success({status => FWDCTL_SUCCESS});
+
     #sherpa will you make my babies!
     $self->make_baby($node_id);
     $self->{'logger'}->debug("Baby was created!");
@@ -235,7 +244,7 @@ sub new_switch{
     $self->int_handler();
     $self->lsp_handler();
 
-    &$success({status => 1});
+    return 1;
 }
 
 

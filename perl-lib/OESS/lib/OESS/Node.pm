@@ -25,7 +25,7 @@ sub new {
     bless $self, $class;
 
     if (defined $self->{db} && defined $self->{node_id}) {
-        $self->{model} = OESS::DB::Node::fetch(
+        $self->{model} = OESS::DB::Node::fetch_v2(
             db      => $self->{db},
             node_id => $self->{node_id}
         );

@@ -41,6 +41,10 @@ export const createNode = async (node) => {
   return data.results[0];
 }
 
+export const editNode = async (node) => {
+  return 1;
+};
+
 export const getNode = async (nodeId) => {
   return {
     longitude: 10,
