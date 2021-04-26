@@ -88,6 +88,19 @@ $create_node->add_input_parameter(
 );
 $ws->register_method($create_node);
 
+my $get_node = GRNOC::WebService::Method->new(
+    name        => "get_node",
+    description => "get_node returns the requested node",
+    callback    => sub { get_node(@_) }
+);
+$get_node->add_input_parameter(
+    name        => 'node_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'NodeId of node'
+);
+$ws->register_method($get_node);
+
 my $get_nodes = GRNOC::WebService::Method->new(
     name        => "get_nodes",
     description => "get_nodes returns a list of all nodes",
@@ -159,6 +172,18 @@ sub create_node {
     $cv->recv;
 
     return { results => [{ success => 1, node_id => $node->node_id }] };
+}
+
+sub get_node {
+    my $method = shift;
+    my $params = shift;
+
+    my $node = new OESS::Node(db => $db, node_id => $params->{node_id}{value});
+    if (!defined $node) {
+        $method->set_error("Couldn't find node $params->{node_id}{value}.");
+        return;
+    }
+    return { results => [ $node->to_hash ] };
 }
 
 sub get_nodes {

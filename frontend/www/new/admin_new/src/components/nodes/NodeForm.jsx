@@ -14,16 +14,16 @@ export const NodeForm = (props) => {
   }
 
   const [name, setName] = useState(node.name || '');
-  const [shortName, setShortName] = useState(node.shortName || 'demo');
+  const [shortName, setShortName] = useState(node.short_name || 'demo');
   const [longitude, setLongitude] = useState(node.longitude || 0.0);
   const [latitude, setLatitude] = useState(node.latitude || 0.0);
-  const [vlanRange, setVlanRange] = useState(node.vlanRange || '1-4095');
-  const [ipAddress, setIpAddress] = useState(node.ipAddress || '');
-  const [tcpPort, setTcpPort] = useState(node.tcpPort || 830);
+  const [vlanRange, setVlanRange] = useState(node.vlan_range || '1-4095');
+  const [ipAddress, setIpAddress] = useState(node.ip_address || '');
+  const [tcpPort, setTcpPort] = useState(node.tcp_port || 830);
   const [make, setMake] = useState(node.make || 'Juniper');
   const [model, setModel] = useState(node.model || 'MX');
   const [controller, setController] = useState(node.controller || 'netconf');
-  const [swVersion, setSwVersion] = useState(node.swVersion || 'unknown');
+  const [swVersion, setSwVersion] = useState(node.sw_version || 'unknown');
 
   let onSubmit = (e) => {
     e.preventDefault();
