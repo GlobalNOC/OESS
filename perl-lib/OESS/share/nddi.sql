@@ -544,6 +544,9 @@ CREATE TABLE `network` (
   UNIQUE KEY `network_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+INSERT INTO `network` (network_id, name, latitude, longitude, is_local) VALUES (1,'Default',0,0,1);
+
 --
 -- Table structure for table `node`
 --
@@ -606,6 +609,7 @@ CREATE TABLE `node_instantiation` (
   `mgmt_addr` varchar(255) DEFAULT NULL,
   `loopback_address` varchar(255) DEFAULT NULL,
   `tcp_port` int(6) DEFAULT '830',
+  `controller` enum('openflow','netconf','nso') NOT NULL DEFAULT 'netconf',
   PRIMARY KEY (`node_id`,`end_epoch`),
   UNIQUE KEY `node_instantiation_idx` (`end_epoch`,`dpid`),
   CONSTRAINT `node_node_instantiation_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
@@ -752,33 +756,6 @@ LOCK TABLES `path_instantiation_vlan_ids` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `remote_auth`
---
-
-DROP TABLE IF EXISTS `remote_auth`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `remote_auth` (
-  `auth_id` int(10) NOT NULL AUTO_INCREMENT,
-  `auth_name` varchar(255) NOT NULL,
-  `user_id` int(10) NOT NULL,
-  PRIMARY KEY (`auth_id`),
-  UNIQUE KEY `remote_auth_idx` (`auth_name`),
-  KEY `user_auth_values_fk` (`user_id`),
-  CONSTRAINT `user_auth_values_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `remote_auth`
---
-
-LOCK TABLES `remote_auth` WRITE;
-/*!40000 ALTER TABLE `remote_auth` DISABLE KEYS */;
-/*!40000 ALTER TABLE `remote_auth` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `scheduled_action`
 --
 
@@ -882,6 +859,37 @@ CREATE TABLE `user` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+INSERT INTO `user` (`email`,`given_names`,`family_name`,`is_admin`,`status`) VALUES ('oess-admin@localhost','OESS', 'Administrator',1,'active');
+
+--
+-- Table structure for table `remote_auth`
+--
+
+DROP TABLE IF EXISTS `remote_auth`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `remote_auth` (
+  `auth_id` int(10) NOT NULL AUTO_INCREMENT,
+  `auth_name` varchar(255) NOT NULL,
+  `user_id` int(10) NOT NULL,
+  PRIMARY KEY (`auth_id`),
+  UNIQUE KEY `remote_auth_idx` (`auth_name`),
+  KEY `user_auth_values_fk` (`user_id`),
+  CONSTRAINT `user_auth_values_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `remote_auth`
+--
+
+INSERT INTO `remote_auth` (`auth_name`,`user_id`) VALUES ('admin',1);
+
+LOCK TABLES `remote_auth` WRITE;
+/*!40000 ALTER TABLE `remote_auth` DISABLE KEYS */;
+/*!40000 ALTER TABLE `remote_auth` ENABLE KEYS */;
+UNLOCK TABLES;
+
 --
 -- Table structure for table `user_entity_membership`
 --
@@ -894,24 +902,6 @@ CREATE TABLE `user_entity_membership` (
   `entity_id` int(11) NOT NULL,
   KEY `entity` (`entity_id`),
   KEY `user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `user_workgroup_membership`
---
-
-DROP TABLE IF EXISTS `user_workgroup_membership`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `user_workgroup_membership` (
-  `workgroup_id` int(10) NOT NULL,
-  `user_id` int(10) NOT NULL,
-  `role` enum('admin','normal','read-only') NOT NULL DEFAULT 'read-only',
-  PRIMARY KEY (`workgroup_id`,`user_id`),
-  KEY `user_user_workgroup_membership_fk` (`user_id`),
-  CONSTRAINT `user_user_workgroup_membership_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `workgroups_user_workgroup_membership_fk` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1048,10 +1038,33 @@ CREATE TABLE `workgroup` (
 -- Dumping data for table `workgroup`
 --
 
+INSERT INTO `workgroup` (`description`,`name`,`type`,`status`) VALUES ('OESS Administrators','admin', 'admin','active');
+
+
 LOCK TABLES `workgroup` WRITE;
 /*!40000 ALTER TABLE `workgroup` DISABLE KEYS */;
 /*!40000 ALTER TABLE `workgroup` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `user_workgroup_membership`
+--
+
+DROP TABLE IF EXISTS `user_workgroup_membership`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `user_workgroup_membership` (
+  `workgroup_id` int(10) NOT NULL,
+  `user_id` int(10) NOT NULL,
+  `role` enum('admin','normal','read-only') NOT NULL DEFAULT 'read-only',
+  PRIMARY KEY (`workgroup_id`,`user_id`),
+  KEY `user_user_workgroup_membership_fk` (`user_id`),
+  CONSTRAINT `user_user_workgroup_membership_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `workgroups_user_workgroup_membership_fk` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+INSERT INTO `user_workgroup_membership` (`workgroup_id`,`user_id`,`role`) VALUES (1,1,'admin');
 
 --
 -- Table structure for table `workgroup_node_membership`

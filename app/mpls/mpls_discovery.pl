@@ -1,24 +1,25 @@
 #!/usr/bin/perl
-
 use strict;
 use warnings;
-use AnyEvent;
 
+use AnyEvent;
 use English;
 use Getopt::Long;
+use Log::Log4perl;
 use Proc::Daemon;
-use Data::Dumper;
 
-use OESS::Database;
+use OESS::Config;
 use OESS::MPLS::Discovery;
 
 my $pid_file = "/var/run/oess/mpls_discovery.pid";
 
 sub core{
-    #basic init stuffs
-    Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
+    Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
-    my $discovery = OESS::MPLS::Discovery->new();
+    my $config = new OESS::Config(config_filename => '/etc/oess/database.xml');
+    my $discovery = new OESS::MPLS::Discovery(config_obj => $config);
+
+    Log::Log4perl->get_logger('OESS.MPLS.Discovery.APP')->info("Starting OESS.MPLS.Discovery event loop.");
     AnyEvent->condvar->recv;
 }
 
@@ -90,6 +91,7 @@ sub main{
     #not a daemon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
+        $SIG{INT} = sub{ exit(0); }; # Used to cleanly exit from `docker run`
         core();
     }
 

@@ -116,11 +116,12 @@ cmp_deeply(
         contacts    => bag( 
                             {
                              'email' => 'user_121@foo.net',
-                             'is_admin' => '1',
+                             'is_admin' => '0',
                              'user_id' => '121',
                              'last_name' => 'User 121',
                              'first_name' => 'User 121',
-                             'username' => 'user_121@foo.net'
+                             'status' => 'active',
+                             'usernames' => ['user_121@foo.net']
                             },
                             {
                              'email' => 'user_881@foo.net',
@@ -128,7 +129,8 @@ cmp_deeply(
                              'user_id' => '881',
                              'last_name' => 'User 881',
                              'first_name' => 'User 881',
-                             'username' => 'user_881@foo.net'
+                             'status' => 'active',
+                             'usernames' => ['user_881@foo.net']
                             }
                           ),
         parents     => bag(
@@ -182,7 +184,8 @@ cmp_deeply(
                               'user_id' => '881',
                               'last_name' => 'User 881',
                               'first_name' => 'User 881',
-                              'username' => 'user_881@foo.net'
+                              'status' => 'active',
+                              'usernames' => ['user_881@foo.net']
                              }
                             ),
         parents     => bag(                                                                                                                     

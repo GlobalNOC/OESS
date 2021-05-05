@@ -1,0 +1,76 @@
+.oess-page-container {
+    display: grid;
+    height: 100vh;
+
+    grid-template-columns: 2em min-content auto 2em;
+    grid-template-rows:    min-content auto;
+}
+
+.oess-page-navigation {
+    grid-column: 1 / 5;
+    grid-row: 1 / 2;
+
+}
+
+.oess-side-navigation {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+
+    padding-top: 1em;
+}
+
+.oess-page-content {
+    grid-column: 3 / 4;
+    grid-row: 2 / 3;
+
+    padding-left: 2em;
+}
+
+#soft_title{
+margin-top: 10;
+margin-left:0;
+margin-right:0;
+margin-bottom: 1em;
+}
+
+.user_table{
+    width: 90%;
+    margin-left: 25px;
+}
+
+.title{
+    margin-top: 1em;
+    font-size: 20px;
+}
+tr:hover td{
+    background-color:#B2D2FF !important;
+}
+.modal-backdrop{
+	z-index:1;
+}
+
+.navbar-brand-logo{
+	float: left;
+	max-height: 35px;
+	margin-right: 10px;
+	margin-top: -7px;
+	width: initial;
+}
+.dropdown-menu li a{
+	word-wrap: break-word !important;
+    	white-space: normal !important;
+}
+
+.modal-label{
+    padding-right: 3px !important;
+    padding-left: 3px !important;
+}
+.modal-select{
+    width: 60% !important;
+    float: left !important;
+    margin-left: 15px !important;
+}
+
+#user_search_div > * {
+    margin: 0 2px;
+}

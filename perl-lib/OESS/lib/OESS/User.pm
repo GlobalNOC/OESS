@@ -13,57 +13,55 @@ use OESS::Workgroup;
 =head2 new
 
 =cut
-sub new{
-    my $that  = shift;
-    my $class = ref($that) || $that;
-
-    my $logger = Log::Log4perl->get_logger("OESS.User");
-
-    my %args = (
+sub new {
+    my $class = shift;
+    my $args  = {
+        db      => undef,
         user_id => undef,
-        username => undef,
-        db => undef,
-        role => undef,
+        model   => undef,
+        logger  => Log::Log4perl->get_logger("OESS.User"),
         @_
+    };
+    my $self = bless $args, $class;
+
+    $self->{usernames_to_add} = [];
+    $self->{usernames_to_remove} = [];
+
+    if (defined $self->{db} && (defined $self->{user_id} || defined $self->{username})) {
+        my $err;
+        ($self->{model}, $err) = OESS::DB::User::fetch_v2(
+            db       => $self->{db},
+            user_id  => $self->{user_id},
+            username => $self->{username}
         );
-
-    my $self = \%args;
-
-    bless $self, $class;
-
-    $self->{'logger'} = $logger;
-
-    if (!defined $self->{'db'}) {
-        $self->{'logger'}->error("No Database Object specified");
-        return;
+        warn $err if defined $err;
     }
+    return if !defined $self->{model};
 
-    my $ok = $self->_fetch_from_db();
-    if (!$ok) {
-        return;
-    }
-
+    $self->from_hash($self->{model});
     return $self;
 }
 
 =head2 to_hash
 
 =cut
-sub to_hash{
+sub to_hash {
     my $self = shift;
 
     my $obj = {};
 
-    $obj->{'username'} = $self->username();
+    $obj->{'usernames'} = $self->usernames();
     $obj->{'first_name'} = $self->first_name();
     $obj->{'last_name'} = $self->last_name();
     $obj->{'email'} = $self->email();
     $obj->{'user_id'} = $self->user_id();
-    $obj->{'is_admin'} = $self->is_admin();
-    
+    $obj->{'is_admin'} = 0;
+    $obj->{'status'} = $self->{'status'};
+
     if (defined $self->{workgroups}) {
         $obj->{'workgroups'} = [];
         foreach my $wg (@{$self->{workgroups}}) {
+            $obj->{'is_admin'} = 1 if $wg->type eq 'admin';
             push @{$obj->{workgroups}}, $wg->to_hash;
         }
     }
@@ -76,43 +74,89 @@ sub to_hash{
 =head2 from_hash
 
 =cut
-sub from_hash{
+sub from_hash {
     my $self = shift;
     my $hash = shift;
 
-    $self->{'user_id'} = $hash->{'user_id'};
-    $self->{'username'} = $hash->{'username'};
-    $self->{'first_name'} = $hash->{'given_names'};
-    $self->{'last_name'} = $hash->{'family_name'};
-    $self->{'email'} = $hash->{'email'};
-    $self->{'is_admin'} = $hash->{'is_admin'};
-    if (defined $hash->{'role'}) {
-        $self->{'role'} = $hash->{'role'};
-    }
-    if (defined $hash->{workgroups}) {
-        $self->{'workgroups'} = $hash->{'workgroups'};
-    }
+    $self->{email}      = $hash->{email};
+    $self->{first_name} = $hash->{first_name};
+    $self->{last_name}  = $hash->{last_name};
+    $self->{user_id}    = $hash->{user_id};
+    $self->{usernames}  = $hash->{usernames};
+    $self->{status}     = $hash->{status};
 
+    if (defined $hash->{workgroups}) {
+        $self->{workgroups} = $hash->{workgroups};
+    }
+    if (defined $hash->{usernames}) {
+        $self->{usernames} = $hash->{usernames};
+    }
     return 1;
 }
 
-=head2 _fetch_from_db
+=head2 create
 
 =cut
-sub _fetch_from_db{
+sub create {
     my $self = shift;
 
-    my $user = OESS::DB::User::fetch(
-        db => $self->{'db'},
-        user_id => $self->{'user_id'},
-        username => $self->{'username'},
-        role => $self->{'role'}
-    );
-    if (!defined $user) {
-        return;
+    if (!defined $self->{db}) {
+        return (undef, "Couldn't create User. Database handle is missing.");
     }
 
-    return $self->from_hash($user);
+    my ($id, $err) = OESS::DB::User::add_user(
+        db          => $self->{db},
+        email       => $self->{model}->{email},
+        family_name => $self->{model}->{last_name},
+        given_name  => $self->{model}->{first_name},
+        auth_names  => $self->{model}->{username}
+    );
+    if (defined $err) {
+        return (undef, $err);
+    }
+
+    $self->{user_id} = $id;
+    return ($id, undef);
+}
+
+=head2 update
+
+=cut
+sub update {
+    my $self = shift;
+
+    if (!defined $self->{db}) {
+        $self->{logger}->error("Couldn't update User: DB handle is missing.");
+        return "Couldn't update User: DB handle is missing.";
+    }
+
+    my $uerr = OESS::DB::User::update(
+        db         => $self->{db},
+        user_id    => $self->{user_id},
+        first_name => $self->{first_name},
+        last_name  => $self->{last_name},
+        email      => $self->{email}
+    );
+    return $uerr if defined $uerr;
+
+    foreach my $username (@{$self->{usernames_to_add}}) {
+        my $err = OESS::DB::User::add_username(
+            db       => $self->{db},
+            user_id  => $self->{user_id},
+            username => $username
+        );
+        return $err if defined $err;
+    }
+
+    foreach my $username (@{$self->{usernames_to_remove}}) {
+        my $err = OESS::DB::User::remove_username(
+            db       => $self->{db},
+            username => $username
+        );
+        return $err if defined $err;        
+    }
+
+    return;
 }
 
 =head2 load_workgroups
@@ -167,29 +211,84 @@ sub get_workgroup {
     return;
 }
 
-=head2 username
+=head2 usernames
 
 =cut
-sub username{
+sub usernames {
     my $self = shift;
-    return $self->{'username'};
+    return $self->{usernames};
+}
+
+=head2 add_username
+
+=cut
+sub add_username {
+    my $self = shift;
+    my $name = shift;
+
+    foreach my $username (@{$self->{usernames}}) {
+        return if ($username eq $name);
+    }
+
+    push @{$self->{usernames_to_add}}, $name;
+    push @{$self->{usernames}}, $name;
+    return;
+}
+
+=head2 remove_username
+
+=cut
+sub remove_username {
+    my $self = shift;
+    my $name = shift;
+
+    my $usernames = [];
+    foreach my $username (@{$self->{usernames}}) {
+        if ($username eq $name) {
+            push @{$self->{usernames_to_remove}}, $name;
+        } else {
+            push @$usernames, $username;
+        }
+    }
+    $self->{usernames} = $usernames;
+    return;
+}
+
+=head2 has_username
+
+=cut
+sub has_username {
+    my $self = shift;
+    my $username = shift;
+
+    foreach my $name (@{$self->{usernames}}) {
+        return 1 if $name eq $username;
+    }
+    return 0;
 }
 
 =head2 first_name
 
 =cut
-sub first_name{
+sub first_name {
     my $self = shift;
-    return $self->{'first_name'};
+    my $name = shift;
+    if (defined $name) {
+        $self->{first_name} = $name;
+    }
+    return $self->{first_name};
 }
 
 =head2 last_name
 
 =cut
-sub last_name{
+sub last_name {
     my $self = shift;
-    return $self->{'last_name'};
-
+    my $name = shift;
+    if (defined $name) {
+        $self->{last_name} = $name;
+    }
+    return $self->{last_name};
 }
 
 =head2 user_id
@@ -214,6 +313,11 @@ sub workgroups{
 =cut
 sub role{
     my $self = shift;
+    my $role = shift;
+
+    if (defined $role) {
+        $self->{role} = $role;
+    }
     return $self->{role};
 }
 
@@ -228,9 +332,12 @@ sub email{
 =head2 is_admin
 
 =cut
-sub is_admin{
+sub is_admin {
     my $self = shift;
-    return $self->{'is_admin'};
+    foreach my $wg (@{$self->{workgroups}}) {
+        return 1 if $wg->type eq 'admin';
+    }
+    return 0;
 }
 
 =head2 in_workgroup
@@ -248,6 +355,42 @@ sub in_workgroup{
         }
     }
     return 0;
+}
+
+=head2 has_workgroup_access
+
+=cut
+sub has_workgroup_access {
+    my $self = shift;
+    my $args = {
+        role         => undef,
+        workgroup_id => undef,
+        @_
+    };
+
+    return OESS::DB::User::has_workgroup_access(
+        db           => $self->{db},
+        role         => $args->{role},
+        username     => $self->{username},
+        workgroup_id => $args->{workgroup_id}
+    );
+}
+
+=head2 has_system_access
+
+=cut
+sub has_system_access {
+    my $self = shift;
+    my $args = {
+        role => undef,
+        @_
+    };
+
+    return OESS::DB::User::has_system_access(
+        db       => $self->{db},
+        role     => $args->{role},
+        username => $self->{username}
+    );
 }
 
 1;

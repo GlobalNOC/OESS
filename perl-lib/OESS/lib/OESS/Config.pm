@@ -5,6 +5,7 @@ use warnings;
 
 package OESS::Config;
 
+use Data::Dumper;
 use XML::Simple;
 
 =head1 NAME
@@ -41,9 +42,9 @@ sub new {
     my $logger = Log::Log4perl->get_logger("OESS.Config");
 
     my %args = (
-        config_filename => '/etc/oess/database.xml' ,
+        config_filename => '/etc/oess/database.xml',
         @_,
-        );
+    );
 
     my $self = \%args;
 
@@ -80,6 +81,126 @@ sub db_credentials {
     return {database => $database,
             username => $username,
             password => $password};
+}
+
+=head2 mysql_user
+
+=cut
+sub mysql_user {
+    my $self = shift;
+    return $ENV{MYSQL_USER} || $self->{config}->{credentials}->{username};
+}
+
+=head2 mysql_pass
+
+=cut
+sub mysql_pass {
+    my $self = shift;
+    return $ENV{MYSQL_PASS} || $self->{config}->{credentials}->{password};
+}
+
+=head2 mysql_host
+
+=cut
+sub mysql_host {
+    my $self = shift;
+    return $ENV{MYSQL_HOST} || 'localhost';
+}
+
+=head2 mysql_port
+
+=cut
+sub mysql_port {
+    my $self = shift;
+    return $ENV{MYSQL_PORT} || 3306;
+}
+
+=head2 mysql_database
+
+=cut
+sub mysql_database {
+    my $self = shift;
+    return $ENV{MYSQL_DATABASE} || $self->{config}->{credentials}->{database} || 'oess';
+}
+
+=head2 rabbitmq_user
+
+=cut
+sub rabbitmq_user {
+    my $self = shift;
+    return $ENV{RABBITMQ_USER} || $self->{config}->{rabbitMQ}->{user};
+}
+
+=head2 rabbitmq_pass
+
+=cut
+sub rabbitmq_pass {
+    my $self = shift;
+    return $ENV{RABBITMQ_PASS} || $self->{config}->{rabbitMQ}->{pass};
+}
+
+=head2 rabbitmq_host
+
+=cut
+sub rabbitmq_host {
+    my $self = shift;
+    return $ENV{RABBITMQ_HOST} || $self->{config}->{rabbitMQ}->{host} || 'localhost';
+}
+
+=head2 rabbitmq_port
+
+=cut
+sub rabbitmq_port {
+    my $self = shift;
+    return $ENV{RABBITMQ_PORT} || $self->{config}->{rabbitMQ}->{port} || 5672;
+}
+
+=head2 rabbitmq_vhost
+
+=cut
+sub rabbitmq_vhost {
+    my $self = shift;
+    return $ENV{RABBITMQ_VHOST} || $self->{config}->{rabbitMQ}->{vhost} || '/';
+}
+
+=head2 tsds_user
+
+=cut
+sub tsds_user {
+    my $self = shift;
+    return $ENV{TSDS_USER} || $self->{config}->{tsds}->{username};
+}
+
+=head2 tsds_pass
+
+=cut
+sub tsds_pass {
+    my $self = shift;
+    return $ENV{TSDS_PASS} || $self->{config}->{tsds}->{password};
+}
+
+=head2 tsds_url
+
+=cut
+sub tsds_url {
+    my $self = shift;
+    return $ENV{TSDS_URL} || $self->{config}->{tsds}->{url};
+}
+
+=head2 tsds_realm
+
+=cut
+sub tsds_realm {
+    my $self = shift;
+    return $ENV{TSDS_REALM} || $self->{config}->{tsds}->{realm};
+}
+
+=head2 oess_netconf_overlay
+
+=cut
+sub oess_netconf_overlay {
+    my $self = shift;
+    return $ENV{OESS_NETCONF_OVERLAY} || $self->{config}->{network_type} || 'vpn-mpls';
 }
 
 =head2 fwdctl_enabled
