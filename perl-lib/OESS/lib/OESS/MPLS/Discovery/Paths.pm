@@ -120,6 +120,9 @@ sub _process_paths{
         my @ckt_path = map { $links->{$_} } keys(%$links);
 
         my $ckt = new OESS::L2Circuit(db => $self->{db2}, circuit_id => $circuit_id);
+        if(!defined $ckt){
+            next;
+        }
         $ckt->load_paths;
 
         my $pri = $ckt->path(type => 'primary');
