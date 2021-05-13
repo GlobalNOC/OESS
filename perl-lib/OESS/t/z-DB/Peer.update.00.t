@@ -55,6 +55,7 @@ warn $err if defined $err;
 $model->{vrf_ep_peer_id} = $id;
 $model->{local_ip} = '192.168.3.2/31';
 $model->{peer_ip} = '192.168.3.3/31';
+$model->{md5_key} = 'a new key';
 
 my $err3 = OESS::DB::Peer::update(db => $db, peer => $model);
 ok(!defined $err3, "no error on standard update");
