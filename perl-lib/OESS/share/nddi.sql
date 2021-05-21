@@ -549,6 +549,7 @@ INSERT INTO `network` (`network_id`,`name`,`longitude`,`latitude`,`is_local`) VA
 --
 -- Table structure for table `node`
 --
+INSERT INTO `network` (`network_id`,`name`,`longitude`,`latitude`,`is_local`) VALUES (1,'oess',0,0,1);
 
 DROP TABLE IF EXISTS `node`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

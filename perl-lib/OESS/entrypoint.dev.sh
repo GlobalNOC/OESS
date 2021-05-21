@@ -11,11 +11,11 @@ sleep 1
 /usr/bin/mysqld_safe --datadir='/var/lib/mysql' &
 sleep 3
 /usr/bin/mysqladmin -u root password ${MYSQL_PASSWORD}
-/usr/bin/mysql --user=root --password=${MYSQL_PASSWORD} < /usr/share/doc/perl-OESS-2.0.10/share/nddi.sql
+/usr/bin/mysql --user=root --password=${MYSQL_PASSWORD} < /usr/share/doc/perl-OESS-2.0.11/share/nddi.sql
 
 # Start RabbitMQ
 rabbitmq-server start -detached
-sleep 7
+sleep 15
 
 # Populate OESS config with mysql credentials
 sed -i "s/oess_test/oess/" /etc/oess/database.xml

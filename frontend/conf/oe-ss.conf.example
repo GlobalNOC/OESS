@@ -7,45 +7,45 @@ Alias /idc                    /usr/share/oess-frontend/webservice/idc
 
 
 <Location /idc>
-	AddHandler cgi-script .cgi
-	DirectoryIndex index.cgi
-	Options ExecCGI
-	Order allow,deny
-	Allow from all
-	Satisfy any
+    AddHandler cgi-script .cgi
+    DirectoryIndex index.cgi
+    Options ExecCGI
+    Order allow,deny
+    Allow from all
+    Satisfy any
 </Location>
 
 
 <Location /oess>
-	  AddHandler cgi-script .cgi
-	  DirectoryIndex index.cgi
-	  Options ExecCGI
-	  Order allow,deny
-	  Allow from all
+    AddHandler cgi-script .cgi
+    DirectoryIndex index.cgi
+    Options ExecCGI
+    Order allow,deny
+    Allow from all
 
-	  AuthType Basic
-	  AuthName "OESS"
-	  AuthUserFile /usr/share/oess-frontend/www/.htpasswd
-	  Require valid-user
+    AuthType Basic
+    AuthName "OESS"
+    AuthUserFile /usr/share/oess-frontend/www/.htpasswd
+    Require valid-user
 </Location>
 
 
 <Location /oess/notification-img >
-	  Satisfy Any
-	  Allow from all
+    Satisfy Any
+    Allow from all
 </Location>
 
 
 <Location /oess/services>
-	  AddHandler cgi-script .cgi
-	  Options ExecCGI
-	  Order allow,deny
-	  Allow from all
+  AddHandler cgi-script .cgi
+  Options ExecCGI
+  Order allow,deny
+  Allow from all
 
-	  AuthType Basic
-	  AuthName "OESS"
-	  AuthUserFile /usr/share/oess-frontend/www/.htpasswd
-	  Require valid-user
+  AuthType Basic
+  AuthName "OESS"
+  AuthUserFile /usr/share/oess-frontend/www/.htpasswd
+  Require valid-user
 </Location>
 
 Redirect 301 /oess/admin/admin_index.cgi /oess/admin

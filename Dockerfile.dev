@@ -7,7 +7,7 @@ RUN curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-serve
 RUN yum makecache
 RUN yum -y install epel-release
 RUN yum -y install perl httpd mariadb-server rabbitmq-server
-RUN yum -y install perl-Carp-Always perl-Test-Deep perl-Test-Exception perl-Test-Pod perl-Test-Pod-Coverage perl-Devel-Cover
+RUN yum -y install perl-Carp-Always perl-Test-Deep perl-Test-Exception perl-Test-Pod perl-Test-Pod-Coverage perl-Devel-Cover perl-Net-AMQP-RabbitMQ
 RUN yum -y install perl-OESS oess-core oess-frontend yui2
 
 COPY app/mpls/mpls_discovery.pl /usr/bin/mpls_discovery.pl
