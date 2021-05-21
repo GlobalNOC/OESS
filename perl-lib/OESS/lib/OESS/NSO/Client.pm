@@ -22,6 +22,7 @@ sub new {
         config_obj      => undef,
         config_filename => '/etc/oess/database.xml',
         logger          => Log::Log4perl->get_logger('OESS.NSO.Client'),
+        local_asn       => undef,
         @_
     };
     my $self = bless $args, $class;
@@ -29,6 +30,7 @@ sub new {
     if (!defined $self->{config_obj}) {
         $self->{config_obj} = new OESS::Config(config_filename => $self->{config_filename});
     }
+    $self->{local_asn} = $self->{config_obj}->local_as;
 
     $self->{www} = new LWP::UserAgent;
     my $host = $self->{config_obj}->nso_host;
@@ -125,7 +127,6 @@ sub delete_l2connection {
 sub edit_l2connection {
     my $self = shift;
     my $conn = shift; # OESS::L2Circuit
-    warn Dumper($conn->to_hash);
 
     my $eps = [];
     foreach my $ep (@{$conn->endpoints}) {
@@ -239,6 +240,197 @@ sub get_json_errors {
 
     my $r = join(". ", @$errors);
     return $r;
+}
+
+=head2 create_l3connection
+
+=cut
+sub create_l3connection {
+    my $self = shift;
+    my $conn = shift; # OESS::VRF
+
+    my $eps = [];
+    foreach my $ep (@{$conn->endpoints}) {
+        my $obj = {
+            endpoint_id => $ep->vrf_endpoint_id,
+            bandwidth   => $ep->bandwidth,
+            device      => $ep->node,
+            interface   => $ep->interface,
+            tag         => $ep->tag,
+            peer        => []
+        };
+        if (defined $ep->inner_tag) {
+            $obj->{inner_tag} = $ep->inner_tag;
+        }
+
+        foreach my $peer (@{$ep->peers}) {
+            my $peer_obj = {
+                peer_id    => $peer->vrf_ep_peer_id,
+                local_asn  => $self->{local_asn},
+                local_ip   => $peer->local_ip,
+                peer_asn   => $peer->peer_asn,
+                peer_ip    => $peer->peer_ip,
+                bfd        => $peer->bfd,
+                md5_key    => $peer->md5_key,
+                ip_version => $peer->ip_version
+            };
+            push @{$obj->{peer}}, $peer_obj;
+        }
+
+        push(@$eps, $obj);
+    }
+
+    my $payload = {
+        "oess-l3connection:oess-l3connection" => [
+            {
+                "connection_id" => $conn->vrf_id,
+                "endpoint" => $eps
+            }
+        ]
+    };
+
+    eval {
+        my $res = $self->{www}->post(
+            $self->{config_obj}->nso_host . "/restconf/data/",
+            'Content-type' => 'application/yang-data+json',
+            'Content'      => encode_json($payload)
+        );
+        return if ($res->content eq ''); # Empty payload indicates success
+
+        my $result = decode_json($res->content);
+        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+    };
+    if ($@) {
+        my $err = $@;
+        warn $err;
+        return $err;
+    }
+    return;
+}
+
+=head2 delete_l3connection
+
+    my $err = delete_l3connection($l3connection_id);
+
+=cut
+sub delete_l3connection {
+    my $self = shift;
+    my $conn_id = shift; # OESS::VRF->vrf_id
+
+    eval {
+        my $res = $self->{www}->delete(
+            $self->{config_obj}->nso_host . "/restconf/data/oess-l3connection:oess-l3connection=$conn_id",
+            'Content-type' => 'application/yang-data+json'
+        );
+        return if ($res->content eq ''); # Empty payload indicates success
+
+        my $result = decode_json($res->content);
+        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+    };
+    if ($@) {
+        my $err = $@;
+        warn $err;
+        return $err;
+    }
+    return;
+}
+
+=head2 edit_l3connection
+
+    my $err = edit_l3connection($l3connection);
+
+=cut
+sub edit_l3connection {
+    my $self = shift;
+    my $conn = shift; # OESS::VRF
+
+    my $eps = [];
+    foreach my $ep (@{$conn->endpoints}) {
+        my $obj = {
+            endpoint_id => $ep->vrf_endpoint_id,
+            bandwidth   => $ep->bandwidth,
+            device      => $ep->node,
+            interface   => $ep->interface,
+            tag         => $ep->tag,
+            peer        => []
+        };
+        if (defined $ep->inner_tag) {
+            $obj->{inner_tag} = $ep->inner_tag;
+        }
+
+        foreach my $peer (@{$ep->peers}) {
+            my $peer_obj = {
+                peer_id    => $peer->vrf_ep_peer_id,
+                local_asn  => $self->{local_asn},
+                local_ip   => $peer->local_ip,
+                peer_asn   => $peer->peer_asn,
+                peer_ip    => $peer->peer_ip,
+                bfd        => $peer->bfd,
+                md5_key    => $peer->md5_key,
+                ip_version => $peer->ip_version
+            };
+            push @{$obj->{peer}}, $peer_obj;
+        }
+
+        push(@$eps, $obj);
+    }
+
+    my $payload = {
+        "oess-l3connection:oess-l3connection" => [
+            {
+                "connection_id" => $conn->vrf_id,
+                "endpoint" => $eps
+            }
+        ]
+    };
+
+    eval {
+        my $res = $self->{www}->put(
+            $self->{config_obj}->nso_host . "/restconf/data/oess-l3connection:oess-l3connection=$conn_id",
+            'Content-type' => 'application/yang-data+json',
+            'Content'      => encode_json($payload)
+        );
+        return if ($res->content eq ''); # Empty payload indicates success
+
+        my $result = decode_json($res->content);
+        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+    };
+    if ($@) {
+        my $err = $@;
+        warn $err;
+        return $err;
+    }
+    return;
+}
+
+=head2 get_l3connections
+
+    my ($connections, $err) = get_l3connections();
+
+=cut
+sub get_l3connections {
+    my $self = shift;
+
+    my $connections;
+    eval {
+        my $res = $self->{www}->get(
+            $self->{config_obj}->nso_host . "/restconf/data/oess-l3connection:oess-l3connection",
+            'Content-type' => 'application/yang-data+json'
+        );
+        if ($res->content eq '') { # Empty payload indicates success
+            $connections = [];
+        } else {
+            my $result = decode_json($res->content);
+            die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+            $connections = $result->{"oess-l3connection:oess-l3connection"};
+        }
+    };
+    if ($@) {
+        my $err = $@;
+        warn $err;
+        return (undef, $err);
+    }
+    return ($connections, undef);
 }
 
 1;

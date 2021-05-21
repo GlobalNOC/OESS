@@ -1,8 +1,8 @@
--- MySQL dump 10.14  Distrib 5.5.65-MariaDB, for Linux (x86_64)
+-- MySQL dump 10.16  Distrib 10.1.22-MariaDB, for Linux (x86_64)
 --
 -- Host: localhost    Database: oess_test
 -- ------------------------------------------------------
--- Server version	5.5.65-MariaDB
+-- Server version	10.1.22-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -1043,7 +1043,7 @@ CREATE TABLE `vrf_ep` (
   PRIMARY KEY (`vrf_ep_id`),
   KEY `vrf_id` (`vrf_id`),
   KEY `interface_id` (`interface_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1052,7 +1052,7 @@ CREATE TABLE `vrf_ep` (
 
 LOCK TABLES `vrf_ep` WRITE;
 /*!40000 ALTER TABLE `vrf_ep` DISABLE KEYS */;
-INSERT INTO `vrf_ep` VALUES (2,NULL,3,1000,2,391,'active',3,9000),(3,3,3,50,3,1,'active',5001,9000),(4,NULL,40,50,4,391,'decom',40,9000),(5,NULL,40,50,4,1,'decom',40,9000),(6,21,20,50,5,391,'decom',5000,9000),(7,21,20,50,5,1,'decom',5000,9000);
+INSERT INTO `vrf_ep` VALUES (2,NULL,3,1000,2,391,'active',3,9000),(3,3,3,50,3,1,'active',5001,9000),(4,NULL,40,50,4,391,'decom',40,9000),(5,NULL,40,50,4,1,'decom',40,9000),(6,21,20,50,5,391,'decom',5000,9000),(7,21,20,50,5,1,'decom',5000,9000),(8,NULL,3010,100,1,45841,'active',200,9000),(9,NULL,2010,100,1,45741,'active',200,9000);
 /*!40000 ALTER TABLE `vrf_ep` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1079,7 +1079,7 @@ CREATE TABLE `vrf_ep_peer` (
   KEY `vrf_ep_id` (`vrf_ep_id`),
   KEY `vrf_ep_peer_ibfk_2` (`circuit_ep_id`),
   CONSTRAINT `vrf_ep_peer_ibfk_2` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1088,6 +1088,7 @@ CREATE TABLE `vrf_ep_peer` (
 
 LOCK TABLES `vrf_ep_peer` WRITE;
 /*!40000 ALTER TABLE `vrf_ep_peer` DISABLE KEYS */;
+INSERT INTO `vrf_ep_peer` VALUES (1,'192.168.1.3/31',64601,8,'active','192.168.1.2/31','','ipv4',1,NULL,0),(2,'192.168.2.3/31',64602,9,'active','192.168.2.2/31','','ipv4',1,NULL,0),(3,'192.168.5.3/31',64605,8,'active','192.168.5.2/31','','ipv4',1,NULL,0);
 /*!40000 ALTER TABLE `vrf_ep_peer` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1185,4 +1186,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-06-24 15:16:44
+-- Dump completed on 2021-05-19 14:30:21
