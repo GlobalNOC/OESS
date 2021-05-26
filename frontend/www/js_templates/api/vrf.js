@@ -120,6 +120,7 @@ async function deleteVRF(workgroupID, vrfID) {
     console.log(data);
     return data.results;
   } catch(error) {
+    alert('An error occurred while trying to delete a VRF:\n' + error);
     console.log('Failure occurred in deleteVRF.');
     console.log(error);
     return null;

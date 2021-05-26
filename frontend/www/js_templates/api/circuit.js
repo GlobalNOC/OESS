@@ -10,6 +10,7 @@ async function deleteCircuit(workgroupID, circuitID, end=-1) {
     if ('error_text' in data) throw(data.error_text);
     return data.results;
   } catch(error) {
+    alert('An error occurred while trying to delete a circuit:\n' + error);
     console.log('Failure occurred in deleteCircuit:', error);
     return null;
   }
