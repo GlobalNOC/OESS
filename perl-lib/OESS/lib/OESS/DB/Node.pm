@@ -82,7 +82,7 @@ sub fetch_v2 {
     return $node->[0];
 }
 
-=head2 fetch_v2
+=head2 fetch_all
 
 =cut
 sub fetch_all {
