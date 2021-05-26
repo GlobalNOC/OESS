@@ -550,6 +550,7 @@ INSERT INTO `network` (network_id, name, latitude, longitude, is_local) VALUES (
 --
 -- Table structure for table `node`
 --
+INSERT INTO `network` (`network_id`,`name`,`longitude`,`latitude`,`is_local`) VALUES (1,'oess',0,0,1);
 
 DROP TABLE IF EXISTS `node`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -858,6 +859,7 @@ CREATE TABLE `user` (
   KEY `user_idx` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `user` (`user_id`,`email`,`given_names`,`family_name`,`is_admin`,`status`) VALUES (1,'admin@localhost','admin','admin',1,'active');
 
 INSERT INTO `user` (`email`,`given_names`,`family_name`,`is_admin`,`status`) VALUES ('oess-admin@localhost','OESS', 'Administrator',1,'active');
 
@@ -878,6 +880,7 @@ CREATE TABLE `remote_auth` (
   CONSTRAINT `user_auth_values_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `user_entity_membership` (`user_id`,`entity_id`) VALUES (1,1);
 
 --
 -- Dumping data for table `remote_auth`
@@ -904,6 +907,7 @@ CREATE TABLE `user_entity_membership` (
   KEY `user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `user_workgroup_membership` (`workgroup_id`,`user_id`,`role`) VALUES (1,1,'admin');
 
 --
 -- Table structure for table `vrf`
@@ -1033,6 +1037,7 @@ CREATE TABLE `workgroup` (
   UNIQUE KEY `workgroups_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `workgroup` (`workgroup_id`,`description`,`name`,`type`) VALUES (1,'admin','admin','admin');
 
 --
 -- Dumping data for table `workgroup`
