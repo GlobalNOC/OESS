@@ -1,5 +1,4 @@
-/**
- * @typedef Peering
+/*** @typedef Peering
  * @property {integer} asn - BGP ASN number
  * @property {string} key - BGP authentication key
  * @property {string} oessPeerIP - IP Address of the OESS peering address
