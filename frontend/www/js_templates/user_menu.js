@@ -7,7 +7,7 @@ async function loadUserMenu() {
 <li>
   <a href="#">
     <b>${user.first_name} ${user.last_name}</b><br/>
-    ${user.username}<br/>
+    ${user.usernames[0]}<br/>
     ${user.email}
   </a>
 </li>
@@ -16,7 +16,7 @@ async function loadUserMenu() {
 
   session.data.isAdmin = false;
   session.data.isReadOnly = (user.type === 'read-only') ? true : false;
-  session.data.username = user.username;
+  session.data.username = user.usernames[0];
 
   user.workgroups.forEach(function(group) {
       if (session.data.workgroup_id === undefined) {
@@ -28,7 +28,7 @@ async function loadUserMenu() {
       }
 
       if (session.data.workgroup_id == group.workgroup_id) {
-          userMenuActiveWorkgroup.innerHTML = user.username + ' / ' + group.name + ' <span class="caret"></span>';
+          userMenuActiveWorkgroup.innerHTML = user.usernames[0] + ' / ' + group.name + ' <span class="caret"></span>';
       }
       html += `<li><a onclick="selectWorkgroup(${group.workgroup_id})" href="#">${group.name}</a></li>`;
   });
