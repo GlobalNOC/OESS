@@ -377,15 +377,16 @@ sub insert_interconnect_attachment {
     $req->content( encode_json($payload) );
 
     my $api_response = $http->request($req);
+    my $api_data = decode_json($api_response->content);
     if (!$api_response->is_success && $api_response->code == 500) {
         $self->{logger}->error("insert_interconnect_attachment: HTTP 500");
-        return;
+        return $api_data;
     }
 
     my $api_data = decode_json($api_response->content);
     if (defined $api_data->{error}) {
         $self->{logger}->error($api_data->{error}->{message});
-        return;
+        return $api_data;
     }
 
     $self->{logger}->info("insert_interconnect_attachment: Status is $api_data->{status}.");
