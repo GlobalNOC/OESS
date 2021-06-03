@@ -1192,10 +1192,10 @@ sub edit_remote_link {
 
 }
 
+#Gets workgroups based on user_id given through parameter
 sub get_workgroups {
     my ($method, $args) = @_;
 
-    #my ($user, $err) = authorization(admin => 1, read_only => 1);
     my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'read-only');
     if (defined $err) {
         $method->set_error($err);
@@ -1217,7 +1217,6 @@ sub get_workgroups {
     $user->load_workgroups();
 
     $workgroups = $user->to_hash()->{workgroups};
-
     if ( !defined $workgroups ) {
         $results->{'error'}   = $db->get_error();
         $results->{'results'} = [];
