@@ -106,13 +106,7 @@ sub new{
 
     $self->{'db'} = OESS::Database->new(config => $config_filename);
     die if (!defined $self->{'db'});
-
-
-    $self->{'interface'} = OESS::MPLS::Discovery::Interface->new(
-        db => new OESS::DB(config => $config_filename),
-        lsp_processor => sub{ $self->lsp_handler(); }
-    );
-    die "Unable to create Interface processor\n" if !defined $self->{'interface'};
+      
 
     $self->{'lsp'} = OESS::MPLS::Discovery::LSP->new(db => $self->{'db'});
     die "Unable to create LSP Processor\n" if !defined $self->{'lsp'};
@@ -163,7 +157,6 @@ sub new{
 
     # Only lookup LSPs and Paths when network type is vpn-mpls.
     if ($self->{'config'}->network_type eq 'vpn-mpls') {
-        $self->{'lsp_timer'} = AnyEvent->timer( after => 70, interval => 200, cb => sub { $self->lsp_handler(); });
         $self->{'path_timer'} = AnyEvent->timer( after => 40, interval => 300, cb => sub { $self->path_handler(); });
     }
 
@@ -240,7 +233,6 @@ sub new_switch{
     $self->{'logger'}->debug("Baby was created!");
     sleep(5);
     $self->int_handler();
-    $self->lsp_handler();
 
     &$success({status => 1});
 }
@@ -324,8 +316,7 @@ sub int_handler{
                         }
                     }
 
-                    $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');
-                    my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
+                    $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');                    
                 })
         );
     }
@@ -403,45 +394,6 @@ sub path_handler {
     }
 
     $cv->end;
-}
-
-=head2 lsp_handler
-
-=cut
-sub lsp_handler{
-    my $self = shift;
-
-    if ($self->{'config'}->network_type ne 'vpn-mpls') {
-        # Only lookup LSPs when network type is set to vpn-mpls.
-        return 1;
-    }
-
-    my %nodes;
-
-    foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
-	$nodes{$node->{'name'}} = {'pending' => 1};
-	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-	my $start = [gettimeofday];
-        $self->{'rmq_client'}->get_LSPs( async_callback => $self->handle_response( cb => sub { my $res = shift;
-											       $self->{'logger'}->debug("Total Time for get_LSPs " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
-											       $nodes{$node->{'name'}} = $res;
-											       $nodes{$node->{'name'}}->{'pending'} = 0;
-											       my $no_pending = 1;
-											       foreach my $node (keys %nodes){
-												   if($nodes{$node}->{'pending'} == 1){
-												       #warn "Still have pending\n";
-												       $no_pending = 0;
-												   }
-											       }
-
-											       if($no_pending){
-												   #warn "No more pending\n";
-												   my $status = $self->{'lsp'}->process_results( lsp => \%nodes);
-											       }
-										   })
-					 
-            );
-    }
 }
 
 =head2 isis_handler
