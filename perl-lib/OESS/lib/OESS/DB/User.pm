@@ -642,6 +642,8 @@ sub has_workgroup_access {
 
 =head2 has_circuit_access
 
+=over
+
 =item db
     Denotes the database we are checking for access
 
@@ -663,7 +665,11 @@ sub has_workgroup_access {
                                   db           => $db,
                                   user_id      => $user_id,
                                   circuit_id => $circuit_id,
-                                  $role        => $role);
+    
+    
+    has_circuit_access checks if a specified user's role found in the circuit's associated workgroup, and has
+    appropriate access for that workgroup. The workgroup is accessed by getting the circuit with C<circuit_id> 
+    and then uses C<has_workgroup_access> to determine whether the user has access to the circuit.
 =cut
 sub has_circuit_access {
     my %params = @_;
