@@ -572,28 +572,34 @@ class EndpointSelectionModal2 {
       console.log('endpoint:', endpoint);
       console.log('entity:', entity);
 
+      let isNewEndpoint = index == null
+      console.log("isNewEndpoint: ", isNewEndpoint)
+      let ep = isNewEndpoint? endpoint : {};
+
       let cloudGatewayType = null;
       if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
         cloudGatewayType = cloudGatewayTypeSelector.options[cloudGatewayTypeSelector.selectedIndex].value;
         if (jumboCheckbox.checked) {
-          endpoint.mtu = (cloudGatewayType === 'transit') ? 8500 : 9001;
+          ep.mtu = (cloudGatewayType === 'transit') ? 8500 : 9001;
         } else {
-          endpoint.mtu = 1500;
+          ep.mtu = 1500;
         }
       }
 
-      endpoint.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;
-      endpoint.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
-      endpoint.cloud_account_id = (cloudAccountInput.value) ? cloudAccountInput.value.trim() : '';
-      endpoint.entity = entity.name;
-      endpoint.name = selectedInterface;
-      endpoint.node = selectedNode;
-      endpoint.interface = selectedInterface;
-      endpoint.jumbo = jumboCheckbox.checked;
-      endpoint.cloud_interconnect_type = entity.cloud_interconnect_type;
-      endpoint.cloud_gateway_type = cloudGatewayType;
+      ep.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;
+      ep.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
+      ep.cloud_account_id = (cloudAccountInput.value) ? cloudAccountInput.value.trim() : '';
+      ep.entity = entity.name;
+      ep.name = selectedInterface;
+      ep.node = selectedNode;
+      ep.interface = selectedInterface;
+      ep.jumbo = jumboCheckbox.checked;
+      ep.cloud_interconnect_type = entity.cloud_interconnect_type;
+      ep.cloud_gateway_type = cloudGatewayType;
+      ep.index = index
 
-      state.updateEndpoint(endpoint);
+      console.log('using ep:', ep);
+      state.updateEndpoint(ep);
       $('#add-endpoint-modal2').modal('hide');
     };
 
