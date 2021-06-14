@@ -549,6 +549,7 @@ INSERT INTO `network` (`network_id`,`name`,`longitude`,`latitude`,`is_local`) VA
 --
 -- Table structure for table `node`
 --
+INSERT INTO `network` (`network_id`,`name`,`longitude`,`latitude`,`is_local`) VALUES (1,'oess',0,0,1);
 
 DROP TABLE IF EXISTS `node`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -772,6 +773,7 @@ CREATE TABLE `remote_auth` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `remote_auth` (`auth_name`,`user_id`) VALUES ('admin',1);
+
 --
 -- Dumping data for table `remote_auth`
 --
