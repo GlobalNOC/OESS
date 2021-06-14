@@ -108,6 +108,19 @@ my $get_nodes = GRNOC::WebService::Method->new(
 );
 $ws->register_method($get_nodes);
 
+my $delete_node = GRNOC::WebService::Method->new(
+    name        => "delete_node",
+    description => "delete_node decomisions the given node by its id",
+    callback    => sub { delete_node(@_) }
+    );
+$delete_node->add_input_parameter(
+    name        => 'node_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'NodeId of node'
+    );
+$ws->register_method($delete_node);
+
 sub create_node {
     my $method = shift;
     my $params = shift;
@@ -194,6 +207,18 @@ sub get_nodes {
         push @$result, $obj->to_hash;
     }
     return { results => $result };
+}
+
+sub delete_node {
+    my $method = shift;
+    my $params = shift;
+
+    my $err = OESS::DB::Node::decom(db => $db, node_id => $params->{node_id}{value});
+    if(defined $err){
+       $method->set_error($err);
+        return;
+    }
+    return { results => ''};
 }
 
 $ws->handle_request;

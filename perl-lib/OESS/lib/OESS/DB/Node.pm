@@ -88,7 +88,7 @@ sub fetch_v2 {
 sub fetch_all {
     my %params = @_;
     my $db = $params{'db'};
-
+    my $status = $params{'status'} || 'active';
     my $nodes = $db->execute_query("
         select node.node_id, node_instantiation.controller,
         node_instantiation.mgmt_addr as ip_address, node.latitude,
@@ -97,9 +97,9 @@ sub fetch_all {
         node.name, node.short_name, node_instantiation.sw_version,
         node.vlan_tag_range as vlan_range
         from node join node_instantiation on node.node_id=node_instantiation.node_id
-        where node_instantiation.end_epoch=-1
+        where node_instantiation.end_epoch=-1 and admin_state=?
         ",
-        []
+        [$status]
     );
 
     return if (!defined $nodes);
