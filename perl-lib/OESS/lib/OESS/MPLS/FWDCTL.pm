@@ -54,6 +54,10 @@ use constant TIMEOUT => 3600;
 use JSON::XS;
 use GRNOC::WebService::Regex;
 
+=head1 OESS::MPLS::FWDCTL
+
+=cut
+
 =head2 new
 
 create a new OESS Master process
@@ -61,7 +65,6 @@ create a new OESS Master process
   FWDCTL->new();
 
 =cut
-
 sub new {
     my $class = shift;
     my %params = @_;
