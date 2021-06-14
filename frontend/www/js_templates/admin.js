@@ -1518,7 +1518,7 @@ function setup_workgroup_tab(){
                     var rec = this.getRecord(oArgs.target);
 
                     var user_id = rec.getData('user_id');
-                    var user    = rec.getData('first_name') + " " + rec.getData('family_name');
+                    var user    = rec.getData('first_name') + " " + rec.getData('last_name');
 
                     if (col.label != "Remove"){
                         return;
