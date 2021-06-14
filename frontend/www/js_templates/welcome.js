@@ -185,7 +185,7 @@ async function loadL2VPNs() {
   circuits.forEach(function(circuit, index) {
     ok = true;
     let createdOn = new Date(circuit.created_on);
-    let modifiedOn = new Date(circuit.last_edited);
+    let modifiedOn = new Date(circuit.last_modified_on);
     let bg_color = '#fff';
     let owner = 1;
     if(circuit.workgroup_id != session.data.workgroup_id){
