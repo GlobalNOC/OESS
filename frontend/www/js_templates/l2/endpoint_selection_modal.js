@@ -384,9 +384,6 @@ class EndpointSelectionModal2 {
       let vlans = [];
       let vlanH = {};
       for (let i = 0; i < entity.interfaces.length; i++) {
-        console.log('selectedInterface:', selectedInterface);
-        console.log('selectedNode:', selectedNode);
-        console.log('entity interfaces:', entity.interfaces[i]);
 
         let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
         let userSelectedInterface = (entity.interfaces[i].node == selectedNode && entity.interfaces[i].name == selectedInterface);
