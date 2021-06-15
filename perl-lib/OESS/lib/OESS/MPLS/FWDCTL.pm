@@ -282,7 +282,11 @@ sub _write_cache{
             next;
         }
 
-        my $ckt_type $self->determine_vlan_type($ckt);
+        my $ckt_type = $self->determine_vlan_type($ckt);
+
+        my $site_id = 0;
+        my %switches_in_use;
+
         my $site_id = 0;
         foreach my $ep (@{$ckt->endpoints}) {
             $site_id++;
