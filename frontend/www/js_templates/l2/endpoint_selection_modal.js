@@ -565,11 +565,8 @@ class EndpointSelectionModal2 {
 
     let addButton = this.parent.querySelector('.add-entity-submit');
     addButton.onclick = function(e) {
-      console.log('endpoint:', endpoint);
-      console.log('entity:', entity);
 
       let isNewEndpoint = index == null
-      console.log("isNewEndpoint: ", isNewEndpoint)
       let ep = isNewEndpoint? endpoint : {};
 
       let cloudGatewayType = null;
@@ -594,7 +591,6 @@ class EndpointSelectionModal2 {
       ep.cloud_gateway_type = cloudGatewayType;
       ep.index = index
 
-      console.log('using ep:', ep);
       state.updateEndpoint(ep);
       $('#add-endpoint-modal2').modal('hide');
     };
