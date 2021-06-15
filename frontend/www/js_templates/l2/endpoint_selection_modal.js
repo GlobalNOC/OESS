@@ -178,6 +178,7 @@ class EndpointSelectionModal2 {
         index:            index,
         bandwidth:        this.parent.querySelector('.endpoint-bandwidth').value,
         interface:        interfaceSelector.options[interfaceSelector.selectedIndex].dataset.name,
+        name:             interfaceSelector.options[interfaceSelector.selectedIndex].dataset.name,
         interface_id:     interfaceSelector.options[interfaceSelector.selectedIndex].value,
         description:      interfaceSelector.options[interfaceSelector.selectedIndex].dataset.description,
         node:             interfaceSelector.options[interfaceSelector.selectedIndex].dataset.node,
@@ -380,9 +381,6 @@ class EndpointSelectionModal2 {
       let vlans = [];
       let vlanH = {};
       for (let i = 0; i < entity.interfaces.length; i++) {
-        console.log('selectedInterface:', selectedInterface);
-        console.log('selectedNode:', selectedNode);
-        console.log('entity interfaces:', entity.interfaces[i]);
 
         let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
         let userSelectedInterface = (entity.interfaces[i].node == selectedNode && entity.interfaces[i].name == selectedInterface);
