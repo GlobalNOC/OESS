@@ -42,7 +42,7 @@ sub new{
     my $class = ref($that) || $that;
 
     my $self = {
-        vrf_peer_id => undef,
+        vrf_ep_peer_id => undef,
         db          => undef,
         model       => undef,
         logger      => Log::Log4perl->get_logger("OESS.Peer"),

@@ -257,8 +257,7 @@ sub create_l3connection {
             device      => $ep->node,
             interface   => $ep->interface,
             tag         => $ep->tag,
-            peer_v4     => [],
-            peer_v6     => []
+            peer        => []
         };
         if (defined $ep->inner_tag) {
             $obj->{inner_tag} = $ep->inner_tag;
@@ -266,20 +265,16 @@ sub create_l3connection {
 
         foreach my $peer (@{$ep->peers}) {
             my $peer_obj = {
-                peer_id   => $peer->vrf_ep_peer_id,
-                local_asn => $self->{local_asn},
-                local_ip  => $peer->local_ip,
-                peer_asn  => $peer->peer_asn,
-                peer_ip   => $peer->peer_ip,
-                bfd       => $peer->bfd,
-                md5_key   => $peer->md5_key
+                peer_id    => $peer->vrf_ep_peer_id,
+                local_asn  => $self->{local_asn},
+                local_ip   => $peer->local_ip,
+                peer_asn   => $peer->peer_asn,
+                peer_ip    => $peer->peer_ip,
+                bfd        => $peer->bfd,
+                md5_key    => $peer->md5_key,
+                ip_version => $peer->ip_version
             };
-
-            if ($p->{ip_version} eq 'v4') {
-                push @{$obj->{peer_v4}}, $peer_obj;
-            } else {
-                push @{$obj->{peer_v6}}, $peer_obj;
-            }
+            push @{$obj->{peer}}, $peer_obj;
         }
 
         push(@$eps, $obj);
@@ -357,8 +352,7 @@ sub edit_l3connection {
             device      => $ep->node,
             interface   => $ep->interface,
             tag         => $ep->tag,
-            peer_v4     => [],
-            peer_v6     => []
+            peer        => []
         };
         if (defined $ep->inner_tag) {
             $obj->{inner_tag} = $ep->inner_tag;
@@ -366,20 +360,16 @@ sub edit_l3connection {
 
         foreach my $peer (@{$ep->peers}) {
             my $peer_obj = {
-                peer_id   => $peer->vrf_ep_peer_id,
-                local_asn => $self->{local_asn},
-                local_ip  => $peer->local_ip,
-                peer_asn  => $peer->peer_asn,
-                peer_ip   => $peer->peer_ip,
-                bfd       => $peer->bfd,
-                md5_key   => $peer->md5_key
+                peer_id    => $peer->vrf_ep_peer_id,
+                local_asn  => $self->{local_asn},
+                local_ip   => $peer->local_ip,
+                peer_asn   => $peer->peer_asn,
+                peer_ip    => $peer->peer_ip,
+                bfd        => $peer->bfd,
+                md5_key    => $peer->md5_key,
+                ip_version => $peer->ip_version
             };
-
-            if ($p->{ip_version} eq 'v4') {
-                push @{$obj->{peer_v4}}, $peer_obj;
-            } else {
-                push @{$obj->{peer_v6}}, $peer_obj;
-            }
+            push @{$obj->{peer}}, $peer_obj;
         }
 
         push(@$eps, $obj);

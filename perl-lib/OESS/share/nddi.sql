@@ -773,7 +773,6 @@ CREATE TABLE `remote_auth` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `remote_auth` (`auth_name`,`user_id`) VALUES ('admin',1);
-
 --
 -- Dumping data for table `remote_auth`
 --

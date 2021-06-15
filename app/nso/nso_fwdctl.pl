@@ -11,7 +11,7 @@ use Proc::Daemon;
 use XML::Simple;
 
 use OESS::Config;
-use OESS::NSO::FWDCTL;
+use OESS::NSO::FWDCTLService;
 
 my $pid_file = "/var/run/oess/nso_fwdctl.pid";
 my $cnf_file = "/etc/oess/database.xml";
@@ -32,7 +32,7 @@ sub core{
 
     my $config = new OESS::Config(config_filename => $cnf_file);
     if ($config->network_type eq 'nso') {
-        my $fwdctl = new OESS::NSO::FWDCTL(config_obj => $config);
+        my $fwdctl = new OESS::NSO::FWDCTLService(config_obj => $config);
         $fwdctl->start;
         AnyEvent->condvar->recv;
     } else {
