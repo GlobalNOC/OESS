@@ -106,10 +106,11 @@ sub new{
 
     $self->{'db'} = OESS::Database->new(config => $config_filename);
     die if (!defined $self->{'db'});
-      
 
-    $self->{'lsp'} = OESS::MPLS::Discovery::LSP->new(db => $self->{'db'});
-    die "Unable to create LSP Processor\n" if !defined $self->{'lsp'};
+    $self->{'interface'} = OESS::MPLS::Discovery::Interface->new(
+        db => new OESS::DB(config => $config_filename)
+    );
+    die "Unable to create Interface processor\n" if !defined $self->{'interface'}; 
 
     $self->{'isis'} = OESS::MPLS::Discovery::ISIS->new(db => $self->{'db'});
     die "Unable to create ISIS Processor\n" if !defined $self->{'isis'};
@@ -157,6 +158,7 @@ sub new{
 
     # Only lookup LSPs and Paths when network type is vpn-mpls.
     if ($self->{'config'}->network_type eq 'vpn-mpls') {
+	$self->{'lsp_timer'} = AnyEvent->timer( after => 70, interval => 200, cb => sub { $self->lsp_handler(); });
         $self->{'path_timer'} = AnyEvent->timer( after => 40, interval => 300, cb => sub { $self->path_handler(); });
     }
 
@@ -233,6 +235,7 @@ sub new_switch{
     $self->{'logger'}->debug("Baby was created!");
     sleep(5);
     $self->int_handler();
+    $self->lsp_handler();
 
     &$success({status => 1});
 }
@@ -317,6 +320,7 @@ sub int_handler{
                     }
 
                     $self->{'db'}->update_node_operational_state(node_id => $node->{'node_id'}, state => 'up', protocol => 'mpls');                    
+		    my $status = $self->{'interface'}->process_results( node => $node->{'name'}, interfaces => $res->{'results'});
                 })
         );
     }
