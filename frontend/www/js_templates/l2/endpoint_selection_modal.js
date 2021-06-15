@@ -195,6 +195,7 @@ class EndpointSelectionModal2 {
       this.endpoint.cloud_interconnect_type = interconnectType;
 
       state.updateEndpoint(this.endpoint);
+      
       $('#add-endpoint-modal2').modal('hide');
     }.bind(this);
 
