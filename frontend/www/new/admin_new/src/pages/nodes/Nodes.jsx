@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 
 import { Link } from "react-router-dom";
 
-import { getNodes } from "../../api/nodes.js";
+import { getNodes, deleteNode } from "../../api/nodes.js";
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
 import { Table } from "../../components/generic_components/Table.jsx";
@@ -42,16 +42,15 @@ class Nodes extends React.Component {
   async deleteNode(node) {
     let ok = confirm(`Delete node '${node.name}'?`);
     if (!ok) return;
-
-    // try {
-    //   await deleteWorkgroup(workgroup.workgroup_id);
-    //   this.context.setStatus({type:'success', message:`Workgroup '${workgroup.name}' was successfully deleted.`});
-    //   this.setState((state) => {
-    //     return {workgroups: state.workgroups.filter((w) => (w.workgroup_id == workgroup.workgroup_id) ? false : true)};
-    //   });
-    // } catch (error) {
-    //   this.context.setStatus({type:'error', message:error.toString()});
-    // }
+    try{
+      await deleteNode(node.node_id);
+      this.context.setStatus({type: 'success', message: `Node '${node.name}' was successfully deleted.`});
+      this.setState((state) => {
+        return {nodes: state.nodes.filter((n) => (n.node_id == node.node_id) ? false : true)};
+      });
+    }catch(error){
+      this.context.setStatus({type: 'error', message: error.toString()});
+    }    
   }
 
   render() {
