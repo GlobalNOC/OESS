@@ -282,32 +282,8 @@ sub _write_cache{
             next;
         }
 
-        my $ckt_type;
-        if ($self->{'config'}->network_type eq 'evpn-vxlan') {
-            $ckt_type = "EVPN";
-        } else {
-            $ckt_type = "L2VPN";
-
-            my $primary_path = $ckt->path(type => 'primary');
-            if (defined $primary_path && @{$primary_path->links} > 0) {
-                $ckt_type = "L2CCC";
-            }
-
-            if (scalar(@{$ckt->endpoints}) > 2) {
-                $ckt_type = "L2VPLS";
-            }
-        }
-
+        my $ckt_type $self->determine_vlan_type($ckt);
         my $site_id = 0;
-        my %switches_in_use;
-
-        foreach my $ep (@{$ckt->endpoints}) {
-            $switches_in_use{$ep->node_id} = $self->{node_by_id}->{$ep->node_id}->{loopback_address};
-        }
-        if (scalar(keys %switches_in_use) == 1 && $self->{'config'}->network_type ne 'evpn-vxlan') {
-            $ckt_type = "L2VPLS";
-        }
-
         foreach my $ep (@{$ckt->endpoints}) {
             $site_id++;
 
