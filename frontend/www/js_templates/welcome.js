@@ -39,7 +39,7 @@ async function deleteL2VPN(id, name) {
        window.location="?action=welcome";
     }catch(error){
        deleteCircuitModal.modal('hide');
-       alert('An error occured while deleting a VRF:\n ' + error);
+       alert('An error occured while deleting a circuit:\n ' + error);
     }
   }
 }
