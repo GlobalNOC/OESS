@@ -310,6 +310,12 @@ sub provision {
             return;
         }
 
+        if($ep->{bandwidth} + $interface->{utilized_bandwidth} > $interface->{bandwidth}){
+            $method->set_error("Couldn't create Connnection: Specified bandwidth exceeds provisionable bandwidth for $ep->{entity}.");
+            $db->rollback;
+            return;
+        }
+
         # Populate Endpoint modal with selected Interface details.
         $ep->{type}         = 'circuit';
         $ep->{entity_id}    = $entity->{entity_id};
