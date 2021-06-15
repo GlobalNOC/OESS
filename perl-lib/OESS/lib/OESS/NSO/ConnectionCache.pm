@@ -35,6 +35,9 @@ sub new {
     return $self;
 }
 
+=head2 get_included_nodes
+
+=cut
 sub get_included_nodes {
     my $self = shift;
 
@@ -50,6 +53,9 @@ sub get_included_nodes {
     return \@ids;
 }
 
+=head2 get_connections_by_node
+
+=cut
 sub get_connections_by_node {
     my $self = shift;
     my $node_id = shift;
@@ -69,6 +75,9 @@ sub get_connections_by_node {
     return $result;
 };
 
+=head2 add_connection
+
+=cut
 sub add_connection {
     my $self = shift;
     my $conn = shift;
@@ -100,6 +109,9 @@ sub add_connection {
     return 1;
 }
 
+=head2 remove_connection
+
+=cut
 sub remove_connection {
     my $self = shift;
     my $conn = shift;
