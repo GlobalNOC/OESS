@@ -110,7 +110,7 @@ $ws->register_method($get_nodes);
 
 my $delete_node = GRNOC::WebService::Method->new(
     name        => "delete_node",
-    description => "delete_node decomisions the given node by its id",
+    description => "delete_node decommissions the given node by its id",
     callback    => sub { delete_node(@_) }
     );
 $delete_node->add_input_parameter(
@@ -218,7 +218,7 @@ sub delete_node {
        $method->set_error($err);
         return;
     }
-    return { results => ''};
+    return { results => [{ success => 1 }] };
 }
 
 $ws->handle_request;

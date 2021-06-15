@@ -44,7 +44,7 @@ class Nodes extends React.Component {
     if (!ok) return;
     try{
       await deleteNode(node.node_id);
-      this.context.setStatus({type: 'success', message: `Node '${node.name}' was successfully deleted`});
+      this.context.setStatus({type: 'success', message: `Node '${node.name}' was successfully deleted.`});
       this.setState((state) => {
         return {nodes: state.nodes.filter((n) => (n.node_id == node.node_id) ? false : true)};
       });
