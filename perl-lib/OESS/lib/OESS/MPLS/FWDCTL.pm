@@ -969,9 +969,18 @@ sub determine_vlan_type {
             }
         }
 
-        if (@{$vlan->{endpoints}} > 2) {
+        if (@{$vlan->{endpoints}} > 2 ) {
             $ckt_type = "L2VPLS";
         }
+    }
+
+    my %switches_in_use;
+
+    foreach my $ep (@{$vlan->{endpoints}}) {
+        $switches_in_use{$ep->{node_id}} = $self->{node_by_id}->{$ep->{node_id}}->{loopback_address};
+    }
+    if (scalar(keys %switches_in_use) == 1 && $self->{'config'}->{network_type} ne 'evpn-vxlan') {
+        $ckt_type = "L2VPLS";
     }
 
     return $ckt_type;
