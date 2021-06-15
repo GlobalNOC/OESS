@@ -114,18 +114,11 @@ async function getVRF(workgroupID, vrfID) {
 async function deleteVRF(workgroupID, vrfID) {
   let url = `[% path %]services/vrf.cgi?method=remove&vrf_id=${vrfID}&workgroup_id=${workgroupID}`;
 
-  try {
-    const resp = await fetch(url, {method: 'get', credentials: 'include'});
-    const data = await resp.json();
-    if ('error_text' in data) throw(data.error_text);
-    console.log(data);
-    return data.results;
-  } catch(error) {
-    alert('An error occured while deleting a VRF:\n ' + error, ()=> window.location="?action=welcome", {error: true});
-    console.log('Failure occurred in deleteVRF.');
-    console.log(error);
-    return null;
-  }
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  const data = await resp.json();
+  console.log(data);
+  if ('error_text' in data) throw(data.error_text);
+  return data.results;
 }
 
 async function getVRFs(workgroupID) {
