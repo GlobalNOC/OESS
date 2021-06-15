@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 
 import { Link } from "react-router-dom";
 
-import { getNodes } from "../../api/nodes.js";
+import { getNodes, deleteNode } from "../../api/nodes.js";
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
 import { Table } from "../../components/generic_components/Table.jsx";
