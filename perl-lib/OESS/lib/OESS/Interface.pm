@@ -213,9 +213,6 @@ sub provisionable_bandwidth{
     my $self = shift;
     my $provisionable_bandwidth = shift;
 
-    if(defined $provisionable_bandwidth){
-        $self->{provisionable_bandwidth} = $provisionable_bandwidth
-    }
     return $self->{provisionable_bandwidth};
 }
 
