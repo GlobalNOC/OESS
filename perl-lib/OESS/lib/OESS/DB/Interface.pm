@@ -88,10 +88,10 @@ sub fetch{
 
     
     my $provisionable_bandwidth;
-    if($interface->{'cloud_interconnect_type'} eq 'azure-express-route'){
+    if ($interface->{cloud_interconnect_type} eq 'azure-express-route'){
        $provisionable_bandwidth = $interface->{bandwidth}*4;
-    }elsif(defined $interface->{'cloud_interconnect_type'}){
-      $provisionable_bandwidth = $interface->{bandwidth};
+    } elsif (defined $interface->{cloud_interconnect_type}){
+       $provisionable_bandwidth = $interface->{bandwidth};
     }
 
     return {
