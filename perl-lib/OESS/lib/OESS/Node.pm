@@ -55,6 +55,7 @@ sub from_hash {
     $self->{short_name} = $hash->{short_name};
     $self->{sw_version} = $hash->{sw_version};
     $self->{vlan_range} = $hash->{vlan_range};
+    $self->{pending_diff} = $hash->{pending_diff};
     return 1;
 }
 
@@ -76,7 +77,8 @@ sub to_hash {
         short_name       => $self->{short_name},
         sw_version       => $self->{sw_version},
         tcp_port         => $self->{tcp_port},
-        vlan_range       => $self->{vlan_range}
+        vlan_range       => $self->{vlan_range},
+        pending_diff     => $self->{pending_diff}
     };
     return $obj;
 }
@@ -253,6 +255,17 @@ sub vlan_range {
     return $self->{vlan_range};
 }
 
+=head2 pending_diff
+
+=cut
+sub pending_diff {
+    my $self = shift;
+    my $pending_diff = shift;
+    if (defined $pending_diff && ($pending_diff == 0 || $pending_diff == 1)) {
+        $self->{pending_diff} = $pending_diff;
+    }
+    return $self->{pending_diff};
+}
 =head2 interfaces
 
 =cut

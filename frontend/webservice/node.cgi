@@ -159,6 +159,13 @@ $edit_node->add_input_parameter(
     required    => 0,
     description => "Network controller of node"
     );
+$edit_node->add_input_parameter(
+    name        => 'pending_diff',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "Network controller of node"
+    );
+
 $ws->register_method($edit_node);
 
 my $get_node = GRNOC::WebService::Method->new(
@@ -307,6 +314,14 @@ sub edit_node {
     }
     if (defined $params->{controller}{value}){
         $node->{controller} = $params->{controller}{value};
+    }
+    if (defined $params->{pending_diff}{value}){
+        if ($params->{pending_diff}{value} == 1 || $params->{pending_diff}{value} == 0){
+            $node->{pending_diff} = $params->{pending_diff}{value};
+        } else {
+            $method->set_error("The parameter 'pending_diff' must be either 0 or 1.");
+            return;
+        }
     }
 
     my $update_err = OESS::DB::Node::update(db => $db, node => $node);
