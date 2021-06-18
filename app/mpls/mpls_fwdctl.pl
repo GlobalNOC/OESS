@@ -2,7 +2,9 @@
 use strict;
 use warnings;
 
+use OESS::Config;
 use OESS::MPLS::FWDCTL;
+use OESS::NSO::FWDCTL;
 
 use English;
 use Data::Dumper;
@@ -12,6 +14,7 @@ use Proc::Daemon;
 use XML::Simple;
 
 my $pid_file = "/var/run/oess/mpls_fwdctl.pid";
+my $cnf_file = "/etc/oess/database.xml";
 
 sub get_diff_interval{
     eval {
@@ -27,13 +30,34 @@ sub get_diff_interval{
 sub core{
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
-    my $FWDCTL = OESS::MPLS::FWDCTL->new();
-    my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
-    my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
-    my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
-    
+    my $config = new OESS::Config(config_filename => $cnf_file);
+    if ($config->network_type eq 'nso') {
+        my $fwdctl = OESS::NSO::FWDCTL->new(config => $config);
+        $fwdctl->start;
+        AnyEvent->condvar->recv;
+    }
+    elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
+        my $FWDCTL = OESS::MPLS::FWDCTL->new();
+        my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
+        my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
+        my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
+        AnyEvent->condvar->recv;
+    }
+    elsif ($config->network_type eq 'nso+vpn-mpls') {
+        my $fwdctl = OESS::NSO::FWDCTL->new(config => $config);
+        $fwdctl->start;
+
+        my $FWDCTL = OESS::MPLS::FWDCTL->new();
+        my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
+        my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
+        my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
+        AnyEvent->condvar->recv;
+    }
+    else {
+        die "Unexpected network type configured.";
+    }
+
     Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.APP')->info("Starting OESS.MPLS.FWDCTL event loop.");
-    AnyEvent->condvar->recv;
 }
 
 sub main{
@@ -42,8 +66,8 @@ sub main{
     my $username;
     #remove the ready file
 
-    # This directory is auto-removed on reboot. Create the directory
-    # if not already created.
+    # This directory is auto-removed on reboot. Create the directory if not
+    # already created. This is used to store connection cache files.
     if (!-d "/var/run/oess/") {
         `/usr/bin/mkdir /var/run/oess`;
         `/usr/bin/chown _oess:_oess /var/run/oess`;

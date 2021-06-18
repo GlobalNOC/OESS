@@ -25,9 +25,6 @@ sed -i "s/NSO_HOST/$NSO_HOST/" /etc/oess/database.xml
 sed -i "s/NSO_PASSWORD/$NSO_PASSWORD/" /etc/oess/database.xml
 sed -i "s/NSO_USERNAME/$NSO_USERNAME/" /etc/oess/database.xml
 
-# Symlink in oess-shim
-ln -s /oess-shim/lib/GRNOC/OESS/ /usr/share/perl5/vendor_perl/GRNOC/OESS
-
 # Start OESS
 /usr/bin/oess-notify.pl &
 /usr/bin/mpls_discovery.pl &

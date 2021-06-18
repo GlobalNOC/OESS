@@ -797,17 +797,21 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
                                   description => '' );
-    $method->add_input_parameter( name        => 'vendor',
+    $method->add_input_parameter( name        => 'controller',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'vendor',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'model',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'sw_ver',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
 				  description => '' );
 
     $svc->register_method($method);
@@ -2691,6 +2695,7 @@ sub add_mpls_switch{
     my $latitude = $args->{'latitude'}{'value'};
     my $longitude = $args->{'longitude'}{'value'};
     my $port = $args->{'port'}{'value'};
+    my $controller = $args->{'controller'}{'value'};
     my $vendor = $args->{'vendor'}{'value'};
     my $model = $args->{'model'}{'value'};
     my $sw_ver = $args->{'sw_ver'}{'value'};
@@ -2700,42 +2705,52 @@ sub add_mpls_switch{
         return;
     }
 
-    require OESS::RabbitMQ::Client;
-    my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
-                                          timeout  => 60 );
-
-    my $node = $db->add_mpls_node( name => $name,
-                                   short_name => $short_name,
-				   ip => $ip_address,
-				   lat => $latitude,
-				   long => $longitude,
-				   port => $port,
-				   vendor => $vendor,
-				   model => $model,
-				   sw_ver => $sw_ver);
-
-    if(!defined($node)){
-	return $db->get_error();
+    my $node = $db->add_mpls_node(
+        name => $name,
+        short_name => $short_name,
+        ip => $ip_address,
+        lat => $latitude,
+        long => $longitude,
+        port => $port,
+        controller => $controller,
+        vendor => $vendor,
+        model => $model,
+        sw_ver => $sw_ver
+    );
+    if (!defined $node) {
+        $method->set_error($db->get_error);
+        return;
     }
 
+    require OESS::RabbitMQ::Client;
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic    => 'NSO.FWDCTL.RPC',
+        timeout  => 60
+    );
     if (!defined $mq) {
-	my $results = {};
-	$results->{'results'} = [ {
-	    "error"   => "Internal server error occurred. Message queue connection failed.",
-	    "success" => 0
-	} ];
-	return $results;
-    } else {
-	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+        $method->set_error("Internal server error occurred. Message queue connection failed.");
+        return;
+    }
+
+    my $fwdctl_topic;
+    my $discovery_topic;
+
+    if ($controller eq 'netconf') {
+        $fwdctl_topic = 'MPLS.FWDCTL.RPC';
+        $discovery_topic = 'MPLS.Discovery.RPC';
+    }
+    if ($controller eq 'nso') {
+        $fwdctl_topic = 'NSO.FWDCTL.RPC';
+        $discovery_topic = 'NSO.Discovery.RPC';
     }
 
     my $cv = AnyEvent->condvar;
+    $mq->{'topic'} = $fwdctl_topic;
     $mq->new_switch(
         node_id        => $node->{'node_id'},
         async_callback => sub {
             my $resultM = shift;
-            
-            $mq->{'topic'} = 'MPLS.Discovery.RPC';
+            $mq->{'topic'} = $discovery_topic;
             $mq->new_switch(
                 node_id => $node->{'node_id'},
                 async_callback => sub {
@@ -2745,7 +2760,7 @@ sub add_mpls_switch{
             );
         }
     );
-    my $res = $cv->recv();
+    $cv->recv;
 
     return {results => [{success => 1, node_id => $node->{'node_id'}}]};
 

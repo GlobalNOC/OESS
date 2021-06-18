@@ -2,38 +2,43 @@
 
 use strict;
 use warnings;
-use AnyEvent;
 
+use AnyEvent;
 use English;
 use Getopt::Long;
+use Log::Log4perl;
 use Proc::Daemon;
-use Data::Dumper;
+use XML::Simple;
 
 use OESS::Config;
-use OESS::MPLS::Discovery;
-use OESS::NSO::Discovery;
+use OESS::NSO::FWDCTLService;
 
-my $pid_file = "/var/run/oess/mpls_discovery.pid";
+my $pid_file = "/var/run/oess/nso_fwdctl.pid";
 my $cnf_file = "/etc/oess/database.xml";
+
+sub get_diff_interval{
+    eval {
+        my $xml = XMLin('/etc/oess/fwdctl.xml');
+        my $diff_interval = $xml->{diff}->{interval};
+        die unless defined $diff_interval;
+        return $diff_interval;
+    } or do {
+        return 900;
+    }
+}
 
 sub core{
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
     my $config = new OESS::Config(config_filename => $cnf_file);
     if ($config->network_type eq 'nso') {
-        my $discovery = OESS::NSO::Discovery->new(config => $config);
-        $discovery->start;
+        my $fwdctl = new OESS::NSO::FWDCTLService(config_obj => $config);
+        $fwdctl->start;
         AnyEvent->condvar->recv;
-    }
-    elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
-        my $discovery = OESS::MPLS::Discovery->new(config => $config);
-        AnyEvent->condvar->recv;
-    }
-    else {
+    } else {
         die "Unexpected network type configured.";
     }
-
-    Log::Log4perl->get_logger('OESS.MPLS.Discovery.APP')->info("Starting OESS.MPLS.Discovery event loop.");
+    Log::Log4perl->get_logger('OESS.NSO.FWDCTL.APP')->info("Starting OESS.NSO.FWDCTL event loop.");
 }
 
 sub main{
@@ -41,6 +46,13 @@ sub main{
     my $verbose;
     my $username;
     #remove the ready file
+
+    # This directory is auto-removed on reboot. Create the directory if not
+    # already created. This is used to store connection cache files.
+    if (!-d "/var/run/oess/") {
+        `/usr/bin/mkdir /var/run/oess`;
+        `/usr/bin/chown _oess:_oess /var/run/oess`;
+    }
 
     #--- see if the pid file exists. if not then just continue running.
     if(-e $pid_file){
@@ -61,10 +73,10 @@ sub main{
     }
 
     my $result = GetOptions (
-                             "user|u=s"  => \$username,
-                             "verbose"   => \$verbose,
-                             "daemon|d"  => \$is_daemon,
-        );
+        "user|u=s"  => \$username,
+        "verbose"   => \$verbose,
+        "daemon|d"  => \$is_daemon,
+	);
 
     #now change username/
     if (defined $username) {
@@ -78,16 +90,14 @@ sub main{
         my $daemon;
         if ($verbose) {
             $daemon = Proc::Daemon->new(
-                                        pid_file => $pid_file,
-                                        child_STDOUT => '/var/log/oess/mpls_discovery.out',
-                                        child_STDERR => '/var/log/oess/mpls_discovery.log',
-                );
+                pid_file => $pid_file,
+                child_STDOUT => '/var/log/oess/nso_fwdctl.out',
+                child_STDERR => '/var/log/oess/nso_fwdctl.log',
+		    );
         } else {
-            $daemon = Proc::Daemon->new(
-                pid_file => $pid_file
-                );
+            $daemon = Proc::Daemon->new(pid_file => $pid_file);
         }
-
+	
         # Init returns the PID (scalar) of the daemon to the parent, or
         # the PIDs (array) of the daemons created if exec_command has
         # more then one program to execute.
@@ -106,7 +116,6 @@ sub main{
         $SIG{HUP} = sub{ exit(0); };
         core();
     }
-
 }
 
 main();
