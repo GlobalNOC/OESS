@@ -42,7 +42,19 @@ export const createNode = async (node) => {
 }
 
 export const editNode = async (node) => {
-  return 1;
+  let url = `${config.base_url}services/node.cgi?method=edit_node`;
+
+  for (const key of Object.keys(node)){
+     url += '&' + key + '=' + node[key];
+  }
+  console.log(url);
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  console.log(resp);
+  const data = await resp.json();
+  console.log(data);
+
+  if (data.error_text) throw data.error_text;
+  return data.results;
 };
 
 export const getNode = async (nodeId) => {

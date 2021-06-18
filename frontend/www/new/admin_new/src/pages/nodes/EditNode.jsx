@@ -21,6 +21,7 @@ const editNodeComponent = (props) => {
   }, [match]);
 
   let submitHandler = async (e) => {
+    e.node_id = node.node_id;
     try {
       await editNode(e);
       setStatus({type:'success', message:`Node '${e.name}' was successfully edited.`});
