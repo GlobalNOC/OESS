@@ -76,6 +76,7 @@ sub from_hash{
     $self->{'workgroup_id'} = $hash->{'workgroup_id'};
     $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
     $self->{'bandwidth'} = $hash->{'bandwidth'} || 0;
+    $self->{'provisionable_bandwidth'} = $hash->{'provisionable_bandwidth'};
     $self->{'mtu'} = $hash->{'mtu'} || 0;
 
     return 1;
@@ -99,6 +100,7 @@ sub to_hash{
         workgroup_id => $self->workgroup_id(),
         utilized_bandwidth => $self->{'utilized_bandwidth'},
         bandwidth => $self->{'bandwidth'},
+        provisionable_bandwidth => $self->{'provisionable_bandwidth'},
         mtu => $self->{'mtu'}
     };
 
@@ -237,7 +239,17 @@ sub bandwidth{
     if (defined $bandwidth) {
         $self->{bandwidth} = $bandwidth;
     }
-    return $self->{'bandwidth'};
+    return $self->{bandwidth};
+}
+
+=head2 provisionable_bandwidth
+
+=cut
+sub provisionable_bandwidth{
+    my $self = shift;
+    my $provisionable_bandwidth = shift;
+
+    return $self->{provisionable_bandwidth};
 }
 
 =head2 mtu

@@ -86,6 +86,14 @@ sub fetch{
 
     push(@{$in_use},@{OESS::DB::Interface::circuit_vlans_in_use(db => $db, interface_id => $interface_id)});
 
+    
+    my $provisionable_bandwidth;
+    if ($interface->{cloud_interconnect_type} eq 'azure-express-route'){
+       $provisionable_bandwidth = $interface->{bandwidth}*4;
+    } elsif (defined $interface->{cloud_interconnect_type}){
+       $provisionable_bandwidth = $interface->{bandwidth};
+    }
+
     return {
         interface_id => $interface->{'interface_id'},
         cloud_interconnect_type => $interface->{'cloud_interconnect_type'},
@@ -101,6 +109,7 @@ sub fetch{
         acls => $acls,
         used_vlans => $in_use,
         bandwidth => $interface->{bandwidth},
+        provisionable_bandwidth => $provisionable_bandwidth,
         utilized_bandwidth => $l2_utilized_bandwidth + $l3_utilized_bandwidth,
         mtu => $interface->{mtu},
         admin_state => $interface->{admin_state},

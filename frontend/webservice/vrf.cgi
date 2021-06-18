@@ -413,6 +413,12 @@ sub provision_vrf{
                 return;
             }
 
+            if(defined $interface->provisionable_bandwidth && ($ep->{bandwidth} + $interface->{utilized_bandwidth} > $interface->provisionable_bandwidth)){
+                $method->set_error("Couldn't create Connnection: Specified bandwidth exceeds provisionable bandwidth for '$ep->{entity}'.");
+                $db->rollback;
+                return;
+            }
+
             $ep->{type}         = 'vrf';
             $ep->{entity_id}    = $entity->{entity_id};
             $ep->{interface}    = $interface->{name};
