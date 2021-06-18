@@ -130,10 +130,34 @@ $edit_node->add_input_parameter(
     description => 'VLAN range provisionable on node. Defaults to `1-4095` if not provided.'
     );
 $edit_node->add_input_parameter(
-    name        => 'operational_state_mpls',
+    name        => 'ip_address',
     pattern     => $GRNOC::WebService::Regex::TEXT,
     required    => 0,
-    description => 'Current state of node'
+    description => "IP address of node"
+    );
+$edit_node->add_input_parameter(
+    name        => 'tcp_port',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 0,
+    description => "TCP port of node"
+    );
+$edit_node->add_input_parameter(
+    name        => 'make',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "Hardware make (network vendor) of node"
+    );
+$edit_node->add_input_parameter(
+    name        => 'model',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "Hardware model of node"
+    );
+$edit_node->add_input_parameter(
+    name        => 'controller',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "Network controller of node"
     );
 $ws->register_method($edit_node);
 
@@ -266,11 +290,23 @@ sub edit_node {
     if (defined $params->{longitude}{value}){
         $node->{longitude} = $params->{longitude}{value};
     }
-    if (defined $params->{operational_state_mpls}{value}){
-        $node->{operational_state_mpls} = $params->{operational_state_mpls}{value};
-    }
     if (defined $params->{vlan_range}{value}){
         $node->{vlan_range} = $params->{vlan_range}{value};
+    }
+    if (defined $params->{ip_address}{value}){
+        $node->{ip_address} = $params->{ip_address}{value};
+    }
+    if (defined $params->{tcp_port}{value}){
+        $node->{tcp_port} = $params->{tcp_port}{value};
+    }
+    if (defined $params->{make}{value}){
+        $node->{make} = $params->{make}{value};
+    }
+    if (defined $params->{model}{value}){
+        $node->{model} = $params->{model}{value};
+    }
+    if (defined $params->{controller}{value}){
+        $node->{controller} = $params->{controller}{value};
     }
 
     my $update_err = OESS::DB::Node::update(db => $db, node => $node);
