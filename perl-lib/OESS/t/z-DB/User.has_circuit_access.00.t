@@ -36,7 +36,7 @@ my $db = new OESS::DB(
 my ($result, $error) = OESS::DB::User::has_circuit_access(db => $db, username => 'aragusa', circuit_id => 11, role => 'admin');
 ok($result == 1, "Got expected result '1'");
 
-($result, $error) = OESS::DB::User::has_circuit_access(db => $db, username => 'aragusa', circuit_id => 11, role => 'admin');
+($result, $error) = OESS::DB::User::has_circuit_access(db => $db, user_id => 11, circuit_id => 11, role => 'admin');
 ok($result == 1, "Got expected result '1'");
 
 ($result, $error) = OESS::DB::User::has_circuit_access(db => $db, user_id => 11, circuit_id => 11, role => 'normal');
