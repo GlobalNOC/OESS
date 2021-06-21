@@ -21,7 +21,7 @@ sub core{
 
     my $config = new OESS::Config(config_filename => $cnf_file);
     if ($config->network_type eq 'nso') {
-        my $discovery = OESS::NSO::Discovery->new(config => $config);
+        my $discovery = OESS::NSO::Discovery->new(config_obj => $config);
         $discovery->start;
         AnyEvent->condvar->recv;
     }

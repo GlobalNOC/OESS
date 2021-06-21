@@ -96,9 +96,11 @@ sub new{
 
     bless $self, $class;
 
-    my $config_filename = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
+    my $config_filename = (defined $self->{'config'}) ? $self->{'config'}->{'config_filename'} : '/etc/oess/database.xml';
     $self->{'config_filename'} = $config_filename;
-    $self->{'config'} = new OESS::Config(config_filename => $config_filename);
+    if (!defined $self->{"config"}){
+        $self->{'config'} = new OESS::Config(config_filename => $config_filename);
+    }
 
     if (!defined $self->{'test'}) {
         $self->{'test'} = 0;
