@@ -95,31 +95,21 @@ sub new{
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Discovery');
 
     bless $self, $class;
-
-    my $config_filename;
-    if(defined $self->{'config'} && ref($self->{'config'}) ne "" ){ # if ref(config) is not an empty string then config is an object
-        $config_filename = $self->{'config'}->{'config_filename'}; 
-    }elsif(defined $self->{'config'}){ # if ref(config) is empty string and config is defined then it is a file path
-        $config_filename = $self->{'config'};
-    }else{ # if not defined take default 
-        $config_filename = '/etc/oess/database.xml';
-    }
-    $self->{'config_filename'} = $config_filename;
-
+    
     if (!defined $self->{"config"}){
-        $self->{'config'} = new OESS::Config(config_filename => $config_filename);
+        $self->{'config'} = new OESS::Config(config_filename => $self->{'config_filename'});
     }
 
     if (!defined $self->{'test'}) {
         $self->{'test'} = 0;
     }
 
-    $self->{'db'} = OESS::Database->new(config => $config_filename);
+    $self->{'db'} = OESS::Database->new(config => $self->{'config_filename'});
     die if (!defined $self->{'db'});
 
 
     $self->{'interface'} = OESS::MPLS::Discovery::Interface->new(
-        db => new OESS::DB(config => $config_filename),
+        db => new OESS::DB(config => $self->{'config_filename'}),
         lsp_processor => sub{ $self->lsp_handler(); }
     );
     die "Unable to create Interface processor\n" if !defined $self->{'interface'};
@@ -149,7 +139,7 @@ sub new{
 
     # Create the client for talking to our Discovery switch objects!
     $self->{'rmq_client'} = OESS::RabbitMQ::Client->new(
-        config => $config_filename,
+        config => $self->{'config_filename'},
         timeout => 120,
         topic => 'MPLS.Discovery'
     );

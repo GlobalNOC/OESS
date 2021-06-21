@@ -26,7 +26,7 @@ sub core{
         AnyEvent->condvar->recv;
     }
     elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
-        my $discovery = OESS::MPLS::Discovery->new(config => $config);
+        my $discovery = OESS::MPLS::Discovery->new(config_filename => $config->{"config_filename"});
         AnyEvent->condvar->recv;
     }
     else {
