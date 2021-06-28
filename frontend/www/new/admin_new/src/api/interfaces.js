@@ -1,7 +1,7 @@
 import { config } from '.././config.jsx';
 
-export const getInterfaces = async (nodeName) => {
-  let url = `${config.base_url}services/data.cgi?method=get_node_interfaces&node=${nodeName}&show_down=1&show_trunk=1`;
+export const getInterfaces = async (nodeId) => {
+  let url = `${config.base_url}services/interface.cgi?method=get_node_interfaces&node_id=${nodeId}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
   const data = await resp.json();

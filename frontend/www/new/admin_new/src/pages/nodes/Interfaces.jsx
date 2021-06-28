@@ -23,7 +23,7 @@ class Interfaces extends React.Component {
     async componentDidMount(){
         try {
             const node = await getNode(this.state.match.params['id']);            
-            const interfaces = await getInterfaces(node.name);
+            const interfaces = await getInterfaces(this.state.match.params['id']);
             this.setState({interfaces: interfaces, node: node});
         } catch(error) {
             this.context.setStatus({type: 'error', message: error.toString()});
@@ -47,19 +47,15 @@ class Interfaces extends React.Component {
         let filteredItemCount = 0;
 
         let interfaces = this.state.interfaces.filter((x) => {
-            if ( !this.state.filter){
+            if ( !this.state.filter ){
                 return true;
             }
-            console.log(x);
 
-            if ( (new RegExp(this.state.filter, 'i').test(x.name)) ) { 
-                console.log('test 4');
+            if ( (new RegExp(this.state.filter, 'i').test(x.name)) ) {
                 return true;
             } else if ( this.state.filter == x.interface_id ) {
-                console.log('test 2');
                 return true;
             } else {
-                console.log('test 1');
                 return false;
             }
         }).filter((x, i) => {
@@ -74,15 +70,16 @@ class Interfaces extends React.Component {
                 return false;
             }
         });
-
-
+        interfaces.forEach(x => x.utilized_total_bandwith = x.utilized_bandwidth + ' / ' + x.bandwidth);
+       
         let columns = [
             {name: 'ID', key: 'interface_id'},
             {name: 'Name', key: 'name'},
             {name: 'Description', key: 'description'},
-            {name: 'Status', key: 'status'},
-            {name: 'VLAN Tags', key: 'vlan_tag_range'},
-            {name: 'MPLS VLAN Tags', key: 'mpls_vlan_tag_range'}
+            {name: 'Status', key: 'operational_status', key:  'operational_state'},
+            {name: 'Utilized/Total Bandwidth(Mps)', key: 'utilized_total_bandwith'},
+            {name: 'Cloud Interconnection Type', key: 'cloud_interconnect_type'},
+            {name: 'Role', key: 'role'}
         ];
 
         return (
