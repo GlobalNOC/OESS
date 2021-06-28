@@ -96,7 +96,7 @@ class Interfaces extends React.Component {
                         <div className="form-group">
                             <div className="input-group">
                                 <span className="input-group-addon" id="icon"><span className="glyphicon glyphicon-search" aria-hidden="true"></span></span>
-                                <input type="text" className="form-control" id="user_search" placeholder="Filter Nodes" aria-describedby="icon" onChange={(e) => this.filterInterfaces(e)} />
+                                <input type="text" className="form-control" id="user_search" placeholder="Filter Interfaces" aria-describedby="icon" onChange={(e) => this.filterInterfaces(e)} />
                             </div>
                         </div>
                 </form>
