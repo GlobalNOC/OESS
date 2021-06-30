@@ -1205,31 +1205,28 @@ sub get_workgroups {
         $method->set_error($err);
         return;
     }
-    my $results;
-    my $user_id =  $args->{'user_id'}{'value'} || undef;
-    if(!defined $user_id){
-        $results->{'error'} = 'user_id is undefined';
-        return $results;
-    }
 
-    my $workgroups;
-    my $user = new OESS::User(db => $db2, user_id => $user_id);
-    if(!defined $user){
-        $results->{'error'} = 'user with the user_id \'' . $user_id . '\' was not found';
-        return $results;
+    my $results;
+
+    my $user;
+    if (defined $args->{user_id}{value}) {
+        $user = new OESS::User(db => $db2, user_id => $args->{user_id}{value});
+    } else {
+        $user = new OESS::User(db => $db2, username => $ENV{REMOTE_USER});
+    }
+    if (!defined $user) {
+        my $id = (defined $args->{user_id}{value}) ? $args->{user_id}{value} : $ENV{REMOTE_USER};
+        $method->set_error("User $id was not found.");
+        return;
     }
     $user->load_workgroups();
 
-    $workgroups = $user->to_hash()->{workgroups};
-    if ( !defined $workgroups ) {
-        $results->{'error'}   = $db->get_error();
-        $results->{'results'} = [];
+    my $workgroups = $user->to_hash()->{workgroups};
+    if (!defined $workgroups) {
+        $method->set_error("Couldn't load workgroups.");
+        return;
     }
-    else {
-        $results->{'results'} = $workgroups;
-    }
-
-    return $results;
+    return { results => $workgroups };
 }
 
 sub update_interface_owner {

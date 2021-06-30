@@ -41,9 +41,11 @@ sub new {
     my $class = shift;
     my $args  = {
         connection_cache => undef, # OESS::NSO::ConnectionCache
-        db    => undef, # OESS::DB
-        nso   => undef, # OESS::NSO::Client or OESS::NSO::ClientStub
-        logger          => Log::Log4perl->get_logger('OESS.NSO.FWDCTL'),
+        config           => '/etc/oess/database.xml',
+        config_obj       => undef, # OESS::Config
+        db               => undef, # OESS::DB
+        nso              => undef, # OESS::NSO::Client or OESS::NSO::ClientStub
+        logger           => Log::Log4perl->get_logger('OESS.NSO.FWDCTL'),
         @_
     };
     my $self = bless $args, $class;

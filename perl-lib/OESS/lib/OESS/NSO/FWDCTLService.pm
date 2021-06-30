@@ -16,6 +16,8 @@ use OESS::DB::Node;
 use OESS::L2Circuit;
 use OESS::Node;
 use OESS::NSO::Client;
+use OESS::NSO::ConnectionCache;
+use OESS::NSO::FWDCTL;
 use OESS::RabbitMQ::Dispatcher;
 use OESS::VRF;
 
@@ -36,9 +38,9 @@ use constant FWDCTL_BLOCKED     => 4;
 sub new {
     my $class = shift;
     my $args  = {
-        config_obj      => undef,
-        config_filename => '/etc/oess/database.xml',
-        logger          => Log::Log4perl->get_logger('OESS.NSO.FWDCTL'),
+        config     => '/etc/oess/database.xml',
+        config_obj => undef,
+        logger     => Log::Log4perl->get_logger('OESS.NSO.FWDCTL'),
         @_
     };
     my $self = bless $args, $class;
@@ -54,6 +56,7 @@ sub new {
     my $cache = new OESS::NSO::ConnectionCache();
     $self->{fwdctl} = new OESS::NSO::FWDCTL(
         connection_cache => $cache,
+        config_obj       => $self->{config_obj},
         db               => $self->{db},
         nso              => $self->{nso}
     );

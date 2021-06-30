@@ -21,12 +21,12 @@ sub core{
 
     my $config = new OESS::Config(config_filename => $cnf_file);
     if ($config->network_type eq 'nso') {
-        my $discovery = OESS::NSO::Discovery->new(config => $config);
+        my $discovery = OESS::NSO::Discovery->new(config_obj => $config);
         $discovery->start;
         AnyEvent->condvar->recv;
     }
     elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
-        my $discovery = OESS::MPLS::Discovery->new(config => $config);
+        my $discovery = OESS::MPLS::Discovery->new(config_obj => $config);
         AnyEvent->condvar->recv;
     }
     else {

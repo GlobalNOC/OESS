@@ -73,11 +73,18 @@ sub new {
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.MASTER');
 
+    # $self->{config} is assumed to be a str path
     my $config_filename = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
-    $self->{'config'} = new OESS::Config(config_filename => $config_filename);
 
-    $self->{'db'} = OESS::Database->new( config_file => $config_filename );
-    $self->{'db2'} = OESS::DB->new();
+    if (!defined $self->{config_obj}) {
+	$self->{'config'} = new OESS::Config(config_filename => $config_filename);
+    } else {
+	$self->{'config'} = $self->{config_obj};
+	$config_filename = $self->{config_obj}->filename;
+    }
+
+    $self->{'db'} = OESS::Database->new(config_file => $config_filename);
+    $self->{'db2'} = OESS::DB->new(config => $config_filename);
 
     if (!$self->{object_only}) {
         my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new(
