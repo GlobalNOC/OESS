@@ -55,7 +55,7 @@ my $adjs = {
     }
 };
 my $discovery = OESS::MPLS::Discovery->new(
-    config_filename => $conf,
+    config => $conf,
     test   => 1
 );
 # Move endpoint on node3 from xe-7/0/3 to xe-7/0/2

@@ -29,15 +29,15 @@ use OESS::RabbitMQ::Dispatcher;
 sub new {
     my $class = shift;
     my $args  = {
+        config          => '/etc/oess/database.xml',
         config_obj      => undef,
-        config_filename => '/etc/oess/database.xml',
         logger          => Log::Log4perl->get_logger('OESS.NSO.Discovery'),
         @_
     };
     my $self = bless $args, $class;
 
     if (!defined $self->{config_obj}) {
-        $self->{config_obj} = new OESS::Config(config_filename => $self->{config_filename});
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
     }
     $self->{db} = new OESS::DB(config => $self->{config_obj}->filename);
     $self->{nodes} = {};

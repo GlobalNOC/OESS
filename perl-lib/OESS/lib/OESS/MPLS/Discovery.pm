@@ -95,9 +95,15 @@ sub new{
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Discovery');
 
     bless $self, $class;
-    
-    if (!defined $self->{"config"}){
+
+    # $self->{config} is assumed to be a str path
+    $self->{'config_filename'} = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
+
+    if (!defined $self->{config_obj}) {
         $self->{'config'} = new OESS::Config(config_filename => $self->{'config_filename'});
+    } else {
+        $self->{'config'} = $self->{config_obj};
+        $self->{'config_filename'} = $self->{config_obj}->filename;
     }
 
     if (!defined $self->{'test'}) {

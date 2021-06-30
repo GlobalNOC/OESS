@@ -4,7 +4,7 @@ use warnings;
 
 use OESS::Config;
 use OESS::MPLS::FWDCTL;
-use OESS::NSO::FWDCTL;
+use OESS::NSO::FWDCTLService;
 
 use English;
 use Data::Dumper;
@@ -32,22 +32,22 @@ sub core{
 
     my $config = new OESS::Config(config_filename => $cnf_file);
     if ($config->network_type eq 'nso') {
-        my $fwdctl = OESS::NSO::FWDCTL->new(config => $config);
+        my $fwdctl = OESS::NSO::FWDCTLService->new(config_obj => $config);
         $fwdctl->start;
         AnyEvent->condvar->recv;
     }
     elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
-        my $FWDCTL = OESS::MPLS::FWDCTL->new();
+        my $FWDCTL = OESS::MPLS::FWDCTL->new(config_obj => $config);
         my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
         my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
         my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
         AnyEvent->condvar->recv;
     }
     elsif ($config->network_type eq 'nso+vpn-mpls') {
-        my $fwdctl = OESS::NSO::FWDCTL->new(config => $config);
+        my $fwdctl = OESS::NSO::FWDCTLService->new(config_obj => $config);
         $fwdctl->start;
 
-        my $FWDCTL = OESS::MPLS::FWDCTL->new();
+        my $FWDCTL = OESS::MPLS::FWDCTL->new(config_obj => $config);
         my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
         my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
         my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
