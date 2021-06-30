@@ -125,24 +125,18 @@ sub create_node {
     my $method = shift;
     my $params = shift;
 
-    my $db = OESS::DB->new;
     $db->start_transaction;
 
-    eval{
-        my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
-        if (defined $err) {
-	    $method->set_error($err);
-	    return;
-	}
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+	return;
+    }
         
-        my ($ok, $access_err) = $user->has_system_access(role => 'admin');
-        return (undef, $access_err) if defined $access_err;
-    };
-
-    if($@){
-        $method->set_error($@);
+    my ($ok, $access_err) = $user->has_system_access(role => 'admin');
+    if (defined $access_err){
         $db->rollback;
-        return;
+        return (undef, $access_err)
     }
 
     my $node = new OESS::Node(
@@ -161,17 +155,10 @@ sub create_node {
         }
     );
     
-    my $create_err;
-    eval{
-        $create_err = $node->create;
-    };
+    my $create_err = $node->create;
+
     if (defined $create_err) {
         $method->set_error($create_err);
-        $db->rollback;
-        return;
-    }
-    if($@){
-        $method->set_error($@);
         $db->rollback;
         return;
     }
@@ -204,7 +191,7 @@ sub create_node {
         async_callback => sub { $cv->send; }
     );
     $cv->recv;
-
+    $db->commit;
     return { results => [{ success => 1, node_id => $node->node_id }] };
 }
 
