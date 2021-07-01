@@ -70,6 +70,7 @@ export const getNodeDiffText = async (nodeId) => {
   url += `&node_id=${nodeId}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  if(!resp.ok) throw resp.statusText;
   const data = await resp.json();
 
   if (data.error_text) throw data.error_text;
