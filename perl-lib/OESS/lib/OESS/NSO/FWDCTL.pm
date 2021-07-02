@@ -12,7 +12,9 @@ use XML::LibXML;
 
 use OESS::Config;
 use OESS::DB;
+use OESS::DB::Circuit;
 use OESS::DB::Node;
+use OESS::DB::VRF;
 use OESS::L2Circuit;
 use OESS::Node;
 use OESS::NSO::Client;
@@ -54,19 +56,8 @@ sub new {
         $self->{config_obj} = new OESS::Config(config_filename => $self->{config_filename});
     }
 
-    $self->{cache} = {};
-    $self->{l3_cache} = {};
-    $self->{flat_cache} = {};
-    $self->{l3_flat_cache} = {};
-
     $self->{pending_diff} = {};
     $self->{nodes} = {};
-
-    # When this process receives sigterm send an event to notify all
-    # children to exit cleanly.
-    $SIG{TERM} = sub {
-        $self->stop;
-    };
 
     return $self;
 }
@@ -240,7 +231,7 @@ sub diff {
     my $syncd_connections = {};
 
     # Needed to ensure diff state may be set to pending_diff_none after approval
-    foreach my $node_id (keys %{$self->{cache}}) {
+    foreach my $node_id (@{$self->{connection_cache}->get_included_nodes}) {
         # TODO Cleanup this hacky lookup
         my $node_obj = new OESS::Node(db => $self->{db}, node_id => $node_id);
         $network_diff->{$node_obj->name} = "";
@@ -558,7 +549,44 @@ sub update_cache {
         $self->{connection_cache}->add_connection($obj, 'l2');
     }
 
-    # TODO lookup and populate l3connections
+    my $l3connection_ids = OESS::DB::VRF::get_vrfs(
+        db => $self->{db},
+	state => 'active'
+    );
+    if (!defined $l3connection_ids) {
+        $self->{logger}->error("Couldn't load l3connections in update_cache.");
+        return "Couldn't load l3connections in update_cache.";
+    }
+
+    foreach my $conn (@$l3connection_ids) {
+        my $obj = new OESS::VRF(db => $self->{db}, vrf_id => $conn->{vrf_id});
+        $obj->load_endpoints;
+
+        foreach my $ep (@{$obj->endpoints}) {
+            $ep->load_peers;
+        }
+        $self->{connection_cache}->add_connection($obj, 'l3');
+    }
+
+    return;
+}
+
+=head2 update_nodes
+
+update_nodes reads all nodes from the database and loads them into an
+in-memory cache similar to update_cache.
+
+=cut
+sub update_nodes {
+    my $self = shift;
+
+    my $nodes = OESS::DB::Node::fetch_all(db => $self->{db}, controller => 'nso');
+    if (!defined $nodes) {
+        return "Couldn't lookup nodes. FWDCTL will not provision on any existing nodes.";
+    }
+    foreach my $node (@$nodes) {
+        $self->{nodes}->{$node->{node_id}} = $node;
+    }
 
     return;
 }

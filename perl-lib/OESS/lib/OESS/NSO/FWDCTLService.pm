@@ -50,8 +50,7 @@ sub new {
     }
 
     $self->{db} = new OESS::DB(config => $self->{config_obj}->filename);
-    $self->{nodes} = {};
-    $self->{nso} = new OESS::NSO::Client(config => $self->{config_obj});
+    $self->{nso} = new OESS::NSO::Client(config_obj => $self->{config_obj});
 
     my $cache = new OESS::NSO::ConnectionCache();
     $self->{fwdctl} = new OESS::NSO::FWDCTL(
@@ -79,20 +78,16 @@ connections, and sets up a rabbitmq dispatcher for RCP calls into FWDCTL.
 sub start {
     my $self = shift;
 
-    # Load devices from database
-    my $nodes = OESS::DB::Node::fetch_all(db => $self->{db}, controller => 'nso');
-    if (!defined $nodes) {
-        warn "Couldn't lookup nodes. FWDCTL will not provision on any existing nodes.";
-        $self->{logger}->error("Couldn't lookup nodes. Discovery will not provision on any existing nodes.");
-    }
-    foreach my $node (@$nodes) {
-        $self->{nodes}->{$node->{node_id}} = $node;
+    my $node_err = $self->{fwdctl}->update_nodes;
+    if (!defined $node_err) {
+        warn $node_err;
+        $self->{logger}->error($node_err);
     }
 
-    my $err = $self->{fwdctl}->update_cache;
-    if (defined $err) {
-        warn $err;
-        $self->{logger}->error($err);
+    my $cache_err = $self->{fwdctl}->update_cache;
+    if (defined $cache_err) {
+        warn $cache_err;
+        $self->{logger}->error($cache_err);
     }
 
     # Setup polling subroutines
