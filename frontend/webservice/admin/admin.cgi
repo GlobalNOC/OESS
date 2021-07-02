@@ -904,13 +904,25 @@ sub get_diff_text {
         return;
     }
 
+    my $node = new OESS::Node(db => $db2, node_id => $args->{node_id}{value});
+
+    my $fwdctl_topic = 'OF.FWDCTL.RPC';
+    my $discovery_topic = 'OF.Discovery.RPC';
+    if ($node->controller eq 'netconf') {
+        $fwdctl_topic = 'MPLS.FWDCTL.RPC';
+        $discovery_topic = 'MPLS.Discovery.RPC';
+    }
+    if ($node->controller eq 'nso') {
+        $fwdctl_topic = 'NSO.FWDCTL.RPC';
+        $discovery_topic = 'NSO.Discovery.RPC';
+    }
+
     my $node_id = $args->{'node_id'}{'value'};
     require OESS::RabbitMQ::Client;
     my $mq = OESS::RabbitMQ::Client->new(
-        topic    => 'OF.FWDCTL.RPC',
+        topic    => $fwdctl_topic,
         timeout  => 60
     );
-    $mq->{'topic'} = "MPLS.FWDCTL.RPC";
 
     my $cv = AnyEvent->condvar;
     $mq->get_diff_text(

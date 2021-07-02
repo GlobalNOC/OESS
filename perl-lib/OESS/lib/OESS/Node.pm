@@ -43,6 +43,7 @@ sub from_hash {
     my $hash = shift;
 
     $self->{node_id} = $hash->{node_id};
+    $self->{controller} = $hash->{controller};
     $self->{name} = $hash->{name};
     $self->{latitude} = $hash->{latitude};
     $self->{longitude} = $hash->{longitude};
@@ -68,6 +69,7 @@ sub to_hash {
     my $self = shift;
     my $obj = {
         node_id => $self->{'node_id'},
+        controller => $self->{'controller'},
         name => $self->{'name'},
         latitude => $self->{'latitude'},
         longitude => $self->{'longitude'},
@@ -149,6 +151,19 @@ sub interfaces {
         
         return $self->{'interfaces'};
     }
+}
+
+=head2 controller
+
+=cut
+sub controller {
+    my $self = shift;
+    my $controller = shift;
+
+    if (defined $controller) {
+        $self->{controller} = $controller;
+    }
+    return $self->{controller};
 }
 
 =head2 latitude
