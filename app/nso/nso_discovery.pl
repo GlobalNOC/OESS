@@ -2,18 +2,16 @@
 
 use strict;
 use warnings;
-use AnyEvent;
 
+use AnyEvent;
 use English;
 use Getopt::Long;
 use Proc::Daemon;
-use Data::Dumper;
 
 use OESS::Config;
-use OESS::MPLS::Discovery;
 use OESS::NSO::Discovery;
 
-my $pid_file = "/var/run/oess/mpls_discovery.pid";
+my $pid_file = "/var/run/oess/nso_discovery.pid";
 my $cnf_file = "/etc/oess/database.xml";
 
 sub core{
@@ -21,19 +19,14 @@ sub core{
 
     my $config = new OESS::Config(config_filename => $cnf_file);
     if ($config->network_type eq 'nso') {
-        my $discovery = OESS::NSO::Discovery->new(config_obj => $config);
+        my $discovery = new OESS::NSO::Discovery(config_obj => $config);
         $discovery->start;
         AnyEvent->condvar->recv;
-    }
-    elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
-        my $discovery = OESS::MPLS::Discovery->new(config_obj => $config);
-        AnyEvent->condvar->recv;
-    }
-    else {
+    } else {
         die "Unexpected network type configured.";
     }
 
-    Log::Log4perl->get_logger('OESS.MPLS.Discovery.APP')->info("Starting OESS.MPLS.Discovery event loop.");
+    Log::Log4perl->get_logger('OESS.NSO.Discovery.APP')->info("Starting OESS.NSO.Discovery event loop.");
 }
 
 sub main{
@@ -61,10 +54,10 @@ sub main{
     }
 
     my $result = GetOptions (
-                             "user|u=s"  => \$username,
-                             "verbose"   => \$verbose,
-                             "daemon|d"  => \$is_daemon,
-        );
+        "user|u=s"  => \$username,
+        "verbose"   => \$verbose,
+        "daemon|d"  => \$is_daemon,
+    );
 
     #now change username/
     if (defined $username) {
@@ -78,14 +71,12 @@ sub main{
         my $daemon;
         if ($verbose) {
             $daemon = Proc::Daemon->new(
-                                        pid_file => $pid_file,
-                                        child_STDOUT => '/var/log/oess/mpls_discovery.out',
-                                        child_STDERR => '/var/log/oess/mpls_discovery.log',
-                );
+                pid_file => $pid_file,
+                child_STDOUT => '/var/log/oess/nso_discovery.out',
+                child_STDERR => '/var/log/oess/nso_discovery.log',
+            );
         } else {
-            $daemon = Proc::Daemon->new(
-                pid_file => $pid_file
-                );
+            $daemon = Proc::Daemon->new(pid_file => $pid_file);
         }
 
         # Init returns the PID (scalar) of the daemon to the parent, or
@@ -106,7 +97,6 @@ sub main{
         $SIG{HUP} = sub{ exit(0); };
         core();
     }
-
 }
 
 main();

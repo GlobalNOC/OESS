@@ -164,7 +164,7 @@ sub get_vrf_details{
 
     my $vrf_id = $params->{'vrf_id'}{'value'};
 
-    if ($config->network_type ne 'vpn-mpls') {
+    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso') {
         $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
         return;
     }
@@ -221,7 +221,7 @@ sub get_vrfs{
     my $params = shift;
     my $ref = shift;
 
-    if ($config->network_type ne 'vpn-mpls') {
+    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso') {
         $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
         return;
     }
@@ -272,7 +272,7 @@ sub provision_vrf{
     my $method = shift;
     my $params = shift;
 
-    if ($config->network_type ne 'vpn-mpls') {
+    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso') {
         $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
         return;
     }
@@ -322,7 +322,8 @@ sub provision_vrf{
     my $previous_vrf = undef;
 
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
-        $vrf = OESS::VRF->new(db => $db, vrf_id => $model->{'vrf_id'});
+        $vrf = OESS::VRF->new(db => $db, vrf_id => $model->{vrf_id});
+        $vrf->description($params->{description}{value});
         if (!defined $vrf) {
             $method->set_error("Couldn't load VRF");
             $db->rollback;
@@ -408,6 +409,12 @@ sub provision_vrf{
             my $valid_bandwidth = $interface->is_bandwidth_valid(bandwidth => $ep->{bandwidth}, is_admin => $is_admin);
             if (!$valid_bandwidth) {
                 $method->set_error("Requested bandwidth reservation is invalid for Endpoint terminating on '$ep->{entity}'.");
+                $db->rollback;
+                return;
+            }
+
+            if(defined $interface->provisionable_bandwidth && ($ep->{bandwidth} + $interface->{utilized_bandwidth} > $interface->provisionable_bandwidth)){
+                $method->set_error("Couldn't create Connnection: Specified bandwidth exceeds provisionable bandwidth for '$ep->{entity}'.");
                 $db->rollback;
                 return;
             }
@@ -762,7 +769,7 @@ sub remove_vrf {
     my $params = shift;
     my $ref = shift;
 
-    if ($config->network_type ne 'vpn-mpls') {
+    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso') {
         $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
         return;
     }

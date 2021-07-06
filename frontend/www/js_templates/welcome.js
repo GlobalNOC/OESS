@@ -13,14 +13,20 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function deleteConnection(id, name) {
-    let ok = confirm(`Are you sure you want to delete "${name}"?`);
-    if (ok) {
-        let deleteCircuitModal = $('#delete-circuit-loading');
-        deleteCircuitModal.modal('show');
-
-        await deleteVRF(session.data.workgroup_id, id);
-        window.location = '?action=welcome';
+  let ok = confirm(`Are you sure you want to delete "${name}"?`);
+  if (ok) {
+    let deleteCircuitModal = $('#delete-circuit-loading');
+    deleteCircuitModal.modal('show');   
+    try{
+       let result = await deleteVRF(session.data.workgroup_id, id);
+       window.location="?action=welcome";
+    }catch(error){
+       deleteCircuitModal.modal('hide');
+       alert('An error occured while deleting a VRF:\n ' + error);
     }
+
+   
+  }
 }
 
 async function deleteL2VPN(id, name) {
@@ -28,9 +34,13 @@ async function deleteL2VPN(id, name) {
   if (ok) {
     let deleteCircuitModal = $('#delete-circuit-loading');
     deleteCircuitModal.modal('show');
-
-    await deleteCircuit(session.data.workgroup_id, id);
-    window.location = '?action=welcome';
+    try{
+       let result = await deleteCircuit(session.data.workgroup_id, id);
+       window.location="?action=welcome";
+    }catch(error){
+       deleteCircuitModal.modal('hide');
+       alert('An error occured while deleting a circuit:\n ' + error);
+    }
   }
 }
 
@@ -185,7 +195,7 @@ async function loadL2VPNs() {
   circuits.forEach(function(circuit, index) {
     ok = true;
     let createdOn = new Date(circuit.created_on);
-    let modifiedOn = new Date(circuit.last_edited);
+    let modifiedOn = new Date(circuit.last_modified_on);
     let bg_color = '#fff';
     let owner = 1;
     if(circuit.workgroup_id != session.data.workgroup_id){
