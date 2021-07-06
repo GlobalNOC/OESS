@@ -783,13 +783,12 @@ sub remove {
         return;
     }
 
-    _send_remove_command($args->{circuit_id}->{value});
-
-    # Put rollback in place for quick tests
+    # Move post _send_remove_commands and add rollback for quick tests
     # $db->rollback;
     $db->commit;
-    _send_update_cache($args->{circuit_id}->{value});
 
+    _send_remove_command($args->{circuit_id}->{value});
+    _send_update_cache($args->{circuit_id}->{value});
     _send_event(
         status  => 'removed',
         reason  => "removed by $ENV{REMOTE_USER}",
