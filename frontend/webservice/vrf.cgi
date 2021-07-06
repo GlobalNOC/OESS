@@ -146,12 +146,18 @@ sub register_rw_methods{
         required        => 1,
         description     => "The workgroup_id with permission to build the vrf, the user must be a member of this workgroup."
         );
-
     $method->add_input_parameter(
         name => 'vrf_id',
         pattern => $GRNOC::WebService::Regex::INTEGER,
         required => 1,
         description => 'the ID of the VRF to remove from the network');
+    $method->add_input_parameter(
+        name        => 'skip_cloud_provisioning',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 0,
+        default     => 0,
+        description => "If set to 1 cloud provider configurations will not be performed."
+    );
 
     $svc->register_method($method);
 
@@ -811,12 +817,14 @@ sub remove_vrf {
         return {success => 0};
     }
 
-    eval {
-        OESS::Cloud::cleanup_endpoints($vrf->endpoints);
-    };
-    if ($@) {
-        $method->set_error("$@");
-        return;
+    if (!$params->{skip_cloud_provisioning}->{value}) {
+        eval {
+            OESS::Cloud::cleanup_endpoints($vrf->endpoints);
+        };
+        if ($@) {
+            $method->set_error("$@");
+            return;
+        }
     }
 
     my $res = vrf_del(method => $method, vrf_id => $vrf->vrf_id);
