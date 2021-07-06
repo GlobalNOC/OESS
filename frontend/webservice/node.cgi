@@ -130,13 +130,14 @@ sub create_node {
     my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
     if (defined $err) {
         $method->set_error($err);
-	return;
+        return;
     }
         
     my ($ok, $access_err) = $user->has_system_access(role => 'admin');
     if (defined $access_err){
         $db->rollback;
-        return (undef, $access_err)
+        $method->set_error($access_err);
+        return;
     }
 
     my $node = new OESS::Node(
