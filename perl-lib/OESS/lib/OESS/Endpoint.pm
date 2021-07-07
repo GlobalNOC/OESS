@@ -146,6 +146,7 @@ sub _build_from_model{
     $self->{'interface_id'} = $self->{'model'}->{'interface_id'};
     $self->{'entity'} = $self->{'model'}->{'entity'};
     $self->{'entity_id'} = $self->{'model'}->{'entity_id'};
+    $self->{'controller'} = $self->{'model'}->{'controller'};
     $self->{'description'} = $self->{'model'}->{'description'};
     $self->{'operational_state'} = $self->{'model'}->{'operational_state'};
     # The default selection method is to find the first interface that
@@ -179,6 +180,7 @@ sub to_hash{
     $obj->{'interface_id'} = $self->{'interface_id'};
     $obj->{'node'} = $self->{'node'};
     $obj->{'node_id'} = $self->{'node_id'};
+    $obj->{controller} = $self->{controller};
     $obj->{'description'} = $self->{'description'};
     $obj->{'operational_state'} = $self->{'operational_state'};
     $obj->{'inner_tag'} = $self->inner_tag();
@@ -492,6 +494,14 @@ sub interface_id{
     }
 
     return $self->{'interface_id'};
+}
+
+=head2 controller
+
+=cut
+sub controller {
+    my $self = shift;
+    return $self->{'controller'};
 }
 
 =head2 description

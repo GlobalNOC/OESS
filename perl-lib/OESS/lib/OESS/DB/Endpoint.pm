@@ -145,12 +145,13 @@ sub fetch_all {
             SELECT circuit_ep.circuit_edge_id AS circuit_ep_id, circuit_ep.circuit_id,
                    interface.interface_id, interface.name AS interface, interface.operational_state,
                    interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
-                   node.node_id, node.name AS node,
+                   node.node_id, node.name AS node, node_instantiation.controller,
                    unit, extern_vlan_id AS tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
             FROM circuit_edge_interface_membership AS circuit_ep
             JOIN interface ON interface.interface_id=circuit_ep.interface_id
             JOIN node ON node.node_id=interface.node_id
+            JOIN node_instantiation ON node.node_id=node_instantiation.node_id and node_instantiation.end_epoch=-1
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.circuit_ep_id=circuit_ep.circuit_edge_id
             $where
             AND circuit_ep.end_epoch = -1
@@ -210,12 +211,13 @@ sub fetch_all {
                    interface.interface_id, interface.name AS interface, interface.operational_state,
                    interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
                    interface_acl.eval_position,
-                   node.node_id, node.name AS node,
+                   node.node_id, node.name AS node, node_instantiation.controller,
                    unit, tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
             FROM vrf_ep
             JOIN interface ON interface.interface_id=vrf_ep.interface_id
             JOIN node ON node.node_id=interface.node_id
+            JOIN node_instantiation ON node.node_id=node_instantiation.node_id and node_instantiation.end_epoch=-1
             JOIN interface_acl ON interface_acl.interface_id=interface.interface_id
             LEFT JOIN entity ON entity.entity_id=interface_acl.entity_id
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.vrf_ep_id=vrf_ep.vrf_ep_id
