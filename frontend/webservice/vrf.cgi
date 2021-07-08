@@ -12,6 +12,7 @@ use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 
 use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_connection);
 use OESS::Cloud;
 use OESS::Config;
 use OESS::DB;
@@ -739,23 +740,68 @@ sub provision_vrf{
         return;
     }
 
-    my $res = undef;
+    my $ok = 0;
     my $type = 'provisioned';
     my $reason = "Created by $ENV{'REMOTE_USER'}";
 
+    # Ensure that endpoints' controller info loaded
+    $vrf->load_endpoints;
+    my $pending_vrf = $vrf->to_hash;
+
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
+        # Valid vrf_id was passed in model which implies that the
+        # connection is being edited.
         $db->commit;
-        _update_cache(vrf_id => $vrf_id);
 
-        $res = vrf_modify(method => $method, vrf_id => $vrf_id, previous => $previous_vrf, pending => $vrf->to_hash);
+        my ($pending_topic, $t0_err) = fwdctl_topic_for_connection($pending_vrf);
+        my ($prev_topic, $t1_err) = fwdctl_topic_for_connection($previous_vrf);
 
-        $type = 'modified';
-        $reason = "Updated by $ENV{'REMOTE_USER'}";
+        # No connection may be provisioned using multiple controllers.
+        # TODO May want this check just befor $db->commit. Check db
+        # effects
+        if (defined $t0_err || defined $t1_err) {
+            $method->set_error("$t0_err $t1_err");
+            return;
+        }
+
+        # In the case where a connection is moved between controllers,
+        # we want the cache for both controllers updated.
+        if ($pending_topic ne $prev_topic) {
+            _update_cache($previous_vrf);
+            _update_cache($pending_vrf);
+
+            my ($dres, $derr) = vrf_del($previous_vrf);
+            my ($ares, $aerr) = vrf_add($pending_vrf);
+            if (defined $derr || defined $aerr) {
+                warn "$derr $aerr";
+            } else {
+                $ok = 1;
+            }
+        } else {
+            _update_cache($pending_vrf);
+            my ($mres, $merr) = vrf_modify($vrf->vrf_id, $previous_vrf, $pending_vrf);
+            if (defined $merr) {
+                warn $merr;
+            } else {
+                $ok = 1;
+            }
+
+            $type = 'modified';
+            $reason = "Updated by $ENV{'REMOTE_USER'}";
+        }
     } else {
         $db->commit;
-        _update_cache(vrf_id => $vrf_id);
+        _update_cache($pending_vrf);
 
-        $res = vrf_add(method => $method, vrf_id => $vrf_id);
+        my ($ares, $aerr) = vrf_add($pending_vrf);
+        if (defined $aerr) {
+            warn $aerr;
+        } else {
+            $ok = 1;
+        }
+
+        $type = 'provisioned';
+        $reason = "Created by $ENV{'REMOTE_USER'}";
     }
 
     eval {
@@ -767,7 +813,7 @@ sub provision_vrf{
         );
     };
 
-    return {results => $res};
+    return { results => { success => $ok, vrf_id => $vrf->vrf_id } };
 }
 
 sub remove_vrf {
@@ -811,7 +857,8 @@ sub remove_vrf {
     $vrf->load_workgroup;
     $vrf->load_users;
 
-    my $result;
+    my $previous_vrf = $vrf->to_hash;
+
     if(!$user->in_workgroup( $wg) && !$user->is_admin()){
         $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in workgroup");
         return {success => 0};
@@ -827,12 +874,18 @@ sub remove_vrf {
         }
     }
 
-    my $res = vrf_del(method => $method, vrf_id => $vrf->vrf_id);
+    my $ok = 0;
+    my ($dres, $derr) = vrf_del($previous_vrf);
+    if (defined $derr) {
+        warn $derr;
+    } else {
+        $ok = 1;
+    }
 
     $vrf->decom(user_id => $user->user_id);
     $db->commit;
 
-    _update_cache(vrf_id => $vrf->vrf_id);
+    _update_cache($previous_vrf);
 
     eval {
         $log_client->vrf_notification(
@@ -843,143 +896,160 @@ sub remove_vrf {
         );
     };
 
-    return {results => $res};
+    return { results => { success => $ok, vrf => $vrf->vrf_id } };
 }
 
 sub vrf_add{
-    my %params = @_;
-    my $vrf_id = $params{'vrf_id'};
-    my $method = $params{'method'};
-    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
-    
-    my $cv = AnyEvent->condvar;
+    my $conn = shift;
 
-    warn "_send_vrf_add_command: Calling addVrf on vrf $vrf_id";
-    $mq->addVrf(vrf_id => int($vrf_id), async_callback => sub {
-        my $result = shift;
-        $cv->send($result);
-    });
-    
-    my $result = $cv->recv();
-    
-    if (defined $result->{'error'} || !defined $result->{'results'}){
-        if (defined $result->{'error'}) {
-            $method->set_error($result->{'error'});
-        } else {
-            $method->set_error("Did not get response from addVRF.");
-        }
-        return {success => 0, vrf_id => $vrf_id};
+    if (!defined $mq) {
+        return (undef, "Couldn't create RabbitMQ Client.");
     }
-
-    return {success => 1, vrf_id => $vrf_id};
-}
-
-sub vrf_del{
-    my %params = @_;
-    my $vrf_id = $params{'vrf_id'};
-    my $method = $params{'method'};
-    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
-
-    my $cv = AnyEvent->condvar;
-
-    warn "_send_vrf_add_command: Calling delVrf on vrf $vrf_id";
-    $mq->delVrf(vrf_id => int($vrf_id), async_callback => sub {
-        my $result = shift;
-        $cv->send($result);
-    });
-    
-    my $result = $cv->recv();
-    
-    if (defined $result->{'error'} || !defined $result->{'results'}){
-        if (defined $result->{'error'}) {
-            $method->set_error($result->{'error'});
-        } else {
-            $method->set_error("Did not get response from delVRF.");
-        }
-        return {success => 0, vrf_id => $vrf_id};
+    my ($topic, $err) = fwdctl_topic_for_connection($conn);
+    if (defined $err) {
+        warn $err;
+        return (undef, $err);
     }
-    
-    return {success => 1, vrf_id => $vrf_id};
-}
-
-sub vrf_modify{
-    my %params = @_;
-    my $vrf_id = $params{vrf_id};
-    my $method = $params{method};
-    my $pending = $params{pending};
-    my $previous = $params{previous};
-
-    $mq->{topic} = 'MPLS.FWDCTL.RPC';
+    $mq->{topic} = $topic;
 
     my $cv = AnyEvent->condvar;
-
-    warn "_send_vrf_modify_command: Calling modifyVrf on vrf $vrf_id";
-    $mq->modifyVrf(
-        vrf_id   => int($vrf_id),
-        pending  => encode_json($pending),
-        previous => encode_json($previous),
+    $mq->addVrf(
+        vrf_id         => int($conn->{vrf_id}),
         async_callback => sub {
             my $result = shift;
             $cv->send($result);
         }
     );
-
-    my $result = $cv->recv;
-    if (defined $result->{error} || !defined $result->{results}) {
-        if (defined $result->{error}) {
-            $method->set_error($result->{error});
-        } else {
-            $method->set_error("Did not get response from modifyVRF.");
-        }
-        return {success => 0, vrf_id => $vrf_id};
-    }
-
-    return {success => 1, vrf_id => $vrf_id};
-}
-
-sub _update_cache{
-    my %args = @_;
-
-    if(!defined($args{'vrf_id'})){
-        $args{'vrf_id'} = -1;
-    }
-
-    my $err = undef;
-
-    if (!defined $mq) {
-        $err = "Couldn't create RabbitMQ client.";
-        return;
-    } else {
-        $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
-    }
-    my $cv = AnyEvent->condvar;
-    $mq->update_cache(vrf_id => $args{'vrf_id'},
-                      async_callback => sub {
-                          my $result = shift;
-                          $cv->send($result);
-                      });
-
     my $result = $cv->recv();
 
     if (!defined $result) {
-        warn "Error occurred while calling update_cache: Couldn't contact MPLS.FWDCTL via RabbitMQ.";
-        return undef;
+        return ($result, "Error occurred while calling $topic.addVrf: Couldn't connect to RabbitMQ.");
     }
-    if (defined $result->{'error'}) {
-        warn "Error occurred while calling update_cache: $result->{'error'}";
-        return undef;
+    if (defined $result->{error}) {
+        return ($result, "Error occured while calling $topic.addVrf: $result->{error}");
     }
-    if (defined $result->{'results'}->{'error'}) {
-        warn "Error occured while calling update_cache: " . $result->{'results'}->{'error'};
-        return undef;
+    if (defined $result->{results}->{error}) {
+        return ($result, "Error occured while calling $topic.addVrf: " . $result->{results}->{error});
+    }
+    return ($result->{results}->{status}, undef);
+}
+
+sub vrf_del {
+    my $conn = shift;
+
+    if (!defined $mq) {
+        return (undef, "Couldn't create RabbitMQ Client.");
     }
 
-    return $result->{'results'}->{'status'};
+    my ($topic, $err) = fwdctl_topic_for_connection($conn);
+    if (defined $err) {
+        warn $err;
+        return (undef, $err);
+    }
+    $mq->{'topic'} = $topic;
+
+    my $cv = AnyEvent->condvar;
+    $mq->delVrf(
+        vrf_id         => int($conn->{vrf_id}),
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+    my $result = $cv->recv();
+
+    if (!defined $result) {
+        return ($result, "Error occurred while calling $topic.delVrf: Couldn't connect to RabbitMQ.");
+    }
+    if (defined $result->{error}) {
+        return ($result, "Error occured while calling $topic.delVrf: $result->{error}");
+    }
+    if (defined $result->{results}->{error}) {
+        return ($result, "Error occured while calling $topic.delVrf: " . $result->{results}->{error});
+    }
+    return ($result->{results}->{status}, undef);
+}
+
+sub vrf_modify {
+    my $vrf_id   = shift;
+    my $previous = shift;
+    my $pending  = shift;
+
+    if (!defined $mq) {
+        return (undef, "Couldn't create RabbitMQ Client.");
+    }
+
+    # IMPORTANT: It's assumed that $previous and $pending was/is
+    # managed by the same controller!!!
+    my ($topic, $err) = fwdctl_topic_for_connection($pending);
+    if (defined $err) {
+        warn $err;
+        return (undef, $err);
+    }
+    $mq->{'topic'} = $topic;
+
+    my $cv = AnyEvent->condvar;
+    $mq->modifyVrf(
+        vrf_id         => int($pending->{vrf_id}),
+        pending        => encode_json($pending),
+        previous       => encode_json($previous),
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+    my $result = $cv->recv;
+
+    if (!defined $result) {
+        return ($result, "Error occurred while calling $topic.modifyVrf: Couldn't connect to RabbitMQ.");
+    }
+    if (defined $result->{error}) {
+        return ($result, "Error occured while calling $topic.modifyVrf: $result->{error}");
+    }
+    if (defined $result->{results}->{error}) {
+        return ($result, "Error occured while calling $topic.modifyVrf: " . $result->{results}->{error});
+    }
+    return ($result->{results}->{status}, undef);
+}
+
+sub _update_cache {
+    my $conn = shift;
+
+    if (!defined $mq) {
+        return (undef, "Couldn't create RabbitMQ client.");
+    }
+
+    my ($topic, $err) = fwdctl_topic_for_connection($conn);
+    if (defined $err) {
+        warn $err;
+        return (undef, $err);
+    }
+    $mq->{topic} = $topic;
+
+    my $cv = AnyEvent->condvar;
+    $mq->update_cache(
+        vrf_id         => int($conn->{vrf_id}),
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+    my $result = $cv->recv();
+
+    if (!defined $result) {
+        return ($result, "Error occurred while calling $topic.update_cache: Couldn't connect to RabbitMQ.");
+    }
+    if (defined $result->{error}) {
+        return ($result, "Error occured while calling $topic.update_cache: $result->{error}");
+    }
+    if (defined $result->{results}->{error}) {
+        return ($result, "Error occured while calling $topic.update_cache: " . $result->{results}->{error});
+    }
+    return ($result->{results}->{status}, undef);
 }
 
 
-sub main{
-
+sub main {
     register_ro_methods();
     register_rw_methods();
     $svc->handle_request();

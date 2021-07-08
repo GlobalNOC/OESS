@@ -142,8 +142,9 @@ sub addVrf {
         db     => $self->{db},
         vrf_id => $args->{vrf_id}
     );
-    $conn->load_endpoints;
+    return "Couldn't find l3connection $args->{vrf_id}." if !defined $conn;
 
+    $conn->load_endpoints;
     foreach my $ep (@{$conn->endpoints}) {
         $ep->load_peers;
     }
@@ -169,6 +170,7 @@ sub deleteVrf {
         db => $self->{db},
         vrf_id => $args->{vrf_id}
     );
+    return "Couldn't find l3connection $args->{vrf_id}." if !defined $conn;
     $conn->load_endpoints;
 
     my $err = $self->{nso}->delete_l3connection($args->{vrf_id});

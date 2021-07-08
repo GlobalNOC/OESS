@@ -831,8 +831,6 @@ sub remove {
 sub _send_add_command {
     my $conn = shift;
 
-    my $result = undef;
-
     if (!defined $mq) {
         return (undef, "Couldn't create RabbitMQ Client.");
     }
@@ -851,7 +849,7 @@ sub _send_add_command {
             $cv->send($result);
         }
     );
-    $result = $cv->recv();
+    my $result = $cv->recv();
 
     if (!defined $result) {
         return ($result, "Error occurred while calling $topic.addVlan: Couldn't connect to RabbitMQ.");
@@ -866,9 +864,6 @@ sub _send_modify_command {
     my $circuit_id = shift;
     my $previous   = shift;
     my $pending    = shift;
-
-    my $result = undef;
-    my $err    = undef;
 
     if (!defined $mq) {
         return (undef, "Couldn't create RabbitMQ Client.");
@@ -893,7 +888,7 @@ sub _send_modify_command {
             $cv->send($result);
         }
     );
-    $result = $cv->recv();
+    my $result = $cv->recv();
 
     if (!defined $result) {
         return ($result, "Error occurred while calling $topic.modifyVlan: Couldn't connect to RabbitMQ.");
@@ -901,13 +896,11 @@ sub _send_modify_command {
     if (defined $result->{error}) {
         return ($result, "Error occured while calling $topic.modifyVlan: $result->{error}");
     }
-    return ($result->{results}->{status}, $err);
+    return ($result->{results}->{status}, undef);
 }
 
 sub _send_remove_command {
     my $conn = shift;
-
-    my $result = undef;
 
     if (!defined $mq) {
         return (undef, "Couldn't create RabbitMQ Client.");
@@ -928,7 +921,7 @@ sub _send_remove_command {
             $cv->send($result);
         }
     );
-    $result = $cv->recv();
+    my $result = $cv->recv();
 
     if (!defined $result) {
         return ($result, "Error occurred while calling $topic.deleteVlan: Couldn't connect to RabbitMQ.");
@@ -942,8 +935,6 @@ sub _send_remove_command {
 sub _send_update_cache {
     my $conn = shift;
 
-    my $result = undef;
-
     if (!defined $mq) {
         return (undef, "Couldn't create RabbitMQ Client.");
     }
@@ -953,7 +944,7 @@ sub _send_update_cache {
         warn $err;
         return (undef, $err);
     }
-    $mq->{'topic'} = $topic;
+    $mq->{topic} = $topic;
 
     my $cv = AnyEvent->condvar;
     $mq->update_cache(
@@ -963,13 +954,13 @@ sub _send_update_cache {
             $cv->send($result);
         }
     );
-    $result = $cv->recv();
+    my $result = $cv->recv();
 
     if (!defined $result) {
         return ($result, "Error occurred while calling $topic.update_cache: Couldn't connect to RabbitMQ.");
     }
     if (defined $result->{error}) {
-        return ($result, "Error occured while calling update_cache: $result->{error}");
+        return ($result, "Error occured while calling $topic.update_cache: $result->{error}");
     }
     return ($result->{results}->{status}, undef);
 }

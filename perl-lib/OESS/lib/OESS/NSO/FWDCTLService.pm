@@ -162,6 +162,12 @@ sub start {
         callback => sub { $self->addVrf(@_) },
         description => "addVrf provisions a l3 connection"
     );
+    $add_vrf->add_input_parameter(
+        name => "vrf_id",
+        description => "Id of the l3 connection to add",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::INTEGER
+    );
     $self->{dispatcher}->register_method($add_vrf);
 
     my $delete_vrf = GRNOC::RabbitMQ::Method->new(
@@ -170,6 +176,12 @@ sub start {
         callback => sub { $self->deleteVrf(@_) },
         description => "delVrf removes a l3 connection"
     );
+    $delete_vrf->add_input_parameter(
+        name => "vrf_id",
+        description => "Id of the l3 connection to delete",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::INTEGER
+    );
     $self->{dispatcher}->register_method($delete_vrf);
 
     my $modify_vrf = GRNOC::RabbitMQ::Method->new(
@@ -177,6 +189,24 @@ sub start {
         async => 1,
         callback => sub { $self->modifyVrf(@_) },
         description => "modifyVrf modifies an existing l3 connection"
+    );
+    $modify_vrf->add_input_parameter(
+        name => "vrf_id",
+        description => "Id of l3 connection to be modified",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::INTEGER
+    );
+    $modify_vrf->add_input_parameter(
+        name => "previous",
+        description => "Previous version of the modified l3 connection",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $modify_vrf->add_input_parameter(
+        name => "pending",
+        description => "Pending version of the modified l3 connection",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
     );
     $self->{dispatcher}->register_method($modify_vrf);
 
