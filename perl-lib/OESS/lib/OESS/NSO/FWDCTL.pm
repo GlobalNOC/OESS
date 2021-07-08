@@ -124,7 +124,7 @@ sub modifyVlan {
     my $err = $self->{nso}->edit_l2connection($pending_conn);
     return $err if (defined $err);
 
-    $self->{connection_cache}->add_connection($conn, 'l2');
+    $self->{connection_cache}->add_connection($pending_conn, 'l2');
     return;
 }
 
