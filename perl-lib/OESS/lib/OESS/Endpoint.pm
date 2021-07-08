@@ -113,59 +113,11 @@ sub new{
     if ((defined($self->circuit_id()) && $self->circuit_id() != -1) ||
         (defined($self->vrf_endpoint_id()) && $self->vrf_endpoint_id() != -1)){
         $self->_fetch_from_db();
-    }else{
-        $self->_build_from_model();
+    } else {
+        $self->from_hash($self->{model});
     }
 
     return $self;
-}
-
-=head2 _build_from_model
-
-=cut
-sub _build_from_model{
-    my $self = shift;
-
-    $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
-    $self->{'tag'} = $self->{'model'}->{'tag'};
-    $self->{'unit'} = $self->{'model'}->{'unit'};
-    $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'} || 0;
-    $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
-    $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
-    $self->{cloud_interconnect_id} = $self->{model}->{cloud_interconnect_id};
-    $self->{cloud_interconnect_type} = $self->{model}->{cloud_interconnect_type};
-    $self->{mtu} = $self->{model}->{mtu};
-
-    $self->{circuit_ep_id} = $self->{model}->{circuit_edge_id} || $self->{model}->{circuit_ep_id};
-    $self->{vrf_endpoint_id} = $self->{model}->{vrf_endpoint_id} || $self->{model}->{vrf_ep_id};
-
-    $self->{'type'} = $self->{'model'}->{'type'};
-    $self->{'node'} = $self->{'model'}->{'node'};
-    $self->{'node_id'} = $self->{'model'}->{'node_id'};
-    $self->{'interface'} = $self->{'model'}->{'interface'};
-    $self->{'interface_id'} = $self->{'model'}->{'interface_id'};
-    $self->{'entity'} = $self->{'model'}->{'entity'};
-    $self->{'entity_id'} = $self->{'model'}->{'entity_id'};
-    $self->{'controller'} = $self->{'model'}->{'controller'};
-    $self->{'description'} = $self->{'model'}->{'description'};
-    $self->{'operational_state'} = $self->{'model'}->{'operational_state'};
-    # The default selection method is to find the first interface that
-    # has supports C<bandwidth> and has C<tag> available.
-
-    # As there is only one interface per AWS Entity there is no
-    # special selection method.
-
-    # Interface selection for a GCP Entity is based purely on the user
-    # provided GCP pairing key.
-
-    # Interface selection for an Azure Entity is somewhat
-    # irrelevent. Each interface of the Azure port pair is configured
-    # similarly with the only difference between the two being the
-    # peer addresses assigned to each.
-
-    $self->{circuit_id} = $self->{model}->{circuit_id};
-    $self->{vrf_id} = $self->{model}->{vrf_id};
-    $self->{start_epoch} = $self->{model}->{start_epoch};
 }
 
 =head2 to_hash
@@ -180,7 +132,7 @@ sub to_hash{
     $obj->{'interface_id'} = $self->{'interface_id'};
     $obj->{'node'} = $self->{'node'};
     $obj->{'node_id'} = $self->{'node_id'};
-    $obj->{controller} = $self->{controller};
+    $obj->{'controller'} = $self->{'controller'};
     $obj->{'description'} = $self->{'description'};
     $obj->{'operational_state'} = $self->{'operational_state'};
     $obj->{'inner_tag'} = $self->inner_tag();
@@ -221,6 +173,19 @@ sub to_hash{
 
 =head2 from_hash
 
+The default selection method is to find the first interface that has
+supports C<bandwidth> and has C<tag> available.
+
+As there is only one interface per AWS Entity there is no special
+selection method.
+
+Interface selection for a GCP Entity is based purely on the user
+provided GCP pairing key.
+
+Interface selection for an Azure Entity is somewhat irrelevent. Each
+interface of the Azure port pair is configured similarly with the only
+difference between the two being the peer addresses assigned to each.
+
 =cut
 sub from_hash{
     my $self = shift;
@@ -231,6 +196,7 @@ sub from_hash{
     $self->{'interface_id'} = $hash->{'interface_id'};
     $self->{'node'} = $hash->{'node'};
     $self->{'node_id'} = $hash->{'node_id'};
+    $self->{'controller'} = $hash->{'controller'};
     $self->{'description'} = $hash->{'description'};
     $self->{'operational_state'} = $hash->{'operational_state'};
     $self->{'inner_tag'} = $hash->{'inner_tag'};
@@ -247,9 +213,16 @@ sub from_hash{
         $self->{'peers'} = $hash->{'peers'};
         $self->{'vrf_id'} = $hash->{'vrf_id'};
         $self->{'vrf_endpoint_id'} = $hash->{'vrf_endpoint_id'} || $hash->{'vrf_ep_id'};
+
+        if (defined $hash->{peers}) {
+            $self->{peers} = [];
+            foreach my $peer (@{$hash->{peers}}) {
+                push(@{$self->{peers}}, new OESS::Peer(db => $self->{db}, model => $peer));
+            }
+        }
     } else {
         $self->{'circuit_id'} = $hash->{'circuit_id'};
-        $self->{'circuit_ep_id'} = $hash->{'circuit_ep_id'};
+        $self->{'circuit_ep_id'} = $hash->{'circuit_edge_id'} || $hash->{'circuit_ep_id'};
         $self->{start_epoch} = $hash->{start_epoch};
     }
 

@@ -110,6 +110,13 @@ sub from_hash{
     $self->{'vrf_id'} = $hash->{'vrf_id'};
     $self->{'workgroup_id'} = $hash->{'workgroup_id'};
 
+    if (defined $hash->{endpoints}) {
+        $self->{endpoints} = [];
+        foreach my $ep (@{$hash->{endpoints}}) {
+            push(@{$self->{endpoints}}, new OESS::Endpoint(db => $self->{db}, model => $ep));
+        }
+    }
+
     return 1;
 }
 

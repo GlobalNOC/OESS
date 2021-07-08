@@ -746,6 +746,9 @@ sub provision_vrf{
 
     # Ensure that endpoints' controller info loaded
     $vrf->load_endpoints;
+    foreach my $ep (@{$vrf->endpoints}) {
+        $ep->load_peers;
+    }
     my $pending_vrf = $vrf->to_hash;
 
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
