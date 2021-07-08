@@ -196,7 +196,7 @@ sub modifyVrf {
     my $err = $self->{nso}->edit_l3connection($pending_conn);
     return $err if (defined $err);
 
-    $self->{connection_cache}->add_connection($conn, 'l3');
+    $self->{connection_cache}->add_connection($pending_conn, 'l3');
     return;
 }
 

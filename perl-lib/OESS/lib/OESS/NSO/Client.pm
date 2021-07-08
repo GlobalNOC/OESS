@@ -401,6 +401,7 @@ sub edit_l3connection {
         push(@$eps, $obj);
     }
 
+    my $conn_id = $conn->vrf_id;
     my $payload = {
         "oess-l3connection:oess-l3connection" => [
             {
