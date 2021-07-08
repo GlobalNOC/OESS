@@ -47,6 +47,17 @@ sub register_ro_methods{
 
     $svc->register_method($method);
 
+    my $method = GRNOC::WebService::Method->new(
+        name => "get_node_interfaces",
+        description => "returns a list of interfaces for a node",
+        callback => sub { get_node_interfaces(@_) }
+      );
+    $method->add_input_parameter( name => 'node_id',
+                                  pattern => $GRNOC::WebService::Regex::INTEGER,
+                                  required => 1,
+                                  description => 'Node ID to fetch details'
+     );
+    $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
         name => "is_vlan_available",
@@ -191,6 +202,19 @@ sub get_workgroup_interfaces{
 
 
     
+}
+
+sub get_node_interfaces{
+    my $method = shift;
+    my $params = shift;
+    my $node_id = $params->{'node_id'}{'value'};
+    my $interfaces = OESS::DB::Interface::get_interfaces(db => $db, node_id => $node_id);
+    my @results;
+    foreach my $interface_id (@$interfaces){
+        my $interface = OESS::Interface->new(interface_id => $interface_id, db => $db);
+        push(@results, $interface->to_hash());
+    }
+    return {results => \@results};
 }
 
 sub main{
