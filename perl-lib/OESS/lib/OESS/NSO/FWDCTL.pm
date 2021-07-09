@@ -89,7 +89,7 @@ sub addVlan {
 
 =cut
 sub deleteVlan {
-    my $self   = shift;
+    my $self = shift;
     my $args = {
         circuit_id => undef,
         @_
@@ -99,6 +99,7 @@ sub deleteVlan {
         db => $self->{db},
         circuit_id => $args->{circuit_id}
     );
+    return "Couldn't find l3connection $args->{vrf_id}." if !defined $conn;
     $conn->load_endpoints;
 
     my $err = $self->{nso}->delete_l2connection($args->{circuit_id});
@@ -160,7 +161,7 @@ sub addVrf {
 
 =cut
 sub deleteVrf {
-    my $self   = shift;
+    my $self = shift;
     my $args = {
         vrf_id => undef,
         @_
@@ -240,16 +241,16 @@ sub diff {
     # connection from being sync'd more than once.
     my $syncd_connections = {};
 
-    # Needed to ensure diff state may be set to pending_diff_none after approval
-    foreach my $node_id (@{$self->{connection_cache}->get_included_nodes}) {
-        # TODO Cleanup this hacky lookup
-        my $node_obj = new OESS::Node(db => $self->{db}, node_id => $node_id);
-        $network_diff->{$node_obj->name} = "";
+    # Needed to ensure diff state may be set to PENDING_DIFF_NONE after approval
+    my $all_nodes = OESS::DB::Node::fetch_all(db => $self->{db}, controller => 'nso');
+    foreach my $node (@$all_nodes) {
+        $network_diff->{$node->{name}} = "";
     }
 
-    foreach my $node_id (@{$self->{connection_cache}->get_included_nodes}) {
-        foreach my $conn (@{$self->{connection_cache}->get_connections_by_node($node_id, 'l2')}) {
+    foreach my $node_hash (@$all_nodes) {
+        my $node_id = $node_hash->{node_id};
 
+        foreach my $conn (@{$self->{connection_cache}->get_connections_by_node($node_id, 'l2')}) {
             # Skip connections if they're already sync'd.
             next if defined $syncd_connections->{$conn->circuit_id};
             $syncd_connections->{$conn->circuit_id} = 1;
@@ -277,7 +278,6 @@ sub diff {
         }
 
         foreach my $conn (@{$self->{connection_cache}->get_connections_by_node($node_id, 'l3')}) {
-
             # Skip connections if they're already sync'd.
             next if defined $syncd_connections->{$conn->vrf_id};
             $syncd_connections->{$conn->vrf_id} = 1;
@@ -307,7 +307,6 @@ sub diff {
 
     my $empty_conn = new OESS::L2Circuit(db => $self->{db}, model => {});
     foreach my $conn_id (keys %{$nso_l2connections}) {
-        # TODO Generate conn removal diff data and add to node diffs
         my $diff = $empty_conn->nso_diff($nso_l2connections->{$conn_id});
         foreach my $node (keys %$diff) {
             next if $diff->{$node} eq "";
@@ -321,7 +320,6 @@ sub diff {
 
     my $empty_conn = new OESS::VRF(db => $self->{db}, model => {});
     foreach my $conn_id (keys %{$nso_l3connections}) {
-        # TODO Generate conn removal diff data and add to node diffs
         my $diff = $empty_conn->nso_diff($nso_l3connections->{$conn_id});
         foreach my $node (keys %$diff) {
             next if $diff->{$node} eq "";
@@ -333,36 +331,38 @@ sub diff {
         push @$changes, { type => 'delete-l3connection', value => $nso_l3connections->{$conn_id} };
     }
 
-    # If the database asserts there is no diff pending but memory disagrees,
-    # then the pending state was modified by an admin. The pending diff may now
-    # proceed.
+    # TODO Retain manually approved diff state between diffs
+
+    # If the database asserts there is no diff pending but memory
+    # disagrees, then the pending state was modified by an admin. The
+    # pending diff may now proceed.
     foreach my $node_name (keys %$network_diff) {
+        next if $network_diff->{$node_name} eq "";
+
         my $node = new OESS::Node(db => $self->{db}, name => $node_name);
-        warn "Diffing $node_name.";
+        my $diff_len = length $network_diff->{$node_name};
 
-        if (length $network_diff->{$node_name} < 30) {
-            my $l = length $network_diff->{$node_name};
-
+        if ($diff_len < 30) {
             $self->{pending_diff}->{$node_name} = PENDING_DIFF_NONE;
             $node->pending_diff(PENDING_DIFF_NONE);
             $node->update;
+            $self->{logger}->info("Applying network diff. No approved required for $node_name.");
         } else {
             if ($self->{pending_diff}->{$node_name} == PENDING_DIFF_NONE) {
-                warn "Diff requires manual approval.";
-
                 $self->{pending_diff}->{$node_name} = PENDING_DIFF;
                 $node->pending_diff(PENDING_DIFF);
                 $node->update;
+                $self->{logger}->info("Not applying network diff. Manual approval required for $node_name.");
             }
 
             if ($self->{pending_diff}->{$node_name} == PENDING_DIFF && $node->pending_diff == PENDING_DIFF_NONE) {
-                warn "Diff manually approved.";
-                $self->{pending_diff}->{$node_name} = PENDING_DIFF_APPROVED;
+                $self->{pending_diff}->{$node_name} = PENDING_DIFF_NONE;
+                $self->{logger}->info("Applying network diff. Manual approval granted for $node_name.");
             }
         }
-    }
 
-    $self->{logger}->debug('Network Diff: ' . Dumper($network_diff));
+        $self->{logger}->debug("Diff for $node_name with length of $diff_len:\n$network_diff->{$node_name}");
+    }
     $self->{logger}->debug('Changes: ' . Dumper($changes));
 
     foreach my $change (@$changes) {
@@ -378,7 +378,7 @@ sub diff {
                 }
             }
             if ($diff_approval_required) {
-                warn "Not syncing l2connection $conn->{circuit_id}. Diff approval required.";
+                $self->{logger}->info("Not applying l2connection $conn->{circuit_id}. Manual approval required.");
                 next;
             }
 
@@ -386,7 +386,7 @@ sub diff {
             if (defined $err) {
                 $self->{logger}->error($err);
             }
-            $self->{logger}->info("Sync'd l2connection $conn->{circuit_id}.");
+            $self->{logger}->info("Applied l2connection $conn->{circuit_id}.");
         }
         elsif ($change->{type} eq 'edit-l2connection') {
             my $conn = $change->{value};
@@ -542,34 +542,36 @@ sub get_diff_text {
     my $network_diff = {};
     my $changes = [];
 
-    # Connections are stored in-memory multiple times under each node they're
-    # associed with. Keep a record of connections as they're sync'd to prevent a
-    # connection from being sync'd more than once.
+    # Connections are stored in-memory multiple times under each node
+    # they're associed with. Keep a record of connections as they're
+    # sync'd to prevent a connection from being sync'd more than once.
     my $syncd_l2connections = {};
     my $syncd_l3connections = {};
 
-    # BEGIN Needed to ensure diff state may be set to pending_diff_none after approval
-    # Ensure that requested node is represented in hash and that name is looked up
-    my $tmp_node_obj = new OESS::Node(db => $self->{db}, node_id => $node_id);
-    $network_diff->{$tmp_node_obj->name} = "";
-    $node_name = $tmp_node_obj->name;
 
-    foreach my $key (@{$self->{connection_cache}->get_included_nodes}) {
-        my $node_obj = new OESS::Node(db => $self->{db}, node_id => $key);
-        $network_diff->{$node_obj->name} = "";
+    # Ensure that requested node is represented in hash and that name
+    # is looked up. This is needed to ensure diff state may be set to
+    # PENDING_DIFF_NONE after approval
+    my $all_nodes = OESS::DB::Node::fetch_all(db => $self->{db}, controller => 'nso');
+    foreach my $node (@$all_nodes) {
+        if ($node->{node_id} eq $node_id) {
+            $node_name = $node->{name};
+        }
+        $network_diff->{$node->{name}} = "";
     }
-    # END Needed
 
-    foreach my $node_id (@{$self->{connection_cache}->get_included_nodes}) {
+    foreach my $node (@$all_nodes) {
+        my $node_id = $node->{node_id};
+
         foreach my $conn (@{$self->{connection_cache}->get_connections_by_node($node_id, 'l2')}) {
 
             # Skip connections if they're already sync'd.
             next if defined $syncd_l2connections->{$conn->circuit_id};
             $syncd_l2connections->{$conn->circuit_id} = 1;
 
-            # Compare cached connection against NSO connection. If no difference
-            # continue with next connection, otherwise update NSO to align with
-            # cache.
+            # Compare cached connection against NSO connection. If no
+            # difference continue with next connection, otherwise
+            # update NSO to align with cache.
             my $diff_required = 0;
 
             my $diff = $conn->nso_diff($nso_l2connections->{$conn->circuit_id});
@@ -695,8 +697,11 @@ into an in-memory cache.
 sub update_cache {
     my $self   = shift;
 
+    $self->{connection_cache}->clear;
+
     my $l2connections = OESS::DB::Circuit::fetch_circuits(
-        db => $self->{db}
+        db => $self->{db},
+        state => 'active'
     );
     if (!defined $l2connections) {
         $self->{logger}->error("Couldn't load l2connections in update_cache.");
@@ -711,7 +716,7 @@ sub update_cache {
 
     my $l3connection_ids = OESS::DB::VRF::get_vrfs(
         db => $self->{db},
-	state => 'active'
+        state => 'active'
     );
     if (!defined $l3connection_ids) {
         $self->{logger}->error("Couldn't load l3connections in update_cache.");
@@ -727,7 +732,6 @@ sub update_cache {
         }
         $self->{connection_cache}->add_connection($obj, 'l3');
     }
-
     return;
 }
 
