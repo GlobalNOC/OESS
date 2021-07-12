@@ -52,14 +52,17 @@ sub fetch_all {
 
 =cut
 sub get_node_interfaces{
-    my $db = shift;
-    my $node_id = shift;
+    my $args = {
+        db           => undef,
+        node_id      => undef,
+        @_
+    };
 
-    my $interfaces = $db->execute_query("select * from interface where node_id = ?",[$node_id]);
+    my $interfaces = $args->{'db'}->execute_query("select * from interface where node_id = ?",[$args->{'node_id'}]);
 
     my @ints;
     foreach my $interface (@$interfaces){
-        push(@ints, OESS::Interface->new(db => $db, interface_id => $interface->{'interface_id'}));
+        push(@ints, OESS::Interface->new(db => $args->{'db'}, interface_id => $interface->{'interface_id'}));
     }
 
     return \@ints;

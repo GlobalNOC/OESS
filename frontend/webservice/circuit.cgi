@@ -126,10 +126,10 @@ my $provision = GRNOC::WebService::Method->new(
     description => 'Creates and provisions a new Circuit.'
 );
 $provision->add_input_parameter(
-    name        => 'status'
+    name        => 'status',
     pattern     => '(reserved|confirmed|provisioned|released|decom)',
     required    => 1,
-    default     => 'active'
+    default     => 'active',
     description => 'Status of the Circuit (note mostly used for NSI integration)'
     );
 $provision->add_input_parameter(

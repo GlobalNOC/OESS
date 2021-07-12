@@ -152,11 +152,11 @@ sub _do_provisioning{
     my $url = $self->{'websvc_location'} . "circuit.cgi";
     $self->{'websvc'}->set_url($url);
 
-    my $endpointa = {node => $ckt->{'node'}->[0], interface => $ckt->{'interface'}->[0], tag => $ckt->{'tag'}->[0]};
-    my $endpointb = {node => $ckt->{'node'}->[1], interface => $ckt->{'interface'}->[1], tag => $ckt->{'tag'}->[1]};
+    #my $endpointa = {node => $ckt->{'node'}->[0], interface => $ckt->{'interface'}->[0], tag => $ckt->{'tag'}->[0]};
+    #my $endpointb = {node => $ckt->{'node'}->[1], interface => $ckt->{'interface'}->[1], tag => $ckt->{'tag'}->[1]};
 
     my $res = $self->{'websvc'}->provision(
-        state => 'provisioned',
+        status => 'provisioned',
         circuit_id => $connection_id,
         workgroup_id => $self->{'workgroup_id'},
         description => $ckt->{'description'},
@@ -166,7 +166,7 @@ sub _do_provisioning{
         bandwidth => $ckt->{'bandwidth'},
         provision_time => -1,
         remove_time => 1,
-	endpoint => [$endpointa, $endpointb]);
+	endpoint => $ckt->{'endpoint'});
     if (!defined $res) {
         log_error("Couldn't call provision_circuit using $url: Fatal webservice error occurred.");
         push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_FAILED, args => $args});
@@ -205,52 +205,50 @@ sub _get_circuit_details{
 
     #ugh how to get this...
     my $scheduled_actions = $self->{'websvc'}->get_circuit_scheduled_events(
-                                                    circuit_id => $circuit_id);
+	circuit_id => $circuit_id);
     
     log_debug("Circuit scheduled events: " . Data::Dumper::Dumper($scheduled_actions));
-
+    
     if(!defined($circuit) && !defined($circuit->{'results'})){
         log_error("circuit $circuit_id was not defined");
 	return OESS::NSI::Constant::ERROR;
     }
 
-    $circuit = $circuit->{'results'};
+    $circuit = $circuit->{'results'}->[0];
     
-    my @links = ();
-    foreach my $link (@{$circuit->{'links'}}){
-	push(@links, $link->{'name'});
-    }
+#    my @links = ();
+#    foreach my $link (@{$circuit->{'links'}}){
+#	push(@links, $link->{'name'});
+#    }
 
-    my @backup_links = ();
-    foreach my $link (@{$circuit->{'backup_links'}}){
-	push(@backup_links, $link->{'name'});
-    }
+#    my @backup_links = ();
+#    foreach my $link (@{$circuit->{'backup_links'}}){
+#	push(@backup_links, $link->{'name'});
+#    }
 
-    my @nodes = ();
-    my @ints = ();
-    my @tags = ();
+#    my @nodes = ();
+#    my @ints = ();
+#    my @tags = ();
 
-    foreach my $ep (@{$circuit->{'endpoints'}}){
-	push(@nodes,$ep->{'node'});
-	push(@ints,$ep->{'interface'});
-	push(@tags,$ep->{'tag'});
-    }
-    
-    my $ckt = { state => $circuit->{'state'},
+#    foreach my $ep (@{$circuit->{'endpoints'}}){
+#	push(@nodes,$ep->{'node'});
+#	push(@ints,$ep->{'interface'});
+#	push(@tags,$ep->{'tag'});
+#    }
+
+    warn Dumper($circuit);
+
+    my $ckt = { status => $circuit->{'state'},
                 circuit_id => $circuit->{'circuit_id'},
                 workgroup_id => $circuit->{'workgroup'}->{'workgroup_id'},
                 description => $circuit->{'description'},
                 name => $circuit->{'name'},
                 remote_url => $circuit->{'remote_url'},
                 remote_requester => $circuit->{'remote_requester'},
-                link => \@links,
-                backup_link => \@backup_links,
                 bandwidth => $circuit->{'bandwidth'},
                 provision_time => $circuit->{'provision_time'},
                 remove_time => $circuit->{'remove_time'},
-                node => \@nodes,
-                interface => \@ints,
-                tag => \@tags
+		endpoint => $circuit->{'endpoints'}
     };
     
     return $ckt;
@@ -464,24 +462,19 @@ sub _do_release{
     }
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/circuit.cgi");
-
-    my $res = $self->{'websvc'}->provision(
-                                      state => 'reserved',
-                                      circuit_id => $connection_id,
-                                      workgroup_id => $self->{'workgroup_id'},
-                                      description => $ckt->{'description'},
-                                      name => $ckt->{'name'},
-                                      link => $ckt->{'link'},
-                                      backup_link => $ckt->{'backup_link'},
-                                      bandwidth => $ckt->{'bandwidth'},
-                                      provision_time => $ckt->{'provision_time'},
-                                      remove_time => $ckt->{'remove_time'},
-	endpoint => [$endpointa, $endpointb]);
-                                      #node => $ckt->{'node'},
-                                      #interface => $ckt->{'interface'},
-                                      #tag => $ckt->{'tag'});
     
-    if(defined($res) && defined($res->{'results'})){
+    my $res = $self->{'websvc'}->provision(
+	status => 'reserved',
+	circuit_id => $connection_id,
+	workgroup_id => $self->{'workgroup_id'},
+	description => $ckt->{'description'},
+	name => $ckt->{'name'},
+	bandwidth => $ckt->{'bandwidth'},
+	provision_time => $ckt->{'provision_time'},
+	remove_time => $ckt->{'remove_time'},
+	endpoint => $ckt->{'endpoints'});
+    
+    if(defined($res) && $res->{'success'} == 1){
         log_info("Release connectionId: " . $args->{'connectionId'} . " success!");
         push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::RELEASE_SUCCESS, args => $args});
         return OESS::NSI::Constant::SUCCESS;

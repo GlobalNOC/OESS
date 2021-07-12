@@ -145,7 +145,7 @@ sub interfaces {
     }else{
        
         if(!defined($self->{'interfaces'})){
-            my $interfaces = OESS::DB::Node::get_interfaces(db => $self->{'db'}, node_id => $self->{'node_id'});
+            my $interfaces = OESS::DB::Node::get_node_interfaces(db => $self->{'db'}, node_id => $self->{'node_id'});
             $self->{'interfaces'} = $interfaces;
         }
         

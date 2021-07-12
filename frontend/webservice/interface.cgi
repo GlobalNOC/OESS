@@ -86,10 +86,61 @@ sub register_ro_methods{
     
     $svc->register_method($method);    
 
+    $method = GRNOC::WebService::Method->new(
+	name => "get_interfaces",
+	description => "returns all interfaces on a node or a specific interface if specified",
+	callback => sub { get_interfaces(@_) }
+	);
+    $method->add_input_parameter( name => 'node',
+				  pattern => $GRNOC::WebService::Regex::HOSTNAME,
+				  required => 1,
+				  description => "Node to fetch interfaces on");
+    
+    $method->add_input_parameter(name => 'name',
+				 pattern => $GRNOC::WebService::Regex::TEXT,
+				 required => 0,
+				 description => "Possible interface name to search for on specific node");
+    $svc->register_method($method);
+
 }
 
 sub register_rw_methods{
     
+}
+
+sub get_interfaces{
+    my $method = shift;
+    my $params = shift;
+
+    
+    my $node = $params->{'node'}{'value'};
+    my $name = $params->{'name'}{'value'};
+
+#    warn Dumper($name);
+#    warn Dumper($node);
+
+    my $n = OESS::Node->new( db => $db, name => $node);
+
+#    warn Dumper($n);
+    if(defined($n)){
+	my $interfaces = $n->interfaces();
+	my @ints;
+
+	if(defined($name)){
+	    foreach my $interface (@$interfaces){
+		if($interface->name eq $name){
+		    return {results => [$interface->to_hash()]};
+		}
+	    }
+	}else{
+	    foreach my $interface( @$interfaces){
+		push(@ints, $interface->to_hash());
+	    }
+	    return {results => {interfaces => \@ints}};
+	}
+    }
+    $method->set_error("Unable to find node: $node");
+    return;
 }
 
 sub get_available_vlans{
