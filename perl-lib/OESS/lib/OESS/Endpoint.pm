@@ -129,7 +129,7 @@ sub _build_from_model{
     $self->{'inner_tag'} = $self->{'model'}->{'inner_tag'};
     $self->{'tag'} = $self->{'model'}->{'tag'};
     $self->{'unit'} = $self->{'model'}->{'unit'};
-    $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'};
+    $self->{'bandwidth'} = $self->{'model'}->{'bandwidth'} || 0;
     $self->{cloud_account_id} = $self->{model}->{cloud_account_id};
     $self->{cloud_connection_id} = $self->{model}->{cloud_connection_id};
     $self->{cloud_interconnect_id} = $self->{model}->{cloud_interconnect_id};

@@ -544,10 +544,11 @@ CREATE TABLE `network` (
   UNIQUE KEY `network_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `network` (`network_id`,`name`,`longitude`,`latitude`,`is_local`) VALUES (1,'oess',0,0,1);
+
 --
 -- Table structure for table `node`
 --
-INSERT INTO `network` (`network_id`,`name`,`longitude`,`latitude`,`is_local`) VALUES (1,'oess',0,0,1);
 
 DROP TABLE IF EXISTS `node`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -607,6 +608,7 @@ CREATE TABLE `node_instantiation` (
   `mgmt_addr` varchar(255) DEFAULT NULL,
   `loopback_address` varchar(255) DEFAULT NULL,
   `tcp_port` int(6) DEFAULT '830',
+  `controller` enum('openflow','netconf','nso') NOT NULL DEFAULT 'nso',
   PRIMARY KEY (`node_id`,`end_epoch`),
   UNIQUE KEY `node_instantiation_idx` (`end_epoch`,`dpid`),
   CONSTRAINT `node_node_instantiation_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
@@ -770,7 +772,6 @@ CREATE TABLE `remote_auth` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `remote_auth` (`auth_name`,`user_id`) VALUES ('admin',1);
-
 --
 -- Dumping data for table `remote_auth`
 --

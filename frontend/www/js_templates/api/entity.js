@@ -59,7 +59,7 @@ async function getEntitiesAll(workgroupID, queryString=null) {
  */
 async function edit_entity(entityID, entity_name, description, logo_url, entity_url){
 
-    let url = `[% path %]services/entity.cgi?action=update_entity&entity_id=${entityID}`;
+    let url = `[% path %]services/entity.cgi?method=update_entity&entity_id=${entityID}`;
     if (entity_name.value)
     {
         url += `&name=${entity_name.value}`;
@@ -101,7 +101,7 @@ async function edit_entity(entityID, entity_name, description, logo_url, entity_
 async function add_entity(entityID, entity_name, desctiption, logo_url, entity_url){
 
     let user = await getCurrentUser();
-    let url = `[% path %]services/entity.cgi?action=add_child_entity&current_entity_id=${entityID}&user_id=${user.user_id}`;
+    let url = `[% path %]services/entity.cgi?method=add_child_entity&current_entity_id=${entityID}&user_id=${user.user_id}`;
     if (entity_name.value)
     {
         url += `&name=${entity_name.value}`;
@@ -137,7 +137,7 @@ async function add_entity(entityID, entity_name, desctiption, logo_url, entity_u
  * @params {integer} entityID - Identifier of the currnt entity
  */
 async function add_user(user_id, entityID){
-    const url = `[% path %]services/entity.cgi?action=add_user&entity_id=${entityID}&user_id=${user_id}`;
+    const url = `[% path %]services/entity.cgi?method=add_user&entity_id=${entityID}&user_id=${user_id}`;
     try {
       const resp = await fetch(url, {method: 'get', credentials: 'include'});
       const data = await resp.json();
@@ -157,7 +157,7 @@ async function add_user(user_id, entityID){
  */
 async function remove_user(user_id, entityID){
     console.log("remove user");
-    const url = `[% path %]services/entity.cgi?action=remove_user&entity_id=${entityID}&user_id=${user_id}`;
+    const url = `[% path %]services/entity.cgi?method=remove_user&entity_id=${entityID}&user_id=${user_id}`;
     try {
       const resp = await fetch(url, {method: 'get', credentials: 'include'});
       const data = await resp.json();

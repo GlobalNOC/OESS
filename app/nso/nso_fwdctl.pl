@@ -1,19 +1,19 @@
 #!/usr/bin/perl
+
 use strict;
 use warnings;
 
-use OESS::Config;
-use OESS::MPLS::FWDCTL;
-use OESS::NSO::FWDCTLService;
-
+use AnyEvent;
 use English;
-use Data::Dumper;
 use Getopt::Long;
 use Log::Log4perl;
 use Proc::Daemon;
 use XML::Simple;
 
-my $pid_file = "/var/run/oess/mpls_fwdctl.pid";
+use OESS::Config;
+use OESS::NSO::FWDCTLService;
+
+my $pid_file = "/var/run/oess/nso_fwdctl.pid";
 my $cnf_file = "/etc/oess/database.xml";
 
 sub get_diff_interval{
@@ -32,32 +32,13 @@ sub core{
 
     my $config = new OESS::Config(config_filename => $cnf_file);
     if ($config->network_type eq 'nso') {
-        my $fwdctl = OESS::NSO::FWDCTLService->new(config_obj => $config);
+        my $fwdctl = new OESS::NSO::FWDCTLService(config_obj => $config);
         $fwdctl->start;
         AnyEvent->condvar->recv;
-    }
-    elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
-        my $FWDCTL = OESS::MPLS::FWDCTL->new(config_obj => $config);
-        my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
-        my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
-        my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
-        AnyEvent->condvar->recv;
-    }
-    elsif ($config->network_type eq 'nso+vpn-mpls') {
-        my $fwdctl = OESS::NSO::FWDCTLService->new(config_obj => $config);
-        $fwdctl->start;
-
-        my $FWDCTL = OESS::MPLS::FWDCTL->new(config_obj => $config);
-        my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
-        my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
-        my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
-        AnyEvent->condvar->recv;
-    }
-    else {
+    } else {
         die "Unexpected network type configured.";
     }
-
-    Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.APP')->info("Starting OESS.MPLS.FWDCTL event loop.");
+    Log::Log4perl->get_logger('OESS.NSO.FWDCTL.APP')->info("Starting OESS.NSO.FWDCTL event loop.");
 }
 
 sub main{
@@ -92,9 +73,9 @@ sub main{
     }
 
     my $result = GetOptions (
-                             "user|u=s"  => \$username,
-                             "verbose"   => \$verbose,
-                             "daemon|d"  => \$is_daemon,
+        "user|u=s"  => \$username,
+        "verbose"   => \$verbose,
+        "daemon|d"  => \$is_daemon,
 	);
 
     #now change username/
@@ -109,14 +90,12 @@ sub main{
         my $daemon;
         if ($verbose) {
             $daemon = Proc::Daemon->new(
-                                        pid_file => $pid_file,
-                                        child_STDOUT => '/var/log/oess/mpls_fwdctl.out',
-                                        child_STDERR => '/var/log/oess/mpls_fwdctl.log',
-		);
+                pid_file => $pid_file,
+                child_STDOUT => '/var/log/oess/nso_fwdctl.out',
+                child_STDERR => '/var/log/oess/nso_fwdctl.log',
+		    );
         } else {
-            $daemon = Proc::Daemon->new(
-		pid_file => $pid_file
-		);
+            $daemon = Proc::Daemon->new(pid_file => $pid_file);
         }
 	
         # Init returns the PID (scalar) of the daemon to the parent, or
@@ -137,7 +116,6 @@ sub main{
         $SIG{HUP} = sub{ exit(0); };
         core();
     }
-
 }
 
 main();
