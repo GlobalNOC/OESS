@@ -79,7 +79,7 @@ sub start {
     my $self = shift;
 
     my $node_err = $self->{fwdctl}->update_nodes;
-    if (!defined $node_err) {
+    if (defined $node_err) {
         warn $node_err;
         $self->{logger}->error($node_err);
     }
@@ -301,7 +301,6 @@ sub start {
     );
     $self->{dispatcher}->register_method($update_cache);
 
-    $self->{dispatcher}->start_consuming;
     return 1;
 }
 

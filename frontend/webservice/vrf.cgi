@@ -171,7 +171,7 @@ sub get_vrf_details{
 
     my $vrf_id = $params->{'vrf_id'}{'value'};
 
-    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso') {
+    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso' && $config->network_type ne 'nso+vpn-mpls') {
         $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
         return;
     }
@@ -228,7 +228,7 @@ sub get_vrfs{
     my $params = shift;
     my $ref = shift;
 
-    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso') {
+    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso' && $config->network_type ne 'nso+vpn-mpls') {
         $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
         return;
     }
@@ -279,7 +279,7 @@ sub provision_vrf{
     my $method = shift;
     my $params = shift;
 
-    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso') {
+    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso' && $config->network_type ne 'nso+vpn-mpls') {
         $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
         return;
     }
@@ -824,7 +824,7 @@ sub remove_vrf {
     my $params = shift;
     my $ref = shift;
 
-    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso') {
+    if ($config->network_type ne 'vpn-mpls' && $config->network_type ne 'nso' && $config->network_type ne 'nso+vpn-mpls') {
         $method->set_error("Support for Layer 3 Connections is currently disabled. Please contact your OESS administrator for more information.");
         return;
     }
