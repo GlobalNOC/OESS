@@ -164,7 +164,6 @@ sub new{
 
     # Only lookup LSPs and Paths when network type is vpn-mpls.
     if ($self->{'config'}->network_type eq 'vpn-mpls') {
-	$self->{'lsp_timer'} = AnyEvent->timer( after => 70, interval => 200, cb => sub { $self->lsp_handler(); });
         $self->{'path_timer'} = AnyEvent->timer( after => 40, interval => 300, cb => sub { $self->path_handler(); });
     }
 
