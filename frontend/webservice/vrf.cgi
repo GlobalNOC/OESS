@@ -751,17 +751,13 @@ sub provision_vrf{
     }
     my $pending_vrf = $vrf->to_hash;
 
+    # Valid vrf_id was passed in model which implies that the
+    # connection is being edited.
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
-        # Valid vrf_id was passed in model which implies that the
-        # connection is being edited.
-        $db->commit;
-
         my ($pending_topic, $t0_err) = fwdctl_topic_for_connection($pending_vrf);
         my ($prev_topic, $t1_err) = fwdctl_topic_for_connection($previous_vrf);
 
         # No connection may be provisioned using multiple controllers.
-        # TODO May want this check just befor $db->commit. Check db
-        # effects
         if (defined $t0_err || defined $t1_err) {
             $method->set_error("$t0_err $t1_err");
             return;
@@ -770,23 +766,26 @@ sub provision_vrf{
         # In the case where a connection is moved between controllers,
         # we want the cache for both controllers updated.
         if ($pending_topic ne $prev_topic) {
-            _update_cache($previous_vrf);
-            _update_cache($pending_vrf);
-
             my ($dres, $derr) = vrf_del($previous_vrf);
+            if (defined $derr) {
+                warn $derr;
+            }
+            _update_cache($previous_vrf);
+
+            $db->commit;
+
+            _update_cache($pending_vrf);
             my ($ares, $aerr) = vrf_add($pending_vrf);
-            if (defined $derr || defined $aerr) {
-                warn "$derr $aerr";
-            } else {
-                $ok = 1;
+            if (defined $aerr) {
+                warn $aerr;
             }
         } else {
+            $db->commit;
+
             _update_cache($pending_vrf);
             my ($mres, $merr) = vrf_modify($vrf->vrf_id, $previous_vrf, $pending_vrf);
             if (defined $merr) {
                 warn $merr;
-            } else {
-                $ok = 1;
             }
 
             $type = 'modified';
@@ -799,8 +798,6 @@ sub provision_vrf{
         my ($ares, $aerr) = vrf_add($pending_vrf);
         if (defined $aerr) {
             warn $aerr;
-        } else {
-            $ok = 1;
         }
 
         $type = 'provisioned';
@@ -816,7 +813,7 @@ sub provision_vrf{
         );
     };
 
-    return { results => { success => $ok, vrf_id => $vrf->vrf_id } };
+    return { results => { success => 1, vrf_id => $vrf->vrf_id } };
 }
 
 sub remove_vrf {

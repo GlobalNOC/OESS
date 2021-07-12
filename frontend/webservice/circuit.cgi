@@ -673,9 +673,8 @@ sub update {
         }
     }
 
-    $db->commit;
-
-    # Ensure that endpoints' controller info loaded
+    # Ensure that endpoints' controller info loaded. Required to
+    # choose correct topic.
     $circuit->load_endpoints;
     my $pending = $circuit->to_hash;
 
@@ -683,7 +682,6 @@ sub update {
     my ($prev_topic, $t1_err) = fwdctl_topic_for_connection($previous);
 
     # No connection may be provisioned using multiple controllers.
-    # TODO May want this check just befor $db->commit. Check db effects
     if (defined $t0_err || defined $t1_err) {
         $method->set_error("$t0_err $t1_err");
         return;
@@ -692,12 +690,16 @@ sub update {
     # In the case where a connection is moved between controllers, we
     # want the cache for both controllers updated.
     if ($pending_topic ne $prev_topic) {
-        _send_update_cache($previous);
-        _send_update_cache($pending);
-
         _send_remove_command($previous);
+        _send_update_cache($previous);
+
+        $db->commit;
+
+        _send_update_cache($pending);
         _send_add_command($pending);
     } else {
+        $db->commit;
+
         _send_update_cache($pending);
         _send_modify_command($circuit->circuit_id, $previous, $pending);
     }
