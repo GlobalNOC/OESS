@@ -337,8 +337,6 @@ sub diff {
     # disagrees, then the pending state was modified by an admin. The
     # pending diff may now proceed.
     foreach my $node_name (keys %$network_diff) {
-        next if $network_diff->{$node_name} eq "";
-
         my $node = new OESS::Node(db => $self->{db}, name => $node_name);
         my $diff_len = length $network_diff->{$node_name};
 

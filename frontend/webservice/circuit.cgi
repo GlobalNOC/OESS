@@ -691,9 +691,8 @@ sub update {
     # want the cache for both controllers updated.
     if ($pending_topic ne $prev_topic) {
         _send_remove_command($previous);
-        _send_update_cache($previous);
-
         $db->commit;
+        _send_update_cache($previous);
 
         _send_update_cache($pending);
         _send_add_command($pending);
@@ -814,11 +813,10 @@ sub remove {
         return;
     }
 
+    _send_remove_command($previous);
     # Move post _send_remove_commands and add rollback for quick tests
     # $db->rollback;
     $db->commit;
-
-    _send_remove_command($previous);
     _send_update_cache($previous);
     _send_event(
         status  => 'removed',
