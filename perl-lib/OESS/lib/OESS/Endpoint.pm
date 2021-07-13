@@ -112,10 +112,13 @@ sub new{
 
     if ((defined($self->circuit_id()) && $self->circuit_id() != -1) ||
         (defined($self->vrf_endpoint_id()) && $self->vrf_endpoint_id() != -1)){
-        $self->_fetch_from_db();
-    } else {
-        $self->from_hash($self->{model});
+        $self->{model} = $self->_fetch_from_db();
     }
+    if (!defined $self->{model}) {
+        $self->{logger}->error("Couldn't load Endpoint object from database or model.");
+        return;
+    }
+    $self->from_hash($self->{model});
 
     return $self;
 }
@@ -165,7 +168,7 @@ sub to_hash{
     } else {
         $obj->{'circuit_id'} = $self->circuit_id();
         $obj->{'circuit_ep_id'} = $self->circuit_ep_id();
-        $obj->{'start_epoch'} = $self->start_epoch();
+        $obj->{'start_epoch'} = $self->{start_epoch};
     }
 
     return $obj;
@@ -209,17 +212,17 @@ sub from_hash{
     $self->{'mtu'} = $hash->{'mtu'};
     $self->{'unit'} = $hash->{'unit'};
 
-    if ($self->{'type'} eq 'vrf' || !defined $hash->{'circuit_ep_id'}) {
-        $self->{'peers'} = $hash->{'peers'};
+    if ($self->{'type'} eq 'vrf' || (!defined $hash->{'circuit_edge_id'} && !defined $hash->{'circuit_ep_id'})) {
+        # $self->{'peers'} = $hash->{'peers'};
         $self->{'vrf_id'} = $hash->{'vrf_id'};
         $self->{'vrf_endpoint_id'} = $hash->{'vrf_endpoint_id'} || $hash->{'vrf_ep_id'};
 
-        if (defined $hash->{peers}) {
-            $self->{peers} = [];
-            foreach my $peer (@{$hash->{peers}}) {
-                push(@{$self->{peers}}, new OESS::Peer(db => $self->{db}, model => $peer));
-            }
-        }
+        # if (defined $hash->{peers}) {
+        #     $self->{peers} = [];
+        #     foreach my $peer (@{$hash->{peers}}) {
+        #         push(@{$self->{peers}}, new OESS::Peer(db => $self->{db}, model => $peer));
+        #     }
+        # }
     } else {
         $self->{'circuit_id'} = $hash->{'circuit_id'};
         $self->{'circuit_ep_id'} = $hash->{'circuit_edge_id'} || $hash->{'circuit_ep_id'};
@@ -261,7 +264,7 @@ sub _fetch_from_db{
         }
     }
 
-    $self->from_hash($hash);
+    return $hash;
 }
 
 =head2 load_peers

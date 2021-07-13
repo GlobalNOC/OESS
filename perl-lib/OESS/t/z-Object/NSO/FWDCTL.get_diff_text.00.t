@@ -35,6 +35,12 @@ my $cache = new OESS::NSO::ConnectionCache();
 my $db = new OESS::DB(config  => "$path/../../conf/database.xml");
 my $nso = new OESS::NSO::ClientStub();
 
+
+# OESS::NSO::FWDCTL::get_diff_text works by fetching nodes with
+# controller of 'nso'.
+$db->execute_query("update node_instantiation set controller='nso'", []);
+
+
 my $fwdctl = new OESS::NSO::FWDCTL(
     config_filename => "$path/../../conf/database.xml",
     connection_cache => $cache,
@@ -74,6 +80,9 @@ ok(!defined $err, 'Vlan created');
 
 my ($text1, $err1) = $fwdctl->get_diff_text(node_id => 11);
 ok($text1 eq $expect1->{'Node 11'}, 'Got expected diff');
+if ($text1 ne $expect1->{'Node 11'}) {
+    print "Expected:\n$expect1->{'Node 11'}\nGot:\n$text1";
+}
 
 my ($text2, $err2) = $fwdctl->get_diff_text(node_id => 31);
 ok($text2 eq $expect1->{'Node 31'}, 'Got expected diff');

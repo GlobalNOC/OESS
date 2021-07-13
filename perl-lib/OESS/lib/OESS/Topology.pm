@@ -368,7 +368,6 @@ sub find_path {
 
     #step1 (get nodes);
     my @tmp = @{$db->get_current_nodes( type => $type )};
-    
 
     my @db_nodes;
     foreach my $tmp_node (@tmp){

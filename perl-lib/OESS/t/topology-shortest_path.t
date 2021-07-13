@@ -25,6 +25,13 @@ Log::Log4perl::init_and_watch('t/conf/logging.conf',10);
 #--- instantiate OESS DB and Topo
 my $db = OESS::Database->new(config => "$cwd/conf/database.xml");
 ok(defined($db));
+
+
+# OESS::Topology::find_path works by fetching nodes with the specified
+# type. These tests use a node type of 'openflow'.
+$db->_execute_query("update node_instantiation set controller='openflow'", []);
+
+
 my $config_file  = "$cwd/conf/database.xml";
 my $topo = OESS::Topology->new(
     config => $config_file,
