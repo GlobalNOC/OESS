@@ -32,7 +32,7 @@ use Data::Dumper;
 use GRNOC::Log;
 use GRNOC::Config;
 use GRNOC::WebService::Client;
-
+use JSON::XS;
 use OESS::NSI::Constant;
 use OESS::NSI::Utils;
 
@@ -154,6 +154,8 @@ sub _do_provisioning{
 
     #my $endpointa = {node => $ckt->{'node'}->[0], interface => $ckt->{'interface'}->[0], tag => $ckt->{'tag'}->[0]};
     #my $endpointb = {node => $ckt->{'node'}->[1], interface => $ckt->{'interface'}->[1], tag => $ckt->{'tag'}->[1]};
+    warn Dumper($ckt);
+    warn "About to provision\n";
 
     my $res = $self->{'websvc'}->provision(
         status => 'provisioned',
@@ -166,7 +168,10 @@ sub _do_provisioning{
         bandwidth => $ckt->{'bandwidth'},
         provision_time => -1,
         remove_time => 1,
-	endpoint => $ckt->{'endpoint'});
+	endpoint => [JSON::to_json($ckt->{'endpoint'}->[0]), JSON::to_json($ckt->{'endpoint'}->[1])]);
+
+    warn Dumper($res);
+
     if (!defined $res) {
         log_error("Couldn't call provision_circuit using $url: Fatal webservice error occurred.");
         push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_FAILED, args => $args});
@@ -180,7 +185,7 @@ sub _do_provisioning{
 
     log_debug("results of provision circuit: " .  Data::Dumper::Dumper($res));
 
-    if (defined $res->{'results'}) {
+    if ($res->{'success'} == 1) {
         push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::PROVISIONING_SUCCESS, args => $args});
         return OESS::NSI::Constant::SUCCESS;
     }
@@ -454,15 +459,17 @@ sub _do_release{
    
 
     my $ckt = $self->_get_circuit_details($connection_id);
-    if (!defined $ckt->{'provision_time'}) {
+    if (!defined $ckt->{'provision_time'} || $ckt->{'provision_time'} eq '') {
         $ckt->{'provision_time'} = -1;
     }
-    if (!defined $ckt->{'remove_time'}) {
+    if (!defined $ckt->{'remove_time'} || $ckt->{'release_time'} eq '') {
         $ckt->{'remove_time'} = -1;
     }
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/circuit.cgi");
     
+    warn Dumper($ckt);
+
     my $res = $self->{'websvc'}->provision(
 	status => 'reserved',
 	circuit_id => $connection_id,
@@ -472,8 +479,10 @@ sub _do_release{
 	bandwidth => $ckt->{'bandwidth'},
 	provision_time => $ckt->{'provision_time'},
 	remove_time => $ckt->{'remove_time'},
-	endpoint => $ckt->{'endpoints'});
+	endpoint => [JSON::to_json($ckt->{'endpoint'}->[0]), JSON::to_json($ckt->{'endpoint'}->[1])]);
     
+    warn Dumper($res);
+
     if(defined($res) && $res->{'success'} == 1){
         log_info("Release connectionId: " . $args->{'connectionId'} . " success!");
         push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::RELEASE_SUCCESS, args => $args});

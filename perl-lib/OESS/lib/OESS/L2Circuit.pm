@@ -151,6 +151,19 @@ sub remote_url{
     return $self->{'remote_url'};
 }
 
+=head2 status
+
+=cut
+
+sub status{
+    my $self = shift;
+    my $status = shift;
+    if(defined($status)){
+	$self->{'status'} = $status;
+    }
+    return $self->{'status'};
+}
+
 =head2 remote_requester
 
 =cut
@@ -398,6 +411,7 @@ sub to_hash {
     my $hash = {
         remote_requester => $self->{remote_requester},
         external_identifier => $self->{external_identifier},
+	status => $self->{status},
         state => $self->{state},
         remote_url => $self->{remote_url},
         created_on => $self->{created_on},
@@ -485,7 +499,7 @@ sub _process_circuit_details{
     my $hash = shift;
 
     $self->{remote_requester} = $hash->{remote_requester};
-
+    $self->{status} = $hash->{status};
     $self->{external_identifier} = $hash->{external_identifier};
     $self->{state} = $hash->{state};
     $self->{remote_url} = $hash->{remote_url};

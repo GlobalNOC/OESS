@@ -499,6 +499,8 @@ sub update {
     my $add_endpoints = [];
     my $del_endpoints = [];
 
+    warn Dumper($args->{endpoint}->{value});
+
     foreach my $value (@{$args->{endpoint}->{value}}) {
         my $ep;
         eval{
