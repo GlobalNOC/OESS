@@ -185,8 +185,8 @@ sub reserve {
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "circuit.cgi");
 
-    warn Dumper($ep1);
-    warn Dumper($ep2);
+    #warn Dumper($ep1);
+    #warn Dumper($ep2);
     
     my $endpoint1 = {'node' => $ep1->{'node'}, interface => $ep1->{'port'}, tag => $ep1->{'tags'}->[0]};
     my $endpoint2 = {'node' => $ep2->{'node'}, interface => $ep2->{'port'}, tag => $ep2->{'tags'}->[0]};
@@ -426,7 +426,7 @@ sub process_queue {
 
     while(my $message = shift(@{$self->{'reservation_queue'}})){
         my $type = $message->{'type'};
-        warn Data::Dumper::Dumper($message);
+        #warn Data::Dumper::Dumper($message);
         #this is now a scheduler... skip the action if it has a time and we aren't past it yet
         if(defined($message->{'time'}) && time() < $message->{'time'}){            
             #log_error("TIME: " . $message->{'time'} . " vs. " . time());
