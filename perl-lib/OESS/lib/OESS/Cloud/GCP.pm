@@ -379,8 +379,7 @@ sub insert_interconnect_attachment {
     my $api_response = $http->request($req);
     if (!$api_response->is_success && $api_response->code == 500) {
         $self->{logger}->error("insert_interconnect_attachment: HTTP 500");
-        die "HTTP 500: Internal Server Error \n
-            Failed to provision google cloud endpoints, please try again later. If the problem persists contact support";
+        die "Failed to provision google cloud endpoints, please try again later. If the problem persists contact support";
     }
 
     my $api_data = decode_json($api_response->content);
