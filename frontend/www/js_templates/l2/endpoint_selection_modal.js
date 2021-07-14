@@ -176,8 +176,7 @@ class EndpointSelectionModal2 {
       if (interconnectType === 'null') {
         interconnectType = null;
       }
-
-      if (this.endpoint === null) {
+      if (this.endpoint === null || !this.endpoint) {
         this.endpoint = { index: index };
       }
       this.endpoint.bandwidth = this.parent.querySelector('.endpoint-bandwidth').value;
