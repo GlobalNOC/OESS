@@ -213,6 +213,12 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
 %doc %{_mandir}/man3/OESS::Webservice.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::Client.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::ClientStub.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::ConnectionCache.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::Discovery.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::FWDCTL.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::FWDCTLService.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification.tt.html
 %{template_dir}/notification_vrf.tt.html
@@ -286,6 +292,12 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Traceroute.pm
 %{perl_vendorlib}/OESS/Watchdog.pm
 %{perl_vendorlib}/OESS/Webservice.pm
+%{perl_vendorlib}/OESS/NSO/Client.pm
+%{perl_vendorlib}/OESS/NSO/ClientStub.pm
+%{perl_vendorlib}/OESS/NSO/ConnectionCache.pm
+%{perl_vendorlib}/OESS/NSO/Discovery.pm
+%{perl_vendorlib}/OESS/NSO/FWDCTL.pm
+%{perl_vendorlib}/OESS/NSO/FWDCTLService.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 %{docdir}/share/customer-templates/*

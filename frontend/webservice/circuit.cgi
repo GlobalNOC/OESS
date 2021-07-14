@@ -127,6 +127,13 @@ my $provision = GRNOC::WebService::Method->new(
     description => 'Creates and provisions a new Circuit.'
 );
 $provision->add_input_parameter(
+    name        => 'status',
+    pattern     => '(reserved|confirmed|provisioned|released|decom)',
+    required    => 0,
+    default     => 'active',
+    description => 'Status of the Circuit (note mostly used for NSI integration)'
+    );
+$provision->add_input_parameter(
     name        => 'circuit_id',
     pattern     => $GRNOC::WebService::Regex::INTEGER,
     required    => 0,
@@ -247,7 +254,8 @@ sub provision {
     my $circuit = new OESS::L2Circuit(
         db => $db,
         model => {
-            name => $args->{description}->{value},
+            status => $args->{status}->{value},
+	    name => $args->{description}->{value},
             description => $args->{description}->{value},
             remote_url => $args->{remote_url}->{value},
             remote_requester => $args->{remote_requester}->{value},
@@ -473,7 +481,7 @@ sub update {
     $circuit->load_paths;
 
     my $previous = $circuit->to_hash;
-
+    $circuit->status($args->{status}->{value});
     $circuit->description($args->{description}->{value});
     $circuit->remote_url($args->{remote_url}->{value});
     $circuit->remote_requester($args->{remote_requester}->{value});

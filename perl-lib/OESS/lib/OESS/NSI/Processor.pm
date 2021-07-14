@@ -99,7 +99,7 @@ sub process_request {
 
     log_info("Received method call: $request");
     log_info(Dumper($request));
-
+    warn Dumper("REceived Method call: $request");
     $data = decode_json $data;
 
     log_info("Received method data: $data");
