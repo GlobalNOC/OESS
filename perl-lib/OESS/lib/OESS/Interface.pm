@@ -239,7 +239,12 @@ sub bandwidth{
     if (defined $bandwidth) {
         $self->{bandwidth} = $bandwidth;
     }
-    return $self->{bandwidth};
+
+    if($self->{'cloud_interconnect_type'} eq 'azure-express-route'){
+        return $self->{'bandwidth'} * 4;
+    }else{
+        return $self->{'bandwidth'};
+    }
 }
 
 =head2 provisionable_bandwidth
