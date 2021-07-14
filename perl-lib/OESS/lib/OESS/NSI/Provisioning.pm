@@ -152,11 +152,6 @@ sub _do_provisioning{
     my $url = $self->{'websvc_location'} . "circuit.cgi";
     $self->{'websvc'}->set_url($url);
 
-    #my $endpointa = {node => $ckt->{'node'}->[0], interface => $ckt->{'interface'}->[0], tag => $ckt->{'tag'}->[0]};
-    #my $endpointb = {node => $ckt->{'node'}->[1], interface => $ckt->{'interface'}->[1], tag => $ckt->{'tag'}->[1]};
-    #warn Dumper($ckt);
-    #warn "About to provision\n";
-
     my $res = $self->{'websvc'}->provision(
         status => 'provisioned',
         circuit_id => $connection_id,
@@ -170,7 +165,6 @@ sub _do_provisioning{
         remove_time => 1,
 	endpoint => [JSON::to_json($ckt->{'endpoint'}->[0]), JSON::to_json($ckt->{'endpoint'}->[1])]);
 
-    #warn Dumper($res);
 
     if (!defined $res) {
         log_error("Couldn't call provision_circuit using $url: Fatal webservice error occurred.");
@@ -221,28 +215,6 @@ sub _get_circuit_details{
 
     $circuit = $circuit->{'results'}->[0];
     
-#    my @links = ();
-#    foreach my $link (@{$circuit->{'links'}}){
-#	push(@links, $link->{'name'});
-#    }
-
-#    my @backup_links = ();
-#    foreach my $link (@{$circuit->{'backup_links'}}){
-#	push(@backup_links, $link->{'name'});
-#    }
-
-#    my @nodes = ();
-#    my @ints = ();
-#    my @tags = ();
-
-#    foreach my $ep (@{$circuit->{'endpoints'}}){
-#	push(@nodes,$ep->{'node'});
-#	push(@ints,$ep->{'interface'});
-#	push(@tags,$ep->{'tag'});
-#    }
-
-    #warn Dumper($circuit);
-
     my $ckt = { status => $circuit->{'state'},
                 circuit_id => $circuit->{'circuit_id'},
                 workgroup_id => $circuit->{'workgroup'}->{'workgroup_id'},
@@ -468,8 +440,6 @@ sub _do_release{
 
     $self->{'websvc'}->set_url($self->{'websvc_location'} . "/circuit.cgi");
     
-    #warn Dumper($ckt);
-
     my $res = $self->{'websvc'}->provision(
 	status => 'reserved',
 	circuit_id => $connection_id,
@@ -481,8 +451,6 @@ sub _do_release{
 	remove_time => $ckt->{'remove_time'},
 	endpoint => [JSON::to_json($ckt->{'endpoint'}->[0]), JSON::to_json($ckt->{'endpoint'}->[1])]);
     
-    #warn Dumper($res);
-
     if(defined($res) && $res->{'success'} == 1){
         log_info("Release connectionId: " . $args->{'connectionId'} . " success!");
         push(@{$self->{'provisioning_queue'}}, {type => OESS::NSI::Constant::RELEASE_SUCCESS, args => $args});

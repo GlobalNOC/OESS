@@ -128,7 +128,7 @@ my $provision = GRNOC::WebService::Method->new(
 $provision->add_input_parameter(
     name        => 'status',
     pattern     => '(reserved|confirmed|provisioned|released|decom)',
-    required    => 1,
+    required    => 0,
     default     => 'active',
     description => 'Status of the Circuit (note mostly used for NSI integration)'
     );
@@ -448,7 +448,6 @@ sub provision {
         circuit => $circuit->to_hash
     );
 
-    warn Dumper($circuit->to_hash);
     return {success => 1, circuit_id => $circuit_id};
 }
 
@@ -498,8 +497,6 @@ sub update {
 
     my $add_endpoints = [];
     my $del_endpoints = [];
-
-    warn Dumper($args->{endpoint}->{value});
 
     foreach my $value (@{$args->{endpoint}->{value}}) {
         my $ep;
