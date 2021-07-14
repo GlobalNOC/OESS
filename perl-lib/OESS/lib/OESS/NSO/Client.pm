@@ -75,14 +75,15 @@ sub create_l2connection {
 
     eval {
         my $res = $self->{www}->post(
-            $self->{config_obj}->nso_host . "/restconf/data/",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/?unhide=oess",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
-        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+        my $err = $self->get_json_errors($result);
+        die $err if defined $err;
     };
     if ($@) {
         my $err = $@;
@@ -103,17 +104,17 @@ sub delete_l2connection {
 
     eval {
         my $res = $self->{www}->delete(
-            $self->{config_obj}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection=$conn_id",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection=$conn_id?unhide=oess",
             'Content-type' => 'application/yang-data+json'
         );
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
-        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+        my $err = $self->get_json_errors($result);
+        die $err if defined $err;
     };
     if ($@) {
         my $err = $@;
-        warn $err;
         return $err;
     }
     return;
@@ -155,14 +156,15 @@ sub edit_l2connection {
 
     eval {
         my $res = $self->{www}->put(
-            $self->{config_obj}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection=$conn_id",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection=$conn_id?unhide=oess",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
-        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+        my $err = $self->get_json_errors($result);
+        die $err if defined $err;
     };
     if ($@) {
         my $err = $@;
@@ -183,20 +185,20 @@ sub get_l2connections {
     my $connections;
     eval {
         my $res = $self->{www}->get(
-            $self->{config_obj}->nso_host . "/restconf/data/oess-l2connection:oess-l2connection",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection/?unhide=oess",
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->content eq '') { # Empty payload indicates success
             $connections = [];
         } else {
             my $result = decode_json($res->content);
-            die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+            my $err = $self->get_json_errors($result);
+            die $err if defined $err;
             $connections = $result->{"oess-l2connection:oess-l2connection"};
         }
     };
     if ($@) {
         my $err = $@;
-        warn $err;
         return (undef, $err);
     }
     return ($connections, undef);
@@ -228,10 +230,33 @@ Response body:
       }
     }
 
+or
+
+    {
+      "ietf-restconf:errors": {
+        "error": [
+            {
+            "error-type": "application",
+            "error-tag": "invalid-value",
+            "error-message": "uri keypath not found"
+          }
+        ]
+      }
+    }
+
 =cut
 sub get_json_errors {
     my $self = shift;
-    my $errs = shift;
+    my $resp = shift;
+
+    my $errs;
+    if (defined $resp->{errors}) {
+        $errs = $resp->{errors};
+    }
+    if (defined $resp->{'ietf-restconf:errors'}) {
+        $errs = $resp->{'ietf-restconf:errors'};
+    }
+    return if !defined $errs;
 
     my $errors = [];
     foreach my $err (@{$errs->{error}}) {
@@ -291,14 +316,15 @@ sub create_l3connection {
 
     eval {
         my $res = $self->{www}->post(
-            $self->{config_obj}->nso_host . "/restconf/data/",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/?unhide=oess",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
-        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+        my $err = $self->get_json_errors($result);
+        die $err if defined $err;
     };
     if ($@) {
         my $err = $@;
@@ -319,17 +345,17 @@ sub delete_l3connection {
 
     eval {
         my $res = $self->{www}->delete(
-            $self->{config_obj}->nso_host . "/restconf/data/oess-l3connection:oess-l3connection=$conn_id",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection=$conn_id?unhide=oess",
             'Content-type' => 'application/yang-data+json'
         );
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
-        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+        my $err = $self->get_json_errors($result);
+        die $err if defined $err;
     };
     if ($@) {
         my $err = $@;
-        warn $err;
         return $err;
     }
     return;
@@ -375,6 +401,7 @@ sub edit_l3connection {
         push(@$eps, $obj);
     }
 
+    my $conn_id = $conn->vrf_id;
     my $payload = {
         "oess-l3connection:oess-l3connection" => [
             {
@@ -386,14 +413,15 @@ sub edit_l3connection {
 
     eval {
         my $res = $self->{www}->put(
-            $self->{config_obj}->nso_host . "/restconf/data/oess-l3connection:oess-l3connection=$conn_id",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection=$conn_id?unhide=oess",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
-        die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+        my $err = $self->get_json_errors($result);
+        die $err if defined $err;
     };
     if ($@) {
         my $err = $@;
@@ -414,20 +442,20 @@ sub get_l3connections {
     my $connections;
     eval {
         my $res = $self->{www}->get(
-            $self->{config_obj}->nso_host . "/restconf/data/oess-l3connection:oess-l3connection",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection/?unhide=oess",
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->content eq '') { # Empty payload indicates success
             $connections = [];
         } else {
             my $result = decode_json($res->content);
-            die $self->get_json_errors($result->{errors}) if (defined $result->{errors});
+            my $err = $self->get_json_errors($result);
+            die $err if defined $err;
             $connections = $result->{"oess-l3connection:oess-l3connection"};
         }
     };
     if ($@) {
         my $err = $@;
-        warn $err;
         return (undef, $err);
     }
     return ($connections, undef);

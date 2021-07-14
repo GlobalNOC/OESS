@@ -43,4 +43,16 @@
     <speed rate="5000" />
     <speed rate="10000" admin_only="1" />
   </interface-selector>
+  <interface-selector min_bandwidth="60000" max_bandwidth="400000" cloud_interconnect_type="azure-express-route">
+    <speed rate="50" />
+    <speed rate="100" />
+    <speed rate="200" />
+    <speed rate="500" />
+    <speed rate="1000" />
+    <speed rate="2000" />
+    <speed rate="5000" />
+    <speed rate="10000" admin_only="1" />
+  </interface-selector>
+
+
 </config>

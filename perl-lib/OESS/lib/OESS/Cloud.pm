@@ -146,6 +146,7 @@ sub setup_endpoints {
                 portal_url        => $config->base_url,
                 vlan              => $ep->tag
             );
+
             $ep->cloud_connection_id($connection_id);
             push @$result, $ep;
 

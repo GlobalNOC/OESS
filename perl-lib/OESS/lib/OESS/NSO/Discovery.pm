@@ -318,7 +318,6 @@ sub start {
     );
     $self->{dispatcher}->register_method($is_online);
 
-    $self->{dispatcher}->start_consuming;
     return 1;
 }
 

@@ -639,4 +639,69 @@ sub has_workgroup_access {
         }
     }
 }
+
+=head2 has_circuit_access
+
+=over
+
+=item db
+    Denotes the database we are checking for access
+
+=item user_id
+    Denotes the user_id of the user whose access we are checking
+
+=item username
+    Denotes the username of the user whose access we are checking
+
+=item circuit_id
+   Denotes the circuit_id of the circuit we checking the users permissions in
+
+=item role
+   Denotes the level of access the user needs for a particular action
+
+=back
+
+    my $results = OESS::DB::User::has_circuit_access(
+                                  db           => $db,
+                                  user_id      => $user_id,
+                                  circuit_id => $circuit_id,
+    
+    
+    has_circuit_access checks if a specified user's role found in the circuit's associated workgroup, and has
+    appropriate access for that workgroup. The workgroup is accessed by getting the circuit with C<circuit_id> 
+    and then uses C<has_workgroup_access> to determine whether the user has access to the circuit.
+=cut
+sub has_circuit_access {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $user_id = $params{'user_id'};
+    my $username = $params{'username'};
+    my $circuit_id = $params{'circuit_id'};
+    my $role = $params{'role'};
+    return (0, "Required argument 'db' is missing.") if !defined $db;
+    return (0, "Required to pass either 'user_id' or 'username'.") if !defined $user_id && !defined $username;
+    return (0, "Required argument 'circuit_id' is missing.") if !defined $circuit_id;
+    return (0, "Required argument 'role' is missing.") if !defined $role;
+    my $user;
+    if (!defined $user_id) {
+        $user = OESS::DB::User::fetch(db => $db, username => $username);
+    } else {
+        $user = OESS::DB::User::fetch(db => $db, user_id => $user_id);
+    }
+    
+    if (!defined $user || $user->{'status'} eq 'decom'){
+        return (0, "Invalid or decommissioned user specified.");
+    }
+
+    my $circuit = OESS::DB::Circuit::fetch_circuit(db => $db, circuit_id => $circuit_id)->[0];
+
+    if (!defined $circuit || $circuit->{'state'} eq 'decom'){ 
+        return (0, "Invalid or decommissioned circuit specified." );
+    }
+
+    $user_id = $user->{'user_id'};
+    my $workgroup_id = $circuit->{'workgroup_id'};
+    return has_workgroup_access(db => $db, user_id => $user_id, workgroup_id => $workgroup_id, role => $role);
+}
+
 1;

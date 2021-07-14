@@ -20,20 +20,28 @@ sub core{
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
     my $config = new OESS::Config(config_filename => $cnf_file);
+    my $mpls_discovery;
+    my $nso_discovery;
+
     if ($config->network_type eq 'nso') {
-        my $discovery = OESS::NSO::Discovery->new(config_obj => $config);
-        $discovery->start;
-        AnyEvent->condvar->recv;
+        my $nso_discovery = OESS::NSO::Discovery->new(config_obj => $config);
+        $nso_discovery->start;
     }
     elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
-        my $discovery = OESS::MPLS::Discovery->new(config_obj => $config);
-        AnyEvent->condvar->recv;
+        $mpls_discovery = OESS::MPLS::Discovery->new(config_obj => $config);
+    }
+    elsif ($config->network_type eq 'nso+vpn-mpls') {
+        $nso_discovery = OESS::NSO::Discovery->new(config_obj => $config);
+        $nso_discovery->start;
+
+        $mpls_discovery = OESS::MPLS::Discovery->new(config_obj => $config);
     }
     else {
         die "Unexpected network type configured.";
     }
 
     Log::Log4perl->get_logger('OESS.MPLS.Discovery.APP')->info("Starting OESS.MPLS.Discovery event loop.");
+    AnyEvent->condvar->recv;
 }
 
 sub main{

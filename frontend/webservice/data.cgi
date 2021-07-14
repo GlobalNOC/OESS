@@ -765,7 +765,13 @@ sub get_circuits_by_interface_id {
 	return;
     }
     else {
-        $results->{'results'} = $circuits;
+        my $circuit;
+        foreach(@{$circuits}){
+            my ($ok, $err) = OESS::DB::User::has_circuit_access(db => $db2, username => $ENV{'REMOTE_USER'}, circuit_id => $_->{'circuit_id'}, role => 'read-only');
+            if($ok){
+		push($results->{'results'}, $_);
+            }
+        }
     }
 
     return $results;
@@ -912,6 +918,11 @@ sub get_circuit_scheduled_events {
     my $results;
 
     my $circuit_id = $args->{'circuit_id'}{'value'};
+    my ($ok, $err) = OESS::DB::User::has_circuit_access(db => $db2, username => $ENV{'REMOTE_USER'}, circuit_id => $circuit_id, role => 'read-only');
+    if(!$ok){
+        $results->{'error'} = $err;
+        return $results;
+    }
 
     my $events = $db->get_circuit_scheduled_events( circuit_id => $circuit_id );
 
@@ -932,6 +943,12 @@ sub get_circuit_history {
     my $results;
 
     my $circuit_id = $args->{'circuit_id'}{'value'};
+    
+    my ($ok, $err) = OESS::DB::User::has_circuit_access(db => $db2, username => $ENV{'REMOTE_USER'}, circuit_id => $circuit_id, role => 'read-only');
+    if(!$ok){
+        $results->{'error'} = $err;
+        return $results;
+    }
 
     my $events = $db->get_circuit_history( circuit_id => $circuit_id );
 
@@ -951,7 +968,12 @@ sub get_circuit_details {
 
     my ( $method, $args ) = @_ ;
     my $circuit_id = $args->{'circuit_id'}{'value'};
-
+       
+    my ($ok, $err) = OESS::DB::User::has_circuit_access(db => $db2, username => $ENV{'REMOTE_USER'}, circuit_id => $circuit_id, role => 'read-only');
+    if(!$ok){
+        $results->{'error'} = $err;
+        return $results;
+    }
     my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
     my $details = $ckt->get_details();
 
@@ -980,8 +1002,14 @@ sub get_circuit_details_by_external_identifier {
 	$method->set_error( $db->get_error() );
         return;
     }
+    my $circuit_id = $info->{'circuit_id'};
+    my ($ok, $err) = OESS::DB::User::has_circuit_access(db => $db2, username => $ENV{'REMOTE_USER'}, circuit_id => $circuit_id, role => 'read-only');
+    if(!$ok){
+        $results->{'error'} = $err;
+        return $results;
+    }
 
-    my $ckt = OESS::Circuit->new( circuit_id => $info->{'circuit_id'}, db => $db);
+    my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
     my $details = $ckt->get_details();
 
     if ( !defined $details ) {
@@ -1191,9 +1219,13 @@ sub generate_clr {
     my $results;
 
     my $circuit_id = $args->{'circuit_id'}{'value'};
-
     if ( !defined($circuit_id) ) {
 	$method->set_error( "No Circuit ID Specified" );
+    }
+    my ($ok, $err) = OESS::DB::User::has_circuit_access(db => $db2, username => $ENV{'REMOTE_USER'}, circuit_id => $circuit_id, role => 'read-only');
+    if(!$ok){
+        $results->{'error'} = $err;
+        return $results;
     }
 
     my $ckt = OESS::Circuit->new( circuit_id => $circuit_id, db => $db);
