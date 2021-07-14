@@ -24,20 +24,16 @@ sub new{
     my $that  = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS.Interface");
-
     my %args = (
         db           => undef,
         interface_id => undef,
+        logger       => Log::Log4perl->get_logger("OESS.Interface"),
         model        => undef,
         @_
     );
 
     my $self = \%args;
     bless $self, $class;
-
-    $self->{'logger'} = $logger;
-
 
     if (!defined $self->{'db'}) {
         $self->{'logger'}->warn("No Database Object specified");
@@ -67,6 +63,7 @@ sub from_hash{
 
     $self->{'name'} = $hash->{'name'};
     $self->{'interface_id'} = $hash->{'interface_id'};
+    $self->{'node_id'} = $hash->{'node_id'};
     $self->{'node'} = $hash->{'node'};
     $self->{'cloud_interconnect_id'} = $hash->{'cloud_interconnect_id'};
     $self->{'cloud_interconnect_type'} = $hash->{'cloud_interconnect_type'};
@@ -79,6 +76,7 @@ sub from_hash{
     $self->{'workgroup_id'} = $hash->{'workgroup_id'};
     $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
     $self->{'bandwidth'} = $hash->{'bandwidth'} || 0;
+    $self->{'provisionable_bandwidth'} = $hash->{'provisionable_bandwidth'};
     $self->{'mtu'} = $hash->{'mtu'} || 0;
 
     return 1;
@@ -90,26 +88,33 @@ sub from_hash{
 sub to_hash{
     my $self = shift;
 
-    my $acl_models = [];
-    foreach my $acl (@{$self->acls()}) {
-        push @$acl_models, $acl->to_hash();
+    my $res = {
+        name => $self->name(),
+        cloud_interconnect_id => $self->cloud_interconnect_id(),
+        cloud_interconnect_type => $self->cloud_interconnect_type(),
+        description => $self->description(),
+        interface_id => $self->interface_id(),
+        node_id => $self->{node_id},
+        admin_state => $self->{'admin_state'},
+        operational_state => $self->{'operational_state'},
+        workgroup_id => $self->workgroup_id(),
+        utilized_bandwidth => $self->{'utilized_bandwidth'},
+        bandwidth => $self->{'bandwidth'},
+        provisionable_bandwidth => $self->{'provisionable_bandwidth'},
+        mtu => $self->{'mtu'}
+    };
+
+    if (defined $self->{acls}) {
+        my $acl_models = [];
+        foreach my $acl (@{$self->{acls}}) {
+            push @$acl_models, $acl->to_hash;
+        }
+        $res->{acls} = $acl_models;
     }
-
-    my $res = { name => $self->name(),
-                cloud_interconnect_id => $self->cloud_interconnect_id(),
-                cloud_interconnect_type => $self->cloud_interconnect_type(),
-                description => $self->description(),
-                interface_id => $self->interface_id(),
-                node_id => $self->node()->node_id(),
-                node => $self->node()->name(),
-                acls => $acl_models,
-                admin_state => $self->{'admin_state'},
-                operational_state => $self->{'operational_state'},
-                workgroup_id => $self->workgroup_id(),
-                utilized_bandwidth => $self->{'utilized_bandwidth'},
-                bandwidth => $self->{'bandwidth'},
-                mtu => $self->{'mtu'} };
-
+    if (defined $self->{node}) {
+        $res->{node} = $self->node()->name();
+        $res->{node_id} = $self->node()->node_id();
+    }
     return $res;
 }
 
@@ -123,6 +128,7 @@ sub _fetch_from_db{
         if (defined $self->{'name'} && defined $self->{'node'}) {
             my $interface_id = OESS::DB::Interface::get_interface(db => $self->{'db'}, interface => $self->{'name'}, node => $self->{'node'});
             if (!defined $interface_id) {
+                warn "Unable to fetch interface $self->{name} on $self->{node} from the db!";
                 $self->{'logger'}->error("Unable to fetch interface $self->{name} on $self->{node} from the db!");
                 return;
             }
@@ -140,6 +146,38 @@ sub _fetch_from_db{
     }
 
     return $self->from_hash($info);
+}
+
+=head2 create
+
+=cut
+sub create {
+    my $self = shift;
+    my $args = {
+        node_id => undef,
+        @_
+    };
+
+    if (!defined $self->{db}) {
+        $self->{logger}->error("Couldn't create Interface; DB handle is missing.");
+        return (undef, "Couldn't create Interface; DB handle is missing.");
+    }
+    if (!defined $args->{node_id}) {
+        $self->{logger}->error("Couldn't create Interface; node_id is missing.");
+        return (undef, "Couldn't create Interface; node_id is missing.");
+    }
+
+    my $model = $self->to_hash;
+    $model->{node_id} = $args->{node_id};
+
+    my ($id, $err) = OESS::DB::Interface::create(
+        db => $self->{db},
+        model => $model
+    );
+    return (undef, $err) if defined $err;
+
+    $self->{interface_id} = $id;
+    return ($id, undef);
 }
 
 =head2 update_db
@@ -203,10 +241,20 @@ sub bandwidth{
     }
 
     if($self->{'cloud_interconnect_type'} eq 'azure-express-route'){
-	return $self->{'bandwidth'} * 4;
+        return $self->{'bandwidth'} * 4;
     }else{
-	return $self->{'bandwidth'};
+        return $self->{'bandwidth'};
     }
+}
+
+=head2 provisionable_bandwidth
+
+=cut
+sub provisionable_bandwidth{
+    my $self = shift;
+    my $provisionable_bandwidth = shift;
+
+    return $self->{provisionable_bandwidth};
 }
 
 =head2 mtu
@@ -259,7 +307,12 @@ sub cloud_interconnect_type{
 =cut
 sub description{
     my $self = shift;
-    return $self->{'description'};
+    my $description = shift;
+
+    if (defined $description) {
+        $self->{description} = $description;
+    }
+    return $self->{description};
 }
 
 =head2 port_number

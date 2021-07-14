@@ -1,4 +1,5 @@
-<config snapp_config_location="t/conf/SNMP/snapp/snapp_config.xml" host="127.0.0.1" port="3306" admin_email="foo@bar.com">
+<config snapp_config_location="t/conf/SNMP/snapp/snapp_config.xml" host="127.0.0.1" port="3306" admin_email="foo@bar.com" network_type="vpn-mpls">
+  <nso username="NSO_USERNAME" password="NSO_PASSWORD" host="NSO_HOST" />
   <rabbitMQ host="localhost" port="5672" user="guest" pass="guest"/>
   <credentials username="root" password="test" database="oess_test"/>
   <oscars host="https://nddi-dev.bldc.net.internet2.edu" cert="mycert.crt" key="mykey.key" topo="http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology"/>

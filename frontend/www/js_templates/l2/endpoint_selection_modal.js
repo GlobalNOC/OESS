@@ -3,6 +3,7 @@ class EndpointSelectionModal2 {
     let template = document.querySelector('#endpoint-selection-modal2');
     this.element = document.importNode(template.content, true);
 
+    this.endpoint = null;
     this.searchTimeout = null;
 
     this.parent = document.querySelector(query);
@@ -10,6 +11,8 @@ class EndpointSelectionModal2 {
   }
 
   display(endpoint) {
+    this.endpoint = endpoint;
+
     if (endpoint !== undefined && endpoint !== null && endpoint.interface === 'TBD') {
       this.populateEntityForm(endpoint);
     } else {
@@ -174,23 +177,24 @@ class EndpointSelectionModal2 {
         interconnectType = null;
       }
 
-      let endpoint = {
-        index:            index,
-        bandwidth:        this.parent.querySelector('.endpoint-bandwidth').value,
-        interface:        interfaceSelector.options[interfaceSelector.selectedIndex].dataset.name,
-        interface_id:     interfaceSelector.options[interfaceSelector.selectedIndex].value,
-        description:      interfaceSelector.options[interfaceSelector.selectedIndex].dataset.description,
-        node:             interfaceSelector.options[interfaceSelector.selectedIndex].dataset.node,
-        entity:           null, // entity,
-        entity_id:        null, // entity_id,
-        peerings:         [],
-        cloud_account_id: '',
-        tag:              vlanSelector.options[vlanSelector.selectedIndex].value,
-        jumbo:            this.parent.querySelector('.endpoint-jumbo-frames').checked,
-        cloud_interconnect_type: interconnectType
-      };
+      if (this.endpoint === null) {
+        this.endpoint = { index: index };
+      }
+      this.endpoint.bandwidth = this.parent.querySelector('.endpoint-bandwidth').value;
+      this.endpoint.name = interfaceSelector.options[interfaceSelector.selectedIndex].dataset.name;
+      this.endpoint.interface = interfaceSelector.options[interfaceSelector.selectedIndex].dataset.name;
+      this.endpoint.interface_id = interfaceSelector.options[interfaceSelector.selectedIndex].value;
+      this.endpoint.description = interfaceSelector.options[interfaceSelector.selectedIndex].dataset.description;
+      this.endpoint.node = interfaceSelector.options[interfaceSelector.selectedIndex].dataset.node;
+      this.endpoint.entity = null;
+      this.endpoint.entity_id = null;
+      this.endpoint.peerings = [];
+      this.endpoint.cloud_account_id = '';
+      this.endpoint.tag = vlanSelector.options[vlanSelector.selectedIndex].value;
+      this.endpoint.jumbo = this.parent.querySelector('.endpoint-jumbo-frames').checked;
+      this.endpoint.cloud_interconnect_type = interconnectType;
 
-      state.updateEndpoint(endpoint);
+      state.updateEndpoint(this.endpoint);
       $('#add-endpoint-modal2').modal('hide');
     }.bind(this);
 

@@ -130,12 +130,11 @@ class GlobalState extends Component {
 
     let addNetworkLoadingModal = $('#add-connection-loading');
     addNetworkLoadingModal.modal('show');
-
     try {
       let vrfID = await provisionVRF(
         session.data.workgroup_id,
         this.connection.name,
-        this.connection.description,
+        document.querySelector('#header-description').textContent,
         this.connection.endpoints,
         -1,
         -1,
@@ -189,7 +188,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       description: state.connection.description,
       editable: editable
     });
-
+    addEditNameEvents(state.connection.description);
   });
 
   let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
@@ -201,7 +200,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   map.on("loaded", function(){
     this.updateMapFromSession(session);
   });
-
 });
 
 async function update() {

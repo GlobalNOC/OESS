@@ -54,10 +54,9 @@ class GlobalState extends Component {
     let provisionModal = $('#modify-loading');
     provisionModal.find('p').text("Give us a few seconds. We're modifying your connection now.");
     provisionModal.modal('show');
-
     provisionCircuit(
       session.data.workgroup_id,
-      this.circuit.description,
+      document.querySelector('#header-description').textContent,
       this.circuit.endpoints,
       this.circuit.provision_time,
       this.circuit.remove_time,
@@ -147,6 +146,8 @@ async function update(props) {
     let elem = NewEndpoint(e);
     list.appendChild(elem);
   });
+
+  addEditNameEvents(state.circuit.description);
 }
 
 document.addEventListener('DOMContentLoaded', async function() {

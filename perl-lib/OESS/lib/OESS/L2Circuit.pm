@@ -517,32 +517,33 @@ sub _process_circuit_details{
     $self->{'has_tertiary_path'} = (defined $hash->{'tertiary_links'} && @{$hash->{'tertiary_links'}} > 0) ? 1 : 0;
 
     # TODO Load endpoints
-
-    foreach my $endpoint (@{$hash->{'endpoints'}}){
-        if (!defined $self->{endpoints}) {
-            $self->{endpoints} = [];
+    if (defined $hash->{endpoints}) {
+        $self->{endpoints} = [];
+        foreach my $ep (@{$hash->{endpoints}}) {
+            push(@{$self->{endpoints}}, new OESS::Endpoint(db => $self->{db}, model => $ep));
         }
-
-        if ($endpoint->{'local'} == 0) {
-            $self->{'interdomain'} = 1;
-        }
-
-        my $entity = OESS::Entity->new(
-            db => $self->{'db'},
-            interface_id => $endpoint->{'interface_id'},
-            vlan => $endpoint->{'tag'}
-        );
-        if (!defined $entity) {
-            next;
-        }
-
-        push @{$self->{endpoints}}, $entity;
-        # $endpoint->{'entity'} = $entity->to_hash();
     }
 
-    # warn Dumper($self);
-    # if (!$self->{'just_display'}) {
-    #     $self->_create_graph();
+    # foreach my $endpoint (@{$hash->{'endpoints'}}){
+    #     if (!defined $self->{endpoints}) {
+    #         $self->{endpoints} = [];
+    #     }
+
+    #     if ($endpoint->{'local'} == 0) {
+    #         $self->{'interdomain'} = 1;
+    #     }
+
+    #     my $entity = OESS::Entity->new(
+    #         db => $self->{'db'},
+    #         interface_id => $endpoint->{'interface_id'},
+    #         vlan => $endpoint->{'tag'}
+    #     );
+    #     if (!defined $entity) {
+    #         next;
+    #     }
+
+    #     push @{$self->{endpoints}}, $entity;
+    #     # $endpoint->{'entity'} = $entity->to_hash();
     # }
 }
 
@@ -1005,6 +1006,15 @@ sub error{
 sub load_endpoints {
     my $self = shift;
 
+    if (!defined $self->{db}) {
+        $self->{'logger'}->warn('Optional argument `db` is missing. Cannot load Endpoints.');
+        return 1;
+    }
+    if (!defined $self->{circuit_id}) {
+        $self->{'logger'}->warn('Optional argument `circuit_id` is missing. Cannot load Endpoints.');
+        return 1;
+    }
+
     my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
         db => $self->{db},
         circuit_id => $self->{circuit_id}
@@ -1182,6 +1192,110 @@ sub remove {
         reason => $args->{reason}
     );
     return $err;
+}
+
+=head2 nso_diff
+
+Given an NSO Connection object: Return a hash of device-name to
+human-readable-diff containing the difference between this L2Circuit
+and the provided NSO Connection object.
+
+NSO L2Connection:
+
+    {
+        'connection_id' => 3000,
+        'endpoint' => [
+            {
+                'bandwidth' => 0,
+                'endpoint_id' => 1,
+                'interface' => 'GigabitEthernet0/0',
+                'tag' => 1,
+                'device' => 'xr0'
+            },
+            {
+                'bandwidth' => 0,
+                'endpoint_id' => 2,
+                'interface' => 'GigabitEthernet0/1',
+                'tag' => 1,
+                'device' => 'xr0'
+            }
+        ]
+    }
+
+=cut
+sub nso_diff {
+    my $self = shift;
+    my $nsoc = shift; # NSOConnection
+
+    my $diff = {};
+    my $ep_index = {};
+
+    # Handle case where connection has no endpoints or a connection
+    # created with an empty model.
+    my $endpoints = $self->endpoints || [];
+
+    foreach my $ep (@{$endpoints}) {
+        if (!defined $ep_index->{$ep->node}) {
+            $diff->{$ep->node} = "";
+            $ep_index->{$ep->node} = {};
+        }
+        $ep_index->{$ep->node}->{$ep->interface} = $ep;
+    }
+
+    foreach my $ep (@{$nsoc->{endpoint}}) {
+        if (!defined $ep_index->{$ep->{device}}->{$ep->{interface}}) {
+            $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
+            $diff->{$ep->{device}} .= "- $ep->{interface}\n";
+            $diff->{$ep->{device}} .= "-   Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->{device}} .= "-   Tag:       $ep->{tag}\n";
+            $diff->{$ep->{device}} .= "-   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+            next;
+        }
+        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{interface}};
+
+        # Compare endpoints
+        my $ok = 1;
+        $ok = 0 if $ep->{bandwidth} != $ref_ep->bandwidth;
+        $ok = 0 if $ep->{tag} != $ref_ep->tag;
+        $ok = 0 if $ep->{inner_tag} != $ref_ep->inner_tag;
+        if (!$ok) {
+            $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
+            $diff->{$ep->{device}} .= "  $ep->{interface}\n";
+        }
+
+        if ($ep->{bandwidth} != $ref_ep->bandwidth) {
+            $diff->{$ep->{device}} .= "-   Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->{device}} .= "+   Bandwidth: $ref_ep->{bandwidth}\n";
+        }
+        if ($ep->{tag} != $ref_ep->tag) {
+            $diff->{$ep->{device}} .= "-   Tag:       $ep->{tag}\n";
+            $diff->{$ep->{device}} .= "+   Tag:       $ref_ep->{tag}\n";
+        }
+        if ($ep->{inner_tag} != $ref_ep->inner_tag) {
+            $diff->{$ep->{device}} .= "-   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+            $diff->{$ep->{device}} .= "+   Inner Tag: $ref_ep->{inner_tag}\n" if defined $ref_ep->{inner_tag};
+        }
+
+        delete $ep_index->{$ep->{device}}->{$ep->{interface}};
+    }
+
+    foreach my $device_key (keys %{$ep_index}) {
+        foreach my $ep_key (keys %{$ep_index->{$device_key}}) {
+            my $ep = $ep_index->{$device_key}->{$ep_key};
+            $diff->{$ep->node} = "" if !defined $diff->{$ep->node};
+
+            $diff->{$ep->node} .= "+ $ep->{interface}\n";
+            $diff->{$ep->node} .= "+   Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->node} .= "+   Tag:       $ep->{tag}\n";
+            $diff->{$ep->node} .= "+   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+        }
+    }
+
+    foreach my $key (keys %$diff) {
+        delete $diff->{$key} if ($diff->{$key} eq '');
+    }
+
+    return $diff;
 }
 
 1;

@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.11
+Version 2.0.12
 
 =cut
 
-our $VERSION = '2.0.11';
+our $VERSION = '2.0.12';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.11';
+use constant VERSION => '2.0.12';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -1122,9 +1122,9 @@ sub get_current_nodes{
     my $type = $args{'type'};
 
     if ($type eq 'mpls') {
-	$nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.mpls = 1 order by node.name",[]);
+	$nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.controller = 'netconf' order by node.name",[]);
     } elsif ($type eq 'openflow') {
-        $nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.openflow = 1 order by node.name",[]);
+        $nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' and node_instantiation.controller = 'openflow' order by node.name",[]);
     } else {
         $nodes = $self->_execute_query("select node.*, node_instantiation.* from node,node_instantiation where node.node_id = node_instantiation.node_id and node_instantiation.end_epoch = -1 and node_instantiation.admin_state != 'decom' order by node.name",[]);
     }
@@ -1486,6 +1486,7 @@ sub get_map_layers {
     node.name as node_name,
     node.node_id,
     node.short_name,
+    node_instantiation.controller,
     node_instantiation.openflow,
     node_instantiation.mpls,
     node_instantiation.vendor,
@@ -1555,12 +1556,13 @@ HERE
 							       "node_id"      => $row->{'node_id'},
 							       "openflow"     => $row->{'openflow'},
 							       "mpls"         => $row->{'mpls'},
-                                                               "short_name"   => $row->{'short_name'},
-                                                               "vendor"       => $row->{'vendor'},
-                                                               "model"        => $row->{'model'},
-                                                               "sw_version"   => $row->{'sw_version'},
-                                                               "mgmt_addr"    => $row->{'mgmt_addr'},
-                                                               "tcp_port"     => $row->{'tcp_port'},
+                                    "short_name"   => $row->{'short_name'},
+                                    "controller"   => $row->{'controller'},
+                                    "vendor"       => $row->{'vendor'},
+                                    "model"        => $row->{'model'},
+                                    "sw_version"   => $row->{'sw_version'},
+                                    "mgmt_addr"    => $row->{'mgmt_addr'},
+                                    "tcp_port"     => $row->{'tcp_port'},
 							       "vlan_range"   => $row->{'vlan_tag_range'},
 							       "default_drop" => $row->{'default_drop'},
 							       "default_forward" => $row->{'default_forward'},
@@ -7983,6 +7985,7 @@ sub get_node_by_interface_id {
                                    lat => $lat,
                                    long => $long,
                                    port => $port,
+                                   controller => $controller,
                                    vendor => $vendor,
                                    model => $model,
                                    sw_ver => $sw_ver);
@@ -7993,13 +7996,9 @@ sub add_mpls_node{
     my $self = shift;
     my %args = @_;
 
-    #TODO: PARAM CHECKS
-
-    warn Data::Dumper::Dumper(%args);
-
     $self->_start_transaction();
 
-    my $query = "insert into node (name, short_name, latitude, longitude, operational_state_mpls,network_id) VALUES (?,?,?,?,?,?)";
+    my $query = "insert into node (name, short_name, latitude, longitude, operational_state_mpls, network_id) VALUES (?,?,?,?,?,?)";
     my $res = $self->_execute_query($query, [$args{'name'},$args{'short_name'},$args{'lat'},$args{'long'},'unknown',1]);
 
     warn "New Node: " . Data::Dumper::Dumper($res);
@@ -8014,6 +8013,7 @@ sub add_mpls_node{
 					openflow => 0,
 					mpls => 1,
 					admin_state => 'active',
+					controller => $args{'controller'} || 'netconf',
 					vendor => $args{'vendor'},
 					model => $args{'model'},
 					sw_version => $args{'sw_ver'},
@@ -8131,16 +8131,14 @@ sub create_node_instance{
         $args{'dpid'} = unpack('N', $data);
     }
 
-    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
+    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,controller,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'controller'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
 
     if(!defined($res)){
 	$self->_set_error("Unable to create new node instantiation");
 	return;
     }
 
-
     return 1;
-
 }
 
 =head2 update_node_operational_state

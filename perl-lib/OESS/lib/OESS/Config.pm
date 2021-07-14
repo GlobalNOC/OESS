@@ -82,6 +82,14 @@ sub db_credentials {
             password => $password};
 }
 
+=head2 filename
+
+=cut
+sub filename {
+    my $self = shift;
+    return $self->{config_filename};
+}
+
 =head2 fwdctl_enabled
 
 =cut
@@ -138,7 +146,7 @@ sub network_type {
     }
 
     my $type = $self->{'config'}->{'network_type'};
-    my $valid_types = ['openflow', 'vpn-mpls', 'evpn-vxlan'];
+    my $valid_types = ['openflow', 'vpn-mpls', 'evpn-vxlan', 'nso', 'nso+vpn-mpls'];
     foreach my $valid_type (@$valid_types) {
         if ($type eq $valid_type) {
             return $type;
@@ -234,6 +242,33 @@ sub third_party_mgmt {
     my $self = shift;
     return 'n' if (!defined $self->{'config'}->{'third_party_mgmt'});
     return $self->{'config'}->{'third_party_mgmt'};
+}
+
+=head2 nso_host
+
+=cut
+sub nso_host {
+    my $self = shift;
+    return if (!defined $self->{config}->{nso});
+    return $self->{config}->{nso}->{host};
+}
+
+=head2 nso_password
+
+=cut
+sub nso_password {
+    my $self = shift;
+    return if (!defined $self->{config}->{nso});
+    return $self->{config}->{nso}->{password};
+}
+
+=head2 nso_username
+
+=cut
+sub nso_username {
+    my $self = shift;
+    return if (!defined $self->{config}->{nso});
+    return $self->{config}->{nso}->{username};
 }
 
 1;
