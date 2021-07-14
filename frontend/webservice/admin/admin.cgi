@@ -35,6 +35,7 @@ use Log::Log4perl;
 
 use GRNOC::WebService;
 
+use OESS::Config;
 use OESS::Database;
 use OESS::DB;
 use OESS::DB::ACL;
@@ -61,6 +62,7 @@ use constant PENDING_DIFF_ERROR => 2;
 
 Log::Log4perl::init('/etc/oess/logging.conf');
 
+my $config = new OESS::Config();
 my $db = new OESS::Database();
 my $db2 = new OESS::DB();
 
@@ -1815,35 +1817,68 @@ sub update_cache {
 
     use OESS::RabbitMQ::Client;
 
-    my $mq = OESS::RabbitMQ::Client->new(
-        topic    => 'MPLS.FWDCTL.RPC',
-        timeout  => 60
-    );
-    if (!defined $mq) {
-        $method->set_error("Couldn't create RabbitMQ client.");
-        return;
-    }
+    my $status = 0;
 
-    my $cv = AnyEvent->condvar;
-    $mq->update_cache(
-        node_id        => $node_id,
-        async_callback => sub {
-            my $resultM = shift;
-            $cv->send($resultM);
+    if ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'nso+vpn-mpls') {
+        my $mq = OESS::RabbitMQ::Client->new(
+            topic    => 'MPLS.FWDCTL.RPC',
+            timeout  => 60
+        );
+        if (!defined $mq) {
+            $method->set_error("Couldn't create RabbitMQ client.");
+            return;
         }
-    );
 
-    my $resultC = $cv->recv();
-    if (!defined $resultC) {
-        $method->set_error("Error while calling `update_cache` via RabbitMQ.");
-        return;
-    }
-    if (defined $resultC->{'error'}) {
-        $method->set_error("Error while calling `update_cache`: $resultC->{error}");
-        return;
+        my $cv = AnyEvent->condvar;
+        $mq->update_cache(
+            node_id        => $node_id,
+            async_callback => sub {
+                my $resultM = shift;
+                $cv->send($resultM);
+            }
+        );
+        my $resultC = $cv->recv();
+        if (!defined $resultC) {
+            $method->set_error("Error while calling `update_cache` via RabbitMQ.");
+            return;
+        }
+        if (defined $resultC->{'error'}) {
+            $method->set_error("Error while calling `update_cache`: $resultC->{error}");
+            return;
+        }
+        $status = $resultC->{results}->{status};
     }
 
-    my $status = $resultC->{results}->{status};
+    if ($config->network_type eq 'nso' || $config->network_type eq 'nso+vpn-mpls') {
+        my $mq = OESS::RabbitMQ::Client->new(
+            topic    => 'NSO.FWDCTL.RPC',
+            timeout  => 60
+        );
+        if (!defined $mq) {
+            $method->set_error("Couldn't create RabbitMQ client.");
+            return;
+        }
+
+        my $cv = AnyEvent->condvar;
+        $mq->update_cache(
+            node_id        => $node_id,
+            async_callback => sub {
+                my $resultM = shift;
+                $cv->send($resultM);
+            }
+        );
+        my $resultC = $cv->recv();
+        if (!defined $resultC) {
+            $method->set_error("Error while calling `update_cache` via RabbitMQ.");
+            return;
+        }
+        if (defined $resultC->{'error'}) {
+            $method->set_error("Error while calling `update_cache`: $resultC->{error}");
+            return;
+        }
+        $status = $resultC->{results}->{status};
+    }
+
     return { results => [ { status => $status } ] };
 }
 

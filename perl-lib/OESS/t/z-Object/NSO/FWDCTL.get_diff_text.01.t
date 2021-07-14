@@ -35,6 +35,12 @@ my $cache = new OESS::NSO::ConnectionCache();
 my $db = new OESS::DB(config  => "$path/../../conf/database.xml");
 my $nso = new OESS::NSO::ClientStub();
 
+
+# OESS::NSO::FWDCTL::get_diff_text works by fetching nodes with
+# controller of 'nso'.
+$db->execute_query("update node_instantiation set controller='nso'", []);
+
+
 my $fwdctl = new OESS::NSO::FWDCTL(
     config_filename => "$path/../../conf/database.xml",
     connection_cache => $cache,

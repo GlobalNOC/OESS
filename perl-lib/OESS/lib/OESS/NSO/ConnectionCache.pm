@@ -35,6 +35,20 @@ sub new {
     return $self;
 }
 
+=head2 clear
+
+=cut
+sub clear {
+    my $self = shift;
+
+    $self->{cache}         = {};
+    $self->{l3_cache}      = {};
+    $self->{flat_cache}    = {};
+    $self->{l3_flat_cache} = {};
+
+    return 1;
+}
+
 =head2 get_included_nodes
 
 =cut

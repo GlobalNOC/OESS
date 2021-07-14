@@ -219,7 +219,7 @@ sub build_cache{
     my $nodes = $db->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
         my $details = $db->get_node_by_id(node_id => $node->{'node_id'});
-        next if(!$details->{'mpls'});
+        next if ($details->{'controller'} ne 'netconf');
 
         # TODO In addition to the previously removed unnecessary
         # mappings. Remove this mapping.
@@ -697,7 +697,8 @@ sub update_cache {
     if (defined $conn) {
         # Targeted Cache Update
         foreach my $ep (@{$conn->endpoints}) {
-            my $addr = $self->{node_by_id}->{$ep->node_id}->{mgmt_addr};
+          my $addr = $self->{node_by_id}->{$ep->node_id}->{mgmt_addr};
+          next if !$addr;
 
             $condvar->begin;
             $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$addr";

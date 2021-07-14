@@ -21,6 +21,7 @@ use OESS::DB::User;
 use OESS::Entity;
 use OESS::L2Circuit;
 use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_connection);
 use OESS::User;
 use OESS::VRF;
 
@@ -431,17 +432,20 @@ sub provision {
     #return {error => 1, error_text => 'lulz'};
     $db->commit;
 
-    _send_update_cache($circuit->circuit_id);
-    _send_add_command($circuit->circuit_id);
+    # Ensure that endpoints' controller info loaded
+    $circuit->load_endpoints;
+    my $conn = $circuit->to_hash;
+
+    _send_update_cache($conn);
+    _send_add_command($conn);
     _send_event(
         status  => 'up',
         reason  => 'provisioned',
         type    => 'provisioned',
-        circuit => $circuit->to_hash
+        circuit => $conn
     );
 
-    warn Dumper($circuit->to_hash);
-    return {success => 1, circuit_id => $circuit_id};
+    return { success => 1, circuit_id => $conn->{circuit_id} };
 }
 
 
@@ -669,17 +673,41 @@ sub update {
         }
     }
 
-    $db->commit;
+    # Ensure that endpoints' controller info loaded. Required to
+    # choose correct topic.
+    $circuit->load_endpoints;
     my $pending = $circuit->to_hash;
 
-    _send_update_cache($circuit->circuit_id);
-    _send_modify_command($circuit->circuit_id, $previous, $pending);
+    my ($pending_topic, $t0_err) = fwdctl_topic_for_connection($pending);
+    my ($prev_topic, $t1_err) = fwdctl_topic_for_connection($previous);
+
+    # No connection may be provisioned using multiple controllers.
+    if (defined $t0_err || defined $t1_err) {
+        $method->set_error("$t0_err $t1_err");
+        return;
+    }
+
+    # In the case where a connection is moved between controllers, we
+    # want the cache for both controllers updated.
+    if ($pending_topic ne $prev_topic) {
+        _send_remove_command($previous);
+        $db->commit;
+        _send_update_cache($previous);
+
+        _send_update_cache($pending);
+        _send_add_command($pending);
+    } else {
+        $db->commit;
+
+        _send_update_cache($pending);
+        _send_modify_command($circuit->circuit_id, $previous, $pending);
+    }
 
     _send_event(
         status  => 'up',
         reason  => 'edited',
         type    => 'modified',
-        circuit => $circuit->to_hash
+        circuit => $pending
     );
 
     return { success => 1, circuit_id => $circuit->circuit_id };
@@ -749,6 +777,8 @@ sub remove {
     $circuit->load_endpoints;
     $circuit->load_paths;
 
+    my $previous = $circuit->to_hash;
+
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
             OESS::Cloud::cleanup_endpoints($circuit->endpoints);
@@ -783,13 +813,11 @@ sub remove {
         return;
     }
 
-    _send_remove_command($args->{circuit_id}->{value});
-
-    # Put rollback in place for quick tests
+    _send_remove_command($previous);
+    # Move post _send_remove_commands and add rollback for quick tests
     # $db->rollback;
     $db->commit;
-    _send_update_cache($args->{circuit_id}->{value});
-
+    _send_update_cache($previous);
     _send_event(
         status  => 'removed',
         reason  => "removed by $ENV{REMOTE_USER}",
@@ -801,33 +829,35 @@ sub remove {
 }
 
 sub _send_add_command {
-    my $circuit_id = shift;
-
-    my $result = undef;
-    my $err    = undef;
+    my $conn = shift;
 
     if (!defined $mq) {
         return (undef, "Couldn't create RabbitMQ Client.");
     }
-    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+    my ($topic, $err) = fwdctl_topic_for_connection($conn);
+    if (defined $err) {
+        warn $err;
+        return (undef, $err);
+    }
+    $mq->{'topic'} = $topic;
 
     my $cv = AnyEvent->condvar;
     $mq->addVlan(
-        circuit_id        => int($circuit_id),
+        circuit_id     => int($conn->{circuit_id}),
         async_callback => sub {
             my $result = shift;
             $cv->send($result);
         }
     );
-    $result = $cv->recv();
+    my $result = $cv->recv();
 
     if (!defined $result) {
-        return ($result, "Error occurred while calling addVlan: Couldn't connect to RabbitMQ.");
+        return ($result, "Error occurred while calling $topic.addVlan: Couldn't connect to RabbitMQ.");
     }
     if (defined $result->{error}) {
-        return ($result, "Error occured while calling addVlan: $result->{error}");
+        return ($result, "Error occured while calling $topic.addVlan: $result->{error}");
     }
-    return ($result->{results}->{status}, $err);
+    return ($result->{results}->{status}, undef);
 }
 
 sub _send_modify_command {
@@ -835,17 +865,22 @@ sub _send_modify_command {
     my $previous   = shift;
     my $pending    = shift;
 
-    my $result = undef;
-    my $err    = undef;
-
     if (!defined $mq) {
         return (undef, "Couldn't create RabbitMQ Client.");
     }
-    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+
+    # IMPORTANT: It's assumed that $previous and $pending was/is
+    # managed by the same controller!!!
+    my ($topic, $err) = fwdctl_topic_for_connection($pending);
+    if (defined $err) {
+        warn $err;
+        return (undef, $err);
+    }
+    $mq->{'topic'} = $topic;
 
     my $cv = AnyEvent->condvar;
     $mq->modifyVlan(
-        circuit_id => int($circuit_id),
+        circuit_id => int($pending->{circuit_id}),
         previous   => encode_json($previous),
         pending    => encode_json($pending),
         async_callback => sub {
@@ -853,75 +888,81 @@ sub _send_modify_command {
             $cv->send($result);
         }
     );
-    $result = $cv->recv();
+    my $result = $cv->recv();
 
     if (!defined $result) {
-        return ($result, "Error occurred while calling modifyVlan: Couldn't connect to RabbitMQ.");
+        return ($result, "Error occurred while calling $topic.modifyVlan: Couldn't connect to RabbitMQ.");
     }
     if (defined $result->{error}) {
-        return ($result, "Error occured while calling modifyVlan: $result->{error}");
+        return ($result, "Error occured while calling $topic.modifyVlan: $result->{error}");
     }
-    return ($result->{results}->{status}, $err);
+    return ($result->{results}->{status}, undef);
 }
 
 sub _send_remove_command {
-    my $circuit_id = shift;
-
-    my $result = undef;
-    my $err    = undef;
+    my $conn = shift;
 
     if (!defined $mq) {
         return (undef, "Couldn't create RabbitMQ Client.");
     }
-    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+
+    my ($topic, $err) = fwdctl_topic_for_connection($conn);
+    if (defined $err) {
+        warn $err;
+        return (undef, $err);
+    }
+    $mq->{'topic'} = $topic;
 
     my $cv = AnyEvent->condvar;
     $mq->deleteVlan(
-        circuit_id     => int($circuit_id),
+        circuit_id     => int($conn->{circuit_id}),
         async_callback => sub {
             my $result = shift;
             $cv->send($result);
         }
     );
-    $result = $cv->recv();
+    my $result = $cv->recv();
 
     if (!defined $result) {
-        return ($result, "Error occurred while calling deleteVlan: Couldn't connect to RabbitMQ.");
+        return ($result, "Error occurred while calling $topic.deleteVlan: Couldn't connect to RabbitMQ.");
     }
     if (defined $result->{error}) {
-        return ($result, "Error occured while calling deleteVlan: $result->{error}");
+        return ($result, "Error occured while calling $topic.deleteVlan: $result->{error}");
     }
-    return ($result->{results}->{status}, $err);
+    return ($result->{results}->{status}, undef);
 }
 
 sub _send_update_cache {
-    my $circuit_id = shift || -1;
-
-    my $result = undef;
-    my $err    = undef;
+    my $conn = shift;
 
     if (!defined $mq) {
         return (undef, "Couldn't create RabbitMQ Client.");
     }
-    $mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+
+    my ($topic, $err) = fwdctl_topic_for_connection($conn);
+    if (defined $err) {
+        warn $err;
+        return (undef, $err);
+    }
+    $mq->{topic} = $topic;
 
     my $cv = AnyEvent->condvar;
     $mq->update_cache(
-        circuit_id     => int($circuit_id),
+        circuit_id     => int($conn->{circuit_id}),
         async_callback => sub {
             my $result = shift;
             $cv->send($result);
         }
     );
-    $result = $cv->recv();
+    my $result = $cv->recv();
 
     if (!defined $result) {
-        return ($result, "Error occurred while calling update_cache: Couldn't connect to RabbitMQ.");
+        return ($result, "Error occurred while calling $topic.update_cache: Couldn't connect to RabbitMQ.");
     }
     if (defined $result->{error}) {
-        return ($result, "Error occured while calling update_cache: $result->{error}");
+        return ($result, "Error occured while calling $topic.update_cache: $result->{error}");
     }
-    return ($result->{results}->{status}, $err);
+    return ($result->{results}->{status}, undef);
 }
 
 sub _send_event {

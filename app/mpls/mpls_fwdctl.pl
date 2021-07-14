@@ -31,33 +31,37 @@ sub core{
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
     my $config = new OESS::Config(config_filename => $cnf_file);
+    my $mpls_fwdctl;
+    my $mpls_reaper;
+    my $mpls_status;
+    my $mpls_differ;
+    my $nso_fwdctl;
+
     if ($config->network_type eq 'nso') {
-        my $fwdctl = OESS::NSO::FWDCTLService->new(config_obj => $config);
-        $fwdctl->start;
-        AnyEvent->condvar->recv;
+        $nso_fwdctl = OESS::NSO::FWDCTLService->new(config_obj => $config);
+        $nso_fwdctl->start;
     }
     elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
-        my $FWDCTL = OESS::MPLS::FWDCTL->new(config_obj => $config);
-        my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
-        my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
-        my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
-        AnyEvent->condvar->recv;
+        $mpls_fwdctl = OESS::MPLS::FWDCTL->new(config_obj => $config);
+        $mpls_reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $mpls_fwdctl->reap_old_events() } );
+        $mpls_status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $mpls_fwdctl->save_mpls_nodes_status() } );
+        $mpls_differ = AnyEvent->timer( after => 15, interval => get_diff_interval(), cb => sub { $mpls_fwdctl->diff() } );
     }
     elsif ($config->network_type eq 'nso+vpn-mpls') {
-        my $fwdctl = OESS::NSO::FWDCTLService->new(config_obj => $config);
-        $fwdctl->start;
+        $nso_fwdctl = OESS::NSO::FWDCTLService->new(config_obj => $config);
+        $nso_fwdctl->start;
 
-        my $FWDCTL = OESS::MPLS::FWDCTL->new(config_obj => $config);
-        my $reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $FWDCTL->reap_old_events() } );
-        my $status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $FWDCTL->save_mpls_nodes_status() } );
-        my $differ = AnyEvent->timer( after => 5, interval => get_diff_interval(), cb => sub { $FWDCTL->diff() } );
-        AnyEvent->condvar->recv;
+        $mpls_fwdctl = OESS::MPLS::FWDCTL->new(config_obj => $config);
+        $mpls_reaper = AnyEvent->timer( after => 3600, interval => 3600, cb => sub { $mpls_fwdctl->reap_old_events() } );
+        $mpls_status = AnyEvent->timer( after => 10, interval => 60, cb => sub { $mpls_fwdctl->save_mpls_nodes_status() } );
+        $mpls_differ = AnyEvent->timer( after => 15, interval => get_diff_interval(), cb => sub { $mpls_fwdctl->diff() } );
     }
     else {
         die "Unexpected network type configured.";
     }
 
     Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.APP')->info("Starting OESS.MPLS.FWDCTL event loop.");
+    AnyEvent->condvar->recv;
 }
 
 sub main{
