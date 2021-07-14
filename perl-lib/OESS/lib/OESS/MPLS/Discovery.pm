@@ -163,7 +163,7 @@ sub new{
     $self->{'vrf_stats_time'} = AnyEvent->timer( after => 20, interval => VRF_STATS_INTERVAL, cb => sub { $self->vrf_stats_handler(); });
 
     # Only lookup LSPs and Paths when network type is vpn-mpls.
-    if ($self->{'config'}->network_type eq 'vpn-mpls') {
+    if ($self->{'config'}->network_type eq 'vpn-mpls' || $self->{'config'}->network_type eq 'nso+vpn-mpls') {
         $self->{'path_timer'} = AnyEvent->timer( after => 40, interval => 300, cb => sub { $self->path_handler(); });
     }
 
@@ -240,7 +240,6 @@ sub new_switch{
     $self->{'logger'}->debug("Baby was created!");
     sleep(5);
     $self->int_handler();
-    $self->lsp_handler();
 
     &$success({status => 1});
 }
