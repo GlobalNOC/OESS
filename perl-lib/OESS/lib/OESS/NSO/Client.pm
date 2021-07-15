@@ -461,4 +461,52 @@ sub get_l3connections {
     return ($connections, undef);
 }
 
+=head2 get_backbones
+
+    my ($backbones, $err) = get_backbones();
+
+Returns:
+
+    [
+      {
+        "name": "POPA-POPB-00,
+        "pdp":  [ { "name": "POPA-AAA-0" }, { "name": "POPB-AAA-0" },
+        "summary": {
+          "endpoint": [
+            "device": "xr0",
+            "if-full": "HundredGigE3/1",
+            ...
+          ],
+          ...
+        },
+        ...
+      }
+    ]
+5A
+=cut
+sub get_backbones {
+    my $self = shift;
+
+    my $backbones;
+    eval {
+        my $res = $self->{www}->get(
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/backbone:backbone/",
+            'Content-type' => 'application/yang-data+json'
+        );
+        if ($res->content eq '') { # Empty payload indicates success
+            $backbones = [];
+        } else {
+            my $result = decode_json($res->content);
+            my $err = $self->get_json_errors($result);
+            die $err if defined $err;
+            $backbones = $result->{"backbone:backbone"};
+        }
+    };
+    if ($@) {
+        my $err = $@;
+        return (undef, $err);
+    }
+    return ($backbones, undef);
+}
+
 1;

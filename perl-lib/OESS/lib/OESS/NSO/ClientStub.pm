@@ -245,4 +245,137 @@ sub get_l3connections {
     return ($connections, undef);
 }
 
+=head2 get_backbones
+
+    my ($backbones, $err) = get_backbones();
+
+=cut
+sub get_backbones {
+    my $backbones = [
+        {
+            "name" => "ALBA-ASHB-00",
+            "modified" => {
+                "devices" => ["rr0", "rr1"],
+                "services" => ["/i2c:internal-services/pdp:sdp-attach[pdp:pdp='ASHB-JJJ-3'][pdp:name='ALBA-ASHB-00']", "/i2c:internal-services/pdp:sdp-attach[pdp:pdp='ALBA-JJJ-3'][pdp:name='ALBA-ASHB-00']", "/ncs:services/pdp:pdp[pdp:name='ASHB-JJJ-3']", "/ncs:services/pdp:pdp[pdp:name='ALBA-JJJ-3']"]
+            },
+            "directly-modified" => {
+                "devices" => ["rr0", "rr1"],
+                "services" => ["/ncs:services/pdp:pdp[pdp:name='ALBA-JJJ-3']", "/ncs:services/pdp:pdp[pdp:name='ASHB-JJJ-3']", "/i2c:internal-services/pdp:sdp-attach[pdp:pdp='ALBA-JJJ-3'][pdp:name='ALBA-ASHB-00']", "/i2c:internal-services/pdp:sdp-attach[pdp:pdp='ASHB-JJJ-3'][pdp:name='ALBA-ASHB-00']"]
+            },
+            "device-list" => ["rr0", "rr1"],
+            "pdp" => [
+                {
+                    "name" => "ALBA-JJJ-3"
+                },
+                {
+                    "name" => "ASHB-JJJ-3"
+                }
+            ],
+            "metric-override" => 1,
+            "admin-state" => "in-service",
+            "summary" => {
+                "circuit-id" => "",
+                "endpoint" => [
+                    {
+                        "pdp" => "ALBA-JJJ-3",
+                        "device" => "rr0",
+                        "if-full" => "HundredGigE3/1",
+                        "ipv4-address" => "192.0.2.2/31",
+                        "ipv6-address" => "2001:db8::2/127"
+                    },
+                    {
+                        "pdp" => "ASHB-JJJ-3",
+                        "device" => "rr1",
+                        "if-full" => "HundredGigE3/1",
+                        "ipv4-address" => "192.0.2.3/31",
+                        "ipv6-address" => "2001:db8::3/127"
+                    }
+                ]
+            },
+            "vars" => {
+                "ipv4-prefix" => "192.0.2.2/31",
+                "ipv6-prefix" => "2001:db8::2/127",
+                "metric" => 1,
+                "endpoint" => [
+                    {
+                        "pdp" => "ALBA-JJJ-3",
+                        "ipv4-address" => "192.0.2.2/31",
+                        "ipv6-address" => "2001:db8::2/127",
+                        "if-full" => "HundredGigE3/1"
+                    },
+                    {
+                        "pdp" => "ASHB-JJJ-3",
+                        "ipv4-address" => "192.0.2.3/31",
+                        "ipv6-address" => "2001:db8::3/127",
+                        "if-full" => "HundredGigE3/1"
+                    }
+                ],
+                "sdp-description" => "BACKBONE: RR0-RR1"
+            }
+        },
+        {
+            "name" => "CHIC-EQCH-00",
+            "modified" => {
+                "devices" => ["xr0", "xr1"],
+                "services" => ["/i2c:internal-services/pdp:sdp-attach[pdp:pdp='EQCH-JJJ-2'][pdp:name='CHIC-EQCH-00']", "/i2c:internal-services/pdp:sdp-attach[pdp:pdp='CHIC-JJJ-2'][pdp:name='CHIC-EQCH-00']", "/ncs:services/pdp:pdp[pdp:name='EQCH-JJJ-2']", "/ncs:services/pdp:pdp[pdp:name='CHIC-JJJ-2']"]
+            },
+            "directly-modified" => {
+                "devices" => ["xr0", "xr1"],
+                "services" => ["/ncs:services/pdp:pdp[pdp:name='CHIC-JJJ-2']", "/ncs:services/pdp:pdp[pdp:name='EQCH-JJJ-2']", "/i2c:internal-services/pdp:sdp-attach[pdp:pdp='CHIC-JJJ-2'][pdp:name='CHIC-EQCH-00']", "/i2c:internal-services/pdp:sdp-attach[pdp:pdp='EQCH-JJJ-2'][pdp:name='CHIC-EQCH-00']"]
+            },
+            "device-list" => ["xr0", "xr1"],
+            "pdp" => [
+                {
+                    "name" => "CHIC-JJJ-2"
+                },
+                {
+                    "name" => "EQCH-JJJ-2"
+                }
+            ],
+            "admin-state" => "in-service",
+            "summary" => {
+                "circuit-id" => "",
+                "endpoint" => [
+                    {
+                        "pdp" => "CHIC-JJJ-2",
+                        "device" => "xr0",
+                        "if-full" => "HundredGigE3/0",
+                        "ipv4-address" => "192.0.2.0/31",
+                        "ipv6-address" => "2001:db8::/127"
+                    },
+                    {
+                        "pdp" => "EQCH-JJJ-2",
+                        "device" => "xr1",
+                        "if-full" => "HundredGigE3/0",
+                        "ipv4-address" => "192.0.2.1/31",
+                        "ipv6-address" => "2001:db8::1/127"
+                    }
+                ]
+            },
+            "vars" => {
+                "ipv4-prefix" => "192.0.2.0/31",
+                "ipv6-prefix" => "2001:db8::/127",
+                "metric" => 20,
+                "srlg-name" => ["SRLG06"],
+                "endpoint" => [
+                    {
+                        "pdp" => "CHIC-JJJ-2",
+                        "ipv4-address" => "192.0.2.0/31",
+                        "ipv6-address" => "2001:db8::/127",
+                        "if-full" => "HundredGigE3/0"
+                    },
+                    {
+                        "pdp" => "EQCH-JJJ-2",
+                        "ipv4-address" => "192.0.2.1/31",
+                        "ipv6-address" => "2001:db8::1/127",
+                        "if-full" => "HundredGigE3/0"
+                    }
+                ],
+                "sdp-description" => "BACKBONE: XR0-XR1"
+            }
+        }
+    ];
+    return ($backbones, undef);
+}
+
 1;

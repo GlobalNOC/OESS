@@ -31,6 +31,7 @@ sub new {
     my $args  = {
         config          => '/etc/oess/database.xml',
         config_obj      => undef,
+        nso             => undef, # OESS::NSO:Client or OESS::NSO::ClientStub
         logger          => Log::Log4perl->get_logger('OESS.NSO.Discovery'),
         @_
     };
@@ -210,6 +211,12 @@ sub interface_handler {
 =cut
 sub link_handler {
     my $self = shift;
+
+    my ($backbones, $err) = $self->{nso}->get_backbones();
+    if (defined $err) {
+        $self->{logger}->error($err);
+        return;
+    }
 
     return 1;
 }
