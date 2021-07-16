@@ -11,6 +11,7 @@ use Data::Dumper;
 
 use OESS::Config;
 use OESS::MPLS::Discovery;
+use OESS::NSO::Client;
 use OESS::NSO::Discovery;
 
 my $pid_file = "/var/run/oess/mpls_discovery.pid";
@@ -22,16 +23,23 @@ sub core{
     my $config = new OESS::Config(config_filename => $cnf_file);
     my $mpls_discovery;
     my $nso_discovery;
+    my $nso_client = new OESS::NSO::Client(config_obj => $config);
 
     if ($config->network_type eq 'nso') {
-        my $nso_discovery = OESS::NSO::Discovery->new(config_obj => $config);
+        my $nso_discovery = OESS::NSO::Discovery->new(
+            config_obj => $config,
+            nso => $nso_client
+        );
         $nso_discovery->start;
     }
     elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
         $mpls_discovery = OESS::MPLS::Discovery->new(config_obj => $config);
     }
     elsif ($config->network_type eq 'nso+vpn-mpls') {
-        $nso_discovery = OESS::NSO::Discovery->new(config_obj => $config);
+        $nso_discovery = OESS::NSO::Discovery->new(
+            config_obj => $config,
+            nso => $nso_client
+        );
         $nso_discovery->start;
 
         $mpls_discovery = OESS::MPLS::Discovery->new(config_obj => $config);
