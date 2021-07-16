@@ -721,7 +721,10 @@ sub nso_diff {
             my $ok = 1;
             $ok = 0 if $pr->{local_ip} ne $ref->local_ip;
             $ok = 0 if $pr->{peer_asn} != $ref->peer_asn;
-            $ok = 0 if $pr->{peer_ip}  ne $ref->peer_ip;
+            # Peer IP shouldn't have subnet included due to a quirk in
+            # thenetwork config.
+            my @ref_peer_ip = split('/', $ref->peer_ip);
+            $ok = 0 if $pr->{peer_ip} ne $ref_peer_ip[0];
             if (!$ok) {
                 $peer_diff .= "    Peer $pr->{peer_id}:\n";
             }
@@ -734,9 +737,9 @@ sub nso_diff {
                 $peer_diff .= "-     Peer ASN:  $pr->{peer_asn}\n";
                 $peer_diff .= "+     Peer ASN:  $ref->{peer_asn}\n";
             }
-            if ($pr->{peer_ip} ne $ref->peer_ip) {
+            if ($pr->{peer_ip} ne $ref_peer_ip[0]) {
                 $peer_diff .= "-     Peer IP:   $pr->{peer_ip}\n";
-                $peer_diff .= "+     Peer IP:   $ref->{peer_ip}\n";
+                $peer_diff .= "+     Peer IP:   $ref_peer_ip[0]\n";
             }
             if ($pr->{bfd} != $ref->bfd) {
                 $peer_diff .= "-     BFD:      $pr->{bfd}\n";

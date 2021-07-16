@@ -288,13 +288,17 @@ sub create_l3connection {
             $obj->{inner_tag} = $ep->inner_tag;
         }
 
+
+
         foreach my $peer (@{$ep->peers}) {
+            my @peer_ip = split('/', $peer->peer_ip);
+
             my $peer_obj = {
                 peer_id    => $peer->vrf_ep_peer_id,
                 local_asn  => $self->{local_asn},
                 local_ip   => $peer->local_ip,
                 peer_asn   => $peer->peer_asn,
-                peer_ip    => $peer->peer_ip,
+                peer_ip    => $peer_ip[0],
                 bfd        => $peer->bfd,
                 md5_key    => $peer->md5_key,
                 ip_version => $peer->ip_version
@@ -385,12 +389,14 @@ sub edit_l3connection {
         }
 
         foreach my $peer (@{$ep->peers}) {
+            my @peer_ip = split('/', $peer->peer_ip);
+
             my $peer_obj = {
                 peer_id    => $peer->vrf_ep_peer_id,
                 local_asn  => $self->{local_asn},
                 local_ip   => $peer->local_ip,
                 peer_asn   => $peer->peer_asn,
-                peer_ip    => $peer->peer_ip,
+                peer_ip    => $peer_ip[0],
                 bfd        => $peer->bfd,
                 md5_key    => $peer->md5_key,
                 ip_version => $peer->ip_version
