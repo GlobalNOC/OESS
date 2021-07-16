@@ -63,7 +63,7 @@ sub new {
 
     if (defined $self->{db} && (defined $self->{link_id} || defined $self->{name})) {
         eval {
-            my $links = OESS::DB::Link::fetch_all(
+            my ($links, $err) = OESS::DB::Link::fetch_all(
                 db => $self->{db},
                 name => $self->{name},
                 link_id => $self->{link_id}

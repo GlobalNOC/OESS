@@ -23,7 +23,7 @@ sub core{
     my $config = new OESS::Config(config_filename => $cnf_file);
     my $mpls_discovery;
     my $nso_discovery;
-    my $nso_client = new OESS::NSO::Client(config_obj => $self->{config_obj});
+    my $nso_client = new OESS::NSO::Client(config_obj => $config);
 
     if ($config->network_type eq 'nso') {
         my $nso_discovery = OESS::NSO::Discovery->new(

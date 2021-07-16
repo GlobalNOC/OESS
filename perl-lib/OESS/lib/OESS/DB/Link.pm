@@ -13,7 +13,7 @@ use Data::Dumper;
 
 =head2 create
 
-    my $id = OESS::DB::Link::create(
+    my ($id, $err) = OESS::DB::Link::create(
         db => $db,
         model => {
             name           => 'node-a-to-node-b',
@@ -171,7 +171,7 @@ sub fetch_history {
 
 =head2 fetch_all
 
-    my $acl = OESS::DB::Link::fetch_all(
+    my ($links, $err) = OESS::DB::Link::fetch_all(
         db           => $conn,
         link_id      => 1,             # Optional
         name         => 'a-to-b',      # Optional
@@ -234,6 +234,9 @@ sub fetch_all {
     push @$params, 'link_instantiation.end_epoch=?';
     push @$values, -1;
 
+    push @$params, 'link_instantiation.link_state!=?';
+    push @$values, 'decom';
+
     my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : '';
 
     my $q = "
@@ -259,7 +262,7 @@ sub fetch_all {
         return (undef, "Couldn't find Links: " . $args->{db}->get_error);
     }
 
-    return $links;
+    return ($links, undef);
 }
 
 =head2 update

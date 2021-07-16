@@ -1584,7 +1584,9 @@ HERE
     }
     
     my $links = $self->get_current_links(type => 'openflow');
+warn Dumper($links);
     my $mpls_links = $self->get_current_links(type => 'mpls');
+warn Dumper($mpls_links);
     foreach my $link (@$mpls_links){
 	push(@$links, $link);
     }
