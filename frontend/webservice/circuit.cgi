@@ -128,7 +128,7 @@ my $provision = GRNOC::WebService::Method->new(
 );
 $provision->add_input_parameter(
     name        => 'status',
-    pattern     => '(reserved|confirmed|provisioned|released|decom)',
+    pattern     => '(active|reserved|confirmed|provisioned|released|decom)',
     required    => 0,
     default     => 'active',
     description => 'Status of the Circuit (note mostly used for NSI integration)'
@@ -255,7 +255,7 @@ sub provision {
         db => $db,
         model => {
             status => $args->{status}->{value},
-	    name => $args->{description}->{value},
+	        name => $args->{description}->{value},
             description => $args->{description}->{value},
             remote_url => $args->{remote_url}->{value},
             remote_requester => $args->{remote_requester}->{value},
