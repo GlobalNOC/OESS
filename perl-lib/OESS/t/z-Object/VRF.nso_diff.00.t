@@ -50,7 +50,7 @@ my $expect1 = {
 +     Local ASN: 7
 +     Local IP:  192.168.2.2/31
 +     Peer ASN:  64602
-+     Peer IP:   192.168.2.3/31
++     Peer IP:   192.168.2.3
 +     BFD:       0
 ',
     'Node 11' => '  e15/6
@@ -63,15 +63,15 @@ my $expect1 = {
 +     Local IP:  192.168.1.2/31
 -     Peer ASN:  64001
 +     Peer ASN:  64601
--     Peer IP:   192.168.3.3/31
-+     Peer IP:   192.168.1.3/31
+-     Peer IP:   192.168.3.3
++     Peer IP:   192.168.1.3
 -     BFD:      1
 +     BFD:      0
 +   Peer 3:
 +     Local ASN: 
 +     Local IP:  192.168.5.2/31
 +     Peer ASN:  64605
-+     Peer IP:   192.168.5.3/31
++     Peer IP:   192.168.5.3
 +     BFD:       0
 ',
     'xr1' => '- GigabitEthernet0/1
@@ -81,7 +81,7 @@ my $expect1 = {
 -     Local ASN: 64600
 -     Local IP:  192.168.2.2/31
 -     Peer ASN:  64602
--     Peer IP:   192.168.2.3/31
+-     Peer IP:   192.168.2.3
 -     BFD:       0
 '
 };

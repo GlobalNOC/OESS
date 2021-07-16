@@ -210,7 +210,7 @@ sub get_l3connections {
                             "local_asn" => 64600,
                             "local_ip" => "192.168.3.2/31",
                             "peer_asn" => 64001,
-                            "peer_ip" => "192.168.3.3/31",
+                            "peer_ip" => "192.168.3.3",
                             "bfd" => 1,
                             "ip_version" => "ipv4"
                         }
@@ -233,7 +233,7 @@ sub get_l3connections {
                             "local_asn" => 64600,
                             "local_ip" => "192.168.2.2/31",
                             "peer_asn" => 64602,
-                            "peer_ip" => "192.168.2.3/31",
+                            "peer_ip" => "192.168.2.3",
                             "bfd" => 0,
                             "ip_version" => "ipv4"
                         }

@@ -721,7 +721,10 @@ sub nso_diff {
             my $ok = 1;
             $ok = 0 if $pr->{local_ip} ne $ref->local_ip;
             $ok = 0 if $pr->{peer_asn} != $ref->peer_asn;
-            $ok = 0 if $pr->{peer_ip}  ne $ref->peer_ip;
+            # Peer IP shouldn't have subnet included due to a quirk in
+            # thenetwork config.
+            my @ref_peer_ip = split('/', $ref->peer_ip);
+            $ok = 0 if $pr->{peer_ip} ne $ref_peer_ip[0];
             if (!$ok) {
                 $peer_diff .= "    Peer $pr->{peer_id}:\n";
             }
@@ -734,9 +737,9 @@ sub nso_diff {
                 $peer_diff .= "-     Peer ASN:  $pr->{peer_asn}\n";
                 $peer_diff .= "+     Peer ASN:  $ref->{peer_asn}\n";
             }
-            if ($pr->{peer_ip} ne $ref->peer_ip) {
+            if ($pr->{peer_ip} ne $ref_peer_ip[0]) {
                 $peer_diff .= "-     Peer IP:   $pr->{peer_ip}\n";
-                $peer_diff .= "+     Peer IP:   $ref->{peer_ip}\n";
+                $peer_diff .= "+     Peer IP:   $ref_peer_ip[0]\n";
             }
             if ($pr->{bfd} != $ref->bfd) {
                 $peer_diff .= "-     BFD:      $pr->{bfd}\n";
@@ -749,11 +752,13 @@ sub nso_diff {
         foreach my $id (keys %{$index}) {
             # Peer should be added
             my $pr = $index->{$id};
+            my @ref_peer_ip = split('/', $pr->peer_ip);
+
             $peer_diff .= "+   Peer $pr->{vrf_ep_peer_id}:\n";
             $peer_diff .= "+     Local ASN: $pr->{local_asn}\n";
             $peer_diff .= "+     Local IP:  $pr->{local_ip}\n";
             $peer_diff .= "+     Peer ASN:  $pr->{peer_asn}\n";
-            $peer_diff .= "+     Peer IP:   $pr->{peer_ip}\n";
+            $peer_diff .= "+     Peer IP:   $ref_peer_ip[0]\n";
             $peer_diff .= "+     BFD:       $pr->{bfd}\n";
         }
         # End Compare an Endpoint's Peers
@@ -773,11 +778,13 @@ sub nso_diff {
             $diff->{$ep->node} .= "+   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
 
             foreach my $peer (@{$ep->peers}) {
+                my @ref_peer_ip = split('/', $peer->{peer_ip});
+
                 $diff->{$ep->node} .= "+   Peer $peer->{vrf_ep_peer_id}:\n";
                 $diff->{$ep->node} .= "+     Local ASN: $self->{local_asn}\n";
                 $diff->{$ep->node} .= "+     Local IP:  $peer->{local_ip}\n";
                 $diff->{$ep->node} .= "+     Peer ASN:  $peer->{peer_asn}\n";
-                $diff->{$ep->node} .= "+     Peer IP:   $peer->{peer_ip}\n";
+                $diff->{$ep->node} .= "+     Peer IP:   $ref_peer_ip[0]\n";
                 $diff->{$ep->node} .= "+     BFD:       $peer->{bfd}\n";
             }
         }

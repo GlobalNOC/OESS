@@ -59,7 +59,7 @@ my $expect1 = {
 -     Local ASN: 64600
 -     Local IP:  192.168.3.2/31
 -     Peer ASN:  64001
--     Peer IP:   192.168.3.3/31
+-     Peer IP:   192.168.3.3
 -     BFD:       1
 ',
     'Node 31' => '+ e15/4
