@@ -287,7 +287,7 @@ sub create_l3connection {
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag,
-            inner_tag   => $ep->inner_tag
+            inner_tag   => $ep->inner_tag,
             mtu         => $ep->mtu,
             peer        => []
         };
@@ -388,7 +388,7 @@ sub edit_l3connection {
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag,
-            inner_tag   => $ep->inner_tag
+            inner_tag   => $ep->inner_tag,
             mtu         => $ep->mtu,
             peer        => []
         };
