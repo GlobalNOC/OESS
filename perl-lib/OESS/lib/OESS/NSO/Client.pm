@@ -56,7 +56,9 @@ sub create_l2connection {
             bandwidth   => $ep->bandwidth,
             device      => $ep->node,
             interface   => $ep->interface,
-            tag         => $ep->tag
+            unit        => $ep->unit,
+            tag         => $ep->tag,
+            inner_tag   => $ep->inner_tag
         };
         if (defined $ep->inner_tag) {
             $obj->{inner_tag} = $ep->inner_tag;
@@ -136,7 +138,9 @@ sub edit_l2connection {
             bandwidth   => $ep->bandwidth,
             device      => $ep->node,
             interface   => $ep->interface,
-            tag         => $ep->tag
+            unit        => $ep->unit,
+            tag         => $ep->tag,
+            inner_tag   => $ep->inner_tag
         };
         if (defined $ep->inner_tag) {
             $obj->{inner_tag} = $ep->inner_tag;
@@ -281,14 +285,15 @@ sub create_l3connection {
             bandwidth   => $ep->bandwidth,
             device      => $ep->node,
             interface   => $ep->interface,
+            unit        => $ep->unit,
             tag         => $ep->tag,
+            inner_tag   => $ep->inner_tag
+            mtu         => $ep->mtu,
             peer        => []
         };
         if (defined $ep->inner_tag) {
             $obj->{inner_tag} = $ep->inner_tag;
         }
-
-
 
         foreach my $peer (@{$ep->peers}) {
             my @peer_ip = split('/', $peer->peer_ip);
@@ -381,7 +386,10 @@ sub edit_l3connection {
             bandwidth   => $ep->bandwidth,
             device      => $ep->node,
             interface   => $ep->interface,
+            unit        => $ep->unit,
             tag         => $ep->tag,
+            inner_tag   => $ep->inner_tag
+            mtu         => $ep->mtu,
             peer        => []
         };
         if (defined $ep->inner_tag) {
