@@ -295,9 +295,10 @@ sub provision {
                 node => $ep->{node}
             );
         }
-        if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
-            # Continue
-        } else {
+        # if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
+        #     # Continue
+        # }
+        else {
             $entity = new OESS::Entity(db => $db, name => $ep->{entity});
             $interface = $entity->select_interface(
                 inner_tag    => $ep->{inner_tag},
@@ -526,9 +527,10 @@ sub update {
                     node => $ep->{node}
                 );
             }
-            if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
-                # Continue
-            } else {
+            # if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
+            #     # Continue
+            # }
+            else {
                 $entity = new OESS::Entity(db => $db, name => $ep->{entity});
                 $interface = $entity->select_interface(
                     inner_tag    => $ep->{inner_tag},

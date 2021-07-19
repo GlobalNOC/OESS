@@ -396,9 +396,10 @@ sub provision_vrf{
                     node => $ep->{node}
                 );
             }
-            if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
-                # Continue
-            } else {
+            # if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
+            #     # Continue
+            # }
+            else {
                 $entity = new OESS::Entity(db => $db, name => $ep->{entity});
                 $interface = $entity->select_interface(
                     inner_tag    => $ep->{inner_tag},
@@ -465,6 +466,28 @@ sub provision_vrf{
             push @$add_endpoints, $endpoint;
 
             foreach my $peering (@{$ep->{peers}}) {
+
+                if (defined $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"}) {
+                    $method->set_error("Cannot have duplicate local addresses on an interface.");
+                    $db->rollback;
+                    return;
+                }
+
+                # User defined or pre-defined (eg. azure) peering
+                if ($peering->{local_ip}) {
+                    my $peer = new OESS::Peer(db => $db, model => $peering);
+                    my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
+                    if (defined $peer_err) {
+                        $method->set_error($peer_err);
+                        $db->rollback;
+                        return;
+                    }
+                    $endpoint->add_peer($peer);
+
+                    $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"} = 1;
+                    next;
+                }
+
                 if ($interface->cloud_interconnect_type eq 'azure-express-route') {
                     my $peer;
                     if ($endpoint->cloud_interconnect_id =~ /PRI/) {
@@ -495,25 +518,6 @@ sub provision_vrf{
                         );
                     }
 
-                    my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
-                    if (defined $peer_err) {
-                        $method->set_error($peer_err);
-                        $db->rollback;
-                        return;
-                    }
-                    $endpoint->add_peer($peer);
-                    next;
-                }
-
-                if (defined $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"}) {
-                    $method->set_error("Cannot have duplicate local addresses on an interface.");
-                    $db->rollback;
-                    return;
-                }
-
-                # User defined or pre-defined (eg. azure) peering
-                if ($peering->{local_ip}) {
-                    my $peer = new OESS::Peer(db => $db, model => $peering);
                     my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
                     if (defined $peer_err) {
                         $method->set_error($peer_err);
