@@ -354,7 +354,7 @@ sub diff {
             }
 
             if ($self->{pending_diff}->{$node_name} == PENDING_DIFF && $node->pending_diff == PENDING_DIFF_NONE) {
-                $self->{pending_diff}->{$node_name} = PENDING_DIFF_NONE;
+                $self->{pending_diff}->{$node_name} = PENDING_DIFF_APPROVED;
                 $self->{logger}->info("Applying network diff. Manual approval granted for $node_name.");
             }
         }
