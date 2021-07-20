@@ -81,22 +81,22 @@ sub device_handler {
         my $node = $self->{nodes}->{$key};
 
         my $dom = eval {
-            my $res = $self->{www}->get($self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}");
+            my $res = $self->{www}->get($self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}/platform");
             return XML::LibXML->load_xml(string => $res->content);
         };
         if ($@) {
-            warn 'tailf-ncs:devices/device=$node->{name}:' . $@;
-            $self->{logger}->error('tailf-ncs:devices/device=$node->{name}:' . $@);
+            warn "tailf-ncs:devices/device=$node->{name}/platform: $@";
+            $self->{logger}->error("tailf-ncs:devices/device=$node->{name}/platform: $@");
             next;
         }
 
         my $data = eval {
             return {
-                name          => $dom->findvalue('/ncs:device/ncs:name'),
-                platform      => $dom->findvalue('/ncs:device/ncs:platform/ncs:name'),
-                version       => $dom->findvalue('/ncs:device/ncs:platform/ncs:version'),
-                model         => $dom->findvalue('/ncs:device/ncs:platform/ncs:model'),
-                serial_number => $dom->findvalue('/ncs:device/ncs:platform/ncs:serial-number')
+                name          => $node->{name},
+                platform      => $dom->findvalue('/ncs:platform/ncs:name'),
+                version       => $dom->findvalue('/ncs:platform/ncs:version'),
+                model         => $dom->findvalue('/ncs:platform/ncs:model'),
+                serial_number => $dom->findvalue('/ncs:platform/ncs:serial-number')
             };
         };
         if ($@) {
