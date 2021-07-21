@@ -774,9 +774,8 @@ sub provision_vrf{
             if (defined $derr) {
                 warn $derr;
             }
-            _update_cache($previous_vrf);
-
             $db->commit;
+            _update_cache($previous_vrf);
 
             _update_cache($pending_vrf);
             my ($ares, $aerr) = vrf_add($pending_vrf);
