@@ -19,6 +19,11 @@ use OESS::DB::Node;
 use OESS::Node;
 use OESS::RabbitMQ::Dispatcher;
 
+use constant MAX_TSDS_MESSAGES => 30;
+use constant TSDS_RIB_TYPE => 'rib_table';
+use constant TSDS_PEER_TYPE => 'bgp_peer';
+use constant VRF_STATS_INTERVAL => 60;
+
 =head1 OESS::NSO::Discovery
 
 =cut
@@ -419,6 +424,14 @@ sub start {
         cb       => sub { $self->link_handler(@_); }
     );
 
+    $self->{vrf_stats_time} = AnyEvent->timer(
+        after    =>  30,
+        interval => VRF_STATS_INTERVAL,
+        cb       => sub { $self->vrf_stats_handler(@_); }
+	);
+
+
+
     $self->{dispatcher} = new OESS::RabbitMQ::Dispatcher(
         # queue => 'oess-discovery',
         # topic => 'oess.discovery.rpc'
@@ -453,6 +466,161 @@ sub start {
 
     return 1;
 }
+
+
+=head2 vrf_stats_handler
+
+=cut
+
+sub vrf_stats_handler{
+    my $self = shift;
+
+    foreach my $node (@{$self->{'db'}->get_current_nodes( type => 'nso')}){
+	
+	my $dom = eval {
+            my $res = $self->{www}->get($self->{config_obj}->nso_host . "/restconf/data/.....")
+            return XML::LibXML->load_xml(string => $res->content);
+        };
+        if ($@) {
+            # Don't log Empty String error as there are simply no interfaces
+            if ($@ !~ /Empty String/g) {
+                warn '????????:' . $@;
+                $self->{logger}->error('??????????:' . $@);
+            }
+            next;
+        }
+
+	#do some processing to get the data
+	my $stats = do some processing
+
+	$self->handle_vrf_stats( node => $node, stats => $stats);
+	
+    }
+
+}
+
+=head2 handle_vrf_stats
+
+=cut
+
+sub handle_vrf_stats{
+    my $self = shift;
+    my @params = @_;
+
+    my $node = $params{'node'};
+    my $stats = $params{'stats'};
+
+    my $rib_stats = $stats->{'rib_stats'};
+    my $peer_stats = $stats->{'peer_stats'};
+
+    my $time = time();
+    my $tsds_val = ();
+
+    $self->{'logger'}->debug("Handling RIB stats: " . Dumper($rib_stats));
+    return if(!defined($rib_stats));
+    while (scalar(@$rib_stats) > 0){
+        my $rib = shift @$rib_stats;
+        my $meta = { routing_table => $rib->{'vrf'},
+                     node => $node->{'name'}};
+
+        delete $rib->{'vrf'};
+
+        push(@$tsds_val, { type => TSDS_RIB_TYPE,
+                           time => $time,
+                           interval => VRF_STATS_INTERVAL,
+                           values => $rib,
+                           meta => $meta});
+
+        if (scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$rib_stats) == 0) {
+            eval {
+                my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+                if (!defined $tsds_res) {
+                    die $self->{'tsds_svc'}->get_error;
+                }
+                if (defined $tsds_res->{'error'}) {
+                    die $tsds_res->{'error_text'};
+                }
+            };
+            if ($@) {
+                $self->{'logger'}->error("Error submitting results to TSDS: $@");
+            }
+            $tsds_val = ();
+        }
+    }
+
+    $self->{'logger'}->debug("Handling Peer stats: " . Dumper($peer_stats));
+
+    $self->{'db'}->_start_transaction();
+
+    while (scalar(@$peer_stats) > 0){
+        my $peer = shift @$peer_stats;
+        my $meta = { peer_address => $peer->{'address'},
+                     vrf => $peer->{'vrf'},
+                     as => $peer->{'as'},
+                     node => $node->{'name'}};
+
+        my $prev =  $self->{'previous_peer'}->{$node->{'name'}}->{$peer->{'vrf'}}->{$peer->{'address'}};
+        if(!defined($prev)){
+            warn "No previous peer defined: " . Dumper($meta);
+            $self->{'previous_peer'}->{$node->{'name'}}->{$peer->{'vrf'}}->{$peer->{'address'}} = $peer;
+            next;
+        }
+
+        my $vals;
+        
+        $vals->{'output_messages'} = ($peer->{'output_messages'} - $prev->{'output_messages'}) / VRF_STATS_INTERVAL;
+        $vals->{'input_messages'} = ($peer->{'input_messages'} - $prev->{'input_messages'}) / VRF_STATS_INTERVAL;
+        $vals->{'route_queue_count'} = $peer->{'route_queue_count'};
+        
+        if($peer->{'state'} ne 'Established'){
+            $vals->{'state'} = 0;
+        }else{
+            $vals->{'state'} = 1;
+        }
+
+        my $vrf = $peer->{'vrf'};
+        my $vrf_id;
+        if($vrf =~ /OESS-L3VPN/){
+            $vrf =~ /OESS-L3VPN-(\d+)/;
+            $vrf_id = $1;
+        }
+
+        warn "Processing VRF: " . $vrf . "\n";
+        warn "VRF ID: " . $vrf_id . "\n";
+
+        if(defined($vrf_id)){
+            warn "Updating VRF EP Peer " . $peer->{'address'} . " with status: " . $vals->{'state'} . " in VRF: " . $vrf_id . "\n";
+            my $res = $self->{'db'}->_execute_query("update vrf_ep_peer set operational_state = ? where peer_ip like ? and vrf_ep_id in (select vrf_ep_id from vrf_ep where vrf_id = ?)",[$vals->{'state'},$peer->{'address'} . "/%",$vrf_id]);
+            warn Dumper($res);
+        }
+
+        $vals->{'flap_count'} = $peer->{'flap_count'};
+
+        push(@$tsds_val, { type => TSDS_PEER_TYPE,
+                           time => $time,
+                           interval => VRF_STATS_INTERVAL,
+                           values => $vals,
+                           meta => $meta});
+
+        if (scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$peer_stats) == 0) {
+            eval {
+                my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+                if (!defined $tsds_res) {
+                    die $self->{'tsds_svc'}->get_error;
+                }
+                if (defined $tsds_res->{'error'}) {
+                    die $tsds_res->{'error_text'};
+                }
+            };
+            if ($@) {
+                $self->{'logger'}->error("Error submitting results to TSDS: $@");
+            }
+            $tsds_val = ();
+        }
+    }
+    $self->{'db'}->_commit();
+}
+
 
 =head2 stop
 
