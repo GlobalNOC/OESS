@@ -521,7 +521,7 @@ sub get_backbones {
 
 =head2 get_vrf_statistics
 
-    my ($stats, $err) = get_vrf_statistics();
+    my ($stats, $err) = get_vrf_statistics('agg2.bldc');
 
 Returns:
 

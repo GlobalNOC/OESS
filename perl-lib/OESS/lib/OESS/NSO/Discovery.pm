@@ -492,33 +492,75 @@ sub handle_vrf_stats{
     my $self = shift;
     my @params = @_;
 
-    my $node = $params{'node'};
+    my $node  = $params{'node'};
     my $stats = $params{'stats'};
 
-    my $rib_stats = $stats->{'rib_stats'};
-    my $peer_stats = $stats->{'peer_stats'};
+    return if (!defined $stats || @$stats == 0);
 
-    my $time = time();
-    my $tsds_val = ();
+    my $time     = time();
+    my $rib_val  = [];
+    my $peer_val = [];
 
-    $self->{'logger'}->debug("Handling RIB stats: " . Dumper($rib_stats));
-    return if(!defined($rib_stats));
-    while (scalar(@$rib_stats) > 0){
-        my $rib = shift @$rib_stats;
-        my $meta = { routing_table => $rib->{'vrf'},
-                     node => $node->{'name'}};
+    while (@$stats > 0) {
+        my $stat = shift @$stats;
 
-        delete $rib->{'vrf'};
+        # Most neighbor stats we collected from Juniper have no direct
+        # mapping to Cisco.
+        my $rib_data = {
+            total_prefix_count               => 0,
+            received_prefix_count            => 0,
+            accepted_prefix_count            => $stat->{prefixes_accepted},
+            active_prefix_count              => $stat->{prefixes_accepted},
+            suppressed_prefix_count          => $stat->{prefixes_suppressed},
+            history_prefix_count             => 0,
+            damped_prefix_count              => 0,
+            pending_prefix_count             => 0,
+            total_external_prefix_count      => 0,
+            active_external_prefix_count     => 0,
+            accepted_external_prefix_count   => 0,
+            suppressed_external_prefix_count => 0,
+            total_internal_prefix_count      => 0,
+            active_internal_prefix_count     => 0,
+            accepted_internal_prefix_count   => 0,
+            suppressed_internal_prefix_count => 0,
+        };
+        my $rib_metadata = {
+            routing_table => $stat->{vrf_name},
+            node          => $stat->{node},
+        };
+        push @$rib_val, {
+            type     => TSDS_RIB_TYPE,
+            time     => $time,
+            interval => VRF_STATS_INTERVAL,
+            values   => $rib_data,
+            meta     => $rib_metadata,
+        };
 
-        push(@$tsds_val, { type => TSDS_RIB_TYPE,
-                           time => $time,
-                           interval => VRF_STATS_INTERVAL,
-                           values => $rib,
-                           meta => $meta});
+        my $peer_data = {
+            output_messages   => $stat->{messages_sent},
+            input_messages    => $stat->{messages_received},
+            route_queue_count => 0,
+            flap_count        => 0,
+            state             => ($stat->{connection_state} eq 'BGP_ST_ESTAB') ? 1 : 0,
+        };
+        my $peer_metadata = {
+            peer_address => $stat->{remote_ip},
+            vrf          => $stat->{vrf_name},
+            as           => $stat->{remote_as},
+            node         => $stat->{node},
+        };
+        push @$peer_val, {
+            type     => TSDS_PEER_TYPE,
+            time     => $time,
+            interval => VRF_STATS_INTERVAL,
+            values   => $peer_data,
+            meta     => $peer_metadata,
+        };
 
-        if (scalar(@$tsds_val) >= MAX_TSDS_MESSAGES || scalar(@$rib_stats) == 0) {
+        # Length of $rib_val and $peer_val should always be the same
+        if (@$rib_val >= MAX_TSDS_MESSAGES || @$peer_val >= MAX_TSDS_MESSAGES || @$stats == 0) {
             eval {
-                my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($tsds_val));
+                my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($rib_val));
                 if (!defined $tsds_res) {
                     die $self->{'tsds_svc'}->get_error;
                 }
@@ -529,13 +571,15 @@ sub handle_vrf_stats{
             if ($@) {
                 $self->{'logger'}->error("Error submitting results to TSDS: $@");
             }
-            $tsds_val = ();
+            $rib_val  = [];
+            $peer_val = [];
         }
-    }
 
     $self->{'logger'}->debug("Handling Peer stats: " . Dumper($peer_stats));
 
     $self->{'db'}->_start_transaction();
+    my $peer_stats = $stats->{'peer_stats'};
+
 
     while (scalar(@$peer_stats) > 0){
         my $peer = shift @$peer_stats;
