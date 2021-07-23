@@ -423,18 +423,14 @@ sub start {
         interval => 120,
         cb       => sub { $self->link_handler(@_); }
     );
-
     $self->{vrf_stats_time} = AnyEvent->timer(
         after    =>  30,
         interval => VRF_STATS_INTERVAL,
         cb       => sub { $self->vrf_stats_handler(@_); }
-	);
-
+    );
 
 
     $self->{dispatcher} = new OESS::RabbitMQ::Dispatcher(
-        # queue => 'oess-discovery',
-        # topic => 'oess.discovery.rpc'
         queue => 'NSO-Discovery',
         topic => 'NSO.Discovery.RPC'
     );
@@ -471,32 +467,21 @@ sub start {
 =head2 vrf_stats_handler
 
 =cut
-
-sub vrf_stats_handler{
+sub vrf_stats_handler {
     my $self = shift;
+    $self->{logger}->info("Calling vrf_stats_handler.");
 
-    foreach my $node (@{$self->{'db'}->get_current_nodes( type => 'nso')}){
-	
-	my $dom = eval {
-            my $res = $self->{www}->get($self->{config_obj}->nso_host . "/restconf/data/.....")
-            return XML::LibXML->load_xml(string => $res->content);
-        };
-        if ($@) {
-            # Don't log Empty String error as there are simply no interfaces
-            if ($@ !~ /Empty String/g) {
-                warn '????????:' . $@;
-                $self->{logger}->error('??????????:' . $@);
-            }
+    foreach my $key (keys %{$self->{nodes}}) {
+        my $node = $self->{nodes}->{$key};
+
+        my ($stats, $err) = $self->{nso}->get_vrf_statistics($node->{name});
+        if (defined $err) {
+            $self->{logger}->error($err);
             next;
         }
 
-	#do some processing to get the data
-	my $stats = do some processing
-
-	$self->handle_vrf_stats( node => $node, stats => $stats);
-	
+        $self->handle_vrf_stats(node => $node, stats => $stats);
     }
-
 }
 
 =head2 handle_vrf_stats

@@ -492,7 +492,7 @@ Returns:
         ...
       }
     ]
-5A
+
 =cut
 sub get_backbones {
     my $self = shift;
@@ -517,6 +517,204 @@ sub get_backbones {
         return (undef, $err);
     }
     return ($backbones, undef);
+}
+
+=head2 get_vrf_statistics
+
+    my ($stats, $err) = get_vrf_statistics();
+
+Returns:
+
+    [
+          {
+            'messages_received' => '0',
+            'prefixes_synced' => '0',
+            'prefixes_advertised' => '0',
+            'remote_ip' => '192.168.2.2',
+            'bytes_read' => '0',
+            'vrf_id' => '6000',
+            'connection_state' => 'BGP_ST_ACTIVE',
+            'prefixes_denied' => '0',
+            'bytes_written' => '0',
+            'prefixes_suppressed' => '0',
+            'vrf_name' => 'OESS-VRF-6000',
+            'node' => 'agg2.bldc',
+            'messages_sent' => '0',
+            'prefixes_accepted' => '0',
+            'remote_as' => '2'
+          },
+          {
+            'messages_received' => '1873',
+            'prefixes_synced' => '0',
+            'prefixes_advertised' => '0',
+            'remote_ip' => '192.168.70.2',
+            'bytes_read' => '85769',
+            'vrf_id' => '6000',
+            'connection_state' => 'BGP_ST_ACTIVE',
+            'prefixes_denied' => '0',
+            'bytes_written' => '102456',
+            'prefixes_suppressed' => '0',
+            'vrf_name' => 'OESS-VRF-6000',
+            'node' => 'agg2.bldc',
+            'messages_sent' => '2846',
+            'prefixes_accepted' => '0',
+            'remote_as' => '4200000700'
+          }
+    ]
+
+=cut
+sub get_vrf_statistics {
+    my $self = shift;
+    my $node = shift; # Name of node to query
+
+    my $payload = {
+        "input" => {
+            "args" => "show operational BGP InstanceTable Instance/InstanceName=default InstanceActive VRFTable VRF/VRFName=* NeighborTable xml"
+        }
+    };
+
+    my $response = [];
+    eval {
+        my $res = $self->{www}->post(
+            $self->{config_obj}->nso_host . "/restconf/operations/tailf-ncs:devices/device=$node/live-status/exec/any",
+            'Content-type' => 'application/yang-data+json',
+            'Content'      => encode_json($payload)
+        );
+        if ($res->content eq '') {
+            # Unlike other api endpoints. If this happens something must have gone wrong.
+            return (undef, "Could't get valid response from get_vrf_statistisc for device $node.");
+        } else {
+            my $result = decode_json($res->content);
+            my $err = $self->get_json_errors($result);
+            die $err if defined $err;
+
+            # Extract CLI payload from JSON response and strip leading
+            # xml tag and ending cli prompt. This results in an XML
+            # encoded string wrapped in the Response tag.
+            my $raw_response = $result->{"tailf-ned-cisco-ios-xr-stats:output"}->{"result"};
+            $raw_response =~ s/^.*<Response/<Response/s;
+            $raw_response =~ s/<\/Response>.*\z/<\/Response>/s;
+            # warn Dumper($raw_response);
+
+            # Parse XMl string and extract statistics
+            my $dom = XML::LibXML->load_xml(string => $raw_response);
+
+            # Lookup Instance named 'default' and get VRFTable from inside
+            my $instances = $dom->findnodes('//Response/Get/Operational/BGP/InstanceTable/Instance');
+            my $instance  = undef;
+            foreach my $context ($instances->get_nodelist) {
+
+                my $instance_name = $context->findvalue('//Instance/Naming/InstanceName');
+                $instance_name =~ s/\s+//g;
+                next if $instance_name ne 'default';
+
+                my $vrfs = $context->findnodes('//Instance/InstanceActive/VRFTable/VRF');
+                foreach my $context ($vrfs->get_nodelist) {
+                    my $ok = $context->exists('./Naming/VRFName');
+
+                    # <VRF><Naming><VRFName>
+                    my $vrf_name = $context->findvalue('./Naming/VRFName');
+                    $vrf_name =~ s/\s+//g;
+                    next if $vrf_name !~ /^OESS-VRF/;
+
+                    $vrf_name =~ /OESS-VRF-(\d+)/;
+                    $vrf_id = $1;
+
+                    my $peers = $context->findnodes('./NeighborTable/Neighbor');
+                    foreach my $context ($peers->get_nodelist) {
+                        my $stat = {
+                            vrf_name            => $vrf_name,
+                            vrf_id              => $vrf_id,
+                            node                => $node,
+                            remote_ip           => undef,
+                            connection_state    => undef,
+                            bytes_read          => 0,
+                            bytes_written       => 0,
+                            messages_received   => 0,
+                            messages_sent       => 0,
+                            prefixes_accepted   => 0,
+                            prefixes_denied     => 0,
+                            prefixes_advertised => 0,
+                            prefixes_suppressed => 0,
+                            prefixes_synced     => 0,
+                        };
+
+                        # Neighbor addresses to associate with stats.
+                        # <VRF><NeighborTable><Neighbor><Naming><NeighborAddress><IPV4Address>
+                        # <VRF><NeighborTable><Neighbor><Naming><NeighborAddress><IPV6Address>
+                        my $ipv4 = $context->exists('./Naming/NeighborAddress/IPV4Address');
+                        if ($ipv4) {
+                            $stat->{remote_ip} = $context->findvalue('./Naming/NeighborAddress/IPV4Address');
+                        } else {
+                            $stat->{remote_ip} = $context->findvalue('./Naming/NeighborAddress/IPV6Address');
+                        }
+                        $stat->{remote_ip} =~ s/\s+//g;
+
+                        # <VRF><NeighborTable><Neighbor><RemoteASNumber>
+                        $stat->{remote_as} = $context->findvalue('./RemoteASNumber');
+                        $stat->{remote_as} =~ s/\s+//g;
+
+                        # <VRF><NeighborTable><Neighbor><ConnectionState> (BGP_ST_ACTIVE|BGP_ST_ESTAB|BGP_ST_IDLE)
+                        $stat->{connection_state} = $context->findvalue('./ConnectionState');
+                        $stat->{connection_state} =~ s/\s+//g;
+
+                        # <VRF><NeighborTable><Neighbor><PerformanceStatistics><DataBytesRead>
+                        $stat->{bytes_read} = $context->findvalue('./PerformanceStatistics/DataBytesRead');
+                        $stat->{bytes_read} =~ s/\s+//g;
+
+                        # <VRF><NeighborTable><Neighbor><PerformanceStatistics><DataBytesWritten>
+                        $stat->{bytes_written} = $context->findvalue('./PerformanceStatistics/DataBytesWritten');
+                        $stat->{bytes_written} =~ s/\s+//g;
+
+                        # <VRF><NeighborTable><Neighbor><MessagesReceived>
+                        $stat->{messages_received} = $context->findvalue('./MessagesReceived');
+                        $stat->{messages_received} =~ s/\s+//g;
+
+                        # <VRF><NeighborTable><Neighbor><MessagesSent>
+                        $stat->{messages_sent} = $context->findvalue('./MessagesSent');
+                        $stat->{messages_sent} =~ s/\s+//g;
+
+                        my $afdatas = $context->findnodes('./AFData/Entry');
+                        foreach my $context ($afdatas->get_nodelist) {
+                            # I'm assuming one entry per-neighbor. Hopefully always the same type.
+                            # <VRF><NeighborTable><Neighbor><AFData><Entry><AFName>IPv4
+                            # <VRF><NeighborTable><Neighbor><AFData><Entry><AFName>IPv6
+                            my $ip_version = $context->findvalue('./AFName');
+                            $ip_version =~ s/\s+//g;
+
+                            # Only record v4 peering stats if neighbor is using ipv4
+                            # Only record v6 peering stats if neighbor is using ipv6
+                            next if $ipv4 && $ip_version eq 'IPv6';
+                            next if !$ipv4 && $ip_version eq 'IPv4';
+
+                            # <VRF><NeighborTable><Neighbor><AFData><Entry><PrefixesAccepted>
+                            # <VRF><NeighborTable><Neighbor><AFData><Entry><PrefixesDenied>
+                            # <VRF><NeighborTable><Neighbor><AFData><Entry><PrefixesAdvertised>
+                            # <VRF><NeighborTable><Neighbor><AFData><Entry><PrefixesSuppressed>
+                            # <VRF><NeighborTable><Neighbor><AFData><Entry><PrefixesSynced>
+                            $stat->{prefixes_accepted} = $context->findvalue('./PrefixesAccepted');
+                            $stat->{prefixes_accepted} =~ s/\s+//g;
+                            $stat->{prefixes_denied} = $context->findvalue('./PrefixesDenied');
+                            $stat->{prefixes_denied} =~ s/\s+//g;
+                            $stat->{prefixes_advertised} = $context->findvalue('./PrefixesAdvertised');
+                            $stat->{prefixes_advertised} =~ s/\s+//g;
+                            $stat->{prefixes_suppressed} = $context->findvalue('./PrefixesSuppressed');
+                            $stat->{prefixes_suppressed} =~ s/\s+//g;
+                            $stat->{prefixes_synced} = $context->findvalue('./PrefixesSynced');
+                            $stat->{prefixes_synced} =~ s/\s+//g;
+                        }
+
+                        push @$response, $stat;
+                    }
+                }
+            }
+        }
+    };
+    if ($@) {
+        my $err = $@;
+        return (undef, $err);
+    }
+    return ($response, undef);
 }
 
 1;
