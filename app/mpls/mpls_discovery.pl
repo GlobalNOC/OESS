@@ -9,6 +9,8 @@ use Getopt::Long;
 use Proc::Daemon;
 use Data::Dumper;
 
+use GRNOC::WebService::Client;
+
 use OESS::Config;
 use OESS::MPLS::Discovery;
 use OESS::NSO::Client;
@@ -24,11 +26,19 @@ sub core{
     my $mpls_discovery;
     my $nso_discovery;
     my $nso_client = new OESS::NSO::Client(config_obj => $config);
+    my $tsds_client = new GRNOC::WebService::Client(
+        url     => $config->tsds_url . "/services/push.cgi",
+        uid     => $config->tsds_username,
+        passwd  => $config->tsds_password,
+        realm   => $config->tsds_realm,
+        usePost => 1
+    );
 
     if ($config->network_type eq 'nso') {
         my $nso_discovery = OESS::NSO::Discovery->new(
             config_obj => $config,
-            nso => $nso_client
+            nso => $nso_client,
+            tsds => $tsds_client
         );
         $nso_discovery->start;
     }
@@ -38,7 +48,8 @@ sub core{
     elsif ($config->network_type eq 'nso+vpn-mpls') {
         $nso_discovery = OESS::NSO::Discovery->new(
             config_obj => $config,
-            nso => $nso_client
+            nso => $nso_client,
+            tsds => $tsds_client
         );
         $nso_discovery->start;
 

@@ -487,10 +487,9 @@ sub vrf_stats_handler {
 =head2 handle_vrf_stats
 
 =cut
-
 sub handle_vrf_stats{
     my $self = shift;
-    my @params = @_;
+    my %params = @_;
 
     my $node  = $params{'node'};
     my $stats = $params{'stats'};
@@ -499,8 +498,6 @@ sub handle_vrf_stats{
 
     my $time     = time();
     my $all_val  = [];
-    my $rib_val  = [];
-    my $peer_val = [];
 
     while (@$stats > 0) {
         my $stat = shift @$stats;
@@ -536,13 +533,6 @@ sub handle_vrf_stats{
             routing_table => $stat->{vrf_name},
             node          => $stat->{node},
         };
-        push @$rib_val, {
-            type     => TSDS_RIB_TYPE,
-            time     => $time,
-            interval => VRF_STATS_INTERVAL,
-            values   => $rib_data,
-            meta     => $rib_metadata,
-        };
         push @$all_val, {
             type     => TSDS_RIB_TYPE,
             time     => $time,
@@ -564,13 +554,6 @@ sub handle_vrf_stats{
             as           => $stat->{remote_as},
             node         => $stat->{node},
         };
-        push @$peer_val, {
-            type     => TSDS_PEER_TYPE,
-            time     => $time,
-            interval => VRF_STATS_INTERVAL,
-            values   => $peer_data,
-            meta     => $peer_metadata,
-        };
         push @$all_val, {
             type     => TSDS_PEER_TYPE,
             time     => $time,
@@ -579,6 +562,10 @@ sub handle_vrf_stats{
             meta     => $peer_metadata,
         };
 
+        # Update previous stat to current stat; On the next iteration
+        # this stat will be the previous.
+        $self->{previous_peer}->{$stat->{node}}->{$stat->{vrf_name}}->{$stat->{remote_ip}} = $stat;
+
         eval {
             $self->{logger}->debug("Updating VRF $stat->{vrf_name} neighbor $stat->{remote_ip} with state $peer_data->{state}.");
             my $q = "
@@ -586,7 +573,7 @@ sub handle_vrf_stats{
                   select vrf_ep_id from vrf_ep where vrf_id=?
                 )
             ";
-            $self->{'db'}->_execute_query(
+            $self->{db}->execute_query(
                 $q,
                 [ $peer_data->{state}, "$stat->{remote_ip}/%", $stat->{vrf_id} ]
             );
@@ -595,44 +582,18 @@ sub handle_vrf_stats{
             $self->{logger}->warn("Couldn't update VRF $stat->{vrf_name} neighbor with state $peer_data->{state}: $@");
         }
 
-        # # Length of $rib_val and $peer_val should always be the same
-        # if (@$rib_val >= MAX_TSDS_MESSAGES || @$peer_val >= MAX_TSDS_MESSAGES || @$stats == 0) {
-        #     eval {
-        #         my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($rib_val));
-        #         if (!defined $tsds_res) {
-        #             die $self->{'tsds_svc'}->get_error;
-        #         }
-        #         if (defined $tsds_res->{'error'}) {
-        #             die $tsds_res->{'error_text'};
-        #         }
-
-        #         $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($rib_val));
-        #         if (!defined $tsds_res) {
-        #             die $self->{'tsds_svc'}->get_error;
-        #         }
-        #         if (defined $tsds_res->{'error'}) {
-        #             die $tsds_res->{'error_text'};
-        #         }
-        #     };
-        #     if ($@) {
-        #         $self->{'logger'}->error("Error submitting statistics to TSDS: $@");
-        #     }
-        #     $rib_val  = [];
-        #     $peer_val = [];
-        # }
-
         if (@$all_val >= MAX_TSDS_MESSAGES || @$stats == 0) {
             eval {
-                my $tsds_res = $self->{'tsds_svc'}->add_data(data => encode_json($all_val));
+                my $tsds_res = $self->{tsds}->add_data(data => encode_json($all_val));
                 if (!defined $tsds_res) {
-                    die $self->{'tsds_svc'}->get_error;
+                    die $self->{tsds}->get_error;
                 }
-                if (defined $tsds_res->{'error'}) {
-                    die $tsds_res->{'error_text'};
+                if (defined $tsds_res->{error}) {
+                    die $tsds_res->{error_text};
                 }
             };
             if ($@) {
-                $self->{'logger'}->error("Error submitting statistics to TSDS: $@");
+                $self->{logger}->error("Error submitting statistics to TSDS: $@");
             }
             $all_val = [];
         }
