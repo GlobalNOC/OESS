@@ -791,4 +791,79 @@ sub get_platform {
     );
 }
 
+=head2 get_interfaces
+
+    get_interfaces('agg2.bldc', sub {
+        my ($data, $err) = @_;
+
+    });
+
+Returns:
+
+    {
+      'TenGigE' => [
+        {
+          'load-interval' => 30,
+          'id' => '0/0/0/0/3',
+          'description' => 'PDP WASH-PC1-12',
+          'lldp' => {
+            'enable' => [
+              undef
+            ]
+          }
+        },
+        {
+          'id' => '0/0/0/0/0',
+          'description' => 'MX960-2 xe-7/3/0'
+        },
+        {
+          'shutdown' => [
+            undef
+          ],
+          'id' => '0/0/0/1/0'
+        }
+      ]
+    }
+
+=cut
+sub get_interfaces {
+    my $self = shift;
+    my $node = shift;
+    my $sub  = shift;
+
+    my $username = $self->{config_obj}->nso_username;
+    my $password = $self->{config_obj}->nso_password;
+
+    my $userpass = "$username:$password";
+    $userpass = Encode::encode("UTF-8", "$username:$password");
+
+    my $credentials = MIME::Base64::encode($userpass, '');
+
+    http_request(
+        GET => $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node/config/tailf-ned-cisco-ios-xr:interface",
+        headers => {
+            'content-type'     => 'application/yang-data+json',
+            'authorization'    => "Basic $credentials",
+            'www-authenticate' => 'Basic realm="restconf", charset="UTF-8"',
+        },
+        sub {
+            my ($body, $hdr) = @_;
+
+            my $response = [];
+
+            eval {
+                my $result = decode_json($body);
+                my $err = $self->get_json_errors($result);
+                if (defined $err) {
+                    &$sub($result, $err);
+                }
+                &$sub($result->{'tailf-ned-cisco-ios-xr:interface'}, $err);
+            };
+            if ($@) {
+                &$sub(undef, $@);
+            }
+        }
+    );
+}
+
 1;
