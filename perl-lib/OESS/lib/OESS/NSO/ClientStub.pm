@@ -378,4 +378,21 @@ sub get_backbones {
     return ($backbones, undef);
 }
 
+=head2 get_platform
+
+=cut
+sub get_platform {
+    my $self = shift;
+    my $node = shift;
+    my $sub  = shift;
+
+    my $result = {
+        'serial-number' => 'FOC22311UU1',
+        'version' => '7.2.2',
+        'model' => 'NCS-5500',
+        'name' => 'ios-xr'
+    };
+    &$sub($result, undef);
+}
+
 1;
