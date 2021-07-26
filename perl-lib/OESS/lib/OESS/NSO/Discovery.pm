@@ -19,6 +19,11 @@ use OESS::DB::Node;
 use OESS::Node;
 use OESS::RabbitMQ::Dispatcher;
 
+use constant MAX_TSDS_MESSAGES => 30;
+use constant TSDS_RIB_TYPE => 'rib_table';
+use constant TSDS_PEER_TYPE => 'bgp_peer';
+use constant VRF_STATS_INTERVAL => 60;
+
 =head1 OESS::NSO::Discovery
 
 =cut
@@ -418,10 +423,14 @@ sub start {
         interval => 120,
         cb       => sub { $self->link_handler(@_); }
     );
+    $self->{vrf_stats_time} = AnyEvent->timer(
+        after    =>  30,
+        interval => VRF_STATS_INTERVAL,
+        cb       => sub { $self->vrf_stats_handler(@_); }
+    );
+
 
     $self->{dispatcher} = new OESS::RabbitMQ::Dispatcher(
-        # queue => 'oess-discovery',
-        # topic => 'oess.discovery.rpc'
         queue => 'NSO-Discovery',
         topic => 'NSO.Discovery.RPC'
     );
@@ -453,6 +462,144 @@ sub start {
 
     return 1;
 }
+
+
+=head2 vrf_stats_handler
+
+=cut
+sub vrf_stats_handler {
+    my $self = shift;
+    $self->{logger}->info("Calling vrf_stats_handler.");
+
+    foreach my $key (keys %{$self->{nodes}}) {
+        my $node = $self->{nodes}->{$key};
+
+        my ($stats, $err) = $self->{nso}->get_vrf_statistics($node->{name});
+        if (defined $err) {
+            $self->{logger}->error($err);
+            next;
+        }
+
+        $self->handle_vrf_stats(node => $node, stats => $stats);
+    }
+}
+
+=head2 handle_vrf_stats
+
+=cut
+sub handle_vrf_stats{
+    my $self = shift;
+    my %params = @_;
+
+    my $node  = $params{'node'};
+    my $stats = $params{'stats'};
+
+    return if (!defined $stats || @$stats == 0);
+
+    my $time     = time();
+    my $all_val  = [];
+
+    while (@$stats > 0) {
+        my $stat = shift @$stats;
+
+        my $prev_stat = $self->{previous_peer}->{$stat->{node}}->{$stat->{vrf_name}}->{$stat->{remote_ip}};
+        if (!defined $prev_stat) {
+            $self->{logger}->warn("Previous stats unavailable for $stat->{node}. Collection will resume with the next datapoints.");
+            $self->{previous_peer}->{$stat->{node}}->{$stat->{vrf_name}}->{$stat->{remote_ip}} = $stat;
+            next;
+        }
+
+        # Most neighbor stats we collected from Juniper have no direct
+        # mapping to Cisco.
+        my $rib_data = {
+            total_prefix_count               => 0,
+            received_prefix_count            => 0,
+            accepted_prefix_count            => $stat->{prefixes_accepted},
+            active_prefix_count              => $stat->{prefixes_accepted},
+            suppressed_prefix_count          => $stat->{prefixes_suppressed},
+            history_prefix_count             => 0,
+            damped_prefix_count              => 0,
+            pending_prefix_count             => 0,
+            total_external_prefix_count      => 0,
+            active_external_prefix_count     => 0,
+            accepted_external_prefix_count   => 0,
+            suppressed_external_prefix_count => 0,
+            total_internal_prefix_count      => 0,
+            active_internal_prefix_count     => 0,
+            accepted_internal_prefix_count   => 0,
+            suppressed_internal_prefix_count => 0,
+        };
+        my $rib_metadata = {
+            routing_table => $stat->{vrf_name},
+            node          => $stat->{node},
+        };
+        push @$all_val, {
+            type     => TSDS_RIB_TYPE,
+            time     => $time,
+            interval => VRF_STATS_INTERVAL,
+            values   => $rib_data,
+            meta     => $rib_metadata,
+        };
+
+        my $peer_data = {
+            output_messages   => ($stat->{messages_sent} - $prev_stat->{messages_sent}) / VRF_STATS_INTERVAL,
+            input_messages    => ($stat->{messages_received} - $prev_stat->{messages_received}) / VRF_STATS_INTERVAL,
+            route_queue_count => 0,
+            flap_count        => 0,
+            state             => ($stat->{connection_state} eq 'BGP_ST_ESTAB') ? 1 : 0,
+        };
+        my $peer_metadata = {
+            peer_address => $stat->{remote_ip},
+            vrf          => $stat->{vrf_name},
+            as           => $stat->{remote_as},
+            node         => $stat->{node},
+        };
+        push @$all_val, {
+            type     => TSDS_PEER_TYPE,
+            time     => $time,
+            interval => VRF_STATS_INTERVAL,
+            values   => $peer_data,
+            meta     => $peer_metadata,
+        };
+
+        # Update previous stat to current stat; On the next iteration
+        # this stat will be the previous.
+        $self->{previous_peer}->{$stat->{node}}->{$stat->{vrf_name}}->{$stat->{remote_ip}} = $stat;
+
+        eval {
+            $self->{logger}->debug("Updating VRF $stat->{vrf_name} neighbor $stat->{remote_ip} with state $peer_data->{state}.");
+            my $q = "
+                update vrf_ep_peer set operational_state=? where peer_ip like ? and vrf_ep_id in (
+                  select vrf_ep_id from vrf_ep where vrf_id=?
+                )
+            ";
+            $self->{db}->execute_query(
+                $q,
+                [ $peer_data->{state}, "$stat->{remote_ip}/%", $stat->{vrf_id} ]
+            );
+        };
+        if ($@) {
+            $self->{logger}->warn("Couldn't update VRF $stat->{vrf_name} neighbor with state $peer_data->{state}: $@");
+        }
+
+        if (@$all_val >= MAX_TSDS_MESSAGES || @$stats == 0) {
+            eval {
+                my $tsds_res = $self->{tsds}->add_data(data => encode_json($all_val));
+                if (!defined $tsds_res) {
+                    die $self->{tsds}->get_error;
+                }
+                if (defined $tsds_res->{error}) {
+                    die $tsds_res->{error_text};
+                }
+            };
+            if ($@) {
+                $self->{logger}->error("Error submitting statistics to TSDS: $@");
+            }
+            $all_val = [];
+        }
+    }
+}
+
 
 =head2 stop
 

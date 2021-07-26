@@ -271,4 +271,40 @@ sub nso_username {
     return $self->{config}->{nso}->{username};
 }
 
+=head2 tsds_url
+
+=cut
+sub tsds_url {
+    my $self = shift;
+    return if (!defined $self->{config}->{tsds});
+    return $self->{config}->{tsds}->{url};
+}
+
+=head2 tsds_password
+
+=cut
+sub tsds_password {
+    my $self = shift;
+    return if (!defined $self->{config}->{tsds});
+    return $self->{config}->{tsds}->{password};
+}
+
+=head2 tsds_username
+
+=cut
+sub tsds_username {
+    my $self = shift;
+    return if (!defined $self->{config}->{tsds});
+    return $self->{config}->{tsds}->{username};
+}
+
+=head2 tsds_realm
+
+=cut
+sub tsds_realm {
+    my $self = shift;
+    return if (!defined $self->{config}->{tsds});
+    return $self->{config}->{tsds}->{realm};
+}
+
 1;
