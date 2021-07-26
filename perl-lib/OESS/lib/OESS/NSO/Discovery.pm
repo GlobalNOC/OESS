@@ -71,59 +71,62 @@ sub connection_handler {
     return 1;
 }
 
-=head2 device_handler
-
-device_handler queries each devices for basic system info:
-- loopback address
-- firmware version
+=head2 fetch_platform
 
 =cut
-sub device_handler {
+sub fetch_platform {
     my $self = shift;
-    $self->{logger}->info("Calling device_handler.");
 
+    $self->{logger}->info("Calling fetch_platform.");
+
+    my $results = {};
+
+    my $cv = AnyEvent->condvar;
+    $cv->begin(
+        sub {
+            my $cv = shift;
+            foreach my $key (keys %{$self->{nodes}}) {
+                my $node   = $self->{nodes}->{$key};
+                my $result = $results->{$node->{name}};
+                next if !defined $result;
+
+                $self->{db}->start_transaction;
+                my $device = new OESS::Node(db => $self->{db}, name => $node->{name});
+                if (!defined $device) {
+                    warn "Couldn't find node $result->{name}.";
+                    $self->{logger}->error("Couldn't find node $result->{name}.");
+                }
+
+                $device->model($result->{model});
+                $device->sw_version($result->{version});
+                $device->vendor('Cisco') if ($result->{name} eq 'ios-xr');
+                $device->update;
+                $self->{db}->commit;
+            }
+            $cv->send;
+        }
+    );
     foreach my $key (keys %{$self->{nodes}}) {
         my $node = $self->{nodes}->{$key};
 
-        my $dom = eval {
-            my $res = $self->{www}->get($self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}/platform");
-            return XML::LibXML->load_xml(string => $res->content);
-        };
-        if ($@) {
-            warn "tailf-ncs:devices/device=$node->{name}/platform: $@";
-            $self->{logger}->error("tailf-ncs:devices/device=$node->{name}/platform: $@");
-            next;
-        }
-
-        my $data = eval {
-            return {
-                name          => $node->{name},
-                platform      => $dom->findvalue('/ncs:platform/ncs:name'),
-                version       => $dom->findvalue('/ncs:platform/ncs:version'),
-                model         => $dom->findvalue('/ncs:platform/ncs:model'),
-                serial_number => $dom->findvalue('/ncs:platform/ncs:serial-number')
-            };
-        };
-        if ($@) {
-            warn 'device:' . $@;
-            $self->{logger}->error('device:' . $@);
-            next;
-        }
-
-        $self->{db}->start_transaction;
-        my $device = new OESS::Node(db => $self->{db}, name => $data->{name});
-        if (!defined $device) {
-            warn "Couldn't find node $data->{name}.";
-            $self->{logger}->error("Couldn't find node $data->{name}.");
-        }
-        $device->name($data->{name});
-        $device->model($data->{model});
-        $device->sw_version($data->{version});
-        $device->vendor('Cisco') if ($data->{platform} eq 'ios-xr');
-        $device->update;
-        $self->{db}->commit;
+        $cv->begin;
+        $self->{nso}->get_platform(
+            $node->{name},
+            sub {
+                my ($result, $err) = @_;
+                if (defined $err) {
+                    $self->{logger}->error("fetch_platform: $err");
+                    $results->{$node->{name}} = undef;
+                } else {
+                    $results->{$node->{name}} = $result;
+                }
+                $cv->end;
+            }
+        );
     }
-    return 1;
+    $cv->end;
+
+    $self->{logger}->info("Platform data fetched from NSO.");
 }
 
 =head2 interface_handler
@@ -380,7 +383,7 @@ sub new_switch {
     $self->{logger}->info("Switch $node->{name} registered with NSO.Discovery.");
 
     # Make first invocation of polling subroutines
-    $self->device_handler;
+    $self->fetch_platform;
     $self->interface_handler;
 
     return &$success({ status => 1 });
@@ -411,7 +414,7 @@ sub start {
     $self->{device_timer} = AnyEvent->timer(
         after    => 10,
         interval => 60,
-        cb       => sub { $self->device_handler(@_); }
+        cb       => sub { $self->fetch_platform(@_); }
     );
     $self->{interface_timer} = AnyEvent->timer(
         after    =>  60,
@@ -471,23 +474,48 @@ sub vrf_stats_handler {
     my $self = shift;
     $self->{logger}->info("Calling vrf_stats_handler.");
 
+    my $results = {};
+
+    my $cv = AnyEvent->condvar;
+    $cv->begin(
+        sub {
+            my $cv = shift;
+            foreach my $key (keys %{$self->{nodes}}) {
+                my $node = $self->{nodes}->{$key};
+                next if !defined $results->{$node->{name}};
+
+                $self->handle_vrf_stats(node => $node->{name}, stats => $results->{$node->{name}});
+            }
+            $cv->send;
+        }
+    );
     foreach my $key (keys %{$self->{nodes}}) {
         my $node = $self->{nodes}->{$key};
 
-        my ($stats, $err) = $self->{nso}->get_vrf_statistics($node->{name});
-        if (defined $err) {
-            $self->{logger}->error($err);
-            next;
-        }
-
-        $self->handle_vrf_stats(node => $node, stats => $stats);
+        $cv->begin;
+        $self->{nso}->get_vrf_statistics2(
+            $node->{name},
+            sub {
+                my ($result, $err) = @_;
+                if (defined $err) {
+                    $self->{logger}->error("vrf_stats_handler: $err");
+                    $results->{$node->{name}} = [];
+                } else {
+                    $results->{$node->{name}} = $result;
+                }
+                $cv->end;
+            }
+        );
     }
+    $cv->end;
+
+    $self->{logger}->info("Statistics submitted to TSDS.");
 }
 
 =head2 handle_vrf_stats
 
 =cut
-sub handle_vrf_stats{
+sub handle_vrf_stats {
     my $self = shift;
     my %params = @_;
 
