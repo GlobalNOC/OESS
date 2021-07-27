@@ -399,7 +399,7 @@ sub new_switch {
 
     # Make first invocation of polling subroutines
     $self->fetch_platform;
-    $self->interface_handler;
+    $self->fetch_interfaces;
 
     return &$success({ status => 1 });
 }
