@@ -71,144 +71,162 @@ sub connection_handler {
     return 1;
 }
 
-=head2 device_handler
-
-device_handler queries each devices for basic system info:
-- loopback address
-- firmware version
+=head2 fetch_platform
 
 =cut
-sub device_handler {
+sub fetch_platform {
     my $self = shift;
-    $self->{logger}->info("Calling device_handler.");
 
+    $self->{logger}->info("Calling fetch_platform.");
+
+    my $results = {};
+
+    my $cv = AnyEvent->condvar;
+    $cv->begin(
+        sub {
+            my $cv = shift;
+            foreach my $key (keys %{$self->{nodes}}) {
+                my $node   = $self->{nodes}->{$key};
+                my $result = $results->{$node->{name}};
+                next if !defined $result;
+
+                $self->{db}->start_transaction;
+                my $device = new OESS::Node(db => $self->{db}, name => $node->{name});
+                if (!defined $device) {
+                    warn "Couldn't find node $result->{name}.";
+                    $self->{logger}->error("Couldn't find node $result->{name}.");
+                }
+
+                $device->model($result->{model});
+                $device->sw_version($result->{version});
+                $device->vendor('Cisco') if ($result->{name} eq 'ios-xr');
+                $device->update;
+                $self->{db}->commit;
+            }
+            $cv->send;
+        }
+    );
     foreach my $key (keys %{$self->{nodes}}) {
         my $node = $self->{nodes}->{$key};
 
-        my $dom = eval {
-            my $res = $self->{www}->get($self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}/platform");
-            return XML::LibXML->load_xml(string => $res->content);
-        };
-        if ($@) {
-            warn "tailf-ncs:devices/device=$node->{name}/platform: $@";
-            $self->{logger}->error("tailf-ncs:devices/device=$node->{name}/platform: $@");
-            next;
-        }
-
-        my $data = eval {
-            return {
-                name          => $node->{name},
-                platform      => $dom->findvalue('/ncs:platform/ncs:name'),
-                version       => $dom->findvalue('/ncs:platform/ncs:version'),
-                model         => $dom->findvalue('/ncs:platform/ncs:model'),
-                serial_number => $dom->findvalue('/ncs:platform/ncs:serial-number')
-            };
-        };
-        if ($@) {
-            warn 'device:' . $@;
-            $self->{logger}->error('device:' . $@);
-            next;
-        }
-
-        $self->{db}->start_transaction;
-        my $device = new OESS::Node(db => $self->{db}, name => $data->{name});
-        if (!defined $device) {
-            warn "Couldn't find node $data->{name}.";
-            $self->{logger}->error("Couldn't find node $data->{name}.");
-        }
-        $device->name($data->{name});
-        $device->model($data->{model});
-        $device->sw_version($data->{version});
-        $device->vendor('Cisco') if ($data->{platform} eq 'ios-xr');
-        $device->update;
-        $self->{db}->commit;
+        $cv->begin;
+        $self->{nso}->get_platform(
+            $node->{name},
+            sub {
+                my ($result, $err) = @_;
+                if (defined $err) {
+                    $self->{logger}->error("fetch_platform: $err");
+                    $results->{$node->{name}} = undef;
+                } else {
+                    $results->{$node->{name}} = $result;
+                }
+                $cv->end;
+            }
+        );
     }
-    return 1;
+    $cv->end;
+
+    $self->{logger}->info("Platform data fetched from NSO.");
 }
 
-=head2 interface_handler
+=head2 fetch_interfaces
 
-interface_handler queries each device for interface configuration and
+fetch_interfaces queries each device for interface configuration and
 operational state.
 
 =cut
-sub interface_handler {
+sub fetch_interfaces {
     my $self = shift;
-    $self->{logger}->info("Calling interface_handler.");
+    $self->{logger}->info("Calling fetch_interfaces.");
 
+    my $results = {};
+
+    my $cv = AnyEvent->condvar;
+    $cv->begin(
+        sub {
+            my $cv = shift;
+
+            my $types  = ["Bundle-Ether", "GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
+            my $ports  = [];
+
+            foreach my $key (keys %{$self->{nodes}}) {
+                my $node   = $self->{nodes}->{$key};
+                my $result = $results->{$node->{name}};
+                next if !defined $result;
+
+                foreach my $type (@$types) {
+                    next if !defined $result->{$type};
+
+                    foreach my $port (@{$result->{$type}}) {
+                        my $port_info = {
+                            admin_state => (exists $port->{shutdown}) ? 'down' : 'up',
+                            bandwidth   => (exists $port->{speed}) ? $port->{speed} : 1000,
+                            description => (exists $port->{description}) ? $port->{description} : '',
+                            mtu         => (exists $port->{mtu}) ? $port->{mtu} : 0,
+                            name        => $type . $port->{id},
+                            node        => $node->{name},
+                            node_id     => $node->{node_id}
+                        };
+                        push @$ports, $port_info;
+                    }
+                }
+            }
+
+            $self->{db}->start_transaction;
+            foreach my $data (@$ports) {
+                my $port = new OESS::Interface(db => $self->{db}, node => $data->{node}, name => $data->{name});
+                if (defined $port) {
+                    $port->admin_state($data->{admin_state});
+                    $port->bandwidth($data->{bandwidth});
+                    $port->description($data->{description});
+                    $port->mtu($data->{mtu});
+                    $port->update_db;
+                } else {
+                    warn "Couldn't find interface $data->{node} $data->{name}; Creating interface.";
+                    $self->{logger}->warn("Couldn't find interface $data->{node} $data->{name}; Creating interface.");
+
+                    $port = new OESS::Interface(db => $self->{db}, model => {
+                        admin_state => $data->{admin_state},
+                        bandwidth => $data->{bandwidth},
+                        description => $data->{description},
+                        mtu => $data->{mtu},
+                        name => $data->{name},
+                        operational_state => $data->{admin_state} # Using admin_state as best guess for now
+                    });
+
+                    my ($port_id, $port_err) = $port->create(node_id => $data->{node_id});
+                    if (defined $port_err) {
+                        warn "Couldn't create interface $data->{node} $data->{name}.";
+                        $self->{logger}->error("Couldn't create interface $data->{node} $data->{name}.")
+                    }
+                }
+            }
+            $self->{db}->commit;
+
+            $cv->send;
+        }
+    );
     foreach my $key (keys %{$self->{nodes}}) {
         my $node = $self->{nodes}->{$key};
 
-        my $dom = eval {
-            my $res = $self->{www}->get($self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node->{name}/config/tailf-ned-cisco-ios-xr:interface");
-            return XML::LibXML->load_xml(string => $res->content);
-        };
-        if ($@) {
-            # Don't log Empty String error as there are simply no interfaces
-            if ($@ !~ /Empty String/g) {
-                warn 'tailf-ned-cisco-ios-xr:interface:' . $@;
-                $self->{logger}->error('tailf-ned-cisco-ios-xr:interface:' . $@);
-            }
-            next;
-        }
-
-        my $ports = eval {
-            my $result = [];
-            my $types  = ["Bundle-Ether", "GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
-
-            foreach my $type (@$types) {
-                my @gb_ports = $dom->findnodes("/cisco-ios-xr:interface/cisco-ios-xr:$type");
-                foreach my $port (@gb_ports) {
-                    my $port_info = {
-                        admin_state => $port->exists('./cisco-ios-xr:shutdown') ? 'down' : 'up',
-                        bandwidth   => $port->findvalue('./cisco-ios-xr:speed') || 1000,
-                        description => $port->findvalue('./cisco-ios-xr:description') || '',
-                        mtu         => $port->findvalue('./cisco-ios-xr:mtu') || 0,
-                        name        => $type . $port->findvalue('./cisco-ios-xr:id')
-                    };
-                    push @$result, $port_info;
+        $cv->begin;
+        $self->{nso}->get_interfaces(
+            $node->{name},
+            sub {
+                my ($result, $err) = @_;
+                if (defined $err) {
+                    $self->{logger}->error("fetch_interfaces: $err");
+                    $results->{$node->{name}} = undef;
+                } else {
+                    $results->{$node->{name}} = $result;
                 }
+                $cv->end;
             }
-            return $result;
-        };
-        if ($@) {
-            warn 'port_info:' . $@;
-            $self->{logger}->error('port_info:' . $@);
-            next;
-        }
-
-        $self->{db}->start_transaction;
-        foreach my $data (@$ports) {
-            my $port = new OESS::Interface(db => $self->{db}, node => $node->{name}, name => $data->{name});
-            if (defined $port) {
-                $port->admin_state($data->{admin_state});
-                $port->bandwidth($data->{bandwidth});
-                $port->description($data->{description});
-                $port->mtu($data->{mtu});
-                $port->update_db;
-            } else {
-                warn "Couldn't find interface $node->{name} $data->{name}; Creating interface.";
-                $self->{logger}->warn("Couldn't find interface $node->{name} $data->{name}; Creating interface.");
-
-                $port = new OESS::Interface(db => $self->{db}, model => {
-                    admin_state => $data->{admin_state},
-                    bandwidth => $data->{bandwidth},
-                    description => $data->{description},
-                    mtu => $data->{mtu},
-                    name => $data->{name},
-                    operational_state => $data->{admin_state} # Using admin_state as best guess for now
-                });
-
-                my ($port_id, $port_err) = $port->create(node_id => $node->{node_id});
-                if (defined $port_err) {
-                    warn "Couldn't create interface $node->{name} $data->{name}.";
-                    $self->{logger}->error("Couldn't create interface $node->{name} $data->{name}.")
-                }
-            }
-        }
-        $self->{db}->commit;
+        );
     }
-    return 1;
+    $cv->end;
+
+    $self->{logger}->info("Interfaces fetched from NSO.");
 }
 
 =head2 link_handler
@@ -380,8 +398,8 @@ sub new_switch {
     $self->{logger}->info("Switch $node->{name} registered with NSO.Discovery.");
 
     # Make first invocation of polling subroutines
-    $self->device_handler;
-    $self->interface_handler;
+    $self->fetch_platform;
+    $self->fetch_interfaces;
 
     return &$success({ status => 1 });
 }
@@ -411,12 +429,12 @@ sub start {
     $self->{device_timer} = AnyEvent->timer(
         after    => 10,
         interval => 60,
-        cb       => sub { $self->device_handler(@_); }
+        cb       => sub { $self->fetch_platform(@_); }
     );
     $self->{interface_timer} = AnyEvent->timer(
         after    =>  60,
         interval => 120,
-        cb       => sub { $self->interface_handler(@_); }
+        cb       => sub { $self->fetch_interfaces(@_); }
     );
     $self->{link_timer} = AnyEvent->timer(
         after    =>  90,
@@ -471,23 +489,48 @@ sub vrf_stats_handler {
     my $self = shift;
     $self->{logger}->info("Calling vrf_stats_handler.");
 
+    my $results = {};
+
+    my $cv = AnyEvent->condvar;
+    $cv->begin(
+        sub {
+            my $cv = shift;
+            foreach my $key (keys %{$self->{nodes}}) {
+                my $node = $self->{nodes}->{$key};
+                next if !defined $results->{$node->{name}};
+
+                $self->handle_vrf_stats(node => $node->{name}, stats => $results->{$node->{name}});
+            }
+            $cv->send;
+        }
+    );
     foreach my $key (keys %{$self->{nodes}}) {
         my $node = $self->{nodes}->{$key};
 
-        my ($stats, $err) = $self->{nso}->get_vrf_statistics($node->{name});
-        if (defined $err) {
-            $self->{logger}->error($err);
-            next;
-        }
-
-        $self->handle_vrf_stats(node => $node, stats => $stats);
+        $cv->begin;
+        $self->{nso}->get_vrf_statistics(
+            $node->{name},
+            sub {
+                my ($result, $err) = @_;
+                if (defined $err) {
+                    $self->{logger}->error("vrf_stats_handler: $err");
+                    $results->{$node->{name}} = [];
+                } else {
+                    $results->{$node->{name}} = $result;
+                }
+                $cv->end;
+            }
+        );
     }
+    $cv->end;
+
+    $self->{logger}->info("Statistics submitted to TSDS.");
 }
 
 =head2 handle_vrf_stats
 
 =cut
-sub handle_vrf_stats{
+sub handle_vrf_stats {
     my $self = shift;
     my %params = @_;
 

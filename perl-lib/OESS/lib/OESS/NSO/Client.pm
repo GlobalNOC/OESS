@@ -1,11 +1,15 @@
 package OESS::NSO::Client;
 
+use AnyEvent::HTTP;
 use Data::Dumper;
+use Encode;
 use HTTP::Request::Common;
 use JSON;
 use Log::Log4perl;
 use LWP::UserAgent;
+use MIME::Base64;
 use XML::LibXML;
+
 
 =head1 OESS::NSO::Client
 
@@ -521,7 +525,10 @@ sub get_backbones {
 
 =head2 get_vrf_statistics
 
-    my ($stats, $err) = get_vrf_statistics('agg2.bldc');
+    get_vrf_statistics('agg2.bldc', sub {
+        my ($stats, $err) = @_;
+
+    });
 
 Returns:
 
@@ -565,7 +572,8 @@ Returns:
 =cut
 sub get_vrf_statistics {
     my $self = shift;
-    my $node = shift; # Name of node to query
+    my $node = shift;
+    my $sub  = shift;
 
     my $payload = {
         "input" => {
@@ -573,20 +581,33 @@ sub get_vrf_statistics {
         }
     };
 
-    my $response = [];
-    eval {
-        my $res = $self->{www}->post(
-            $self->{config_obj}->nso_host . "/restconf/operations/tailf-ncs:devices/device=$node/live-status/exec/any",
-            'Content-type' => 'application/yang-data+json',
-            'Content'      => encode_json($payload)
-        );
-        if ($res->content eq '') {
-            # Unlike other api endpoints. If this happens something must have gone wrong.
-            return (undef, "Could't get valid response from get_vrf_statistisc for device $node.");
-        } else {
-            my $result = decode_json($res->content);
+    my $username = $self->{config_obj}->nso_username;
+    my $password = $self->{config_obj}->nso_password;
+
+    my $userpass = "$username:$password";
+    $userpass = Encode::encode("UTF-8", "$username:$password");
+
+    my $credentials = MIME::Base64::encode($userpass, '');
+
+    http_request(
+        POST => $self->{config_obj}->nso_host . "/restconf/operations/tailf-ncs:devices/device=$node/live-status/exec/any",
+        headers => {
+            'content-type'     => 'application/yang-data+json',
+            'authorization'    => "Basic $credentials",
+            'www-authenticate' => 'Basic realm="restconf", charset="UTF-8"',
+        },
+        body => encode_json($payload),
+        sub {
+            my ($body, $hdr) = @_;
+
+            my $response = [];
+
+            # TODO add eval
+            my $result = decode_json($body);
             my $err = $self->get_json_errors($result);
-            die $err if defined $err;
+            if (defined $err) {
+                &$sub($response, $err);
+            }
 
             # Extract CLI payload from JSON response and strip leading
             # xml tag and ending cli prompt. This results in an XML
@@ -594,7 +615,6 @@ sub get_vrf_statistics {
             my $raw_response = $result->{"tailf-ned-cisco-ios-xr-stats:output"}->{"result"};
             $raw_response =~ s/^.*<Response/<Response/s;
             $raw_response =~ s/<\/Response>.*\z/<\/Response>/s;
-            # warn Dumper($raw_response);
 
             # Parse XMl string and extract statistics
             my $dom = XML::LibXML->load_xml(string => $raw_response);
@@ -708,13 +728,142 @@ sub get_vrf_statistics {
                     }
                 }
             }
+
+            &$sub($response, $err);
         }
+    );
+}
+
+=head2 get_platform
+
+    get_platform('agg2.bldc', sub {
+        my ($data, $err) = @_;
+
+    });
+
+Returns:
+
+    {
+      'serial-number' => 'FOC22311UU1',
+      'version' => '7.2.2',
+      'model' => 'NCS-5500',
+      'name' => 'ios-xr'
     };
-    if ($@) {
-        my $err = $@;
-        return (undef, $err);
+
+=cut
+sub get_platform {
+    my $self = shift;
+    my $node = shift;
+    my $sub  = shift;
+
+    my $username = $self->{config_obj}->nso_username;
+    my $password = $self->{config_obj}->nso_password;
+
+    my $userpass = "$username:$password";
+    $userpass = Encode::encode("UTF-8", "$username:$password");
+
+    my $credentials = MIME::Base64::encode($userpass, '');
+
+    http_request(
+        GET => $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node/platform",
+        headers => {
+            'content-type'     => 'application/yang-data+json',
+            'authorization'    => "Basic $credentials",
+            'www-authenticate' => 'Basic realm="restconf", charset="UTF-8"',
+        },
+        sub {
+            my ($body, $hdr) = @_;
+
+            my $response = [];
+
+            eval {
+                my $result = decode_json($body);
+                my $err = $self->get_json_errors($result);
+                if (defined $err) {
+                    &$sub($result, $err);
+                }
+                &$sub($result->{'tailf-ncs:platform'}, $err);
+            };
+            if ($@) {
+                &$sub(undef, $@);
+            }
+        }
+    );
+}
+
+=head2 get_interfaces
+
+    get_interfaces('agg2.bldc', sub {
+        my ($data, $err) = @_;
+
+    });
+
+Returns:
+
+    {
+      'TenGigE' => [
+        {
+          'load-interval' => 30,
+          'id' => '0/0/0/0/3',
+          'description' => 'PDP WASH-PC1-12',
+          'lldp' => {
+            'enable' => [
+              undef
+            ]
+          }
+        },
+        {
+          'id' => '0/0/0/0/0',
+          'description' => 'MX960-2 xe-7/3/0'
+        },
+        {
+          'shutdown' => [
+            undef
+          ],
+          'id' => '0/0/0/1/0'
+        }
+      ]
     }
-    return ($response, undef);
+
+=cut
+sub get_interfaces {
+    my $self = shift;
+    my $node = shift;
+    my $sub  = shift;
+
+    my $username = $self->{config_obj}->nso_username;
+    my $password = $self->{config_obj}->nso_password;
+
+    my $userpass = "$username:$password";
+    $userpass = Encode::encode("UTF-8", "$username:$password");
+
+    my $credentials = MIME::Base64::encode($userpass, '');
+
+    http_request(
+        GET => $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node/config/tailf-ned-cisco-ios-xr:interface",
+        headers => {
+            'content-type'     => 'application/yang-data+json',
+            'authorization'    => "Basic $credentials",
+            'www-authenticate' => 'Basic realm="restconf", charset="UTF-8"',
+        },
+        sub {
+            my ($body, $hdr) = @_;
+
+            my $response = [];
+
+            eval {
+                my $result = decode_json($body);
+                my $err = $self->get_json_errors($result);
+                if (defined $err) {
+                    &$sub($result, $err);
+                }
+                &$sub($result->{'tailf-ned-cisco-ios-xr:interface'}, $err);
+            };
+            if ($@) {
+                &$sub(undef, $@);
+            }
+        }
+    );
 }
 
 1;

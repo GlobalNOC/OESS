@@ -1,4 +1,4 @@
-<config snapp_config_location="t/conf/SNMP/snapp/snapp_config.xml" host="127.0.0.1" port="3306" admin_email="foo@bar.com" network_type="vpn-mpls">
+<config local_as="OESS_LOCAL_ASN" snapp_config_location="t/conf/SNMP/snapp/snapp_config.xml" host="127.0.0.1" port="3306" admin_email="foo@bar.com" network_type="vpn-mpls">
   <nso username="NSO_USERNAME" password="NSO_PASSWORD" host="NSO_HOST" />
   <tsds url="TSDS_URL" username="TSDS_USERNAME" password="TSDS_PASSWORD" realm="TSDS_REALM" />
   <rabbitMQ host="localhost" port="5672" user="guest" pass="guest"/>

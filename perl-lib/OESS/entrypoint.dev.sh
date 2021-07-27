@@ -24,6 +24,7 @@ sed -i "s/vpn\-mpls/$OESS_NETWORK_TYPE/" /etc/oess/database.xml
 sed -i "s/NSO_HOST/$NSO_HOST/" /etc/oess/database.xml
 sed -i "s/NSO_PASSWORD/$NSO_PASSWORD/" /etc/oess/database.xml
 sed -i "s/NSO_USERNAME/$NSO_USERNAME/" /etc/oess/database.xml
+sed -i "s/OESS_LOCAL_ASN/$OESS_LOCAL_ASN/" /etc/oess/database.xml
 sed -i "s/TSDS_URL/$TSDS_URL/" /etc/oess/database.xml
 sed -i "s/TSDS_PASSWORD/$TSDS_PASSWORD/" /etc/oess/database.xml
 sed -i "s/TSDS_USERNAME/$TSDS_USERNAME/" /etc/oess/database.xml
