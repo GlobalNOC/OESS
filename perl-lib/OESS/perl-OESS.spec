@@ -1,7 +1,7 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.11
-Release: 3%{?dist}
+Version: 2.0.12
+Release: 1%{?dist}
 License: APL 2.0
 Group: Network
 URL: http://globalnoc.iu.edu
