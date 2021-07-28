@@ -73,6 +73,7 @@ lib/OESS/Path.pm
 lib/OESS/Peer.pm
 lib/OESS/RabbitMQ/Client.pm
 lib/OESS/RabbitMQ/Dispatcher.pm
+lib/OESS/RabbitMQ/Topic.pm
 lib/OESS/Topology.pm
 lib/OESS/Traceroute.pm
 lib/OESS/User.pm
