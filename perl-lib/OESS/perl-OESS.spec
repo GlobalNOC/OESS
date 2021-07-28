@@ -212,6 +212,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::NSI::Utils.3pm.gz
 %doc %{_mandir}/man3/OESS::RabbitMQ::Client.3pm.gz
 %doc %{_mandir}/man3/OESS::RabbitMQ::Dispatcher.3pm.gz
+%doc %{_mandir}/man3/OESS::RabbitMQ::Topic.3pm.gz
 %doc %{_mandir}/man3/OESS::Topology.3pm.gz
 %doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
@@ -291,6 +292,7 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/NSI/Utils.pm
 %{perl_vendorlib}/OESS/RabbitMQ/Client.pm
 %{perl_vendorlib}/OESS/RabbitMQ/Dispatcher.pm
+%{perl_vendorlib}/OESS/RabbitMQ/Topic.pm
 %{perl_vendorlib}/OESS/Topology.pm
 %{perl_vendorlib}/OESS/Traceroute.pm
 %{perl_vendorlib}/OESS/Watchdog.pm
