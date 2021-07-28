@@ -1,5 +1,5 @@
 Name:		oess-frontend
-Version:	2.0.11
+Version:	2.0.12
 Release:	3%{?dist}
 Summary:	The OESS webservices and user interface
 
@@ -13,14 +13,14 @@ BuildRequires: perl
 BuildRequires: python >= 2.6, python-libs >= 2.6
 BuildRequires: python-simplejson
 
-Requires: oess-core >= 2.0.11
+Requires: oess-core >= 2.0.12
 Requires: yui
 Requires: httpd, mod_ssl
 Requires: nddi-tiles
 Requires: perl-Crypt-SSLeay
 Requires: xmlsec1, xmlsec1-openssl
 
-Requires: perl-OESS >= 2.0.11
+Requires: perl-OESS >= 2.0.12
 
 Requires: perl(strict), perl(warnings)
 Requires: perl(AnyEvent)
