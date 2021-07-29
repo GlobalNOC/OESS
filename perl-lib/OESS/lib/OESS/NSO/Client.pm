@@ -37,9 +37,19 @@ sub new {
     $self->{local_asn} = $self->{config_obj}->local_as;
 
     $self->{www} = new LWP::UserAgent;
-    my $host = $self->{config_obj}->nso_host;
-    $host =~ s/http(s){0,1}:\/\///g; # Strip http:// or https:// from string
-    $self->{www}->credentials($host, "restconf", $self->{config_obj}->nso_username, $self->{config_obj}->nso_password);
+
+    # We replace the traditional $ua->credentials approach to basic #
+    # auth as it fails to work with self-signed certs.
+    my $username = $self->{config_obj}->nso_username;
+    my $password = $self->{config_obj}->nso_password;
+
+    my $userpass = "$username:$password";
+    $userpass = Encode::encode("UTF-8", "$username:$password");
+    my $credentials = MIME::Base64::encode($userpass, '');
+
+    $self->{www}->default_header('Authorization' => "Basic $credentials");
+    $self->{www}->default_header('www-authenticate' => 'Basic realm="restconf", charset="UTF-8"');
+    $self->{www}->ssl_opts(verify_hostname => 0);
 
     return $self;
 }
