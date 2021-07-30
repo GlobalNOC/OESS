@@ -94,6 +94,9 @@ sub create_l2connection {
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
+        if ($res->code >= 400) {
+            die "HTTP Error " . $res->code;
+        }
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
@@ -122,6 +125,9 @@ sub delete_l2connection {
             $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection=$conn_id?unhide=oess",
             'Content-type' => 'application/yang-data+json'
         );
+        if ($res->code >= 400) {
+            die "HTTP Error " . $res->code;
+        }
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
@@ -176,6 +182,9 @@ sub edit_l2connection {
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
+        if ($res->code >= 400) {
+            die "HTTP Error " . $res->code;
+        }
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
@@ -204,6 +213,9 @@ sub get_l2connections {
             $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection/?unhide=oess",
             'Content-type' => 'application/yang-data+json'
         );
+        if ($res->code >= 400) {
+            die "HTTP Error " . $res->code;
+        }
         if ($res->content eq '') { # Empty payload indicates success
             $connections = [];
         } else {
@@ -340,6 +352,9 @@ sub create_l3connection {
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
+        if ($res->code >= 400) {
+            die "HTTP Error " . $res->code;
+        }
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
@@ -368,6 +383,9 @@ sub delete_l3connection {
             $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection=$conn_id?unhide=oess",
             'Content-type' => 'application/yang-data+json'
         );
+        if ($res->code >= 400) {
+            die "HTTP Error " . $res->code;
+        }
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
@@ -441,6 +459,9 @@ sub edit_l3connection {
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
+        if ($res->code >= 400) {
+            die "HTTP Error " . $res->code;
+        }
         return if ($res->content eq ''); # Empty payload indicates success
 
         my $result = decode_json($res->content);
@@ -469,6 +490,9 @@ sub get_l3connections {
             $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection/?unhide=oess",
             'Content-type' => 'application/yang-data+json'
         );
+        if ($res->code >= 400) {
+            die "HTTP Error " . $res->code;
+        }
         if ($res->content eq '') { # Empty payload indicates success
             $connections = [];
         } else {
@@ -517,6 +541,9 @@ sub get_backbones {
             $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/backbone:backbone/",
             'Content-type' => 'application/yang-data+json'
         );
+        if ($res->code >= 400) {
+            die "HTTP Error " . $res->code;
+        }
         if ($res->content eq '') { # Empty payload indicates success
             $backbones = [];
         } else {
