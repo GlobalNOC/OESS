@@ -217,12 +217,12 @@ async function loadEntityList(parentEntity=null) {
     if ((user.is_admin == 1 && user.type != 'read-only') || valid_users.includes(user.user_id)){
           edit_entity_btn.style.display = 'block';
           edit_entity_btn.onclick = function(){
-            window.location.href = `[% path %]new/index.cgi?action=edit_entity&entity_id=${entityID}`;
+            window.location.href = `[% path %]index.cgi?action=edit_entity&entity_id=${entityID}`;
           };
 
           add_entity_btn.style.display = 'block'; 
           add_entity_btn.onclick = function(){
-            window.location.href = `[% path %]new/index.cgi?action=add_entity&entity_id=${entityID}`;
+            window.location.href = `[% path %]index.cgi?action=add_entity&entity_id=${entityID}`;
           };
 
           let user_list = document.querySelector('#user-list');

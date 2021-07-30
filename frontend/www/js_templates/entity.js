@@ -21,7 +21,7 @@ async function loadEntityContent(parentEntity=null, action){
       e.preventDefault();
       try {
         let res = await add_entity(entityID, entity_name, description, logo_url, entity_url);
-        window.location.href = `[% path %]new/index.cgi?action=phonebook&entity_id=${entityID}`;
+        window.location.href = `[% path %]index.cgi?action=phonebook&entity_id=${entityID}`;
       }
       catch (error) {
         console.error(error);
@@ -37,11 +37,11 @@ async function loadEntityContent(parentEntity=null, action){
     entity_url.value	= entity.url;
     document.querySelector('#edit-entity-btn').onclick = async function(){
       await edit_entity(entityID, entity_name, description, logo_url, entity_url);
-      window.location.href = `[% path %]new/index.cgi?action=phonebook&entity_id=${entityID}`;
+      window.location.href = `[% path %]index.cgi?action=phonebook&entity_id=${entityID}`;
     };
   }
 
   document.querySelector('#cancel').onclick = function(){
-    window.location.href = `[% path %]new/index.cgi?action=phonebook&entity_id=${entityID}`;
+    window.location.href = `[% path %]index.cgi?action=phonebook&entity_id=${entityID}`;
   };
 }
