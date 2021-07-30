@@ -352,8 +352,8 @@ sub link_handler {
             $self->{logger}->info("Decommissioning link $link->{name}.");
 
             my ($link_id, $link_err) = OESS::DB::Link::update(
-                db    => $self->{db},
-                model => {
+                db   => $self->{db},
+                link => {
                     link_id        => $link->{link_id},
                     link_state     => 'decom',
                     status         => 'down',
