@@ -51,6 +51,10 @@ sub create {
         VALUES (?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
     ";
 
+    my $q3 = "
+        UPDATE interface set role='trunk' WHERE interface_id=? or interface_id=?
+    ";
+
     my $link_id = $args->{db}->execute_query($q1, [
         $args->{model}->{name},
         $args->{model}->{remote_urn},
@@ -71,6 +75,14 @@ sub create {
         $args->{model}->{ip_z}
     ]);
     if (!defined $link_instantiation_id) {
+        return (undef, $args->{db}->get_error);
+    }
+
+    my $ok = $args->{db}->execute_query($q3, [
+        $args->{model}->{interface_a_id},
+        $args->{model}->{interface_z_id}
+    ]);
+    if (!defined $ok) {
         return (undef, $args->{db}->get_error);
     }
 
@@ -337,7 +349,6 @@ sub update {
         return (undef, $args->{db}->get_error);
     }
 
-
     my $q2 = "
         INSERT INTO link_instantiation (
             link_id, openflow, mpls, link_state, interface_a_id, ip_a,
@@ -358,6 +369,23 @@ sub update {
     ]);
     if (!defined $link_instantiation_id) {
         return (undef, $args->{db}->get_error);
+    }
+
+    # Set role of interfaces to 'unknown' whenever a link is
+    # decom'd. This allows the link's interfaces to be used for other
+    # purposes after removal.
+    if ($args->{link}->{link_state} eq 'decom') {
+        my $q3 = "
+            UPDATE interface set role='unknown' WHERE interface_id=? or interface_id=?
+        ";
+
+        my $ok = $args->{db}->execute_query($q3, [
+            $args->{model}->{interface_a_id},
+            $args->{model}->{interface_z_id}
+        ]);
+        if (!defined $ok) {
+            return (undef, $args->{db}->get_error);
+        }
     }
 
     return ($link_instantiation_id, undef);
