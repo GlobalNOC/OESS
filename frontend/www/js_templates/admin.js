@@ -1267,7 +1267,7 @@ function setup_users_tab(){
                                        
                                        else{
                                            
-                                           var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id + "&role=normal");
+                                           var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id + "&role=" + encodeURIComponent(type));
                                            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                                            ds.responseSchema = {
                                                resultsList: "results",
