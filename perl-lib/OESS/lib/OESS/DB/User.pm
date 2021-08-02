@@ -1,11 +1,13 @@
-#!/usr/bin/perl         
-
 use strict;
 use warnings;
 
-use OESS::Workgroup;
-use OESS::DB::Workgroup;
 package OESS::DB::User;
+
+use Data::Dumper;
+
+use OESS::DB::Circuit;
+use OESS::DB::Endpoint;
+use OESS::DB::Workgroup;
 
 =head2 fetch
 
@@ -640,7 +642,7 @@ sub has_workgroup_access {
     }
 }
 
-=head2 has_circuit_access
+=head2 has_circuit_permission
 
 =over
 
@@ -656,52 +658,132 @@ sub has_workgroup_access {
 =item circuit_id
    Denotes the circuit_id of the circuit we checking the users permissions in
 
-=item role
-   Denotes the level of access the user needs for a particular action
+=item permission
+   Denotes the level of access the user needs for a particular action. May be 'create', 'read', 'update', or 'delete'.
 
 =back
 
-    my $results = OESS::DB::User::has_circuit_access(
-                                  db           => $db,
-                                  user_id      => $user_id,
-                                  circuit_id => $circuit_id,
-    
-    
-    has_circuit_access checks if a specified user's role found in the circuit's associated workgroup, and has
-    appropriate access for that workgroup. The workgroup is accessed by getting the circuit with C<circuit_id> 
-    and then uses C<has_workgroup_access> to determine whether the user has access to the circuit.
+    my $results = OESS::DB::User::has_circuit_permission(
+        db         => $db,
+        user_id    => $user_id,
+        circuit_id => $circuit_id,
+        permission => 'update'
+    );
+
+has_circuit_permission checks if the specified user has appropriate
+permission for that circuit. Permissions are determined by looking up
+circuit details, pairing those details against the user's workgroups,
+and then fetching the user's role within those workgroups.
+
 =cut
-sub has_circuit_access {
+sub has_circuit_permission {
     my %params = @_;
-    my $db = $params{'db'};
-    my $user_id = $params{'user_id'};
-    my $username = $params{'username'};
+    my $db         = $params{'db'};
+    my $user_id    = $params{'user_id'};
+    my $username   = $params{'username'};
     my $circuit_id = $params{'circuit_id'};
-    my $role = $params{'role'};
+    my $permission = $params{'permission'};
+
     return (0, "Required argument 'db' is missing.") if !defined $db;
     return (0, "Required to pass either 'user_id' or 'username'.") if !defined $user_id && !defined $username;
     return (0, "Required argument 'circuit_id' is missing.") if !defined $circuit_id;
-    return (0, "Required argument 'role' is missing.") if !defined $role;
+    return (0, "Required argument 'permission' is missing.") if !defined $permission;
+
+    my $permissions = {
+        create => undef,
+        read   => undef,
+        update => undef,
+        delete => undef,
+    };
+    if (!exists $permissions->{$permission}) {
+        return (0, "Required argument 'permission' must be 'create', 'read', 'update', or 'delete'.");
+    }
+
     my $user;
     if (!defined $user_id) {
         $user = OESS::DB::User::fetch(db => $db, username => $username);
     } else {
         $user = OESS::DB::User::fetch(db => $db, user_id => $user_id);
     }
-    
     if (!defined $user || $user->{'status'} eq 'decom'){
         return (0, "Invalid or decommissioned user specified.");
     }
 
     my $circuit = OESS::DB::Circuit::fetch_circuit(db => $db, circuit_id => $circuit_id)->[0];
-
-    if (!defined $circuit || $circuit->{'state'} eq 'decom'){ 
-        return (0, "Invalid or decommissioned circuit specified." );
+    if (!defined $circuit || $circuit->{'state'} eq 'decom') {
+        return (0, "Invalid or decommissioned circuit specified.");
     }
 
-    $user_id = $user->{'user_id'};
-    my $workgroup_id = $circuit->{'workgroup_id'};
-    return has_workgroup_access(db => $db, user_id => $user_id, workgroup_id => $workgroup_id, role => $role);
+    # Permissions for admin users
+    my $admin_results = $db->execute_query(
+        "SELECT role
+         FROM user_workgroup_membership JOIN workgroup
+           ON user_workgroup_membership.workgroup_id=workgroup.workgroup_id
+         WHERE workgroup.type='admin' AND user_workgroup_membership.user_id=?",
+        [$user->{user_id}]
+    );
+    $admin_results = [] if !defined $admin_results;
+    foreach my $result (@$admin_results) {
+        if ($result->{role} eq 'admin' || $result->{role} eq 'normal') {
+            $permissions->{create} = 1;
+            $permissions->{read}   = 1;
+            $permissions->{update} = 1;
+            $permissions->{delete} = 1;
+        } else {
+            $permissions->{read}   = 1;
+        }
+    }
+
+    # Permissions for users in the circuit owner's workgroup
+    my $workgroup_results = $db->execute_query(
+        "SELECT role
+         FROM user_workgroup_membership
+         WHERE user_workgroup_membership.user_id=? and user_workgroup_membership.workgroup_id=?",
+        [$user->{user_id}, $circuit->{workgroup_id}]
+    );
+    $workgroup_results = [] if !defined $workgroup_results;
+    foreach my $result (@$workgroup_results) {
+        if ($result->{role} eq 'admin' || $result->{role} eq 'normal') {
+            $permissions->{create} = 1;
+            $permissions->{read}   = 1;
+            $permissions->{update} = 1;
+            $permissions->{delete} = 1;
+        } else {
+            $permissions->{read}   = 1;
+        }
+    }
+
+    # Permissions for users in the circuit's interfaces' owner workgroups
+    my $interface_results = $db->execute_query(
+        "SELECT user_workgroup_membership.role
+         FROM user_workgroup_membership JOIN interface
+           ON user_workgroup_membership.workgroup_id=interface.workgroup_id
+         JOIN circuit_edge_interface_membership AS circuit_ep
+           ON circuit_ep.interface_id=interface.interface_id AND circuit_ep.end_epoch=-1
+         WHERE user_workgroup_membership.user_id=? AND circuit_ep.circuit_id=?
+        ",
+        [$user->{user_id}, $circuit->{circuit_id}]
+    );
+    $interface_results = [] if !defined $interface_results;
+    foreach my $result (@$interface_results) {
+        if ($result->{role} eq 'admin' || $result->{role} eq 'normal') {
+            $permissions->{read}   = 1;
+            # TODO Ideally interface owners may remove endpoints from
+            # any circuit which terminate on their interfaces,
+            # although is not supported at this time.
+            #
+            # $permissions->{update} = 1;
+        } else {
+            $permissions->{read}   = 1;
+        }
+    }
+
+    if (!$permissions->{$permission}) {
+        return (0, "User $user->{username} doesn't have $permission permission for circuit $circuit_id.");
+    }
+    return (1, undef);
 }
+
+
 
 1;
