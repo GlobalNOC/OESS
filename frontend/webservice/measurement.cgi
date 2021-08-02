@@ -155,7 +155,7 @@ sub get_circuit_data {
 
     my $link       = $args->{'link'}{'value'};
     my ($ok, $err);
-    my ($ok, $err) = OESS::DB::User::has_circuit_access(db => $db2, username => $ENV{'REMOTE_USER'}, circuit_id => $circuit_id, role => 'read-only');
+    my ($ok, $err) = OESS::DB::User::has_circuit_permission(db => $db2, username => $ENV{'REMOTE_USER'}, circuit_id => $circuit_id, permission => 'read');
     if(!$ok){
         $results->{'error'} = $err;
         return $results;
