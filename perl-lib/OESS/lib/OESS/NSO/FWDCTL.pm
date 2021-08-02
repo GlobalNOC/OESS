@@ -193,6 +193,16 @@ sub modifyVrf {
 
     my $pending_hash = decode_json($args->{pending});
     my $pending_conn = new OESS::VRF(db => $self->{db}, model => $pending_hash);
+    $pending_conn->{endpoints} = [];
+    foreach my $pending_ep_hash (@{$pending_hash->{endpoints}}) {
+        my $pending_ep = new OESS::Endpoint(db => $self->{db}, model => $pending_ep_hash);
+
+        $pending_ep->{peers} = [];
+        foreach my $pending_peer_hash (@{$pending_ep_hash->{peers}}) {
+            push @{$pending_ep->{peers}}, new OESS::Peer(db => $self->{db}, model => $pending_peer_hash);
+        }
+        push @{$pending_conn->{endpoints}}, $pending_ep;
+    }
 
     my $err = $self->{nso}->edit_l3connection($pending_conn);
     return $err if (defined $err);

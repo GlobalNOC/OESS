@@ -95,7 +95,7 @@ sub create_l2connection {
             'Content'      => encode_json($payload)
         );
         if ($res->code >= 400) {
-            die "HTTP Error " . $res->code;
+            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
         }
         return if ($res->content eq ''); # Empty payload indicates success
 
@@ -126,7 +126,7 @@ sub delete_l2connection {
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->code >= 400) {
-            die "HTTP Error " . $res->code;
+            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
         }
         return if ($res->content eq ''); # Empty payload indicates success
 
@@ -183,7 +183,7 @@ sub edit_l2connection {
             'Content'      => encode_json($payload)
         );
         if ($res->code >= 400) {
-            die "HTTP Error " . $res->code;
+            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
         }
         return if ($res->content eq ''); # Empty payload indicates success
 
@@ -214,7 +214,7 @@ sub get_l2connections {
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->code >= 400) {
-            die "HTTP Error " . $res->code;
+            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
         }
         if ($res->content eq '') { # Empty payload indicates success
             $connections = [];
@@ -353,7 +353,7 @@ sub create_l3connection {
             'Content'      => encode_json($payload)
         );
         if ($res->code >= 400) {
-            die "HTTP Error " . $res->code;
+            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
         }
         return if ($res->content eq ''); # Empty payload indicates success
 
@@ -384,7 +384,7 @@ sub delete_l3connection {
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->code >= 400) {
-            die "HTTP Error " . $res->code;
+            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
         }
         return if ($res->content eq ''); # Empty payload indicates success
 
@@ -460,7 +460,7 @@ sub edit_l3connection {
             'Content'      => encode_json($payload)
         );
         if ($res->code >= 400) {
-            die "HTTP Error " . $res->code;
+            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
         }
         return if ($res->content eq ''); # Empty payload indicates success
 
@@ -491,7 +491,7 @@ sub get_l3connections {
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->code >= 400) {
-            die "HTTP Error " . $res->code;
+            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
         }
         if ($res->content eq '') { # Empty payload indicates success
             $connections = [];
@@ -542,7 +542,7 @@ sub get_backbones {
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->code >= 400) {
-            die "HTTP Error " . $res->code;
+            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
         }
         if ($res->content eq '') { # Empty payload indicates success
             $backbones = [];
