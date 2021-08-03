@@ -27,7 +27,7 @@ sub core{
     my $nso_discovery;
     my $nso_client = new OESS::NSO::Client(config_obj => $config);
     my $tsds_client = new GRNOC::WebService::Client(
-        url     => $config->tsds_url . "/services/push.cgi",
+        url     => $config->tsds_url . "/push.cgi",
         uid     => $config->tsds_username,
         passwd  => $config->tsds_password,
         realm   => $config->tsds_realm,
