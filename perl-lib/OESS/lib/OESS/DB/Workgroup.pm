@@ -75,7 +75,7 @@ sub fetch_all {
         @_
     };
 
-    my $res = $args->{db}->execute_query("select * from workgroup where status='active'", []);
+    my $res = $args->{db}->execute_query("select * from workgroup where status='active' order by name", []);
     if (!defined $res) {
         return (undef, $args->{db}->get_error);
     }

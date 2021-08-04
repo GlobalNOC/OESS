@@ -35,7 +35,7 @@ use OESS::NSI::Constant;
 use OESS::NSI::Utils;
 use DateTime;
 use OESS::Database;
-
+use JSON::XS;
 use Data::Dumper;
 
 =head2 new
@@ -183,34 +183,36 @@ sub reserve {
 #    
 #    my $backup_path = $self->get_shortest_path($ep1, $ep2, $primary_path);
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
-    
-    my $res = $self->{'websvc'}->provision_circuit(
-				      state  => 'reserved',
-                                      workgroup_id => $self->{'workgroup_id'},
-                                      external_identifier => $gri,
-                                      description => $description,
-                                      bandwidth => $capacity,
-                                      provision_time => $start_time,
-                                      remove_time => $end_time,
-#                                      link => $primary_path,
-#                                      backup_link => $backup_path,
-                                      remote_url => $args->{'header'}->{'replyTo'},
-                                      remote_requester => $args->{'header'}->{'requesterNSA'},
-                                      node => [$ep1->{'node'}, $ep2->{'node'}],
-                                      interface => [$ep1->{'port'}, $ep2->{'port'}],
-                                      tag => [$ep1->{'vlan'}, $ep2->{'vlan'}]);
-    
-    log_debug("Results of provision: " . Data::Dumper::Dumper($res));
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "circuit.cgi");
 
-    if(defined($res->{'results'}) && $res->{'results'}->{'success'} == 1){
-        log_info("Successfully created reservation, connectionId: " . $res->{'results'}->{'circuit_id'});
-        $args->{'connection_id'} = $res->{'results'}->{'circuit_id'};
+    #warn Dumper($ep1);
+    #warn Dumper($ep2);
+    
+    my $endpoint1 = {'node' => $ep1->{'node'}, interface => $ep1->{'port'}, tag => $ep1->{'tags'}->[0]};
+    my $endpoint2 = {'node' => $ep2->{'node'}, interface => $ep2->{'port'}, tag => $ep2->{'tags'}->[0]};
+    
+    my $res = $self->{'websvc'}->provision(
+	status  => 'reserved',
+	workgroup_id => $self->{'workgroup_id'},
+	external_identifier => $gri,
+	description => $description,
+	bandwidth => $capacity,
+	provision_time => $start_time,
+	remove_time => $end_time,
+	remote_url => $args->{'header'}->{'replyTo'},
+	remote_requester => $args->{'header'}->{'requesterNSA'},
+	endpoint => [JSON::to_json($endpoint1), JSON::to_json($endpoint2)]);
+    
+    log_error("Results of provision: " . Data::Dumper::Dumper($res));
+
+    if(defined($res->{'success'} == 1)){
+        log_info("Successfully created reservation, connectionId: " . $res->{'circuit_id'});
+        $args->{'connection_id'} = $res->{'circuit_id'};
         $args->{'criteria'}->{'p2ps'}->{'sourceSTP'} = $self->build_stp($ep1);
         $args->{'criteria'}->{'p2ps'}->{'destSTP'} = $self->build_stp($ep2);
-        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_SUCCESS, connection_id => $res->{'results'}->{'circuit_id'}, args => $args});
-        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_TIMEOUT, connection_id => $res->{'results'}->{'circuit_id'}, args => $args, time => time() + OESS::NSI::Constant::RESERVATION_TIMEOUT_SEC});
-        return $res->{'results'}->{'circuit_id'};
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_SUCCESS, connection_id => $res->{'circuit_id'}, args => $args});
+        push(@{$self->{'reservation_queue'}}, {type => OESS::NSI::Constant::RESERVATION_TIMEOUT, connection_id => $res->{'circuit_id'}, args => $args, time => time() + OESS::NSI::Constant::RESERVATION_TIMEOUT_SEC});
+        return $res->{'circuit_id'};
     }else{
         log_error("Unable to reserve circuit: " . $res->{'error'});
         $args->{'fail_text'} = "Error creating reservation record: " . $res->{'error'};
@@ -243,8 +245,8 @@ sub _do_reserve_abort{
     
     log_info("reservationAbort: connectionId: " . $connection_id);
 
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/provisioning.cgi");
-    my $res = $self->{'websvc'}->remove_circuit(
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "/circuit.cgi");
+    my $res = $self->{'websvc'}->remove(
                                       circuit_id => $connection_id,
                                       workgroup_id => $self->{'workgroup_id'},
                                       remove_time => -1);
@@ -278,7 +280,7 @@ sub build_stp{
 
     my $str = "urn:ogf:network:nsi.";
     $str .= $self->{'db'}->get_local_domain_name();
-    $str .= ":2013::" . $ep->{'node'} . ":" . $ep->{'port'} . ":" . $ep->{'link'} . "?vlan=" . $ep->{'vlan'};
+    $str .= ":2013::" . $ep->{'node'} . ":" . $ep->{'port'} . ":" . $ep->{'link'} . "?vlan=" . $ep->{'tags'}->[0];
     return $str;
 }
 
@@ -350,97 +352,42 @@ sub validate_endpoint{
     my $ep = shift;
     
     #need to verify this is part of our network and actually exists and that we have permission!
-    $self->{'log'}->info("Checking validity of port $ep->{'port'} on $ep->{'node'}.");
+    $self->{'log'}->info("Checking validity of port $ep->{'port'} on $ep->{'node'}." . Dumper($ep));
 
-    my $url = $self->{'websvc_location'} . "data.cgi";
+    my $url = $self->{'websvc_location'} . "interface.cgi";
     $self->{'websvc'}->set_url($url);
-    $self->{'log'}->debug("Requesting all resources for NSI workgroup from $url");
-
-    my $res = $self->{'websvc'}->get_all_resources_for_workgroup(workgroup_id => $self->{'workgroup_id'});
-    if (!defined $res) {
-        $self->{'log'}->error("Couldn't get NSI workgroup resources from $url: Fatal webservice error occurred.");
-        return 0;
-    }
-    if (defined $res->{'error'}) {
-        $self->{'log'}->error("Couldn't get NSI workgroup resources from $url: $res->{'error'}");
-        return 0;
-    }
-
-    if (defined $res->{'results'}) {
-        $self->{'log'}->debug("Workgroup resources: " . Dumper($res->{'results'}));
-
-        foreach my $resource (@{$res->{'results'}}) {
-
-            if ($resource->{'node_name'} eq $ep->{'node'} && $resource->{'interface_name'} eq $ep->{'port'}) {
-                $self->{'log'}->debug("Found interface for requested endpoint. Checking VLAN availability.");
-
-                foreach my $tag (@{$ep->{'tags'}}) {
-                    my $valid_tag = $self->{'websvc'}->is_vlan_tag_available(
-                        interface => $ep->{'port'},
-                        node      => $ep->{'node'},
-                        vlan      => $tag,
-                        workgroup_id => $self->{'workgroup_id'}
-                    );
-                    if (!defined $valid_tag) {
-                        $self->{'log'}->error("Couldn't get VLAN tag availability from $url: Fatal webservice error occurred.");
-                        return 0;
-                    }
-                    if (defined $res->{'error'}) {
-                        $self->{'log'}->error("Couldn't get VLAN tag availability from $url: $res->{'error'}");
-                        return 0;
-                    }
-
-                    if (defined $valid_tag->{'results'}) {
-                        $self->{'log'}->debug("is_vlan_tag_available response: " . Data::Dumper::Dumper($valid_tag->{'results'}));
-
-                        if ($valid_tag->{'results'}->[0]->{'available'} == 1) {
-                            $ep->{'vlan'} = $tag;
-                            return 1;
-                        }
-                    } else {
-                        $self->{'log'}->error("Got unexpected webservice response: " . Data::Dumper::Dumper($valid_tag));
-                        return 0;
-                    }
-                }
-
-                # If we reach here we have a valid switch port, but the vlan is invalid or unavailable.
-                return 0;
-            }
-        }
-    } else {
-        $self->{'log'}->error("Got unexpected webservice response: " . Data::Dumper::Dumper($res));
-        return 0;
-    }
-
-    $self->{'log'}->error("not a valid endpoint, or not allowed via NSI workgroup: " . Dumper($res));
-    return 0;
-}
-
-=head2 get_shortest_path
-
-=cut
-
-sub get_shortest_path{
-    my $self = shift;
-    my $ep1 = shift;
-    my $ep2 = shift;
-    my $links = shift;
-
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "data.cgi");
-    my $shortest_path = $self->{'websvc'}->get_shortest_path(
-                                                node => [$ep1->{'node'},$ep2->{'node'}],
-                                                link => $links);
+    #finding node and interface
     
-    log_debug("Shortest path: " . Data::Dumper::Dumper($shortest_path));
-    if(defined($shortest_path) && defined($shortest_path->{'results'})){
-	my @links = ();
-	foreach my $link (@{$shortest_path->{'results'}}){
-	    push(@links,$link->{'link'});
+    $self->{'log'}->debug("Requesting all available VLANs for NSI workgroup for interface $ep->{'port'} from $url" . Dumper($ep));
+
+    my $interface = $self->{'websvc'}->get_interfaces(node => $ep->{'node'}, name => $ep->{'port'});
+    $self->{'log'}->error(Dumper($interface));
+    
+    if(defined($interface)){
+	if(defined($interface->{'results'}) && defined($interface->{'results'}->[0])){
+	    $self->{'log'}->error("Interface results: " . Dumper($interface));
+	    $self->{'websvc'}->{'debug'} = 1;
+	    foreach my $tag (@{$ep->{'tags'}}){
+		my $is_vlan_available = $self->{'websvc'}->is_vlan_available( interface_id => $interface->{'results'}->[0]->{'interface_id'}, workgroup_id => $self->{'workgroup_id'}, vlan => $tag);
+		$self->{'log'}->error("available: " . Dumper($is_vlan_available));
+		if(defined($is_vlan_available) && defined($is_vlan_available->{'results'})){	
+		    if(!$is_vlan_available->{'results'}->{'allowed'}){
+			return 0;
+		    }
+		}else{
+		    return 0;
+		}
+	    }
+	    return 1;
+	}else{
+	    $self->{'log'}->error("Error fetching interface " . $ep->{'port'} . " on node: " . $ep->{'node'});
+	    $self->{'log'}->error($interface->{'error'});
+	    return 0;
 	}
-	return \@links;
     }
-    log_error("unable to find path");
-    return;
+       
+    $self->{'log'}->error("not a valid endpoint, or not allowed via NSI workgroup: " . Dumper($interface));
+    return 0;
 }
 
 =head2 reserveCommit
@@ -479,7 +426,7 @@ sub process_queue {
 
     while(my $message = shift(@{$self->{'reservation_queue'}})){
         my $type = $message->{'type'};
-        warn Data::Dumper::Dumper($message);
+        #warn Data::Dumper::Dumper($message);
         #this is now a scheduler... skip the action if it has a time and we aren't past it yet
         if(defined($message->{'time'}) && time() < $message->{'time'}){            
             #log_error("TIME: " . $message->{'time'} . " vs. " . time());
@@ -750,9 +697,9 @@ sub _release_confirmed{
 sub _reserve_timeout{
     my ($self, $data) = @_;
     
-    $self->{'websvc'}->set_url($self->{'websvc_location'} . "provisioning.cgi");
+    $self->{'websvc'}->set_url($self->{'websvc_location'} . "circuit.cgi");
 
-    my $res = $self->{'websvc'}->remove_circuit(
+    my $res = $self->{'websvc'}->remove(
                                       circuit_id => $data->{'connection_id'},
                                       workgroup_id => $self->{'workgroup_id'});
 

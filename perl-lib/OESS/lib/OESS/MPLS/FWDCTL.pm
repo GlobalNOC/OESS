@@ -54,6 +54,10 @@ use constant TIMEOUT => 3600;
 use JSON::XS;
 use GRNOC::WebService::Regex;
 
+=head1 OESS::MPLS::FWDCTL
+
+=cut
+
 =head2 new
 
 create a new OESS Master process
@@ -61,7 +65,6 @@ create a new OESS Master process
   FWDCTL->new();
 
 =cut
-
 sub new {
     my $class = shift;
     my %params = @_;
@@ -70,11 +73,18 @@ sub new {
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.MASTER');
 
+    # $self->{config} is assumed to be a str path
     my $config_filename = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
-    $self->{'config'} = new OESS::Config(config_filename => $config_filename);
 
-    $self->{'db'} = OESS::Database->new( config_file => $config_filename );
-    $self->{'db2'} = OESS::DB->new();
+    if (!defined $self->{config_obj}) {
+	$self->{'config'} = new OESS::Config(config_filename => $config_filename);
+    } else {
+	$self->{'config'} = $self->{config_obj};
+	$config_filename = $self->{config_obj}->filename;
+    }
+
+    $self->{'db'} = OESS::Database->new(config_file => $config_filename);
+    $self->{'db2'} = OESS::DB->new(config => $config_filename);
 
     if (!$self->{object_only}) {
         my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new(
@@ -209,7 +219,7 @@ sub build_cache{
     my $nodes = $db->get_current_nodes(type => 'mpls');
     foreach my $node (@$nodes) {
         my $details = $db->get_node_by_id(node_id => $node->{'node_id'});
-        next if(!$details->{'mpls'});
+        next if ($details->{'controller'} ne 'netconf');
 
         # TODO In addition to the previously removed unnecessary
         # mappings. Remove this mapping.
@@ -687,7 +697,8 @@ sub update_cache {
     if (defined $conn) {
         # Targeted Cache Update
         foreach my $ep (@{$conn->endpoints}) {
-            my $addr = $self->{node_by_id}->{$ep->node_id}->{mgmt_addr};
+          my $addr = $self->{node_by_id}->{$ep->node_id}->{mgmt_addr};
+          next if !$addr;
 
             $condvar->begin;
             $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$addr";

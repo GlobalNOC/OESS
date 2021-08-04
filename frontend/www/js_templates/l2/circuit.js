@@ -101,21 +101,32 @@ class CircuitHeader extends Component {
   }
 
   async render(props) {
-    let displayEdits = (props.editable) ? 'block' : 'none';
+    let displayEdits = (props.editable) ? 'inline-block' : 'none';
 
     return `
-<div class="col-sm-6">
-  <h2>${props.description} <small>${props.connectionId}</small></h2>
-</div>
+      <div class="col-sm-8">
+        <h2 style="display: inline-block;">
+          <div style="display: inline-block;" id='header-description'>${props.description}</div>  
+          <label for='connectionId' class='sr-only'>connection Id</label>
+          <small id='connectionId'>${props.connectionId}</small>
+        </h2>
 
-<div class="col-sm-6" style="text-align: right; padding-top: 23px; display: ${displayEdits};">
-  <button class="btn-sm btn-success" type="button" onclick="state.saveCircuit();">
-    <span class="glyphicon glyphicon-floppy-disk"></span> Save
-  </button>
-  <button class="btn-sm btn-danger" type="button" onclick="state.deleteCircuit();">
-    <span class="glyphicon glyphicon-trash"></span> Delete
-  </button>
-</div>
-`;
+        <button id="change-description-button" class="btn-sm btn-link change-description-button" type="button" hidden>
+          <span class="glyphicon "></span> Change
+        </button>
+        <button id="edit-description-button" class="btn-sm btn-link edit-description-button" type="button">
+          <span class="glyphicon "></span> Edit Name
+        </button>
+      </div>
+
+      <div class="col-sm-4" style="text-align: right; padding-top: 23px; display: ${displayEdits};">
+        <button class="btn-sm btn-success" type="button" onclick="state.saveCircuit();">
+          <span class="glyphicon glyphicon-floppy-disk"></span> Save
+        </button>
+        <button class="btn-sm btn-danger" type="button" onclick="state.deleteCircuit();">
+          <span class="glyphicon glyphicon-trash"></span> Delete
+        </button>
+      </div>
+    `;
   }
 }

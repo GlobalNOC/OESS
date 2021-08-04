@@ -34,18 +34,35 @@ sub fetch{
     return $node->[0];
 }
 
+=head2 fetch_all
+
+=cut
+sub fetch_all {
+    my %params = @_;
+    my $db = $params{'db'};
+    my $controller = $params{'controller'} || 'netconf';
+
+    return $db->execute_query(
+        "select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node_instantiation.end_epoch=-1 and node_instantiation.controller=?",
+        [$controller]
+    );
+}
+
 =head2 get_node_interfaces
 
 =cut
 sub get_node_interfaces{
-    my $db = shift;
-    my $node_id = shift;
+    my $args = {
+        db           => undef,
+        node_id      => undef,
+        @_
+    };
 
-    my $interfaces = $db->execute_query("select * from interface where node_id = ?",[$node_id]);
+    my $interfaces = $args->{'db'}->execute_query("select * from interface where node_id = ?",[$args->{'node_id'}]);
 
     my @ints;
     foreach my $interface (@$interfaces){
-        push(@ints, OESS::Interface->new(db => $db, interface_id => $interface->{'interface_id'}));
+        push(@ints, OESS::Interface->new(db => $args->{'db'}, interface_id => $interface->{'interface_id'}));
     }
 
     return \@ints;
@@ -145,6 +162,165 @@ sub _process_tag_string{
     }
 
     return \@tags;
+}
+
+=head2 update
+
+    my $err = OESS::DB::Node::update(
+        db   => $db,
+        node => {
+            node_id                => 1,
+            name                   => 'host.examle.com', # Optional
+            latitude               => 1,                 # Optional
+            longitude              => 1,                 # Optional
+            operational_state_mpls => 'up',              # Optional
+            vlan_tag_range         => '1-4095',          # Optional
+            pending_diff           => 1                  # Optional
+            short_name             => 'host',            # Optional
+
+            admin_state            => 'active',          # Optional
+            vendor                 => 'juniper',         # Optional
+            model                  => 'mx',              # Optional
+            sw_version             => '13.3R3',          # Optional
+            mgmt_addr              => '192.168.1.1',     # Optional
+            loopback_address       => '10.0.0.1',        # Optional
+            tcp_port               => 830                # Optional
+        }
+    );
+    die $err if defined $err;
+
+=cut
+sub update {
+    my $args = {
+        db   => undef,
+        node => undef,
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `node` is missing.' if !defined $args->{node};
+    return 'Required argument `node->node_id` is missing.' if !defined $args->{node}->{node_id};
+
+    my $params = [];
+    my $values = [];
+    if (exists $args->{node}->{name}) {
+        push @$params, 'name=?';
+        push @$values, $args->{node}->{name};
+    }
+    if (exists $args->{node}->{longitude}) {
+        push @$params, 'longitude=?';
+        push @$values, $args->{node}->{longitude};
+    }
+    if (exists $args->{node}->{latitude}) {
+        push @$params, 'latitude=?';
+        push @$values, $args->{node}->{latitude};
+    }
+    if (exists $args->{node}->{operational_state_mpls}) {
+        push @$params, 'operational_state_mpls=?';
+        push @$values, $args->{node}->{operational_state_mpls};
+    }
+    if (exists $args->{node}->{vlan_tag_range}) {
+        push @$params, 'vlan_tag_range=?';
+        push @$values, $args->{node}->{vlan_tag_range};
+    }
+    if (exists $args->{node}->{pending_diff}) {
+        push @$params, 'pending_diff=?';
+        push @$values, $args->{node}->{pending_diff};
+    }
+    if (exists $args->{node}->{short_name}) {
+        push @$params, 'short_name=?';
+        push @$values, $args->{node}->{short_name};
+    }
+    my $fields = join(', ', @$params);
+    push @$values, $args->{node}->{node_id};
+
+    if ($fields ne ""){
+        my $ok = $args->{db}->execute_query(
+            "UPDATE node SET $fields WHERE node_id=?",
+            $values
+        );
+        if (!defined $ok) {
+            return $args->{db}->get_error;
+        }
+    }
+
+    my $iparams = [];
+    my $ivalues = [];
+
+    my $node = $args->{db}->execute_query(
+        "select * from node_instantiation where end_epoch=-1 and node_id=?",
+        [ $args->{node}->{node_id} ]
+    );
+    return $args->{db}->get_error if !defined $node;
+    return "Couldn't find instantiation for node $args->{node}->{node_id}." if !defined $node->[0];
+    $node = $node->[0];
+
+    my $modified = 0;
+    if (exists $args->{node}->{admin_state} && $args->{node}->{admin_state} ne $node->{admin_state}) {
+        $modified = 1;
+        $node->{admin_state} = $args->{node}->{admin_state};
+    }
+    if (exists $args->{node}->{vendor} && $args->{node}->{vendor} ne $node->{vendor}) {
+        $modified = 1;
+        $node->{vendor} = $args->{node}->{vendor};
+    }
+    if (exists $args->{node}->{model} && $args->{node}->{model} ne $node->{model}) {
+        $modified = 1;
+        $node->{model} = $args->{node}->{model};
+    }
+    if (exists $args->{node}->{sw_version} && $args->{node}->{sw_version} ne $node->{sw_version}) {
+        $modified = 1;
+        $node->{sw_version} = $args->{node}->{sw_version};
+    }
+    if (exists $args->{node}->{mgmt_addr} && $args->{node}->{mgmt_addr} ne $node->{mgmt_addr}) {
+        $modified = 1;
+        $node->{mgmt_addr} = $args->{node}->{mgmt_addr};
+    }
+    if (exists $args->{node}->{loopback_address} && $args->{node}->{loopback_address} ne $node->{loopback_address}) {
+        $modified = 1;
+        $node->{loopback_address} = $args->{node}->{loopback_address};
+    }
+    if (exists $args->{node}->{tcp_port} && $args->{node}->{tcp_port} != $node->{tcp_port}) {
+        $modified = 1;
+        $node->{tcp_port} = $args->{node}->{tcp_port};
+    }
+
+    # No changes required to instantiation table
+    return if (!$modified);
+
+    my $inst_ok = $args->{db}->execute_query(
+        "UPDATE node_instantiation SET end_epoch=UNIX_TIMESTAMP(NOW()) WHERE node_id=? and end_epoch=-1",
+        [$args->{node}->{node_id}]
+    );
+    if (!defined $inst_ok) {
+        return $args->{db}->get_error;
+    }
+    $inst_ok = $args->{db}->execute_query("
+        INSERT INTO node_instantiation (
+            admin_state, vendor, model, sw_version, mgmt_addr,
+            loopback_address, tcp_port, node_id, openflow, mpls,
+            dpid, start_epoch, end_epoch
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
+        ",
+        [
+            $node->{admin_state},
+            $node->{vendor},
+            $node->{model},
+            $node->{sw_version},
+            $node->{mgmt_addr},
+            $node->{loopback_address},
+            $node->{tcp_port},
+            $args->{node}->{node_id},
+            $args->{node}->{openflow} || 0,
+            $args->{node}->{mpls} || 1,
+            $node->{dpid}
+        ]
+    );
+    if (!defined $inst_ok) {
+        return $args->{db}->get_error;
+    }
+
+    return;
 }
 
 1;

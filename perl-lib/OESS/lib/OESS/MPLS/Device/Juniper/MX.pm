@@ -587,7 +587,7 @@ sub get_interfaces{
 
     if($self->{'jnx'}->has_error){
         my $error = $self->{'jnx'}->get_first_error();
-	$self->set_error($error->{'error_message'});
+        $self->set_error($error->{'error_message'});
         $self->{'logger'}->error("Error fetching interface information: " . $error->{'error_message'});
         return;
     }
@@ -615,7 +615,7 @@ sub get_interfaces{
 sub _process_interface{
     my $self = shift;
     my $int = shift;
-    
+
     my $obj = {};
 
     my $xp = XML::LibXML::XPathContext->new( $int );
