@@ -3,5 +3,4 @@ name: circuit
 title: /circuit.cgi
 layout: cgi
 ---
-This is some documentation.
-
+An interface for provisioning Layer 2 network connections.

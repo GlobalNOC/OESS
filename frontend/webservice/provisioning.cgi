@@ -103,7 +103,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "provision_circuit",
 	description     => "Adds or modifies a circuit on the network",
-	callback        => sub { provision_circuit(@_) }
+	callback        => sub { provision_circuit(@_) },
+    method_deprecated => "This method has been deprecated in favor of circuit.cgi?method=provision."
 	);
 
     #add the required input parameter workgroup_id
@@ -325,7 +326,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "remove_circuit",
 	description     => "Removes a circuit from the network, and returns success if the circuit has been removed successfully or scheduled for removal from the network.",
-	callback        => sub { remove_circuit( @_ ) }
+	callback        => sub { remove_circuit( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of circuit.cgi?method=remove."
 	);
 
     $method->add_input_parameter(
@@ -374,7 +376,8 @@ sub register_webservice_methods {
      $method = GRNOC::WebService::Method->new(
 	 name            => "fail_over_circuit",
 	 description     => "Changes a circuit over to its backup path (if it has one)",
-	 callback        => sub {  fail_over_circuit( @_ ) }
+	 callback        => sub {  fail_over_circuit( @_ ) },
+     method_deprecated => "This method has been deprecated."
 	 );
 
     #register the required input parameter circuit_id
@@ -407,7 +410,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "reprovision_circuit",
 	description     => "Removes and reinstalls all flow rules related to a circuit on the network.",
-	callback        => sub {  reprovision_circuit ( @_ ) }
+	callback        => sub {  reprovision_circuit ( @_ ) },
+    method_deprecated => "This method has been deprecated."
 	);
 
     #register the required input parameter circuit_id
@@ -441,7 +445,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name            => "remove_vrf",
         description     => "removes a VRF (L3VPN) from the network",
-        callback        => sub {  remove_vrf ( @_ ) }
+        callback        => sub {  remove_vrf ( @_ ) },
+        method_deprecated => "This method has been deprecated in favor of vrf.cgi?method=remove."
         );
 
     $method->add_input_parameter(
