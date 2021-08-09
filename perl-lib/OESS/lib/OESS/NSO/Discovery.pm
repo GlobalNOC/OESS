@@ -346,25 +346,26 @@ sub link_handler {
             delete $links_index->{$bb->{name}};
         }
 
-        # decom all links still in index
-        foreach my $name (keys %$links_index) {
-            my $link = $links_index->{$name};
-            $self->{logger}->info("Decommissioning link $link->{name}.");
+    }
 
-            my ($link_id, $link_err) = OESS::DB::Link::update(
-                db   => $self->{db},
-                link => {
-                    link_id        => $link->{link_id},
-                    link_state     => 'decom',
-                    status         => 'down',
-                    interface_a_id => $link->{interface_a_id},
-                    ip_a           => $link->{ip_a},
-                    interface_z_id => $link->{interface_z_id},
-                    ip_z           => $link->{ip_z},
-                }
-            );
-            $self->{logger}->error($link_err) if defined $link_err;
-        }
+    # decom all links still in index
+    foreach my $name (keys %$links_index) {
+        my $link = $links_index->{$name};
+        $self->{logger}->info("Decommissioning link $link->{name}.");
+
+        my ($link_id, $link_err) = OESS::DB::Link::update(
+            db   => $self->{db},
+            link => {
+                link_id        => $link->{link_id},
+                link_state     => 'decom',
+                status         => 'down',
+                interface_a_id => $link->{interface_a_id},
+                ip_a           => $link->{ip_a},
+                interface_z_id => $link->{interface_z_id},
+                ip_z           => $link->{ip_z},
+            }
+        );
+        $self->{logger}->error($link_err) if defined $link_err;
     }
 
     return 1;
