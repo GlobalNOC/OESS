@@ -244,11 +244,8 @@ sub fetch_all {
         push @$values, $args->{interface_id};
     }
 
-    my $node_a_controller_filter = "";
-    my $node_z_controller_filter = "";
     if (defined $args->{controller}) {
-        $node_a_controller_filter = "AND node_a.controller=?";
-        $node_z_controller_filter = "AND node_z.controller=?";
+        push @$params, '(node_a.controller=? AND node_z.controller=?)';
         push @$values, $args->{controller};
         push @$values, $args->{controller};
     }
@@ -275,8 +272,8 @@ sub fetch_all {
         JOIN link_instantiation ON link.link_id=link_instantiation.link_id AND link_instantiation.end_epoch=-1
         JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
         JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
-        JOIN node_instantiation as node_a ON node_a.node_id=interface_a.node_id AND node_a.end_epoch=-1 $node_a_controller_filter
-        JOIN node_instantiation as node_z ON node_z.node_id=interface_z.node_id AND node_z.end_epoch=-1 $node_z_controller_filter
+        JOIN node_instantiation as node_a ON node_a.node_id=interface_a.node_id AND node_a.end_epoch=-1
+        JOIN node_instantiation as node_z ON node_z.node_id=interface_z.node_id AND node_z.end_epoch=-1
         $where
     ";
 
