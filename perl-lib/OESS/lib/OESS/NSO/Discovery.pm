@@ -236,7 +236,7 @@ sub link_handler {
     my $self = shift;
 
     # lookup links name and put into index
-    my ($links, $links_err) = OESS::DB::Link::fetch_all(db => $self->{db});
+    my ($links, $links_err) = OESS::DB::Link::fetch_all(db => $self->{db}, controller => 'nso');
 
     my $links_index = {};
     foreach my $link (@$links) {
