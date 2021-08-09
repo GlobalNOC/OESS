@@ -200,14 +200,15 @@ C<status>.
 =cut
 sub fetch_all {
     my $args = {
-        db => undef,
-        path_id => undef,
-        link_id => undef,
-        name => undef,
-        remote_urn => undef,
-        status => undef,
-        ip => undef,
+        db           => undef,
+        path_id      => undef,
+        link_id      => undef,
+        name         => undef,
+        remote_urn   => undef,
+        status       => undef,
+        ip           => undef,
         interface_id => undef,
+        controller   => undef,
         @_
     };
 
@@ -243,6 +244,15 @@ sub fetch_all {
         push @$values, $args->{interface_id};
     }
 
+    my $node_a_controller_filter = "";
+    my $node_z_controller_filter = "";
+    if (defined $args->{controller}) {
+        $node_a_controller_filter = "AND node_a.controller=?";
+        $node_z_controller_filter = "AND node_z.controller=?";
+        push @$values, $args->{controller};
+        push @$values, $args->{controller};
+    }
+
     push @$params, 'link_instantiation.end_epoch=?';
     push @$values, -1;
 
@@ -259,13 +269,14 @@ sub fetch_all {
                link_instantiation.interface_z_id, link_instantiation.ip_z,
                interface_a.node_id as node_a_id,
                interface_z.node_id as node_z_id,
-               node_a.loopback_address as node_a_loopback, node_z.loopback_address as node_z_loopback
+               node_a.loopback_address as node_a_loopback, node_z.loopback_address as node_z_loopback,
+               node_a.controller as node_a_controller, node_z.controller as node_z_controller
         FROM link
         JOIN link_instantiation ON link.link_id=link_instantiation.link_id AND link_instantiation.end_epoch=-1
         JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
         JOIN interface as interface_z ON interface_z.interface_id=link_instantiation.interface_z_id
-        JOIN node_instantiation as node_a ON node_a.node_id=interface_a.node_id AND node_a.end_epoch=-1
-        JOIN node_instantiation as node_z ON node_z.node_id=interface_z.node_id AND node_z.end_epoch=-1
+        JOIN node_instantiation as node_a ON node_a.node_id=interface_a.node_id AND node_a.end_epoch=-1 $node_a_controller_filter
+        JOIN node_instantiation as node_z ON node_z.node_id=interface_z.node_id AND node_z.end_epoch=-1 $node_z_controller_filter
         $where
     ";
 
