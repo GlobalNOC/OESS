@@ -200,14 +200,15 @@ C<status>.
 =cut
 sub fetch_all {
     my $args = {
-        db => undef,
-        path_id => undef,
-        link_id => undef,
-        name => undef,
-        remote_urn => undef,
-        status => undef,
-        ip => undef,
+        db           => undef,
+        path_id      => undef,
+        link_id      => undef,
+        name         => undef,
+        remote_urn   => undef,
+        status       => undef,
+        ip           => undef,
         interface_id => undef,
+        controller   => undef,
         @_
     };
 
@@ -243,6 +244,12 @@ sub fetch_all {
         push @$values, $args->{interface_id};
     }
 
+    if (defined $args->{controller}) {
+        push @$params, '(node_a.controller=? AND node_z.controller=?)';
+        push @$values, $args->{controller};
+        push @$values, $args->{controller};
+    }
+
     push @$params, 'link_instantiation.end_epoch=?';
     push @$values, -1;
 
@@ -259,7 +266,8 @@ sub fetch_all {
                link_instantiation.interface_z_id, link_instantiation.ip_z,
                interface_a.node_id as node_a_id,
                interface_z.node_id as node_z_id,
-               node_a.loopback_address as node_a_loopback, node_z.loopback_address as node_z_loopback
+               node_a.loopback_address as node_a_loopback, node_z.loopback_address as node_z_loopback,
+               node_a.controller as node_a_controller, node_z.controller as node_z_controller
         FROM link
         JOIN link_instantiation ON link.link_id=link_instantiation.link_id AND link_instantiation.end_epoch=-1
         JOIN interface as interface_a ON interface_a.interface_id=link_instantiation.interface_a_id
