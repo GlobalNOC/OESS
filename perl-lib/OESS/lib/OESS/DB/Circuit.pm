@@ -156,10 +156,13 @@ sub fetch_circuit {
 =cut
 sub fetch_circuits {
     my $args = {
-        db         => undef,
-        circuit_id => undef,
-        state      => undef,
-        first      => undef,
+        db           => undef,
+        circuit_id   => undef,
+        interface_id => undef,
+        node_id      => undef,
+        workgroup_id => undef,
+        state        => undef,
+        first        => undef,
         @_
     };
 
@@ -169,6 +172,14 @@ sub fetch_circuits {
     if (defined $args->{circuit_id}) {
         push @$params, "circuit.circuit_id=?";
         push @$values, $args->{circuit_id};
+    }
+    if (defined $args->{interface_id}) {
+        push @$params, "interface.interface_id=?";
+        push @$values, $args->{interface_id};
+    }
+    if (defined $args->{node_id}) {
+        push @$params, "interface.node_id=?";
+        push @$values, $args->{node_id};
     }
     if (defined $args->{workgroup_id}) {
         push @$params, "(circuit.workgroup_id=? OR interface.workgroup_id=?)";
