@@ -421,48 +421,40 @@ sub get_vrfs{
     my @where_str;
     my @where_val;
 
-    if (defined $params{vrf_id}) {
-        push @where_val, $params{vrf_id};
+    if (defined $params{'vrf_id'}) {
+        push @where_val, $params{'vrf_id'};
         push @where_str, "vrf.vrf_id=?";
     }
-
-    if(defined($params{'state'})){
-        push(@where_val,$params{'state'});
-        push(@where_str,"vrf.state = ?");
+    if (defined $params{'state'}) {
+        push @where_val, $params{'state'};
+        push @where_str, "vrf.state=?";
     }
-    
+    if (defined $params{'interface_id'}) {
+        push @where_val, $params{'interface_id'};
+        push @where_str, "interface.interface_id=?";
+    }
+    if (defined $params{'node_id'}) {
+        push @where_val, $params{'node_id'};
+        push @where_str, "interface.node_id=?";
+    }
     if(defined($params{'workgroup_id'})){
         push(@where_val, $params{'workgroup_id'});
-        #now we need to find all interfaces OWNED by this workgroup and all VRFs on those endpoints!!!!!
-        my $interfaces = OESS::DB::Interface::get_interfaces(db => $db, workgroup_id => $params{'workgroup_id'});
-        push(@where_val, @$interfaces);
-        my $vals = "";
-        foreach my $int (@$interfaces){
-            if($vals eq ''){
-                $vals .= "?";
-            }else{
-                $vals .= ",?";
-            }
-        }
-        if (!(scalar @$interfaces)) {
-            push(@where_str, "(workgroup_id = ?)");
-        } else {
-            push(@where_str, "(workgroup_id = ? or vrf_ep.interface_id in ($vals))");
-        }
+        push(@where_val, $params{'workgroup_id'});
+        push(@where_str, "(vrf.workgroup_id=? or interface.workgroup_id=?)");
     }
 
-    my $where;
-    foreach my $str (@where_str){
-        if(!defined($where)){
-            $where .= $str;
-        }else{
-            $where .= " and " . $str;
-        }
-    }
+    my $where = (@where_str > 0) ? 'WHERE ' . join(' AND ', @where_str) : '';
 
-    my $query = "select distinct(vrf.vrf_id) from vrf join vrf_ep on vrf_ep.vrf_id = vrf.vrf_id where $where";
-
-    my $vrfs = $db->execute_query($query,\@where_val);
+    my $vrfs = $db->execute_query(
+        "SELECT vrf.vrf_id
+         FROM vrf
+         JOIN vrf_ep on vrf_ep.vrf_id=vrf.vrf_id
+         JOIN interface on interface.interface_id=vrf_ep.interface_id
+         JOIN node on node.node_id=interface.node_id
+         $where
+         GROUP BY vrf.vrf_id",
+        \@where_val
+    );
 
     return $vrfs;
 }
