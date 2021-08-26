@@ -383,27 +383,29 @@ sub get_system_information{
 
     my $error_msg;
     if(undef $host_name){
-        $self->{'logger'}->error("Error: Could not find host name, device response: " . $system_info->toString());
+        $self->{'logger'}->error("Error: Could not find host name");
         $error_msg = "Error: could not get system information";
     }
     if(undef $loopback_addr){
-        $self->{'logger'}->error("Error: Could not find loopback address, device response: " . $system_info->toString());
+        $self->{'logger'}->error("Error: Could not find loopback address");
         $error_msg = "Error: could not get system information";
     }
     if(undef $os_name){
-        $self->{'logger'}->error("Error: Could not find os name, device response: " . $system_info->toString());
+        $self->{'logger'}->error("Error: Could not find os name");
         $error_msg = "Error: could not get system information";
     }
     if(undef $model){
-        $self->{'logger'}->error("Error: Could not find model, device response: " . $system_info->toString());
+        $self->{'logger'}->error("Error: Could not find model");
         $error_msg = "Error: could not get system information";
     }
     if(undef $version){
-        $self->{'logger'}->error("Error: Could not find version, device response: " . $system_info->toString());
+        $self->{'logger'}->error("Error: Could not find version");
         $error_msg = "Error: could not get system information";
     }
 
     if(defined $error_msg){
+        $self->{'logger'}->error("device system info response: " . $system_info->toString());
+        $self->{'logger'}->error("device interfaces: " . $interfaces->toString());
         return (undef, $error_msg);
     }
     $self->{'loopback_addr'} = $loopback_addr;
