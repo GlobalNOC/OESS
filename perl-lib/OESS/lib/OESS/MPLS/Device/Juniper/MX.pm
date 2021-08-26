@@ -381,6 +381,10 @@ sub get_system_information{
         }
     }
 
+    if(undef $loopback_addr){
+        $self->{'logger'}->error("Error: Could not find a loopback address, device response: " . $system_info->toString());
+        return (undef, "Error: Could not find a loopback address");
+    }
     $self->{'loopback_addr'} = $loopback_addr;
     $self->{'major_rev'} = $major_rev;
 
