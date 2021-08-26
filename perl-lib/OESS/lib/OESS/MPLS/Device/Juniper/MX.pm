@@ -348,36 +348,34 @@ sub get_system_information{
             $log_xp->registerNs('j',$path);
             my $log_name = trim($log_xp->findvalue('./j:name'));
             if($log_name eq 'lo0.0'){
-            my $addresses = $log_xp->find("./j:address-family");
-            foreach my $addr (@$addresses){
-                my $af_xp = XML::LibXML::XPathContext->new( $addr );
-                my $path = $self->{'root_namespace'}."junos-interface";
-                $af_xp->registerNs('j',$path);
-                my $af_name = trim($af_xp->findvalue('./j:address-family-name'));
-                next if $af_name ne 'inet';
+                my $addresses = $log_xp->find("./j:address-family");
+                foreach my $addr (@$addresses){
+                    my $af_xp = XML::LibXML::XPathContext->new( $addr );
+                    my $path = $self->{'root_namespace'}."junos-interface";
+                    $af_xp->registerNs('j',$path);
+                    my $af_name = trim($af_xp->findvalue('./j:address-family-name'));
+                    next if $af_name ne 'inet';
 
-                foreach my $addr (@{$af_xp->find('./j:interface-address')}){
+                    foreach my $addr (@{$af_xp->find('./j:interface-address')}){
+                        my $addrs = $af_xp->find('./j:ifa-local', $addr);
+                        foreach my $ad (@$addrs){
+                            my $address = trim($ad->textContent);
+                            next if(!defined($address));
+                            next if $address eq '';
+                            next if $address eq '127.0.0.1';
 
-                my $addrs = $af_xp->find('./j:ifa-local', $addr);
-                            foreach my $ad (@$addrs){
-                                my $address = trim($ad->textContent);
-                                next if(!defined($address));
-                                next if $address eq '';
-                                next if $address eq '127.0.0.1';
-
-                                $loopback_addr = $address;
-                            }
-
-                # Within the interface-address tag there may
-                # be an ifa-flags tag. If so the
-                # ifaf-preferred flag can be used to select
-                # the default loopback address
-                my $is_default = $af_xp->exists('./j:ifa-flags/j:ifaf-preferred', $addr);
-                            if ($is_default) {
-                                last;
-                            }
-
+                            $loopback_addr = $address;
                         }
+
+                        # Within the interface-address tag there may
+                        # be an ifa-flags tag. If so the
+                        # ifaf-preferred flag can be used to select
+                        # the default loopback address
+                        my $is_default = $af_xp->exists('./j:ifa-flags/j:ifaf-preferred', $addr);
+                        if ($is_default) {
+                            last;
+                        }
+                    }
                 }
             }
         }
