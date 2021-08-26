@@ -381,9 +381,30 @@ sub get_system_information{
         }
     }
 
+    my $error_msg;
+    if(undef $host_name){
+        $self->{'logger'}->error("Error: Could not find host name, device response: " . $system_info->toString());
+        $error_msg = "Error: could not get system information";
+    }
     if(undef $loopback_addr){
         $self->{'logger'}->error("Error: Could not find loopback address, device response: " . $system_info->toString());
-        return (undef, "Error: Could not find loopback address");
+        $error_msg = "Error: could not get system information";
+    }
+    if(undef $os_name){
+        $self->{'logger'}->error("Error: Could not find os name, device response: " . $system_info->toString());
+        $error_msg = "Error: could not get system information";
+    }
+    if(undef $model){
+        $self->{'logger'}->error("Error: Could not find model, device response: " . $system_info->toString());
+        $error_msg = "Error: could not get system information";
+    }
+    if(undef $version){
+        $self->{'logger'}->error("Error: Could not find version, device response: " . $system_info->toString());
+        $error_msg = "Error: could not get system information";
+    }
+
+    if(defined $error_msg){
+        return (undef, $error_msg);
     }
     $self->{'loopback_addr'} = $loopback_addr;
     $self->{'major_rev'} = $major_rev;
