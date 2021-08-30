@@ -1,0 +1,427 @@
+#!/bin/perl
+
+use strict;
+use warnings;
+
+use Data::Dumper;
+use Getopt::Long qw(:config auto_help);
+use GRNOC::CLI;
+use JSON;
+use Pod::Usage qw(pod2usage);
+use Text::CSV;
+
+use OESS::DB;
+use OESS::DB::Circuit;
+use OESS::DB::VRF;
+use OESS::L2Circuit;
+use OESS::VRF;
+
+
+my $config;
+
+
+=head2 load_config
+
+load_config opens $file and returns an Object based on the file's JSON
+encoded contents.
+
+=cut
+sub load_config {
+    my $file = shift;
+    my $json = do {
+        open(my $json_fh, "<:encoding(UTF-8)", $file) or die("Can't open \$file\": $!\n");
+        local $/;
+        <$json_fh>
+    };
+    return decode_json($json);
+}
+
+=head2
+
+load_csv opens $file and then returns a mapping from old interfaces to
+new interfaces using the provided CSV.
+
+=cut
+sub load_csv {
+    my $file    = shift;
+    my $reverse = shift;
+
+    if (!defined $reverse) {
+        $reverse = 0;
+    }
+
+    my $csv = new Text::CSV();
+    my $rows = [];
+
+    open my $fh, "<:encoding(utf8)", $file or die "$file: $!";
+    $csv->column_names($csv->getline($fh));
+    while (my $row = $csv->getline_hr($fh)) {
+        push @$rows, $row;
+    }
+    close $fh;
+
+    # 'NAME'             => 'SHIM-POP1-POP2-1',
+    # 'NGI_DEVICE'       => '[ agg1 ]',
+    # 'NGI_INTERFACE'    => 'TenGigE0/0/0/0/3'
+    # 'LEGACY_DEVICE'    => 'mx960-1.sdn-test.grnoc.iu.edu',
+    # 'LEGACY_INTERFACE' => 'xe-7/0/1',
+
+    my $mapping = {};
+
+    foreach my $row (@$rows) {
+        if ($reverse) {
+            my $i = $row->{NGI_INTERFACE};
+            my $n = $row->{NGI_DEVICE};
+            $n =~ s/(\[ )|( \])//g;
+            my $src = "$n - $i";
+
+            $mapping->{$src} = [$row->{LEGACY_DEVICE}, $row->{LEGACY_INTERFACE}];
+        } else {
+            my $src = "$row->{LEGACY_DEVICE} - $row->{LEGACY_INTERFACE}";
+            my $i = $row->{NGI_INTERFACE};
+            my $n = $row->{NGI_DEVICE};
+            $n =~ s/(\[ )|( \])//g;
+            $mapping->{$src} = [$n, $i];
+        }
+    }
+
+    return $mapping;
+}
+
+=head2 migrate_l2connection
+
+=cut
+sub migrate_l2connection {
+    my $circuit = shift;
+    my $mapping = shift;
+
+    my $l2client = new GRNOC::WebService::Client(
+        url     => "$config->{url}/circuit.cgi",
+        uid     => $config->{username},
+        passwd  => $config->{password},
+        realm   => $config->{realm},
+        timeout => $config->{timeout}
+    );
+    if (!defined $l2client) {
+        return "Cannot create WebService Client: " . $l2client->get_error;
+    }
+
+    my $new_endpoints = [];
+    foreach my $ep (@{$circuit->{endpoints}}) {
+        my $destination = $mapping->{"$ep->{node} - $ep->{interface}"};
+        my $new_node = $destination->[0];
+        my $new_intf = $destination->[1];
+
+        print "L2Connection $circuit->{circuit_id}: Moving $ep->{node} $ep->{interface} -> $new_node $new_intf.\n";
+
+        my $new_ep = {
+            node      => $new_node,
+            jumbo     => ($ep->mtu > 1500) ? 1 : 0,
+            interface => $new_intf,
+            tag       => $ep->tag,
+            inner_tag => $ep->inner_tag,
+            bandwidth => $ep->bandwidth
+        };
+        push @$new_endpoints, encode_json($new_ep);
+    }
+
+    my $req = {
+        circuit_id              => $circuit->circuit_id,
+        workgroup_id            => $circuit->workgroup_id,
+        description             => $circuit->description,
+        skip_cloud_provisioning => 1,
+        endpoint                => $new_endpoints,
+        external_identifier     => $circuit->external_identifier,
+        provision_time          => -1,
+        remove_time             => -1,
+        remote_requester        => $circuit->remote_requester,
+        remote_url              => $circuit->remote_url,
+    };
+    my $res = $l2client->provision(%$req);
+    if (!defined $res) {
+        return $l2client->get_error;
+    }
+    if (defined $res->{error}) {
+        return $res->{error_text};
+    }
+
+    return;
+}
+
+=head2 migrate_l3connection
+
+=cut
+sub migrate_l3connection {
+    my $vrf     = shift;
+    my $mapping = shift;
+
+    my $l3client = new GRNOC::WebService::Client(
+        url     => "$config->{url}/vrf.cgi",
+        uid     => $config->{username},
+        passwd  => $config->{password},
+        realm   => $config->{realm},
+        timeout => $config->{timeout}
+    );
+    if (!defined $l3client) {
+        return "Cannot create WebService Client: " . $l3client->get_error;
+    }
+
+    my $new_endpoints = [];
+    foreach my $ep (@{$vrf->endpoints}) {
+        my $cisco_intf = $mapping->{"$ep->{node} - $ep->{interface}"};
+        my $new_node = $cisco_intf->[0];
+        my $new_intf = $cisco_intf->[1];
+
+        print "L3Connection $vrf->{vrf_id}: Moving $ep->{node} $ep->{interface} -> $new_node $new_intf.\n";
+
+        my $new_ep = {
+            node      => $new_node,
+            jumbo     => ($ep->mtu > 1500) ? 1 : 0,
+            interface => $new_intf,
+            tag       => $ep->tag,
+            inner_tag => $ep->inner_tag,
+            bandwidth => $ep->bandwidth,
+            peers     => []
+        };
+
+        foreach my $peer (@{$ep->peers}) {
+            my $new_peer = {
+                bfd        => $peer->bfd,
+                ip_version => $peer->ip_version,
+                peer_ip    => $peer->peer_ip,
+                peer_asn   => $peer->peer_asn,
+                local_ip   => $peer->local_ip,
+                md5_key    => $peer->md5_key,
+            };
+            push @{$new_ep->{peers}}, $new_peer;
+        }
+        push @$new_endpoints, encode_json($new_ep);
+    }
+
+    my $req = {
+        vrf_id                  => $vrf->vrf_id,
+        local_asn               => $vrf->local_asn,
+        workgroup_id            => $vrf->workgroup_id,
+        name                    => $vrf->name,
+        description             => $vrf->description,
+        skip_cloud_provisioning => 1,
+        endpoint                => $new_endpoints,
+        external_identifier     => $vrf->{external_identifier},
+    };
+
+    my $res = $l3client->provision(%$req);
+    if (!defined $res) {
+        return $l3client->get_error;
+    }
+    if (defined $res->{error}) {
+        return $res->{error_text};
+    }
+
+    return;
+}
+
+# ====
+# CLI
+# ====
+
+sub interfaces {
+    my $db = shift;
+
+    my $file         = undef;
+    my $interface_id = undef;
+
+    GetOptions(
+        "file=s" => \$file,
+        "interface-id=i"  => \$interface_id
+    );
+
+    die "No interface mapping file provided." if !defined $file;
+    my $mapping = load_csv($file, 0);
+    warn Dumper($mapping);
+}
+
+sub l2connections {
+    my $db = shift;
+
+    my $connection_id = undef;
+    my $file          = undef;
+    my $interface_id  = undef;
+    my $node_id       = undef;
+    my $workgroup_id  = undef;
+
+    GetOptions(
+        "connection-id=i" => \$connection_id,
+        "file=s"          => \$file,
+        "interface-id=i"  => \$interface_id,
+        "node-id=i"       => \$node_id,
+        "workgroup-id=i"  => \$workgroup_id
+    );
+    warn "l2connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
+
+    die "No interface mapping file provided." if !defined $file;
+    my $mapping = load_csv($file);
+
+    my $args = { db => $db };
+    $args->{circuit_id}   = $connection_id if defined $connection_id;
+    $args->{interface_id} = $interface_id if defined $interface_id;
+    $args->{node_id}      = $node_id if defined $node_id;
+    $args->{workgroup_id} = $workgroup_id if defined $workgroup_id;
+
+    my $results = OESS::DB::Circuit::fetch_circuits(%$args);
+    die "Couldn't fetch l2connections from the database." if !defined $results;
+
+    my $connections = [];
+    foreach my $result (@$results) {
+        my $conn = new OESS::L2Circuit(db => $db, circuit_id => $result->{circuit_id});
+        $conn->load_endpoints;
+
+        print("Loading l2connection: $conn->{description}\n");
+        push @$connections, $conn;
+    }
+
+    my $cli = new GRNOC::CLI();
+    my $n = @$connections;
+    my $continue = $cli->confirm("Migrate $n listed connection(s)?");
+    return 1 if !$continue;
+
+    my $success = [];
+    my $failure = [];
+    foreach my $conn (@$connections) {
+        my $err = migrate_l2connection($conn, $mapping);
+        if ($err) {
+            $conn->{error} = $err;
+            warn "ERROR $conn->{circuit_id} $conn->{error}";
+            push @$failure, $conn;
+        } else {
+            print "OK $conn->{circuit_id}\n";
+            push @$success, $conn;
+        }
+    }
+
+    return 1;
+}
+
+sub l3connections {
+    my $db = shift;
+
+    my $connection_id = undef;
+    my $file          = undef;
+    my $interface_id  = undef;
+    my $node_id       = undef;
+    my $workgroup_id  = undef;
+
+    GetOptions(
+        "connection-id=i" => \$connection_id,
+        "file=s"          => \$file,
+        "interface-id=i"  => \$interface_id,
+        "node-id=i"       => \$node_id,
+        "workgroup-id=i"  => \$workgroup_id
+    );
+    warn "l3connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
+
+    die "No interface mapping file provided." if !defined $file;
+    my $mapping = load_csv($file);
+
+    my $args = { db => $db };
+    $args->{vrf_id}   = $connection_id if defined $connection_id;
+    $args->{interface_id} = $interface_id if defined $interface_id;
+    $args->{node_id}      = $node_id if defined $node_id;
+    $args->{workgroup_id} = $workgroup_id if defined $workgroup_id;
+    $args->{state}        = 'active';
+
+    my $results = OESS::DB::VRF::get_vrfs(%$args);
+    die "Couldn't fetch l3connections from the database." if !defined $results;
+
+    my $connections = [];
+    foreach my $result (@$results) {
+        my $conn = new OESS::VRF(db => $db, vrf_id => $result->{vrf_id});
+        $conn->load_endpoints;
+        foreach my $ep (@{$conn->endpoints}) {
+            $ep->load_peers;
+        }
+
+        print("Loading l3connection: $conn->{description}\n");
+        push @$connections, $conn;
+    }
+
+    my $cli = new GRNOC::CLI();
+    my $n = @$connections;
+    my $continue = $cli->confirm("Migrate $n listed connection(s)?");
+    return 1 if !$continue;
+
+    my $success = [];
+    my $failure = [];
+    foreach my $conn (@$connections) {
+        my $err = migrate_l3connection($conn, $mapping);
+        if ($err) {
+            $conn->{error} = $err;
+            warn "ERROR $conn->{vrf_id} $conn->{error}";
+            push @$failure, $conn;
+        } else {
+            print "OK $conn->{vrf_id}\n";
+            push @$success, $conn;
+        }
+    }
+
+    return 1;
+}
+
+sub main {
+    $config = load_config("./config.json");
+
+    my $router = {
+        interfaces    => \&interfaces,
+        l2connections => \&l2connections,
+        l3connections => \&l3connections,
+        help          => sub {
+            pod2usage(-verbose => 1);
+            exit 1;
+        }
+    };
+
+    if (!defined $ARGV[0] || !defined $router->{$ARGV[0]}) {
+        pod2usage(-verbose => 1);
+        exit 1;
+    }
+
+    my $db = new OESS::DB();
+
+    return $router->{$ARGV[0]}($db);
+}
+
+main();
+
+=head1 NAME
+
+oess-migrate - OESS network migration tooling
+
+=head1 SYNOPSIS
+
+oess-migrate help
+
+oess-migrate interfaces [options]
+
+ Options:
+   --file             Path to CSV indicating old to new port mapping
+
+oess-migrate l2connections [options]
+
+ Options:
+   --connection-id    Migrate connection identified by connection-id
+   --delay            Introduce delay between migrations in seconds
+   --file             Path to CSV indicating old to new port mapping
+   --interface-id     Migrate all connections terminating on interface-id
+   --node-id          Migrate all connections terminating on node-id
+   --workgroup-id     Migrate all connections owned by workgroup-id
+
+oess-migrate l3connections [options]
+
+ Options:
+   --connection-id    Migrate connection identified by connection-id
+   --delay            Introduce delay between migrations in seconds
+   --file             Path to CSV indicating old to new port mapping
+   --interface-id     Migrate all connections terminating on interface-id
+   --node-id          Migrate all connections terminating on node-id
+   --workgroup-id     Migrate all connections owned by workgroup-id
+
+=cut
