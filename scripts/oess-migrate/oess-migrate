@@ -12,6 +12,7 @@ use Text::CSV;
 
 use OESS::DB;
 use OESS::DB::Circuit;
+use OESS::DB::Interface;
 use OESS::DB::VRF;
 use OESS::L2Circuit;
 use OESS::VRF;
@@ -86,6 +87,39 @@ sub load_csv {
     }
 
     return $mapping;
+}
+
+=head2 migrate_interface
+
+=cut
+sub migrate_interface {
+    my $db = shift;
+    my $src_interface_id = shift;
+    my $dst_interface_id = shift;
+
+    $db->start_transaction;
+    my $acl_err = OESS::DB::Interface::move_acls(
+        db => $db,
+        src_interface_id => $src_interface_id,
+        dst_interface_id => $dst_interface_id
+    );
+    if (defined $acl_err) {
+        $db->rollback;
+        return $acl_err;
+    }
+
+    my $cnf_err = OESS::DB::Interface::move_configuration(
+        db => $db,
+        src_interface_id => $src_interface_id,
+        dst_interface_id => $dst_interface_id
+    );
+    if (defined $cnf_err) {
+        $db->rollback;
+        return $cnf_err;
+    }
+    $db->commit;
+
+    return;
 }
 
 =head2 migrate_l2connection
@@ -237,7 +271,79 @@ sub interfaces {
 
     die "No interface mapping file provided." if !defined $file;
     my $mapping = load_csv($file, 0);
-    warn Dumper($mapping);
+
+    if (defined $interface_id) {
+        my $src_interface = OESS::DB::Interface::fetch(
+            db => $db,
+            interface_id => $interface_id
+        );
+        if (!defined $src_interface) {
+            warn "Couldn't find interface $interface_id.";
+            return;
+        }
+
+        my $dst = $mapping->{$src_interface->{node}->{name} . ' - ' . $src_interface->{name}};
+        if (!defined $dst) {
+            warn "Couldn't find interface mapping from $src_interface->{node}->{name} $src_interface->{name}.";
+            return;
+        }
+
+        my $dst_interface_id = OESS::DB::Interface::get_interface(
+            db => $db,
+            node => $dst->[0],
+            interface => $dst->[1]
+        );
+        if (!defined $dst_interface_id) {
+            warn "Couldn't find interface_id for $dst->[0] $dst->[1].";
+            return;
+        }
+
+        my $err = migrate_interface($db, $src_interface_id, $dst_interface_id);
+        if (defined $err) {
+            warn $err;
+        }
+    } else {
+
+        foreach my $key (@$mapping) {
+            my @src = split(' - ', $key);
+            my $src_interface_id = OESS::DB::Interface::get_interface(
+                db => $db,
+                node => $src[0],
+                interface => $src[1]
+            );
+            if (!defined $src_interface_id) {
+                warn "Couldn't find interface_id for $src[0] $src[1].";
+                next;
+            }
+
+            my $src_interface = OESS::DB::Interface::fetch(
+                db => $db,
+                interface_id => $src_interface_id
+            );
+            if (!defined $src_interface->{workgroup_id}) {
+                warn "WorkgroupId for $src[0] $src[1] is NULL; This implies that the interface has already been migrated. Because a twice migrated Interface will result in configuration loss, this migration will be skipped. To ignore this warning migrate the interface using `oess-migrate interfaces --interface-id $src_interface_id`.";
+                next;
+            }
+
+            my $dst = $mapping->{$key};
+            my $dst_interface_id = OESS::DB::Interface::get_interface(
+                db => $db,
+                node => $dst->[0],
+                interface => $dst->[1]
+            );
+            if (!defined $dst_interface_id) {
+                warn "Couldn't find interface_id for $dst->[0] $dst->[1].";
+                next;
+            }
+
+            my $err = migrate_interface($db, $src_interface_id, $dst_interface_id);
+            if (defined $err) {
+                warn $err;
+                next;
+            }
+        }
+
+    }
 }
 
 sub l2connections {
@@ -403,6 +509,7 @@ oess-migrate interfaces [options]
 
  Options:
    --file             Path to CSV indicating old to new port mapping
+   --interface-id     Migrate a sinlge interface identified by interface-id
 
 oess-migrate l2connections [options]
 
