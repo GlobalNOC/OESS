@@ -274,7 +274,7 @@ sub move_configuration {
     my $q1 = "
         UPDATE interface
         SET cloud_interconnect_id=DEFAULT,cloud_interconnect_type=DEFAULT,description=?,
-            vlan_tag_range=DEFAULT,mpls_vlan_tag_range=DEFAULT,workgroup_id=DEFAULT
+            vlan_tag_range=DEFAULT,mpls_vlan_tag_range=DEFAULT,workgroup_id=DEFAULT,role=DEFAULT
         WHERE interface.interface_id=?
     ";
 
@@ -290,7 +290,7 @@ sub move_configuration {
     my $q2 = "
         UPDATE interface
         SET cloud_interconnect_id=?,cloud_interconnect_type=?,description=?,
-            vlan_tag_range=?,mpls_vlan_tag_range=?,workgroup_id=?
+            vlan_tag_range=?,mpls_vlan_tag_range=?,workgroup_id=?,role=?
         WHERE interface.interface_id=?
     ";
     $ok = $args->{db}->execute_query(
@@ -302,6 +302,7 @@ sub move_configuration {
             $intf->{vlan_tag_range},
             $intf->{mpls_vlan_tag_range},
             $intf->{workgroup_id},
+            $intf->{role},
             $args->{dst_interface_id},
         ]
     );
