@@ -382,23 +382,23 @@ sub get_system_information{
     }
 
     my $error_msg;
-    if(undef $host_name){
+    if(!defined($host_name)){
         $self->{'logger'}->error("Error: Could not find host name");
         $error_msg = "Error: could not get system information";
     }
-    if(undef $loopback_addr){
+    if(!defined($loopback_addr)){
         $self->{'logger'}->error("Error: Could not find loopback address");
         $error_msg = "Error: could not get system information";
     }
-    if(undef $os_name){
+    if(!defined($os_name)){
         $self->{'logger'}->error("Error: Could not find os name");
         $error_msg = "Error: could not get system information";
     }
-    if(undef $model){
+    if(!defined($model)){
         $self->{'logger'}->error("Error: Could not find model");
         $error_msg = "Error: could not get system information";
     }
-    if(undef $version){
+    if(!defined($version)){
         $self->{'logger'}->error("Error: Could not find version");
         $error_msg = "Error: could not get system information";
     }
