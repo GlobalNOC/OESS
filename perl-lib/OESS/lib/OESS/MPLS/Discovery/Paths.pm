@@ -87,7 +87,7 @@ sub _process_paths{
     my $ip_links = {}; # Map from IPAddress to Link
     $self->{db2}->start_transaction;
 
-    my $links_db = OESS::DB::Link::fetch_all(db => $self->{db2});
+    my ($links_db, $err) = OESS::DB::Link::fetch_all(db => $self->{db2});
     foreach my $link (@{$links_db}){
         $ip_links->{$link->{ip_a}} = new OESS::Link(db => $self->{db2}, model => $link);
         $ip_links->{$link->{ip_z}} = new OESS::Link(db => $self->{db2}, model => $link);

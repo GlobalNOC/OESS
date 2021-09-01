@@ -2,17 +2,13 @@ async function deleteCircuit(workgroupID, circuitID, end=-1) {
   let url = '[% path %]services/circuit.cgi?method=remove';
   url += `&circuit_id=${circuitID}`;
   url += `&workgroup_id=${workgroupID}`;
+  
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  const data = await resp.json();
 
-  try {
-    const resp = await fetch(url, {method: 'get', credentials: 'include'});
-    const data = await resp.json();
-
-    if ('error_text' in data) throw(data.error_text);
-    return data.results;
-  } catch(error) {
-    console.log('Failure occurred in deleteCircuit:', error);
-    return null;
-  }
+  if ('error_text' in data) throw(data.error_text);
+  return data.results;
+  
 }
 
 /**

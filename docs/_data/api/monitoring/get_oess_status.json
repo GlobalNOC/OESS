@@ -1,1 +1,1 @@
-{"output_type":"application/json","input_params":{},"name":"get_oess_status","description":"Returns a hash of three main services and their status as up or down","default_input_validators":[],"expires":"-1d"}
+{"method_deprecated":0,"output_type":"application/json","input_params":{},"name":"get_oess_status","description":"Returns a hash of three main services and their status as up or down","default_input_validators":[],"expires":"-1d"}

@@ -25,6 +25,11 @@ Log::Log4perl::init_and_watch('t/conf/logging.conf',10);
 
 my $db = OESS::Database->new( config => OESSDatabaseTester::getConfigFilePath() );
 
+
+# These tests expect use of the node type 'openflow'.
+$db->_execute_query("update node_instantiation set controller='openflow'", []);
+
+
 my $ckt = OESS::Circuit->new( circuit_id => 4171, db => $db);
 
 ok($ckt->has_backup_path(), "Circuit does have backup path");

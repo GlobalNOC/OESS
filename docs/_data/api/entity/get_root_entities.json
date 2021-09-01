@@ -1,1 +1,1 @@
-{"output_type":"application/json","input_params":{},"name":"get_root_entities","description":"returns a JSON object representing the root entities","default_input_validators":[],"expires":"-1d"}
+{"method_deprecated":0,"output_type":"application/json","input_params":{},"name":"get_root_entities","description":"returns a JSON object representing the root entities","default_input_validators":[],"expires":"-1d"}

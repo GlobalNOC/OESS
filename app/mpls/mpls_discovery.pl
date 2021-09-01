@@ -8,16 +8,55 @@ use Getopt::Long;
 use Log::Log4perl;
 use Proc::Daemon;
 
+use GRNOC::WebService::Client;
+
 use OESS::Config;
 use OESS::MPLS::Discovery;
+use OESS::NSO::Client;
+use OESS::NSO::Discovery;
 
 my $pid_file = "/var/run/oess/mpls_discovery.pid";
+my $cnf_file = "/etc/oess/database.xml";
 
 sub core{
     Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
-    my $config = new OESS::Config(config_filename => '/etc/oess/database.xml');
-    my $discovery = new OESS::MPLS::Discovery(config_obj => $config);
+    my $config = new OESS::Config(config_filename => $cnf_file);
+    my $mpls_discovery;
+    my $nso_discovery;
+    my $nso_client = new OESS::NSO::Client(config_obj => $config);
+    my $tsds_client = new GRNOC::WebService::Client(
+        url     => $config->tsds_url . "/push.cgi",
+        uid     => $config->tsds_username,
+        passwd  => $config->tsds_password,
+        realm   => $config->tsds_realm,
+        usePost => 1
+    );
+
+    if ($config->network_type eq 'nso') {
+        my $nso_discovery = OESS::NSO::Discovery->new(
+            config_obj => $config,
+            nso => $nso_client,
+            tsds => $tsds_client
+        );
+        $nso_discovery->start;
+    }
+    elsif ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'evpn-vxlan') {
+        $mpls_discovery = OESS::MPLS::Discovery->new(config_obj => $config);
+    }
+    elsif ($config->network_type eq 'nso+vpn-mpls') {
+        $nso_discovery = OESS::NSO::Discovery->new(
+            config_obj => $config,
+            nso => $nso_client,
+            tsds => $tsds_client
+        );
+        $nso_discovery->start;
+
+        $mpls_discovery = OESS::MPLS::Discovery->new(config_obj => $config);
+    }
+    else {
+        die "Unexpected network type configured.";
+    }
 
     Log::Log4perl->get_logger('OESS.MPLS.Discovery.APP')->info("Starting OESS.MPLS.Discovery event loop.");
     AnyEvent->condvar->recv;

@@ -35,6 +35,7 @@ use Log::Log4perl;
 
 use GRNOC::WebService;
 
+use OESS::Config;
 use OESS::Database;
 use OESS::DB;
 use OESS::DB::ACL;
@@ -61,6 +62,7 @@ use constant PENDING_DIFF_ERROR => 2;
 
 Log::Log4perl::init('/etc/oess/logging.conf');
 
+my $config = new OESS::Config();
 my $db = new OESS::Database();
 my $db2 = new OESS::DB();
 
@@ -801,17 +803,21 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
                                   description => '' );
-    $method->add_input_parameter( name        => 'vendor',
+    $method->add_input_parameter( name        => 'controller',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
+                                  description => '' );
+    $method->add_input_parameter( name        => 'vendor',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'model',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
                                   description => '' );
     $method->add_input_parameter( name        => 'sw_ver',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
-                                  required    => 1,
+                                  required    => 0,
 				  description => '' );
 
     $svc->register_method($method);
@@ -904,13 +910,25 @@ sub get_diff_text {
         return;
     }
 
+    my $node = new OESS::Node(db => $db2, node_id => $args->{node_id}{value});
+
+    my $fwdctl_topic = 'OF.FWDCTL.RPC';
+    my $discovery_topic = 'OF.Discovery.RPC';
+    if ($node->controller eq 'netconf') {
+        $fwdctl_topic = 'MPLS.FWDCTL.RPC';
+        $discovery_topic = 'MPLS.Discovery.RPC';
+    }
+    if ($node->controller eq 'nso') {
+        $fwdctl_topic = 'NSO.FWDCTL.RPC';
+        $discovery_topic = 'NSO.Discovery.RPC';
+    }
+
     my $node_id = $args->{'node_id'}{'value'};
     require OESS::RabbitMQ::Client;
     my $mq = OESS::RabbitMQ::Client->new(
-        topic    => 'OF.FWDCTL.RPC',
+        topic    => $fwdctl_topic,
         timeout  => 60
     );
-    $mq->{'topic'} = "MPLS.FWDCTL.RPC";
 
     my $cv = AnyEvent->condvar;
     $mq->get_diff_text(
@@ -1196,35 +1214,37 @@ sub edit_remote_link {
 
 }
 
+#Gets workgroups based on user_id given through parameter
 sub get_workgroups {
     my ($method, $args) = @_;
 
-    #my ($user, $err) = authorization(admin => 1, read_only => 1);
     my ($result, $err) = OESS::DB::User::has_system_access(db => $db2, username => $ENV{'REMOTE_USER'}, role=>'read-only');
     if (defined $err) {
         $method->set_error($err);
         return;
     }
 
-    my %parameters = ( 'user_id' => $args->{'user_id'}{'value'} || undef );
-
     my $results;
-    my $workgroups;
 
-    my $user = new OESS::User(db => $db2, username => $ENV{'REMOTE_USER'});
+    my $user;
+    if (defined $args->{user_id}{value}) {
+        $user = new OESS::User(db => $db2, user_id => $args->{user_id}{value});
+    } else {
+        $user = new OESS::User(db => $db2, username => $ENV{REMOTE_USER});
+    }
+    if (!defined $user) {
+        my $id = (defined $args->{user_id}{value}) ? $args->{user_id}{value} : $ENV{REMOTE_USER};
+        $method->set_error("User $id was not found.");
+        return;
+    }
     $user->load_workgroups();
 
-    $workgroups = $user->to_hash()->{workgroups};
-
-    if ( !defined $workgroups ) {
-        $results->{'error'}   = $db->get_error();
-        $results->{'results'} = [];
+    my $workgroups = $user->to_hash()->{workgroups};
+    if (!defined $workgroups) {
+        $method->set_error("Couldn't load workgroups.");
+        return;
     }
-    else {
-        $results->{'results'} = $workgroups;
-    }
-
-    return $results;
+    return { results => $workgroups };
 }
 
 sub update_interface_owner {
@@ -1799,35 +1819,68 @@ sub update_cache {
 
     use OESS::RabbitMQ::Client;
 
-    my $mq = OESS::RabbitMQ::Client->new(
-        topic    => 'MPLS.FWDCTL.RPC',
-        timeout  => 60
-    );
-    if (!defined $mq) {
-        $method->set_error("Couldn't create RabbitMQ client.");
-        return;
-    }
+    my $status = 0;
 
-    my $cv = AnyEvent->condvar;
-    $mq->update_cache(
-        node_id        => $node_id,
-        async_callback => sub {
-            my $resultM = shift;
-            $cv->send($resultM);
+    if ($config->network_type eq 'vpn-mpls' || $config->network_type eq 'nso+vpn-mpls') {
+        my $mq = OESS::RabbitMQ::Client->new(
+            topic    => 'MPLS.FWDCTL.RPC',
+            timeout  => 60
+        );
+        if (!defined $mq) {
+            $method->set_error("Couldn't create RabbitMQ client.");
+            return;
         }
-    );
 
-    my $resultC = $cv->recv();
-    if (!defined $resultC) {
-        $method->set_error("Error while calling `update_cache` via RabbitMQ.");
-        return;
-    }
-    if (defined $resultC->{'error'}) {
-        $method->set_error("Error while calling `update_cache`: $resultC->{error}");
-        return;
+        my $cv = AnyEvent->condvar;
+        $mq->update_cache(
+            node_id        => $node_id,
+            async_callback => sub {
+                my $resultM = shift;
+                $cv->send($resultM);
+            }
+        );
+        my $resultC = $cv->recv();
+        if (!defined $resultC) {
+            $method->set_error("Error while calling `update_cache` via RabbitMQ.");
+            return;
+        }
+        if (defined $resultC->{'error'}) {
+            $method->set_error("Error while calling `update_cache`: $resultC->{error}");
+            return;
+        }
+        $status = $resultC->{results}->{status};
     }
 
-    my $status = $resultC->{results}->{status};
+    if ($config->network_type eq 'nso' || $config->network_type eq 'nso+vpn-mpls') {
+        my $mq = OESS::RabbitMQ::Client->new(
+            topic    => 'NSO.FWDCTL.RPC',
+            timeout  => 60
+        );
+        if (!defined $mq) {
+            $method->set_error("Couldn't create RabbitMQ client.");
+            return;
+        }
+
+        my $cv = AnyEvent->condvar;
+        $mq->update_cache(
+            node_id        => $node_id,
+            async_callback => sub {
+                my $resultM = shift;
+                $cv->send($resultM);
+            }
+        );
+        my $resultC = $cv->recv();
+        if (!defined $resultC) {
+            $method->set_error("Error while calling `update_cache` via RabbitMQ.");
+            return;
+        }
+        if (defined $resultC->{'error'}) {
+            $method->set_error("Error while calling `update_cache`: $resultC->{error}");
+            return;
+        }
+        $status = $resultC->{results}->{status};
+    }
+
     return { results => [ { status => $status } ] };
 }
 
@@ -2691,6 +2744,7 @@ sub add_mpls_switch{
     my $latitude = $args->{'latitude'}{'value'};
     my $longitude = $args->{'longitude'}{'value'};
     my $port = $args->{'port'}{'value'};
+    my $controller = $args->{'controller'}{'value'};
     my $vendor = $args->{'vendor'}{'value'};
     my $model = $args->{'model'}{'value'};
     my $sw_ver = $args->{'sw_ver'}{'value'};
@@ -2700,42 +2754,52 @@ sub add_mpls_switch{
         return;
     }
 
-    require OESS::RabbitMQ::Client;
-    my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
-                                          timeout  => 60 );
-
-    my $node = $db->add_mpls_node( name => $name,
-                                   short_name => $short_name,
-				   ip => $ip_address,
-				   lat => $latitude,
-				   long => $longitude,
-				   port => $port,
-				   vendor => $vendor,
-				   model => $model,
-				   sw_ver => $sw_ver);
-
-    if(!defined($node)){
-	return $db->get_error();
+    my $node = $db->add_mpls_node(
+        name => $name,
+        short_name => $short_name,
+        ip => $ip_address,
+        lat => $latitude,
+        long => $longitude,
+        port => $port,
+        controller => $controller,
+        vendor => $vendor,
+        model => $model,
+        sw_ver => $sw_ver
+    );
+    if (!defined $node) {
+        $method->set_error($db->get_error);
+        return;
     }
 
+    require OESS::RabbitMQ::Client;
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic    => 'NSO.FWDCTL.RPC',
+        timeout  => 60
+    );
     if (!defined $mq) {
-	my $results = {};
-	$results->{'results'} = [ {
-	    "error"   => "Internal server error occurred. Message queue connection failed.",
-	    "success" => 0
-	} ];
-	return $results;
-    } else {
-	$mq->{'topic'} = 'MPLS.FWDCTL.RPC';
+        $method->set_error("Internal server error occurred. Message queue connection failed.");
+        return;
+    }
+
+    my $fwdctl_topic;
+    my $discovery_topic;
+
+    if ($controller eq 'netconf') {
+        $fwdctl_topic = 'MPLS.FWDCTL.RPC';
+        $discovery_topic = 'MPLS.Discovery.RPC';
+    }
+    if ($controller eq 'nso') {
+        $fwdctl_topic = 'NSO.FWDCTL.RPC';
+        $discovery_topic = 'NSO.Discovery.RPC';
     }
 
     my $cv = AnyEvent->condvar;
+    $mq->{'topic'} = $fwdctl_topic;
     $mq->new_switch(
         node_id        => $node->{'node_id'},
         async_callback => sub {
             my $resultM = shift;
-            
-            $mq->{'topic'} = 'MPLS.Discovery.RPC';
+            $mq->{'topic'} = $discovery_topic;
             $mq->new_switch(
                 node_id => $node->{'node_id'},
                 async_callback => sub {
@@ -2745,7 +2809,7 @@ sub add_mpls_switch{
             );
         }
     );
-    my $res = $cv->recv();
+    $cv->recv;
 
     return {results => [{success => 1, node_id => $node->{'node_id'}}]};
 

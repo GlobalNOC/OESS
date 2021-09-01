@@ -1265,7 +1265,7 @@ function setup_users_tab(){
                                        
                                        else{
                                            
-                                           var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id + "&role=normal");
+                                           var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=add_user_to_workgroup&workgroup_id=" + add_new_user_to_workgroup + "&user_id="+ user_id + "&role=" + encodeURIComponent(type));
                                            ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
                                            ds.responseSchema = {
                                                resultsList: "results",
@@ -1516,7 +1516,7 @@ function setup_workgroup_tab(){
                     var rec = this.getRecord(oArgs.target);
 
                     var user_id = rec.getData('user_id');
-                    var user    = rec.getData('first_name') + " " + rec.getData('family_name');
+                    var user    = rec.getData('first_name') + " " + rec.getData('last_name');
 
                     if (col.label != "Remove"){
                         return;
@@ -2397,6 +2397,7 @@ function setup_network_tab(){
             var vendor     = args[0].vendor;
             var model      = args[0].model;
             var sw_version = args[0].sw_version;
+            var controller = args[0].controller;
 
 	    function show_interface_acl_panel(args){
 		var interface_id = args.interface_id;
@@ -2891,6 +2892,13 @@ function setup_network_tab(){
                         "<td>Short Name:</td>" +
                         "<td><input type='text' id='short_name'></td>" +
                       "</tr>" +
+                      // MPLS - Software Version
+                      "<tr class='mpls'>" +
+                        "<td>Southbound</td>" +
+                        "<td><select style='min-width: 100%' id='controller'><option value='netconf'>NETCONF</option><option value='nso'>NSO</option></select></td>" +
+                        "<td></td>" +
+                        "<td></td>" +
+                      "</tr>" +
                       "<tr class='mpls'><td>&nbsp;</td></tr>" +
                       "</table>" +
                       "<div style='font-weight: bold;color: grey;text-align:left'>Interfaces</div>"+
@@ -2906,6 +2914,18 @@ function setup_network_tab(){
 
             panel.render(YAHOO.util.Dom.get("active_element_details"));
             
+	    $('#controller').on('change', function() {
+		if ($('#controller').val() == 'netconf') {
+		    $('#vendor').prop('disabled', false);
+		    $('#model').prop('disabled', false);
+		    $('#sw_version').prop('disabled', false);
+		} else {
+		    $('#vendor').prop('disabled', true);
+		    $('#model').prop('disabled', true);
+		    $('#sw_version').prop('disabled', true);
+		}
+	    });
+
             var table = make_node_intf_table();
             
             table.subscribe("rowMouseoverEvent", table.onEventHighlightRow);
@@ -2970,6 +2990,13 @@ function setup_network_tab(){
                 YAHOO.util.Dom.get('vendor').value     = vendor;
                 YAHOO.util.Dom.get('model').value      = model;
                 YAHOO.util.Dom.get('sw_version').value = sw_version;
+                YAHOO.util.Dom.get('controller').value = controller;
+
+		if (controller == 'nso') {
+		    YAHOO.util.Dom.get('vendor').disabled     = true;
+		    YAHOO.util.Dom.get('model').disabled      = true;
+		    YAHOO.util.Dom.get('sw_version').disabled = true;
+		}
             }
 
             if(default_drop == 0){
@@ -3007,12 +3034,13 @@ function setup_network_tab(){
 				var new_max_static_mac_flows = YAHOO.util.Dom.get('active_max_static_mac_flows').value;
 				var openflow   = YAHOO.util.Dom.get('openflow_enabled').value;
 				var mpls       = YAHOO.util.Dom.get('mpls_enabled').checked;
-                                var mgmt_addr  = YAHOO.util.Dom.get('mgmt_addr').value;
-                                var tcp_port   = YAHOO.util.Dom.get('tcp_port').value;
-                                var vendor     = YAHOO.util.Dom.get('vendor').value;
-                                var model      = YAHOO.util.Dom.get('model').value;
-                                var sw_version = YAHOO.util.Dom.get('sw_version').value;
-                                var short_name = YAHOO.util.Dom.get('short_name').value;
+                var mgmt_addr  = YAHOO.util.Dom.get('mgmt_addr').value;
+                var tcp_port   = YAHOO.util.Dom.get('tcp_port').value;
+                var vendor     = YAHOO.util.Dom.get('vendor').value;
+                var model      = YAHOO.util.Dom.get('model').value;
+                var sw_version = YAHOO.util.Dom.get('sw_version').value;
+                var controller = YAHOO.util.Dom.get('controller').value;
+                var short_name = YAHOO.util.Dom.get('short_name').value;
 
 				if (! new_name){
 				    alert("You must specify a name for this device.");
@@ -3057,6 +3085,7 @@ function setup_network_tab(){
                                     "&vendor="     + encodeURIComponent(vendor) +
                                     "&model="      + encodeURIComponent(model) +
                                     "&sw_version=" + encodeURIComponent(sw_version) +
+                                    "&controller=" + encodeURIComponent(controller) +
                                     "&short_name=" + encodeURIComponent(short_name);
 
                                 var openflow_args = "&default_drop=" + encodeURIComponent(new_default_drop) +
@@ -3222,6 +3251,449 @@ function setup_network_tab(){
                 );
 
         });
+
+        });
+
+}
+
+function setup_discovery_tab(){    
+
+    var node_table = makePendingNodeTable();
+    
+    var link_table = makePendingLinkTable();
+
+    var add_mpls_switch_button = new YAHOO.widget.Button("add_mpls_switch_button", {label: "Add MPLS switch button"});
+
+    add_mpls_switch_button.on("click", function(e){
+
+	    var new_mpls_switch_details_panel = new YAHOO.widget.Panel("new_switch_details",
+						       {width: 600,
+							fixedcenter: true,
+							modal: true
+						       }
+						       );
+
+	    this.new_mpls = new_mpls_switch_details_panel;
+
+            this.new_mpls.setHeader("Details for new Device!");
+
+            this.new_mpls.setBody("<table>" +
+				  "<tr>" +
+				  "<td>Name:</td>" +
+				  "<td>" +
+				  "<input type='text' id='new_node_name' size='38'>" +
+				  "</td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Short Name:</td>" +
+				  "<td>" +
+				  "<input type='text' id='new_node_short_name' size='38'>" +
+				  "</td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Latitude:</td>" +
+				  "<td><input type='text' id='new_node_lat' size='20'></td>" +
+				  "<td>Longitude:</td>" +
+				  "<td><input type='text' id='new_node_lon' size='20'></td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>IP Address</td>" +
+				  "<td><input type='text' id='new_ip_address' size='38'></td>" +
+				  "</tr>" +
+                                  "<td>Port</td>" +
+                                  "<td><input type='text' id='new_port' size='38'></td>" +
+                                  "</tr>" +
+				  "<td>Southbound</td>"+
+				  "<td colspan='1'><select style='min-width: 100%' id='controller'><option value='netconf' selected>NETCONF</option><option value='nso'>NSO</option></select></td>" +
+				  "</tr>" +
+				  "<td>Vendor</td>"+
+				  "<td colspan='1'><select style='min-width: 100%' id='new_mpls_vendor'><option value=''>Select One...</option><option value='Juniper'>Juniper</option></select></td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Model</td>" +
+				  "<td colspan='1'><select style='min-width: 100%' id='new_mpls_model'><option value=''>Select a vendor first</option></select></td>" +
+				  "</td>" +
+				  "</tr>" +
+				  "<tr>" +
+				  "<td>Software Version</td>" +
+				  "<td><input type='text' id='new_mpls_software' size='38'></td>" +
+				  "</tr>" +
+				  "</table>"
+				  );
+
+            this.new_mpls.setFooter("<div id='add_node'></div><div id='node_add_cancel'></div>");
+
+            this.new_mpls.render(document.body);
+
+	    $('#controller').on('change', function() {
+		if ($('#controller').val() == 'netconf') {
+		    $('#new_mpls_vendor').prop('disabled', false);
+		    $('#new_mpls_model').prop('disabled', false);
+		    $('#new_mpls_software').prop('disabled', false);
+		} else {
+		    $('#new_mpls_vendor').prop('disabled', true);
+		    $('#new_mpls_model').prop('disabled', true);
+		    $('#new_mpls_software').prop('disabled', true);
+		}
+	    });
+
+	    $('#new_mpls_vendor').on('change', function(){
+		    var vendor = $('#new_mpls_vendor').val();
+		    if(vendor == 'Juniper'){
+			var options = {"MX": "MX", "qfx": "QFX"};
+			var $el = $("#new_mpls_model");
+			$el.empty();
+		        $.each(options, function(value, key){
+			   $el.append($("<option></option>").attr("value", value).text(key));
+			});
+		    }else if( vendor == 'Brocade'){
+
+		    }
+		});
+
+            var add_button = new YAHOO.widget.Button("add_node", {label: "Add Switch"});
+	    var cancel_button = new YAHOO.widget.Button("node_add_cancel", {label: "Cancel"});
+
+	    add_button.on('click', function(){
+                    
+		    var lat   = YAHOO.util.Dom.get('new_node_lat').value;
+                    var lon   = YAHOO.util.Dom.get('new_node_lon').value;
+                    var name  = YAHOO.util.Dom.get('new_node_name').value;
+                    var short_name = YAHOO.util.Dom.get('new_node_short_name').value;
+		    var ip    = YAHOO.util.Dom.get('new_ip_address').value;
+		    var port  = YAHOO.util.Dom.get('new_port').value;
+		    var controller = YAHOO.util.Dom.get('controller').value;
+		    var vendor = $('#new_mpls_vendor').prop('disabled')   ? null : YAHOO.util.Dom.get('new_mpls_vendor').value;
+		    var model  = $('#new_mpls_model').prop('disabled')    ? null : YAHOO.util.Dom.get('new_mpls_model').value;
+		    var sw_ver = $('#new_mpls_software').prop('disabled') ? null : YAHOO.util.Dom.get('new_mpls_software').value;
+
+		    if (! name){
+                        alert("You must specify a name for this device.");
+                        return;
+                    }
+
+		    if( !ip || !port ){
+			alert('You must specify and IP, SSH port, and password');
+			return;
+		    }
+
+		    if (!ip.match(/^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/)) {
+		        alert("You must specify a valid IPv4 Address.");
+		        return;
+                    }
+
+                    if (name.match(/:/) || name.match(/\s/)){
+                        alert("You may not have spaces or colons in the name.");
+                        return;
+                    }
+                   
+                    if (! lat || ! lat.match(/^\-?\d+(\.\d+)?$/) || lat < -90 || lat > 90){
+                        alert("You must specify a valid latitude at which this device will be visualized on the map.");
+                        return;
+                    }
+                    
+                    if (! lon || ! lon.match(/^\-?\d+(\.\d+)?$/) || lon < -180 || lon > 180){
+                        alert("You must specify a valid longitude at which this device will be visualized on the map.");
+                        return;
+                    }
+
+		    if (controller === 'netconf' && (vendor === '' || model === '' || sw_ver === '')) {
+			alert('Hardware vendor, model, and software version are required for NETCONF controlled devices.');
+			return;
+		    }
+
+		    add_button.set("disabled", true);
+		    add_button.set("label", "Adding device....");
+
+                var url = "../services/admin/admin.cgi?method=add_mpls_switch";
+                url += `&name=${encodeURIComponent(name)}`;
+                url += `&short_name=${encodeURIComponent(short_name)}`;
+                url += `&latitude=${encodeURIComponent(lat)}`;
+                url += `&longitude=${encodeURIComponent(lon)}`;
+                url += `&ip_address=${encodeURIComponent(ip)}`;
+                url += `&port=${encodeURIComponent(port)}`;
+                url += `&controller=${encodeURIComponent(controller)}`;
+                if (vendor) url += `&vendor=${encodeURIComponent(vendor)}`;
+                if (model) url += `&model=${encodeURIComponent(model)}`;
+                if (sw_ver) url += `&sw_ver=${encodeURIComponent(sw_ver)}`;
+
+		var ds = new YAHOO.util.DataSource(url);
+		ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+		    
+                ds.responseSchema = {
+                      resultsList: "results",
+                      fields: [{key: "success"}],
+                      metaFields: { 
+                        error: "error", 
+                        error_text: "error_text" 
+                      } 
+                    };
+		    
+                    ds.sendRequest("", {success: function(req, resp) {
+                      if (resp.meta.error) { 
+                        alert(`Error creating Switch: ${resp.meta.error_text}`); 
+                        add_button.set("disabled", false); 
+                        add_button.set("label", "Add Switch"); 
+                        return; 
+                      }
+				add_button.set("disabled", false);
+				add_button.set("label", "Add MPLS Device");
+
+				new_mpls_switch_details_panel.hide();
+				setup_network_tab();				
+			    },
+				
+				failure: function(req, resp){
+				add_button.set("disabled", false);
+				add_button.set("label", "Add MPLS Device");
+				
+				alert("Server error while adding MPLS device");
+			    }
+			});
+		});
+	});
+
+
+    node_table.subscribe("rowClickEvent", function(oArgs){
+
+            var record = this.getRecord(oArgs.target);
+
+            if (! record){
+                return;
+            }
+
+            var region = YAHOO.util.Dom.getRegion(oArgs.target);
+
+            if (this.details_panel){
+                this.details_panel.destroy();
+                this.details_panel = null;
+            }
+
+            var details_panel = new YAHOO.widget.Panel("node_details",
+                                                        {width: 400,
+                                                         xy: [region.left, region.bottom],
+                                                         modal: true
+                                                        }
+                                                        );
+
+            this.details_panel = details_panel;
+
+            this.details_panel.setHeader("Details for Device: " + convert_dpid_to_hex(record.getData('dpid')));
+
+            this.details_panel.setBody("<table>" +
+                                       "<tr>" + 
+                                       "<td>Name:</td>" +
+                                       "<td colspan='4'>" + 
+                                       "<input type='text' id='node_name' size='38'>" +
+                                       "</td>" +
+                                       "</tr>" +
+                                       "<tr>" +
+                                       "<td>Latitude:</td>" +
+                                       "<td><input type='text' id='node_lat' size='10'></td>" +
+                                       "<td>Longitude:</td>" +
+                                       "<td><input type='text' id='node_lon' size='10'></td>" +
+                                       "</tr>" + 
+                                       "<tr>" + 
+                                       "<td>Vlan Range:</td>" + 
+                                       "<td><input type='text' id='vlan_range' size='10'></td>" +
+                                       "</tr>" +
+                                       "<tr>" +
+                                       "<td colspan='2'>Default Forward LLDP to controller</td>"+
+                                       "<td><input type='checkbox' id='default_forward' checked /></td>" +
+                                       "</tr>" +
+                                       "<tr>" +
+                                       "<td colspan='2'>Default Drop Rule</td>" + 
+                                       "<td><input type='checkbox' id='default_drop' checked /></td>" +
+                                       "</td>" +
+                                       "</tr>" +
+                                       "<tr>" +
+                                       "<td colspan='2'>Maximum Number of Flow Mods</td>" +
+                                       "<td><input type='text' id='max_flows' size='10'></td>" +
+                                       "</tr>" +
+                                       "<tr>" +
+                                       "<td colspan='2'>FlowMod Processing Delay (ms)</td>" +
+                                       "<td><input type='text' id='tx_delay_ms' size='10'></td>" +
+                                       "</tr>" +
+                                       "<tr>" +
+                                       "<td colspan='2'>Send Bulk Flow Rules</td>" +
+                                       "<td><input type='checkbox' id='bulk_barrier' checked></td>" +
+                                       "</table>"
+                                       );
+
+            this.details_panel.setFooter("<div id='confirm_node'></div><div id='deny_node'></div>");
+
+            this.details_panel.render(document.body);
+
+            if (record.getData('name')){
+                YAHOO.util.Dom.get('node_name').value = record.getData('name');
+            }
+
+            if (record.getData('latitude')){
+                YAHOO.util.Dom.get('node_lat').value = record.getData('latitude');
+            }
+
+            if (record.getData('longitude')){
+                YAHOO.util.Dom.get('node_lon').value = record.getData('longitude');
+            }
+
+            if (record.getData('vlan_range')){
+               YAHOO.util.Dom.get('vlan_range').value = record.getData('vlan_range');
+            }       
+
+            if(record.getData('default_forward')){
+                YAHOO.util.Dom.get('default_forward').checked = record.getData('default_forward');
+            }
+
+            if(record.getData('default_drop')){
+                YAHOO.util.Dom.get('default_drop').checked = record.getData('default_drop');
+            }
+
+            if(record.getData('max_flows')){
+                YAHOO.util.Dom.get('max_flows').checked = record.getData('max_flows');
+            }
+
+            if(record.getData('short_name')){
+                YAHOO.util.Dom.get('short_name').value = record.getData('short_name');
+            }
+
+            if(record.getData('tx_delay_ms')){
+                YAHOO.util.Dom.get('tx_delay_ms').checked = record.getData('tx_delay_ms');
+            }
+
+            if(record.getData('bulk_barrier')){
+                YAHOO.util.Dom.get('bulk_barrier').checked = record.getData('bulk_barrier');
+            }
+            
+            YAHOO.util.Dom.get("node_name").focus();
+
+            var confirm_button = new YAHOO.widget.Button("confirm_node", {label: "Confirm Device"});
+	    var deny_button = new YAHOO.widget.Button("deny_node", {label: "Deny Device"});
+	    
+	    deny_button.on("click", function(e){
+            
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=deny_device&node_id=" + record.getData('node_id') + "&ipv4_addr="+ record.getData('ip_address') + "&dpid=" + record.getData('dpid'));
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+                 
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [{key: "success"}]
+                    };
+         
+                    deny_button.set("disabled", true);
+                    deny_button.set("label", "Denying device...");
+
+                    YAHOO.util.Dom.get("node_confirm_status").innerHTML = "";
+                    YAHOO.util.Dom.get("node_confirm_status").innerHTML = "";
+            ds.sendRequest("", {success: function(req, resp){
+
+                                deny_button.set("disabled", false);
+                                deny_button.set("label", "Deny Device");
+
+                                if (resp.results && resp.results[0].success == 1){
+                                    YAHOO.util.Dom.get("node_confirm_status").innerHTML = "Device successfully denied.";
+                                    node_table.deleteRow(record);
+                                    details_panel.hide();
+                                    setup_network_tab();
+                                }
+                                else{
+                                    alert("Device denial unsuccessful.")
+                                }
+                            },
+                            failure: function(req, resp){
+                                deny_button.set("disabled", false);
+                                deny_button.set("label", "Deny Device");
+
+                                alert("Server error while denying device.");
+                            }
+                        });
+
+        }); 
+
+            confirm_button.on("click", function(e){
+
+                    var lat   = YAHOO.util.Dom.get('node_lat').value;
+                    var lon   = YAHOO.util.Dom.get('node_lon').value;
+                    var name  = YAHOO.util.Dom.get('node_name').value;
+                    var range = YAHOO.util.Dom.get('vlan_range').value;
+                    var default_drop = YAHOO.util.Dom.get('default_drop').checked;
+                    var default_forward = YAHOO.util.Dom.get('default_forward').checked;
+                    var max_flows = YAHOO.util.Dom.get('max_flows').value;
+                    var tx_delay_ms = YAHOO.util.Dom.get('tx_delay_ms').value;
+                    var bulk_barrier = YAHOO.util.Dom.get('bulk_barrier').checked;
+                    
+                    if (! name){
+                        alert("You must specify a name for this device.");
+                        return;
+                    }
+
+                    if (name.match(/:/) || name.match(/\s/)){
+                        alert("You may not have spaces or colons in the name.");
+                        return;
+                    }
+                   
+                    if (! lat || ! lat.match(/^\-?\d+(\.\d+)?$/) || lat < -90 || lat > 90){
+                        alert("You must specify a valid latitude at which this device will be visualized on the map.");
+                        return;
+                    }
+                    
+                    if (! lon || ! lon.match(/^\-?\d+(\.\d+)?$/) || lon < -180 || lon > 180){
+                        alert("You must specify a valid longitude at which this device will be visualized on the map.");
+                        return;
+                    }
+
+                    var ranges = range.split(",");
+
+                    for (var i = 0; i < ranges.length; i++){
+                        var segment = ranges[i];
+                        if (! segment.match(/^\d+$/) && ! segment.match(/^\d+-\d+$/)){
+                           alert("You must specify a valid vlan range in the format \"1-3,5,7,8-10\"");
+                           return;
+                        }                               
+                    }
+
+                    var ds = new YAHOO.util.DataSource("../services/admin/admin.cgi?method=confirm_node&node_id=" + record.getData('node_id') + "&name=" + encodeURIComponent(name) + "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) + "&vlan_range=" + encodeURIComponent(range) + "&default_drop=" + encodeURIComponent(default_drop) + "&default_forward=" + encodeURIComponent(default_forward) + "&max_flows=" + encodeURIComponent(max_flows) + "&tx_delay_ms=" + encodeURIComponent(tx_delay_ms) + "&bulk_barrier=" + encodeURIComponent(bulk_barrier));
+
+                    ds.responseType = YAHOO.util.DataSource.TYPE_JSON;
+
+                    ds.responseSchema = {
+                        resultsList: "results",
+                        fields: [{key: "success"}]
+                    };
+
+                    confirm_button.set("disabled", true);
+                    confirm_button.set("label", "Confirming Device...");
+
+                    YAHOO.util.Dom.get("node_confirm_status").innerHTML = "";
+                    YAHOO.util.Dom.get("link_confirm_status").innerHTML = "";
+
+                    ds.sendRequest("", {success: function(req, resp){
+
+                                confirm_button.set("disabled", false);
+                                confirm_button.set("label", "Confirm Device");
+
+                                if (resp.results && resp.results[0].success == 1){
+                                    YAHOO.util.Dom.get("node_confirm_status").innerHTML = "Device successfully confirmed.";
+                                    node_table.deleteRow(record);
+                                    details_panel.hide();                                
+                                    makePendingLinkTable();
+                                    setup_network_tab();                                 
+                                }
+                                else{
+                                    alert("Device confirmation unsuccessful.");
+                                }
+                            },
+                            failure: function(req, resp){
+                                confirm_button.set("disabled", false);
+                                confirm_button.set("label", "Confirm Device");
+
+                                alert("Server error while confirming device.");
+                            }
+                        });
+                        
+                });
+
+       
+            this.details_panel.show();
 
         });
 

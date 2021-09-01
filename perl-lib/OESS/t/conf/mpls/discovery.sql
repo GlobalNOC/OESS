@@ -1,8 +1,8 @@
--- MySQL dump 10.14  Distrib 5.5.68-MariaDB, for Linux (x86_64)
+-- MySQL dump 10.16  Distrib 10.1.22-MariaDB, for Linux (x86_64)
 --
 -- Host: localhost    Database: discovery
 -- ------------------------------------------------------
--- Server version	5.5.68-MariaDB
+-- Server version	10.1.22-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -74,7 +74,7 @@ CREATE TABLE `circuit_edge_interface_membership` (
   `inner_tag` int(10) DEFAULT NULL,
   `circuit_edge_id` int(10) NOT NULL AUTO_INCREMENT,
   `unit` int(11) NOT NULL,
-  `bandwidth` int(10) DEFAULT NULL,
+  `bandwidth` int(10) DEFAULT '0',
   `mtu` int(11) NOT NULL DEFAULT '9000',
   PRIMARY KEY (`circuit_edge_id`),
   UNIQUE KEY `interface_id` (`interface_id`,`circuit_id`,`end_epoch`,`extern_vlan_id`),
@@ -271,12 +271,14 @@ DROP TABLE IF EXISTS `entity`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `entity` (
   `entity_id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
+  `name` varchar(255),
   `description` text,
   `logo_url` varchar(255) DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`entity_id`),
-  UNIQUE KEY `name` (`name`)
+  UNIQUE KEY `name` (`name`),
+  UNIQUE KEY `name_2` (`name`),
+  UNIQUE KEY `name_3` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1044,7 +1046,7 @@ CREATE TABLE `vrf_ep` (
   `vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
   `inner_tag` int(10) DEFAULT NULL,
   `tag` int(10) DEFAULT NULL,
-  `bandwidth` int(10) DEFAULT NULL,
+  `bandwidth` int(10) DEFAULT '0',
   `vrf_id` int(10) DEFAULT NULL,
   `interface_id` int(10) NOT NULL,
   `state` enum('active','decom') DEFAULT NULL,
@@ -1076,13 +1078,15 @@ DROP TABLE IF EXISTS `vrf_ep_peer`;
 CREATE TABLE `vrf_ep_peer` (
   `vrf_ep_peer_id` int(10) NOT NULL AUTO_INCREMENT,
   `peer_ip` varchar(255) NOT NULL,
-  `peer_asn` int(10) NOT NULL,
+  `peer_asn` int(10) unsigned DEFAULT NULL,
   `vrf_ep_id` int(11) DEFAULT NULL,
   `operational_state` int(1) DEFAULT NULL,
   `state` enum('active','decom') DEFAULT NULL,
   `local_ip` varchar(255) DEFAULT NULL,
   `md5_key` varchar(255) DEFAULT NULL,
   `circuit_ep_id` int(11) DEFAULT NULL,
+  `bfd` int(1) NOT NULL DEFAULT '0',
+  `ip_version` enum('ipv4','ipv6') DEFAULT NULL,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   KEY `vrf_ep_peer_ibfk_2` (`circuit_ep_id`),
@@ -1112,7 +1116,7 @@ CREATE TABLE `workgroup` (
   `description` varchar(255) NOT NULL,
   `name` varchar(255) NOT NULL,
   `external_id` varchar(255) DEFAULT NULL,
-  `type` varchar(20) DEFAULT 'normal',
+  `type` enum('demo','normal','admin') NOT NULL DEFAULT 'normal',
   `max_mac_address_per_end` int(10) DEFAULT '10',
   `max_circuits` int(10) DEFAULT '20',
   `max_circuit_endpoints` int(10) DEFAULT '10',
@@ -1166,4 +1170,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-04-02 22:30:31
+-- Dump completed on 2021-07-13  1:01:13

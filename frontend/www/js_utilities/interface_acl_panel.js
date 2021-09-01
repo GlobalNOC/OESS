@@ -143,14 +143,14 @@ var get_interface_acl_panel = function(container_id, interface_id, options){
         }
         //required
         url += "&allow_deny="+allow_deny;
-        url += "&start="+vlan_start;
+        url += "&vlan_start="+vlan_start;
         url += "&interface_id="+interface_id;
 
         //optional
         if(workgroup_id) {url += "&workgroup_id="+workgroup_id;}
         if(entity_id)    {url += "&entity_id="+entity_id;}
         if(notes)        {url += "&notes="+notes;}
-        if(vlan_end)     {url += "&end="+vlan_end;}
+        if(vlan_end)     {url += "&vlan_end="+vlan_end;}
 
         var ds = new YAHOO.util.DataSource(url);
         ds.responseType = YAHOO.util.DataSource.TYPE_JSON;

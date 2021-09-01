@@ -544,11 +544,11 @@ CREATE TABLE `network` (
   UNIQUE KEY `network_idx` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `network` (`network_id`,`name`,`longitude`,`latitude`,`is_local`) VALUES (1,'oess',0,0,1);
 
 --
 -- Table structure for table `node`
 --
-INSERT INTO `network` (`network_id`,`name`,`longitude`,`latitude`,`is_local`) VALUES (1,'default',0,0,1);
 
 DROP TABLE IF EXISTS `node`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -608,7 +608,7 @@ CREATE TABLE `node_instantiation` (
   `mgmt_addr` varchar(255) DEFAULT NULL,
   `loopback_address` varchar(255) DEFAULT NULL,
   `tcp_port` int(6) DEFAULT '830',
-  `controller` enum('openflow','netconf','nso') NOT NULL DEFAULT 'netconf',
+  `controller` enum('openflow','netconf','nso') NOT NULL DEFAULT 'nso',
   PRIMARY KEY (`node_id`,`end_epoch`),
   UNIQUE KEY `node_instantiation_idx` (`end_epoch`,`dpid`),
   CONSTRAINT `node_node_instantiation_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
@@ -666,7 +666,7 @@ CREATE TABLE `oess_version` (
 
 LOCK TABLES `oess_version` WRITE;
 /*!40000 ALTER TABLE `oess_version` DISABLE KEYS */;
-INSERT INTO `oess_version` VALUES ('2.0.11');
+INSERT INTO `oess_version` VALUES ('2.0.12');
 /*!40000 ALTER TABLE `oess_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -929,7 +929,7 @@ CREATE TABLE `vrf` (
   CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`),
   CONSTRAINT `vrf_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
   CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=6000 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

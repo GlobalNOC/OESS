@@ -11,7 +11,7 @@ sleep 1
 /usr/bin/mysqld_safe --datadir='/var/lib/mysql' &
 sleep 3
 /usr/bin/mysqladmin -u root password ${MYSQL_PASSWORD}
-/usr/bin/mysql --user=root --password=${MYSQL_PASSWORD} < /usr/share/doc/perl-OESS-2.0.11/share/nddi.sql
+/usr/bin/mysql --user=root --password=${MYSQL_PASSWORD} < /usr/share/doc/perl-OESS-2.0.12/share/nddi.sql
 
 # Start RabbitMQ
 rabbitmq-server start -detached
@@ -24,9 +24,11 @@ sed -i "s/vpn\-mpls/$OESS_NETWORK_TYPE/" /etc/oess/database.xml
 sed -i "s/NSO_HOST/$NSO_HOST/" /etc/oess/database.xml
 sed -i "s/NSO_PASSWORD/$NSO_PASSWORD/" /etc/oess/database.xml
 sed -i "s/NSO_USERNAME/$NSO_USERNAME/" /etc/oess/database.xml
-
-# Symlink in oess-shim
-ln -s /oess-shim/lib/GRNOC/OESS/ /usr/share/perl5/vendor_perl/GRNOC/OESS
+sed -i "s/OESS_LOCAL_ASN/$OESS_LOCAL_ASN/" /etc/oess/database.xml
+sed -i "s/TSDS_URL/$TSDS_URL/" /etc/oess/database.xml
+sed -i "s/TSDS_PASSWORD/$TSDS_PASSWORD/" /etc/oess/database.xml
+sed -i "s/TSDS_USERNAME/$TSDS_USERNAME/" /etc/oess/database.xml
+sed -i "s/TSDS_REALM/$TSDS_REALM/" /etc/oess/database.xml
 
 # Start OESS
 /usr/bin/oess-notify.pl &

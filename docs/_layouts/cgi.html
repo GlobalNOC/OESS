@@ -40,6 +40,9 @@
                   <br/>
 
                   <h2 class="cgi-method">{{ method.name }}</h2>
+                  {%- if method.method_deprecated != 0 -%}
+                  <p class="isa_error"><i class="bi bi-x-circle"></i> {{ method.method_deprecated }}</p>
+                  {%- endif -%}
                   <p>{{ method.description }}</p>
 
                   {% capture param_names %}

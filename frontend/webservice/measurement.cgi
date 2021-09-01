@@ -43,6 +43,7 @@ use OESS::Measurement qw(BUILDING_FILE);
 Log::Log4perl::init('/etc/oess/logging.conf');
 
 my $db          = new OESS::Database();
+my $db2         = new OESS::DB();
 my $measurement = new OESS::Measurement();
 
 #register web service dispatcher
@@ -153,6 +154,12 @@ sub get_circuit_data {
     my $interface  = $args->{'interface'}{'value'};
 
     my $link       = $args->{'link'}{'value'};
+    my ($ok, $err);
+    my ($ok, $err) = OESS::DB::User::has_circuit_permission(db => $db2, username => $ENV{'REMOTE_USER'}, circuit_id => $circuit_id, permission => 'read');
+    if(!$ok){
+        $results->{'error'} = $err;
+        return $results;
+    }
 
     # if we were sent a link, pick one of the endpoints to use for gathering data
     if (defined $link){

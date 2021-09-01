@@ -1,7 +1,7 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.11
-Release: 3%{?dist}
+Version: 2.0.12
+Release: 1%{?dist}
 License: APL 2.0
 Group: Network
 URL: http://globalnoc.iu.edu
@@ -38,12 +38,14 @@ Requires: perl
 Requires: perl-NetAddr-IP
 Requires: perl(AnyEvent)
 Requires: perl(AnyEvent::Fork)
+Requires: perl(AnyEvent::HTTP)
 Requires: perl(Array::Utils)
 Requires: perl(Class::Accessor)
 Requires: perl(Data::Dumper)
 Requires: perl(Data::UUID)
 Requires: perl(DateTime)
 Requires: perl(DBI), perl(DBD::mysql)
+Requires: perl(Encode)
 Requires: perl(English)
 Requires: perl(Exporter)
 Requires: perl(File::ShareDir)
@@ -65,6 +67,7 @@ Requires: perl(JSON::XS)
 Requires: perl(List::Compare)
 Requires: perl(List::MoreUtils)
 Requires: perl(Log::Log4perl)
+Requires: perl(LWP::Protocol::https)
 Requires: perl(MIME::Lite::TT::HTML)
 Requires: perl(Net::DBus)
 Requires: perl(Net::DBus::Exporter)
@@ -209,10 +212,17 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::NSI::Utils.3pm.gz
 %doc %{_mandir}/man3/OESS::RabbitMQ::Client.3pm.gz
 %doc %{_mandir}/man3/OESS::RabbitMQ::Dispatcher.3pm.gz
+%doc %{_mandir}/man3/OESS::RabbitMQ::Topic.3pm.gz
 %doc %{_mandir}/man3/OESS::Topology.3pm.gz
 %doc %{_mandir}/man3/OESS::Traceroute.3pm.gz
 %doc %{_mandir}/man3/OESS::Watchdog.3pm.gz
 %doc %{_mandir}/man3/OESS::Webservice.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::Client.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::ClientStub.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::ConnectionCache.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::Discovery.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::FWDCTL.3pm.gz
+%doc %{_mandir}/man3/OESS::NSO::FWDCTLService.3pm.gz
 %{template_dir}/notification_templates.tmpl
 %{template_dir}/notification.tt.html
 %{template_dir}/notification_vrf.tt.html
@@ -282,10 +292,17 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/NSI/Utils.pm
 %{perl_vendorlib}/OESS/RabbitMQ/Client.pm
 %{perl_vendorlib}/OESS/RabbitMQ/Dispatcher.pm
+%{perl_vendorlib}/OESS/RabbitMQ/Topic.pm
 %{perl_vendorlib}/OESS/Topology.pm
 %{perl_vendorlib}/OESS/Traceroute.pm
 %{perl_vendorlib}/OESS/Watchdog.pm
 %{perl_vendorlib}/OESS/Webservice.pm
+%{perl_vendorlib}/OESS/NSO/Client.pm
+%{perl_vendorlib}/OESS/NSO/ClientStub.pm
+%{perl_vendorlib}/OESS/NSO/ConnectionCache.pm
+%{perl_vendorlib}/OESS/NSO/Discovery.pm
+%{perl_vendorlib}/OESS/NSO/FWDCTL.pm
+%{perl_vendorlib}/OESS/NSO/FWDCTLService.pm
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 %{docdir}/share/customer-templates/*

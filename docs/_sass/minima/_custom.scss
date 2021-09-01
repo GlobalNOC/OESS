@@ -42,3 +42,31 @@ h4.cgi-param {
     font-size: .75em;
     color: #777;
 }
+
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css");
+
+.isa_error, .isa_warning {
+  margin: 10px 0px;
+  padding:10px;
+  border-radius: 3px;
+}
+.isa_error {
+  color: #900008;
+  background-color: #FFBABA;
+  font-size: .9em;
+}
+.isa_warning {
+  color: #9F6000;
+  background-color: #FEEFB3;
+  font-size: .9em;
+}
+
+.isa_error:before {
+  display: inline-block;
+  content: "";
+  vertical-align: -.125em;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-arrow-right-circle-fill' viewBox='0 0 16 16'>
+  <path d='M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM4.5 7.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H4.5z'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 1rem 1rem;
+}
