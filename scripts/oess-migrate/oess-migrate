@@ -89,6 +89,33 @@ sub load_csv {
     return $mapping;
 }
 
+=head2 is_cloud_connection
+
+=cut
+sub is_cloud_connection {
+    my $conn = shift;
+
+    foreach my $ep (@{$conn->endpoints}) {
+        if (defined $ep->cloud_interconnect_type) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+=head2 is_multipoint_connection
+
+=cut
+sub is_multipoint_connection {
+    my $conn = shift;
+
+    if (@{$conn->endpoints} > 2) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 =head2 migrate_interface
 
 =cut
@@ -261,12 +288,14 @@ sub migrate_l3connection {
 sub interfaces {
     my $db = shift;
 
-    my $file         = undef;
-    my $interface_id = undef;
+    my $file          = undef;
+    my $interface_id  = undef;
+    my $exclude_cloud = undef;
 
     GetOptions(
         "file=s" => \$file,
-        "interface-id=i"  => \$interface_id
+        "interface-id=i"  => \$interface_id,
+        "exclude-cloud=i" => \$exclude_cloud
     );
 
     die "No interface mapping file provided." if !defined $file;
@@ -278,13 +307,13 @@ sub interfaces {
             interface_id => $interface_id
         );
         if (!defined $src_interface) {
-            warn "Couldn't find interface $interface_id.";
+            warn "ERROR $interface_id Couldn't find interface in database.";
             return;
         }
 
         my $dst = $mapping->{$src_interface->{node}->{name} . ' - ' . $src_interface->{name}};
         if (!defined $dst) {
-            warn "Couldn't find interface mapping from $src_interface->{node}->{name} $src_interface->{name}.";
+            warn "ERROR $interface_id Couldn't find interface mapping from $src_interface->{node}->{name} $src_interface->{name}.";
             return;
         }
 
@@ -294,13 +323,13 @@ sub interfaces {
             interface => $dst->[1]
         );
         if (!defined $dst_interface_id) {
-            warn "Couldn't find interface_id for $dst->[0] $dst->[1].";
+            warn "ERROR $interface_id Couldn't find destination interface_id for $dst->[0] $dst->[1].";
             return;
         }
 
-        my $err = migrate_interface($db, $src_interface_id, $dst_interface_id);
+        my $err = migrate_interface($db, $interface_id, $dst_interface_id);
         if (defined $err) {
-            warn $err;
+            warn "ERROR $interface_id $err";
         }
     } else {
 
@@ -312,7 +341,7 @@ sub interfaces {
                 interface => $src[1]
             );
             if (!defined $src_interface_id) {
-                warn "Couldn't find interface_id for $src[0] $src[1].";
+                warn "ERROR Couldn't find interface_id for $src[0] $src[1].";
                 next;
             }
 
@@ -321,7 +350,11 @@ sub interfaces {
                 interface_id => $src_interface_id
             );
             if (!defined $src_interface->{workgroup_id}) {
-                warn "WorkgroupId for $src[0] $src[1] is NULL; This implies that the interface has already been migrated. Because a twice migrated Interface will result in configuration loss, this migration will be skipped. To ignore this warning migrate the interface using `oess-migrate interfaces --interface-id $src_interface_id`.";
+                print "SKIP WorkgroupId for $src[0] $src[1] is NULL; This implies that the interface has already been migrated. Because a twice migrated Interface will result in configuration loss, this migration will be skipped. To ignore this warning migrate the interface using `oess-migrate interfaces --interface-id $src_interface_id`.\n";
+                next;
+            }
+            if ($exclude_cloud == 1 && defined $src_interface->{cloud_interconnect_type}) {
+                print "SKIP CC $src_interface->{interface_id}\n";
                 next;
             }
 
@@ -332,13 +365,13 @@ sub interfaces {
                 interface => $dst->[1]
             );
             if (!defined $dst_interface_id) {
-                warn "Couldn't find interface_id for $dst->[0] $dst->[1].";
+                warn "ERROR $src_interface_id Couldn't find destination interface_id for $dst->[0] $dst->[1].";
                 next;
             }
 
             my $err = migrate_interface($db, $src_interface_id, $dst_interface_id);
             if (defined $err) {
-                warn $err;
+                warn "ERROR $src_interface_id $err";
                 next;
             }
         }
@@ -354,13 +387,17 @@ sub l2connections {
     my $interface_id  = undef;
     my $node_id       = undef;
     my $workgroup_id  = undef;
+    my $exclude_cloud = undef;
+    my $exclude_mp    = undef;
 
     GetOptions(
         "connection-id=i" => \$connection_id,
         "file=s"          => \$file,
         "interface-id=i"  => \$interface_id,
         "node-id=i"       => \$node_id,
-        "workgroup-id=i"  => \$workgroup_id
+        "workgroup-id=i"  => \$workgroup_id,
+        "exclude-cloud=i" => \$exclude_cloud,
+        "exclude-mp=i"    => \$exclude_mp
     );
     warn "l2connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
@@ -380,6 +417,15 @@ sub l2connections {
     foreach my $result (@$results) {
         my $conn = new OESS::L2Circuit(db => $db, circuit_id => $result->{circuit_id});
         $conn->load_endpoints;
+
+        if ($exclude_cloud == 1 && is_cloud_connection($conn)) {
+            print "SKIP CC $conn->{circuit_id}\n";
+            next;
+        }
+        if ($exclude_mp == 1 && is_multipoint_connection($conn)) {
+            print "SKIP MP $conn->{circuit_id}\n";
+            next;
+        }
 
         print("Loading l2connection: $conn->{description}\n");
         push @$connections, $conn;
@@ -415,13 +461,16 @@ sub l3connections {
     my $interface_id  = undef;
     my $node_id       = undef;
     my $workgroup_id  = undef;
+    my $exclude_cloud = undef;
+    my $exclude_mp    = undef;
 
     GetOptions(
         "connection-id=i" => \$connection_id,
         "file=s"          => \$file,
         "interface-id=i"  => \$interface_id,
         "node-id=i"       => \$node_id,
-        "workgroup-id=i"  => \$workgroup_id
+        "workgroup-id=i"  => \$workgroup_id,
+        "exclude-cloud=i" => \$exclude_cloud
     );
     warn "l3connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
@@ -444,6 +493,11 @@ sub l3connections {
         $conn->load_endpoints;
         foreach my $ep (@{$conn->endpoints}) {
             $ep->load_peers;
+        }
+
+        if ($exclude_cloud == 1 && is_cloud_connection($conn)) {
+            print "SKIP CC $conn->{vrf_id}\n";
+            next;
         }
 
         print("Loading l3connection: $conn->{description}\n");
@@ -510,6 +564,7 @@ oess-migrate interfaces [options]
  Options:
    --file             Path to CSV indicating old to new port mapping
    --interface-id     Migrate a sinlge interface identified by interface-id
+   --exclude-cloud    Exclude all cloud interfaces from migration
 
 oess-migrate l2connections [options]
 
@@ -520,6 +575,8 @@ oess-migrate l2connections [options]
    --interface-id     Migrate all connections terminating on interface-id
    --node-id          Migrate all connections terminating on node-id
    --workgroup-id     Migrate all connections owned by workgroup-id
+   --exclude-cloud    Exclude all cloud connections from migration
+   --exclude-mp       Exclude all multi-point connections from migration
 
 oess-migrate l3connections [options]
 
@@ -530,5 +587,6 @@ oess-migrate l3connections [options]
    --interface-id     Migrate all connections terminating on interface-id
    --node-id          Migrate all connections terminating on node-id
    --workgroup-id     Migrate all connections owned by workgroup-id
+   --exclude-cloud    Exclude all cloud connections from migration
 
 =cut
