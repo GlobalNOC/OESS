@@ -562,11 +562,11 @@ sub delete {
         return $args->{db}->get_error;
     }
 
-    my $ok = $args->{db}->execute_query(
+    my $del_ok = $args->{db}->execute_query(
         "DELETE FROM node WHERE node_id=?",
         [$args->{node_id}]
     );
-    if (!defined $ok) {
+    if (!defined $del_ok) {
         return $args->{db}->get_error;
     }
 

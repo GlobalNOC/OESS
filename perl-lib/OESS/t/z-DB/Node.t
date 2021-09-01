@@ -128,7 +128,7 @@ my $update_node_err = OESS::DB::Node::update(
         longitude  => 2,
         sw_version => '123',
         controller => 'nso',
-        ip_address => '192.168.1.2'
+        mgmt_addr  => '192.168.1.2'
     }
 );
 ok(!defined $update_node_err, "No error generated during node update.");

@@ -2,10 +2,10 @@ OESS_VERSION=2.0.11
 OESS_NETWORK=oess
 TEST_FILES=
 
-include .env.development
+include .env
 
 build:
-	htpasswd -b -c  frontend/.htpasswd admin "${OESS_ADMIN_PASS}"
+	htpasswd -b -c  frontend/.htpasswd admin "${OESS_PASS}"
 	docker build . -f frontend/Dockerfile -t oess-frontend
 	docker build . -f app/mpls/Dockerfile.discovery -t oess-netconf-discovery
 	docker build . -f app/mpls/Dockerfile.fwdctl -t oess-netconf-fwdctl

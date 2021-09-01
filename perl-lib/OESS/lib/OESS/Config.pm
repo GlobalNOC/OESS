@@ -370,8 +370,7 @@ sub third_party_mgmt {
 =cut
 sub nso_host {
     my $self = shift;
-    return if (!defined $self->{config}->{nso});
-    return $self->{config}->{nso}->{host};
+    return $ENV{NSO_HOST} || $self->{config}->{nso}->{host};
 }
 
 =head2 nso_password
@@ -379,8 +378,7 @@ sub nso_host {
 =cut
 sub nso_password {
     my $self = shift;
-    return if (!defined $self->{config}->{nso});
-    return $self->{config}->{nso}->{password};
+    return $ENV{NSO_PASS} || $self->{config}->{nso}->{password};
 }
 
 =head2 nso_username
@@ -388,8 +386,7 @@ sub nso_password {
 =cut
 sub nso_username {
     my $self = shift;
-    return if (!defined $self->{config}->{nso});
-    return $self->{config}->{nso}->{username};
+    return $ENV{NSO_USER} || $self->{config}->{nso}->{username};
 }
 
 =head2 tsds_url
