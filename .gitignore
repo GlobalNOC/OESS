@@ -56,3 +56,4 @@ frontend/.htpasswd
 .vscode/
 .env
 .env.development
+*.DS_Store*
