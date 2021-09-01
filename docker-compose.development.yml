@@ -10,7 +10,7 @@ services:
     image: mariadb:latest
     restart: always
     env_file:
-      - .env.development
+      - .env
     volumes:
       - ./perl-lib/OESS/share:/docker-entrypoint-initdb.d
 
@@ -24,7 +24,7 @@ services:
     image: rabbitmq:3-management
     restart: always
     env_file:
-      - .env.development
+      - .env
 
   oess-frontend:
     image: oess-frontend:latest
@@ -32,7 +32,7 @@ services:
     ports:
       - 8080:8080
     env_file:
-      - .env.development
+      - .env
     volumes:
       - ./frontend:/usr/share/oess-frontend
       - ./perl-lib/OESS/lib/OESS:/usr/share/perl5/vendor_perl/OESS
@@ -41,7 +41,7 @@ services:
     image: oess-netconf-discovery:latest
     restart: always
     env_file:
-      - .env.development
+      - .env
     volumes:
       - ./perl-lib/OESS/lib/OESS:/usr/share/perl5/vendor_perl/OESS
     depends_on:
@@ -53,7 +53,7 @@ services:
     image: oess-netconf-fwdctl:latest
     restart: always
     env_file:
-      - .env.development
+      - .env
     volumes:
       - ./perl-lib/OESS/lib/OESS:/usr/share/perl5/vendor_perl/OESS
     depends_on:
