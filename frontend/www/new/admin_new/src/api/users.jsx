@@ -6,7 +6,7 @@ import { config } from '.././config.jsx';
 let path = config.base_url;
 
 export async function getUser(user_id) {
-  let url = `${config.base_url}services/user.cgi?method=get_user`;
+  let url = `${config.base_url}/services/user.cgi?method=get_user`;
   url += `&user_id=${user_id}`;
 
   try {
@@ -21,7 +21,7 @@ export async function getUser(user_id) {
 }
 
 export async function getUsers() {
-    let url = `${path}services/user.cgi?method=get_users`;
+    let url = `${path}/services/user.cgi?method=get_users`;
 
     try {
         const resp = await fetch(url, { method: 'get', credentials: 'include' });

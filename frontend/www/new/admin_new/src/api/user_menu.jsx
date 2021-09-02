@@ -2,7 +2,7 @@ import { config } from '.././config.jsx';
 
 let path = config.base_url;
 async function getCurrentUser() {
-    let url = `${path}services/user.cgi?method=get_current`;
+    let url = `${path}/services/user.cgi?method=get_current`;
 
     try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});

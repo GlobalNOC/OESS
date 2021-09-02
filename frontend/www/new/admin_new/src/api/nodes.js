@@ -23,7 +23,7 @@ export const createNode = async (node) => {
     throw `Invalid controller '${node.controller}' used in createNode.`;
   }
 
-  let url = `${config.base_url}services/node.cgi?method=create_node`;
+  let url = `${config.base_url}/services/node.cgi?method=create_node`;
   url += `&name=${node.name}`;
   url += `&short_name=${node.shortName}`;
   url += `&longitude=${node.longitude}`;
@@ -46,7 +46,7 @@ export const editNode = async (node) => {
 };
 
 export const getNode = async (nodeId) => {
-  let url = `${config.base_url}services/node.cgi?method=get_node`;
+  let url = `${config.base_url}/services/node.cgi?method=get_node`;
   url += `&node_id=${nodeId}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
@@ -56,7 +56,7 @@ export const getNode = async (nodeId) => {
 };
 
 export const getNodes = async () => {
-  let url = `${config.base_url}services/node.cgi?method=get_nodes`;
+  let url = `${config.base_url}/services/node.cgi?method=get_nodes`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
   const data = await resp.json();
@@ -66,7 +66,7 @@ export const getNodes = async () => {
 };
 
 export const deleteNode = async (nodeId) => {
-  let url = `${config.base_url}services/node.cgi?method=delete_node`;
+  let url = `${config.base_url}/services/node.cgi?method=delete_node`;
   url += `&node_id=${nodeId}`;
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
   const data = await resp.json();
