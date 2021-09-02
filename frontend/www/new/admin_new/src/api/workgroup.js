@@ -1,7 +1,7 @@
 import { config } from '.././config.jsx';
 
 export async function getWorkgroups() {
-  let url = `${config.base_url}services/data.cgi?method=get_workgroups`;
+  let url = `${config.base_url}/services/data.cgi?method=get_workgroups`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
@@ -15,7 +15,7 @@ export async function getWorkgroups() {
 }
 
 export async function getAllWorkgroups() {
-  let url = `${config.base_url}services/workgroup_manage.cgi?method=get_all_workgroups`;
+  let url = `${config.base_url}/services/workgroup_manage.cgi?method=get_all_workgroups`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
@@ -44,7 +44,7 @@ export async function createWorkgroup(workgroup) {
     throw `Invalid type '${workgroup.type}' used in createWorkgroup.`;
   }
 
-  let url = `${config.base_url}services/workgroup.cgi?method=create_workgroup`;
+  let url = `${config.base_url}/services/workgroup.cgi?method=create_workgroup`;
   url += `&name=${workgroup.name}`;
   url += `&description=${workgroup.description}`;
   url += `&external_id=${workgroup.externalId}`;
@@ -63,7 +63,7 @@ export async function createWorkgroup(workgroup) {
  * @returns {number} resp.success Set to 1 if request was successful
  */
 export async function deleteWorkgroup(workgroup_id) {
-  let url = `${config.base_url}services/workgroup.cgi?method=delete_workgroup`;
+  let url = `${config.base_url}/services/workgroup.cgi?method=delete_workgroup`;
   url += `&workgroup_id=${workgroup_id}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
@@ -89,7 +89,7 @@ export async function editWorkgroup(workgroup) {
     throw `Invalid type '${workgroup.type}' used in editWorkgroup.`;
   }
 
-  let url = `${config.base_url}services/workgroup.cgi?method=edit_workgroup`;
+  let url = `${config.base_url}/services/workgroup.cgi?method=edit_workgroup`;
   url += `&name=${workgroup.name}`;
   url += `&description=${workgroup.description}`;
   url += `&external_id=${workgroup.externalId}`;
@@ -104,7 +104,7 @@ export async function editWorkgroup(workgroup) {
 }
 
 export async function getWorkgroup(workgroup_id) {
-  let url = `${config.base_url}services/workgroup.cgi?method=get_workgroup`;
+  let url = `${config.base_url}/services/workgroup.cgi?method=get_workgroup`;
   url += `&workgroup_id=${workgroup_id}`;
 
   try {
@@ -119,7 +119,7 @@ export async function getWorkgroup(workgroup_id) {
 }
 
 export async function getWorkgroupUsers(workgroup_id) {
-  let url = `${config.base_url}services/workgroup.cgi?method=get_workgroup_users`;
+  let url = `${config.base_url}/services/workgroup.cgi?method=get_workgroup_users`;
   url += `&workgroup_id=${workgroup_id}`;
 
   try {
@@ -134,7 +134,7 @@ export async function getWorkgroupUsers(workgroup_id) {
 }
 
 export async function modifyWorkgroupUser(workgroup_id, user_id, role) {
-  let url = `${config.base_url}services/workgroup.cgi?method=modify_workgroup_user`;
+  let url = `${config.base_url}/services/workgroup.cgi?method=modify_workgroup_user`;
   url += `&workgroup_id=${workgroup_id}`;
   url += `&user_id=${user_id}`;
   url += `&role=${role}`;
@@ -147,7 +147,7 @@ export async function modifyWorkgroupUser(workgroup_id, user_id, role) {
 }
 
 export async function removeWorkgroupUser(workgroup_id, user_id) {
-  let url = `${config.base_url}services/workgroup.cgi?method=remove_workgroup_user`;
+  let url = `${config.base_url}/services/workgroup.cgi?method=remove_workgroup_user`;
   url += `&workgroup_id=${workgroup_id}`;
   url += `&user_id=${user_id}`;
 
@@ -159,7 +159,7 @@ export async function removeWorkgroupUser(workgroup_id, user_id) {
 }
 
 export async function addWorkgroupUser(workgroup_id, user_id, role) {
-  let url = `${config.base_url}services/workgroup.cgi?method=add_workgroup_user`;
+  let url = `${config.base_url}/services/workgroup.cgi?method=add_workgroup_user`;
   url += `&workgroup_id=${workgroup_id}`;
   url += `&user_id=${user_id}`;
   url += `&role=${role}`;

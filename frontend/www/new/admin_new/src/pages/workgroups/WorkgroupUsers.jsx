@@ -41,7 +41,7 @@ class WorkgroupUsers extends React.Component {
   async modifyWorkgroupUserHandler(user, role) {
     try {
       await modifyWorkgroupUser(this.props.match.params["id"], user.user_id, role);
-      this.context.setStatus({type:'success', message:`${user.username}'s role was successfully set to '${role}'.`});
+      this.context.setStatus({type:'success', message:`${user.usernames[0]}'s role was successfully set to '${role}'.`});
     } catch (error) {
       this.context.setStatus({type:'error', message:error.toString()});
     }
@@ -53,7 +53,7 @@ class WorkgroupUsers extends React.Component {
 
     try {
       await removeWorkgroupUser(this.props.match.params["id"], user.user_id);
-      this.context.setStatus({type:'success', message:`${user.username} successfully removed from workgroup.`});
+      this.context.setStatus({type:'success', message:`${user.usernames[0]} successfully removed from workgroup.`});
       this.setState((state) => {
         return { users: state.users.filter(u => u.user_id != user.user_id) };
       });

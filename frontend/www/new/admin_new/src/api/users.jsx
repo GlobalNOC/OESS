@@ -36,7 +36,7 @@ export async function getUsers() {
 }
 
 export async function createUser(user) {
-  let url = `${config.base_url}services/user.cgi?method=create_user`;
+  let url = `${config.base_url}/services/user.cgi?method=create_user`;
   url += `&email=${user.email}`;
   url += `&first_name=${user.firstName}`;
   url += `&last_name=${user.lastName}`;
@@ -57,7 +57,7 @@ export async function createUser(user) {
  * @returns {number} resp.success Set to 1 if request was successful
  */
 export async function deleteUser(user_id) {
-  let url = `${config.base_url}services/user.cgi?method=delete_user`;
+  let url = `${config.base_url}/services/user.cgi?method=delete_user`;
   url += `&user_id=${user_id}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
@@ -67,7 +67,7 @@ export async function deleteUser(user_id) {
 }
 
 export async function editUser(user) {
-  let url = `${path}services/user.cgi?method=edit_user`;
+  let url = `${path}/services/user.cgi?method=edit_user`;
   url += `&user_id=${user.userId}`;
   url += `&first_name=${user.firstName}`;
   url += `&last_name=${user.lastName}`;
