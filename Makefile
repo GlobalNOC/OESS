@@ -25,6 +25,7 @@ container:
 	docker build -f Dockerfile.dev --tag oess:${OESS_VERSION} .
 
 # For single container builds. Should only be used for testing.
+# NET_RAW and NET_ADMIN allow for low level debugging using packet capture
 dev:
 	docker run -it \
 	--env-file .env \
@@ -34,6 +35,8 @@ dev:
 	--mount type=bind,src=${PWD}/perl-lib/OESS/lib/OESS,dst=/usr/share/perl5/vendor_perl/OESS \
 	--mount type=bind,src=${PWD}/frontend,dst=/usr/share/oess-frontend \
 	--mount type=bind,src=${PWD}/perl-lib/OESS/share,dst=/usr/share/doc/perl-OESS-${OESS_VERSION}/share \
+	--cap-add=NET_RAW \
+	--cap-add=NET_ADMIN \
 	oess:${OESS_VERSION} /bin/bash
 
 documentation:
