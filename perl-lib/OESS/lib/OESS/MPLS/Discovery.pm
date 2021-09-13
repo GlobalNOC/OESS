@@ -277,6 +277,7 @@ sub make_baby{
     $args{'model'} = $node->{'model'};
     $args{'sw_version'} = $node->{'sw_version'};
     $args{'mgmt_addr'} = $node->{'mgmt_addr'};
+    $args{'tcp_port'} = $node->{'tcp_port'};
     $args{'name'} = $node->{'name'};
     $args{'use_cache'} = 0;
     $args{'topic'} = "MPLS.Discovery.Switch";
@@ -294,7 +295,7 @@ sub run{
     my %args = @_;
     $logger = Log::Log4perl->get_logger("MPLS.Discovery.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
-    $args{"node"} = {"vendor" => $args{"vendor"}, "model" => $args{"model"}, "sw_version" => $args{"sw_version"}, "name" => $args{"name"}, "mgmt_addr" => $args{"mgmt_addr"}};			  
+    $args{"node"} = {"vendor" => $args{"vendor"}, "model" => $args{"model"}, "sw_version" => $args{"sw_version"}, "name" => $args{"name"}, "mgmt_addr" => $args{"mgmt_addr"}, "tcp_port" => $args{"tcp_port"}};			  
     $switch = OESS::MPLS::Switch->new( %args );
 }')->fork->send_arg( %args )->run("run");
 

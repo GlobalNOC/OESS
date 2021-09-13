@@ -34,6 +34,7 @@ use base "OESS::MPLS::Device";
       config => '/etc/oess/database.xml',
       loopback_addr => '127.0.0.1',
       mgmt_addr     => '192.168.1.1',
+      tcp_port      => 830,
       name          => 'demo.grnoc.iu.edu',
       node_id       => 1
     );
@@ -1765,12 +1766,12 @@ sub connect {
     my $jnx;
 
     eval {
-        $self->{'logger'}->info("Connecting to device!");
+        $self->{'logger'}->info("Connecting to device $self->{mgmt_addr}:$self->{tcp_port}!");
         $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
                                           'login' => $self->{'username'},
                                           'password' => $self->{'password'},
                                           'hostname' => $self->{'mgmt_addr'},
-                                          'port' => 830,
+                                          'port' => $self->{'tcp_port'},
                                           'debug_level' => 0 );
     };
 
