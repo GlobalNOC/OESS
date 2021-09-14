@@ -5114,7 +5114,7 @@ sub update_node_instantiation {
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node_instantiation set mpls = ?, mgmt_addr = ?, vendor = ?, model = ?, sw_version = ?, tcp_port = ? where node_id = ?",
+    my $result = $self->_execute_query("update node_instantiation set mpls = ?, mgmt_addr = ?, vendor = ?, model = ?, sw_version = ?, tcp_port = ? where node_id = ? and end_epoch=-1",
 				       [$mpls, $mgmt_addr, $vendor, $model, $sw_version, $tcp_port, $node_id]);
     if ($result != 1) {
 	$self->_set_error("Error updating node instantiation.");
