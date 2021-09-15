@@ -3,6 +3,18 @@
 
 # Start httpd
 htpasswd -b -c /usr/share/oess-frontend/www/.htpasswd admin ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd admin-nm ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd admin-ro ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd alpha ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd alpha-nm ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd alpha-ro ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd bravo ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd bravo-nm ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd bravo-ro ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd charlie ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd charlie-nm ${OESS_PASSWORD}
+htpasswd -b /usr/share/oess-frontend/www/.htpasswd charlie-ro ${OESS_PASSWORD}
+
 /usr/sbin/httpd
 sleep 1
 
@@ -11,7 +23,7 @@ sleep 1
 /usr/bin/mysqld_safe --datadir='/var/lib/mysql' &
 sleep 3
 /usr/bin/mysqladmin -u root password ${MYSQL_ROOT_PASSWORD}
-/usr/bin/mysql --user=root --password=${MYSQL_ROOT_PASSWORD} < /usr/share/doc/perl-OESS-2.0.12/share/nddi.sql
+/usr/bin/mysql --user=root --password=${MYSQL_ROOT_PASSWORD} < /etc/oess/integration.sql
 
 # Start RabbitMQ
 rabbitmq-server start -detached
