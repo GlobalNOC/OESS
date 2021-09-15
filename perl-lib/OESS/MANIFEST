@@ -106,6 +106,12 @@ share/mpls/templates/juniper/13.3R8/L2VPN/ep_config.xml
 share/mpls/templates/juniper/13.3R8/L2VPN/ep_config_delete.xml
 share/mpls/templates/juniper/13.3R8/L3VPN/ep_config.xml
 share/mpls/templates/juniper/13.3R8/L3VPN/ep_config_delete.xml
+share/mpls/scripts/circuit_import
+share/mpls/scripts/import.csv.example
+share/mpls/scripts/l3vpn.pl
+share/mpls/scripts/oess-migrate/oess-migrate
+share/mpls/scripts/oess-migrate/config.json.example
+share/mpls/scripts/oess-migrate/shim_interface_mapping.csv.example
 share/nddi.sql
 share/upgrade/oess-1.0.10-1.0.11
 share/upgrade/oess-1.0.11-1.0.12

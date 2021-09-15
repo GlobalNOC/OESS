@@ -118,6 +118,7 @@ rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/upgrade
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/customer-templates
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/scripts
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
@@ -131,6 +132,7 @@ make pure_install
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
 cp -ar share/customer-templates/* $RPM_BUILD_ROOT/%{docdir}/share/customer-templates/
+cp -ar share/scripts/* $RPM_BUILD_ROOT/%{docdir}/share/scripts/
 %__install share/mpls/templates/juniper/13.3R8/EVPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN
 %__install share/mpls/templates/juniper/13.3R8/L2CCC/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__install share/mpls/templates/juniper/13.3R8/L2VPLS/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
@@ -306,6 +308,7 @@ rm -rf $RPM_BUILD_ROOT
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 %{docdir}/share/customer-templates/*
+%{docdir}/share/scripts/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/EVPN/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS/*
