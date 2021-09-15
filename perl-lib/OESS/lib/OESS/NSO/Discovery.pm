@@ -253,9 +253,9 @@ sub link_handler {
     # lookup nso links in index
     foreach my $bb (@$backbones) {
 
-        my $n = scalar @{$bb->{summary}->{endpoint}};
+        my $n = (defined $bb->{summary}->{endpoint}) ? scalar @{$bb->{summary}->{endpoint}} : 0;
         if ($n != 2) {
-            $self->{logger}->error("Couldn't process link $bb->{name}. Got $n endpoinds but only expected 2.");
+            $self->{logger}->error("Couldn't process link $bb->{name}. Got $n endpoints but only expected 2.");
             next;
         }
 
