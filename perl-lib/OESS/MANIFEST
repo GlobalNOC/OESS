@@ -83,7 +83,7 @@ lib/OESS/Webservice.pm
 lib/OESS/Workgroup.pm
 Makefile.PL
 MANIFEST			This list of files
-perl-OESS-2.0.12.tar.gz
+perl-OESS-2.0.13.tar.gz
 perl-OESS.spec
 share/customer-templates/cisco/2900/ios124/template.txt
 share/customer-templates/cisco/3700/ios124/template.txt
@@ -106,6 +106,12 @@ share/mpls/templates/juniper/13.3R8/L2VPN/ep_config.xml
 share/mpls/templates/juniper/13.3R8/L2VPN/ep_config_delete.xml
 share/mpls/templates/juniper/13.3R8/L3VPN/ep_config.xml
 share/mpls/templates/juniper/13.3R8/L3VPN/ep_config_delete.xml
+share/mpls/scripts/circuit_import
+share/mpls/scripts/import.csv.example
+share/mpls/scripts/l3vpn.pl
+share/mpls/scripts/oess-migrate/oess-migrate
+share/mpls/scripts/oess-migrate/config.json.example
+share/mpls/scripts/oess-migrate/shim_interface_mapping.csv.example
 share/nddi.sql
 share/upgrade/oess-1.0.10-1.0.11
 share/upgrade/oess-1.0.11-1.0.12
@@ -140,6 +146,7 @@ share/upgrade/oess-2.0.0-2.0.1
 share/upgrade/oess-2.0.1-2.0.2
 share/upgrade/oess-2.0.10-2.0.11
 share/upgrade/oess-2.0.11-2.0.12
+share/upgrade/oess-2.0.12-2.0.13
 share/upgrade/oess-2.0.2-2.0.3
 share/upgrade/oess-2.0.3-2.0.4
 share/upgrade/oess-2.0.4-2.0.5

@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.12
+Version 2.0.13
 
 =cut
 
-our $VERSION = '2.0.12';
+our $VERSION = '2.0.13';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.12';
+use constant VERSION => '2.0.13';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -5114,7 +5114,7 @@ sub update_node_instantiation {
 
     $self->_start_transaction();
 
-    my $result = $self->_execute_query("update node_instantiation set mpls = ?, mgmt_addr = ?, vendor = ?, model = ?, sw_version = ?, tcp_port = ? where node_id = ?",
+    my $result = $self->_execute_query("update node_instantiation set mpls = ?, mgmt_addr = ?, vendor = ?, model = ?, sw_version = ?, tcp_port = ? where node_id = ? and end_epoch=-1",
 				       [$mpls, $mgmt_addr, $vendor, $model, $sw_version, $tcp_port, $node_id]);
     if ($result != 1) {
 	$self->_set_error("Error updating node instantiation.");
@@ -8019,7 +8019,8 @@ sub add_mpls_node{
 					vendor => $args{'vendor'},
 					model => $args{'model'},
 					sw_version => $args{'sw_ver'},
-					mgmt_addr => $args{'ip'});
+					mgmt_addr => $args{'ip'},
+                    port => $args{'port'});
     
     if(!defined($res)){
 	$self->_rollback();
@@ -8131,9 +8132,10 @@ sub create_node_instance{
     if (!defined $args{'dpid'}) {
         my $data = inet_aton($args{'mgmt_addr'});
         $args{'dpid'} = unpack('N', $data);
+        $args{'dpid'} = $args{'dpid'} . $args{'port'};
     }
 
-    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,controller,vendor,model,sw_version,mpls,openflow ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'controller'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'}]);
+    my $res = $self->_execute_query("insert into node_instantiation (node_id,end_epoch,start_epoch,mgmt_addr,admin_state,dpid,controller,vendor,model,sw_version,mpls,openflow,tcp_port ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",[$args{'node_id'},-1,time(),$args{'mgmt_addr'},$args{'admin_state'},$args{'dpid'},$args{'controller'},$args{'vendor'},$args{'model'},$args{'sw_version'},$args{'mpls'},$args{'openflow'},$args{'port'}]);
 
     if(!defined($res)){
 	$self->_set_error("Unable to create new node instantiation");

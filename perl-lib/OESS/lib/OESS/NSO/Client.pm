@@ -644,6 +644,7 @@ sub get_vrf_statistics {
             my $err = $self->get_json_errors($result);
             if (defined $err) {
                 &$sub($response, $err);
+                return;
             }
 
             # Extract CLI payload from JSON response and strip leading
@@ -654,7 +655,15 @@ sub get_vrf_statistics {
             $raw_response =~ s/<\/Response>.*\z/<\/Response>/s;
 
             # Parse XMl string and extract statistics
-            my $dom = XML::LibXML->load_xml(string => $raw_response);
+            my $dom;
+            eval {
+                $dom = XML::LibXML->load_xml(string => $raw_response);
+            };
+            if ($@) {
+                $self->{logger}->error("Failed to load XML in get_vrf_statistics: $body");
+                &$sub($response, "$@");
+                return;
+            }
 
             # Lookup Instance named 'default' and get VRFTable from inside
             my $instances = $dom->findnodes('//Response/Get/Operational/BGP/InstanceTable/Instance');

@@ -354,7 +354,7 @@ sub diff {
             $self->{pending_diff}->{$node_name} = PENDING_DIFF_NONE;
             $node->pending_diff(PENDING_DIFF_NONE);
             $node->update;
-            $self->{logger}->info("Applying network diff. No approved required for $node_name.");
+            $self->{logger}->info("Applying network diff. No approval required for $node_name.") if $diff_len > 0;
         } else {
             if ($self->{pending_diff}->{$node_name} == PENDING_DIFF_NONE) {
                 $self->{pending_diff}->{$node_name} = PENDING_DIFF;
@@ -369,7 +369,7 @@ sub diff {
             }
         }
 
-        $self->{logger}->debug("Diff for $node_name with length of $diff_len:\n$network_diff->{$node_name}");
+        $self->{logger}->debug("Diff for $node_name has length of $diff_len:\n$network_diff->{$node_name}");
     }
     $self->{logger}->debug('Changes: ' . Dumper($changes));
 
