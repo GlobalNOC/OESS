@@ -45,6 +45,8 @@ sed -i "s/TSDS_REALM/$TSDS_REALM/" /etc/oess/database.xml
 sed -i "s/root/$NETCONF_USERNAME/" /etc/oess/.passwd.xml
 sed -i "s/test/$NETCONF_PASSWORD/" /etc/oess/.passwd.xml
 
+sed -i "s/900/$NETCONF_DIFF_INTERVAL/" /etc/oess/fwdctl.xml
+
 # Start OESS
 /usr/bin/oess-notify.pl &
 /usr/bin/mpls_discovery.pl &
