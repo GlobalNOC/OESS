@@ -65,7 +65,7 @@ export const getNodes = async () => {
   return data.results;
 };
 
-export const getNodeDiffText = async (nodeId) => {
+export const getDiffText = async (nodeId) => {
   let url = `${config.base_url}services/admin/admin.cgi?method=get_diff_text`;
   url += `&node_id=${nodeId}`;
 

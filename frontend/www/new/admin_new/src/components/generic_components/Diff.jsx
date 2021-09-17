@@ -14,9 +14,9 @@ export class Diff extends React.Component {
     }
 
     async componentDidMount(){
-        if(!this.diffText){
+        if(!this.props.diffText){
             try{
-                let diffText = await getNodeDiffText(this.props.nodeId);            
+                let diffText = await getDiffText(this.props.nodeId);            
                 this.setState({diffText: diffText, loading: false});
             }catch(error){
                 console.log(error);
