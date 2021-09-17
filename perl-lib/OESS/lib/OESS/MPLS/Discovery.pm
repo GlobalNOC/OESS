@@ -45,6 +45,7 @@ use GRNOC::RabbitMQ::Method;
 use GRNOC::RabbitMQ::Dispatcher;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Dispatcher;
+use OESS::RabbitMQ::Topic qw(discovery_switch_topic_for_node);
 use GRNOC::WebService::Client;
 use GRNOC::WebService::Regex;
 use OESS::Database;
@@ -312,7 +313,7 @@ sub int_handler{
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 
     $self->{logger}->info("Calling get_interfaces on $node->{name} $node->{mgmt_addr}.");
-	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+	$self->{'rmq_client'}->{'topic'} = discovery_switch_topic_for_node(mgmt_addr => $node->{'mgmt_addr'}, tcp_port => $node->{'tcp_port'});
 
 	my $start = [gettimeofday];
 	$self->{'rmq_client'}->get_interfaces(
@@ -369,7 +370,7 @@ sub path_handler {
 
     # For each node, get the list of LSPs, and the associated circuits and paths
     foreach my $node (@{$nodes}) {
-        $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+        $self->{'rmq_client'}->{'topic'} = discovery_switch_topic_for_node(mgmt_addr => $node->{'mgmt_addr'}, tcp_port => $node->{'tcp_port'});
 
         foreach my $table (MPLS_TABLE, VPLS_TABLE) {
             $cv->begin();
@@ -417,8 +418,8 @@ sub isis_handler{
     my %nodes;
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 	$nodes{$node->{'short_name'}} = {'pending' => 1};
-        $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
-	my $start = [gettimeofday];
+        $self->{'rmq_client'}->{'topic'} = discovery_switch_topic_for_node(mgmt_addr => $node->{'mgmt_addr'}, tcp_port => $node->{'tcp_port'});
+        my $start = [gettimeofday];
         $self->{'rmq_client'}->get_isis_adjacencies( async_callback => $self->handle_response( cb => sub { my $res = shift;
 													   $self->{'logger'}->debug("Total Time for get_isis_adjacencies " . $node->{'mgmt_addr'} . " call: " . tv_interval($start,[gettimeofday]));
 													   $nodes{$node->{'short_name'}} = $res;
@@ -450,7 +451,7 @@ sub device_handler {
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
 
         $self->{logger}->info("Calling get_system_info on $node->{name} $node->{mgmt_addr}.");
-        $self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+        $self->{'rmq_client'}->{'topic'} = discovery_switch_topic_for_node(mgmt_addr => $node->{'mgmt_addr'}, tcp_port => $node->{'tcp_port'});
 
         my $start = [gettimeofday];
         $self->{'rmq_client'}->get_system_info(async_callback => sub {
@@ -474,7 +475,7 @@ sub vrf_stats_handler{
     my $self = shift;
 
     foreach my $node (@{$self->{'db'}->get_current_nodes(type => 'mpls')}) {
-	$self->{'rmq_client'}->{'topic'} = "MPLS.Discovery.Switch." . $node->{'mgmt_addr'};
+        $self->{'rmq_client'}->{'topic'} = discovery_switch_topic_for_node(mgmt_addr => $node->{'mgmt_addr'}, tcp_port => $node->{'tcp_port'});
 	my $start = [gettimeofday];
 	$self->{'rmq_client'}->get_vrf_stats( async_callback => $self->handle_response( cb => sub {
 	    my $res = shift;

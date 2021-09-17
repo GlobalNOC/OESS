@@ -11,6 +11,7 @@ container:
 # --add-host=host.docker.internal:host-gateway
 dev:
 	docker run -it \
+	--rm \
 	--env-file .env \
 	--publish 8000:80 \
 	--publish 5672:5672 \
