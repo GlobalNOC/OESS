@@ -155,7 +155,7 @@ $edit_node->add_input_parameter(
     );
 $edit_node->add_input_parameter(
     name        => 'controller',
-    pattern     => $GRNOC::WebService::Regex::TEXT,
+    pattern     => '^(nso|netconf)$',
     required    => 0,
     description => "Network controller of node"
     );
