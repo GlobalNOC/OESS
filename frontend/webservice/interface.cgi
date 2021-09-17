@@ -50,7 +50,7 @@ sub register_ro_methods{
     my $method = GRNOC::WebService::Method->new(
         name => "get_interfaces",
         description => "returns a list of interfaces for a node",
-        callback => sub { get_node_interfaces(@_) }
+        callback => sub { get_interfaces(@_) }
       );
     $method->add_input_parameter( name => 'node_id',
                                   pattern => $GRNOC::WebService::Regex::INTEGER,
@@ -91,7 +91,7 @@ sub register_ro_methods{
     $method = GRNOC::WebService::Method->new(
         name => "get_workgroup_interfaces",
         description => "returns a list of available vlan tags ",
-        callback => sub { get_workgroup_interfaces(@_) }
+        callback => sub { get_workgroup_interfaces(@_) },
         method_deprecated => "This method has been deprecated in favor of interface.cgi?method=get_interfaces."
     );
 
