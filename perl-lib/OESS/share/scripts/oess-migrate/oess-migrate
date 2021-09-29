@@ -3,9 +3,12 @@
 use strict;
 use warnings;
 
+no warnings qw(uninitialized);
+
 use Data::Dumper;
 use Getopt::Long qw(:config auto_help);
 use GRNOC::CLI;
+use GRNOC::WebService::Client;
 use JSON;
 use Pod::Usage qw(pod2usage);
 use Text::CSV;
@@ -269,7 +272,6 @@ sub migrate_l3connection {
         endpoint                => $new_endpoints,
         external_identifier     => $vrf->{external_identifier},
     };
-
     my $res = $l3client->provision(%$req);
     if (!defined $res) {
         return $l3client->get_error;
@@ -291,15 +293,17 @@ sub interfaces {
     my $file          = undef;
     my $interface_id  = undef;
     my $exclude_cloud = undef;
+    my $reverse       = undef;
 
     GetOptions(
-        "file=s" => \$file,
+        "file=s"          => \$file,
         "interface-id=i"  => \$interface_id,
-        "exclude-cloud=i" => \$exclude_cloud
+        "exclude-cloud=i" => \$exclude_cloud,
+        "reverse=i"       => \$reverse
     );
 
     die "No interface mapping file provided." if !defined $file;
-    my $mapping = load_csv($file, 0);
+    my $mapping = load_csv($file, $reverse);
 
     if (defined $interface_id) {
         my $src_interface = OESS::DB::Interface::fetch(
@@ -323,7 +327,7 @@ sub interfaces {
             interface => $dst->[1]
         );
         if (!defined $dst_interface_id) {
-            warn "ERROR $interface_id Couldn't find destination interface_id for $dst->[0] $dst->[1].";
+            warn "ERROR $interface_id Couldn't find interface_id for destination $dst->[0] $dst->[1].";
             return;
         }
 
@@ -332,8 +336,7 @@ sub interfaces {
             warn "ERROR $interface_id $err";
         }
     } else {
-
-        foreach my $key (@$mapping) {
+        foreach my $key (keys %$mapping) {
             my @src = split(' - ', $key);
             my $src_interface_id = OESS::DB::Interface::get_interface(
                 db => $db,
@@ -365,7 +368,7 @@ sub interfaces {
                 interface => $dst->[1]
             );
             if (!defined $dst_interface_id) {
-                warn "ERROR $src_interface_id Couldn't find destination interface_id for $dst->[0] $dst->[1].";
+                warn "ERROR $src_interface_id Couldn't find interface_id for destination $dst->[0] $dst->[1].";
                 next;
             }
 
@@ -374,6 +377,8 @@ sub interfaces {
                 warn "ERROR $src_interface_id $err";
                 next;
             }
+
+            print "OK $src_interface_id to $dst_interface_id\n";
         }
 
     }
@@ -389,6 +394,7 @@ sub l2connections {
     my $workgroup_id  = undef;
     my $exclude_cloud = undef;
     my $exclude_mp    = undef;
+    my $reverse       = undef;
 
     GetOptions(
         "connection-id=i" => \$connection_id,
@@ -397,12 +403,13 @@ sub l2connections {
         "node-id=i"       => \$node_id,
         "workgroup-id=i"  => \$workgroup_id,
         "exclude-cloud=i" => \$exclude_cloud,
-        "exclude-mp=i"    => \$exclude_mp
+        "exclude-mp=i"    => \$exclude_mp,
+        "reverse=i"       => \$reverse
     );
     warn "l2connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
     die "No interface mapping file provided." if !defined $file;
-    my $mapping = load_csv($file);
+    my $mapping = load_csv($file, $reverse);
 
     my $args = { db => $db };
     $args->{circuit_id}   = $connection_id if defined $connection_id;
@@ -431,10 +438,13 @@ sub l2connections {
         push @$connections, $conn;
     }
 
-    my $cli = new GRNOC::CLI();
-    my $n = @$connections;
-    my $continue = $cli->confirm("Migrate $n listed connection(s)?");
-    return 1 if !$continue;
+    # Ask for verification when moving more than one connection
+    if (!defined $connection_id) {
+        my $cli = new GRNOC::CLI();
+        my $n = @$connections;
+        my $continue = $cli->confirm("Migrate $n listed connection(s)?");
+        return 1 if !$continue;
+    }
 
     my $success = [];
     my $failure = [];
@@ -463,6 +473,7 @@ sub l3connections {
     my $workgroup_id  = undef;
     my $exclude_cloud = undef;
     my $exclude_mp    = undef;
+    my $reverse       = undef;
 
     GetOptions(
         "connection-id=i" => \$connection_id,
@@ -470,15 +481,16 @@ sub l3connections {
         "interface-id=i"  => \$interface_id,
         "node-id=i"       => \$node_id,
         "workgroup-id=i"  => \$workgroup_id,
-        "exclude-cloud=i" => \$exclude_cloud
+        "exclude-cloud=i" => \$exclude_cloud,
+        "reverse=i"       => \$reverse
     );
     warn "l3connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
     die "No interface mapping file provided." if !defined $file;
-    my $mapping = load_csv($file);
+    my $mapping = load_csv($file, $reverse);
 
     my $args = { db => $db };
-    $args->{vrf_id}   = $connection_id if defined $connection_id;
+    $args->{vrf_id}       = $connection_id if defined $connection_id;
     $args->{interface_id} = $interface_id if defined $interface_id;
     $args->{node_id}      = $node_id if defined $node_id;
     $args->{workgroup_id} = $workgroup_id if defined $workgroup_id;
@@ -504,10 +516,13 @@ sub l3connections {
         push @$connections, $conn;
     }
 
-    my $cli = new GRNOC::CLI();
-    my $n = @$connections;
-    my $continue = $cli->confirm("Migrate $n listed connection(s)?");
-    return 1 if !$continue;
+    # Ask for verification when moving more than one connection
+    if (!defined $connection_id) {
+        my $cli = new GRNOC::CLI();
+        my $n = @$connections;
+        my $continue = $cli->confirm("Migrate $n listed connection(s)?");
+        return 1 if !$continue;
+    }
 
     my $success = [];
     my $failure = [];
@@ -565,6 +580,7 @@ oess-migrate interfaces [options]
    --file             Path to CSV indicating old to new port mapping
    --interface-id     Migrate a sinlge interface identified by interface-id
    --exclude-cloud    Exclude all cloud interfaces from migration
+   --reverse          Swap source and destination ports in CSV for undo operations
 
 oess-migrate l2connections [options]
 
@@ -577,6 +593,7 @@ oess-migrate l2connections [options]
    --workgroup-id     Migrate all connections owned by workgroup-id
    --exclude-cloud    Exclude all cloud connections from migration
    --exclude-mp       Exclude all multi-point connections from migration
+   --reverse          Swap source and destination ports in CSV for undo operations
 
 oess-migrate l3connections [options]
 
@@ -588,5 +605,6 @@ oess-migrate l3connections [options]
    --node-id          Migrate all connections terminating on node-id
    --workgroup-id     Migrate all connections owned by workgroup-id
    --exclude-cloud    Exclude all cloud connections from migration
+   --reverse          Swap source and destination ports in CSV for undo operations
 
 =cut
