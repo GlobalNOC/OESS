@@ -88,6 +88,79 @@ $create_node->add_input_parameter(
 );
 $ws->register_method($create_node);
 
+my $edit_node = GRNOC::WebService::Method->new(
+    name        => "edit_node",
+    description => "edit_node adds a new network node to OESS",
+    callback    => sub { edit_node(@_) }
+    );
+$edit_node->add_input_parameter(
+    name        => 'node_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'Node id of node'
+    );
+$edit_node->add_input_parameter(
+    name        => 'name',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'Name of node'
+    );
+$edit_node->add_input_parameter(
+    name        => "short_name",
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "Short name of node. Defaults to `name` if not provided."
+    );
+$edit_node->add_input_parameter(
+    name        => 'longitude',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'Longitude of node'
+    );
+$edit_node->add_input_parameter(
+    name        => 'latitude',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'Latitude of node'
+    );
+$edit_node->add_input_parameter(
+    name        => 'vlan_range',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => 'VLAN range provisionable on node. Defaults to `1-4095` if not provided.'
+    );
+$edit_node->add_input_parameter(
+    name        => 'ip_address',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "IP address of node"
+    );
+$edit_node->add_input_parameter(
+    name        => 'tcp_port',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 0,
+    description => "TCP port of node"
+    );
+$edit_node->add_input_parameter(
+    name        => 'make',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "Hardware make (network vendor) of node"
+    );
+$edit_node->add_input_parameter(
+    name        => 'model',
+    pattern     => $GRNOC::WebService::Regex::TEXT,
+    required    => 0,
+    description => "Hardware model of node"
+    );
+$edit_node->add_input_parameter(
+    name        => 'controller',
+    pattern     => '^(nso|netconf)$',
+    required    => 0,
+    description => "Network controller of node"
+    );
+$ws->register_method($edit_node);
+
 my $get_node = GRNOC::WebService::Method->new(
     name        => "get_node",
     description => "get_node returns the requested node",
@@ -195,6 +268,65 @@ sub create_node {
     $db->commit;
     return { results => [{ success => 1, node_id => $node->node_id }] };
 }
+
+sub edit_node {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_system_access(role => 'admin');
+    return (undef, $access_err) if defined $access_err;
+    my $node = {};
+    if (!defined $params->{node_id}{value}){
+        $method->set_error("The parameter node_id is not defined.)");
+        return;
+    }    
+    $node->{node_id} = $params->{node_id}{value};
+
+    if (defined $params->{name}{value}){
+        $node->{name} = $params->{name}{value};
+    }
+    if (defined $params->{short_name}{value}){
+        $node->{short_name} = $params->{short_name}{value};
+    }
+    if (defined $params->{latitude}{value}){
+        $node->{latitude} = $params->{latitude}{value};
+    }
+    if (defined $params->{longitude}{value}){
+        $node->{longitude} = $params->{longitude}{value};
+    }
+    if (defined $params->{vlan_range}{value}){
+        $node->{vlan_range} = $params->{vlan_range}{value};
+    }
+    if (defined $params->{ip_address}{value}){
+        $node->{ip_address} = $params->{ip_address}{value};
+    }
+    if (defined $params->{tcp_port}{value}){
+        $node->{tcp_port} = $params->{tcp_port}{value};
+    }
+    if (defined $params->{make}{value}){
+        $node->{make} = $params->{make}{value};
+    }
+    if (defined $params->{model}{value}){
+        $node->{model} = $params->{model}{value};
+    }
+    if (defined $params->{controller}{value}){
+        $node->{controller} = $params->{controller}{value};
+    }
+
+    my $update_err = OESS::DB::Node::update(db => $db, node => $node);
+    if (defined $update_err) {
+        $method->set_error($update_err);
+        return;
+    }
+
+    return { results => [{ success => 1 }] };
+}
+
 
 sub get_node {
     my $method = shift;
