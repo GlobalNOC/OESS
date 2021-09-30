@@ -65,6 +65,18 @@ export const getNodes = async () => {
   return data.results;
 };
 
+export const getDiffText = async (nodeId) => {
+  let url = `${config.base_url}services/admin/admin.cgi?method=get_diff_text`;
+  url += `&node_id=${nodeId}`;
+
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  if(!resp.ok) throw resp.statusText;
+  const data = await resp.json();
+
+  if (data.error_text) throw data.error_text;
+  return data.results;
+}
+
 export const deleteNode = async (nodeId) => {
   let url = `${config.base_url}/services/node.cgi?method=delete_node`;
   url += `&node_id=${nodeId}`;
