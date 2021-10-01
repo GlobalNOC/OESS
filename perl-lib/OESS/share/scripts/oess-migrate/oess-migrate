@@ -395,6 +395,7 @@ sub l2connections {
     my $exclude_cloud = undef;
     my $exclude_mp    = undef;
     my $reverse       = undef;
+    my $delay         = 1;
 
     GetOptions(
         "connection-id=i" => \$connection_id,
@@ -404,7 +405,8 @@ sub l2connections {
         "workgroup-id=i"  => \$workgroup_id,
         "exclude-cloud=i" => \$exclude_cloud,
         "exclude-mp=i"    => \$exclude_mp,
-        "reverse=i"       => \$reverse
+        "reverse=i"       => \$reverse,
+        "delay=i"         => \$delay
     );
     warn "l2connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
@@ -458,6 +460,7 @@ sub l2connections {
             print "OK $conn->{circuit_id}\n";
             push @$success, $conn;
         }
+        sleep $delay;
     }
 
     return 1;
@@ -474,6 +477,7 @@ sub l3connections {
     my $exclude_cloud = undef;
     my $exclude_mp    = undef;
     my $reverse       = undef;
+    my $delay         = 1;
 
     GetOptions(
         "connection-id=i" => \$connection_id,
@@ -482,7 +486,8 @@ sub l3connections {
         "node-id=i"       => \$node_id,
         "workgroup-id=i"  => \$workgroup_id,
         "exclude-cloud=i" => \$exclude_cloud,
-        "reverse=i"       => \$reverse
+        "reverse=i"       => \$reverse,
+        "delay=i"         => \$delay
     );
     warn "l3connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
@@ -536,6 +541,7 @@ sub l3connections {
             print "OK $conn->{vrf_id}\n";
             push @$success, $conn;
         }
+        sleep $delay;
     }
 
     return 1;
