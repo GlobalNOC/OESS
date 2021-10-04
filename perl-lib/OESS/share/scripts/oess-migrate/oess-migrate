@@ -40,7 +40,7 @@ sub load_config {
     return decode_json($json);
 }
 
-=head2
+=head2 load_csv
 
 load_csv opens $file and then returns a mapping from old interfaces to
 new interfaces using the provided CSV.
@@ -90,6 +90,28 @@ sub load_csv {
     }
 
     return $mapping;
+}
+
+=head2 load_connection_csv
+
+load_connection_csv opens $file and then returns a hash representing each row
+of the provided CSV.
+
+=cut
+sub load_connection_csv {
+    my $file    = shift;
+
+    my $csv = new Text::CSV();
+    my $rows = [];
+
+    open my $fh, "<:encoding(utf8)", $file or die "$file: $!";
+    $csv->column_names($csv->getline($fh));
+    while (my $row = $csv->getline_hr($fh)) {
+        push @$rows, $row;
+    }
+    close $fh;
+
+    return $rows;
 }
 
 =head2 is_cloud_connection
@@ -388,6 +410,7 @@ sub l2connections {
     my $db = shift;
 
     my $connection_id = undef;
+    my $connection_id_list = undef;
     my $file          = undef;
     my $interface_id  = undef;
     my $node_id       = undef;
@@ -398,15 +421,16 @@ sub l2connections {
     my $delay         = 1;
 
     GetOptions(
-        "connection-id=i" => \$connection_id,
-        "file=s"          => \$file,
-        "interface-id=i"  => \$interface_id,
-        "node-id=i"       => \$node_id,
-        "workgroup-id=i"  => \$workgroup_id,
-        "exclude-cloud=i" => \$exclude_cloud,
-        "exclude-mp=i"    => \$exclude_mp,
-        "reverse=i"       => \$reverse,
-        "delay=i"         => \$delay
+        "connection-id=i"      => \$connection_id,
+        "connection-id-list=s" => \$connection_id_list,
+        "file=s"               => \$file,
+        "interface-id=i"       => \$interface_id,
+        "node-id=i"            => \$node_id,
+        "workgroup-id=i"       => \$workgroup_id,
+        "exclude-cloud=i"      => \$exclude_cloud,
+        "exclude-mp=i"         => \$exclude_mp,
+        "reverse=i"            => \$reverse,
+        "delay=i"              => \$delay
     );
     warn "l2connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
@@ -419,12 +443,22 @@ sub l2connections {
     $args->{node_id}      = $node_id if defined $node_id;
     $args->{workgroup_id} = $workgroup_id if defined $workgroup_id;
 
-    my $results = OESS::DB::Circuit::fetch_circuits(%$args);
-    die "Couldn't fetch l2connections from the database." if !defined $results;
+    my $results;
+    if (defined $connection_id_list) {
+        $results = load_connection_csv($connection_id_list);
+        die "Couldn't fetch l2connections from CSV $connection_id_list." if !defined $results;
+    } else {
+        $results = OESS::DB::Circuit::fetch_circuits(%$args);
+        die "Couldn't fetch l2connections from the database." if !defined $results;
+    }
 
     my $connections = [];
     foreach my $result (@$results) {
         my $conn = new OESS::L2Circuit(db => $db, circuit_id => $result->{circuit_id});
+        if (!defined $conn) {
+            warn "ERROR $result->{circuit_id} Couldn't load l2connection.";
+            next;
+        }
         $conn->load_endpoints;
 
         if ($exclude_cloud == 1 && is_cloud_connection($conn)) {
@@ -470,6 +504,7 @@ sub l3connections {
     my $db = shift;
 
     my $connection_id = undef;
+    my $connection_id_list = undef;
     my $file          = undef;
     my $interface_id  = undef;
     my $node_id       = undef;
@@ -480,14 +515,15 @@ sub l3connections {
     my $delay         = 1;
 
     GetOptions(
-        "connection-id=i" => \$connection_id,
-        "file=s"          => \$file,
-        "interface-id=i"  => \$interface_id,
-        "node-id=i"       => \$node_id,
-        "workgroup-id=i"  => \$workgroup_id,
-        "exclude-cloud=i" => \$exclude_cloud,
-        "reverse=i"       => \$reverse,
-        "delay=i"         => \$delay
+        "connection-id=i"      => \$connection_id,
+        "connection-id-list=s" => \$connection_id_list,
+        "file=s"               => \$file,
+        "interface-id=i"       => \$interface_id,
+        "node-id=i"            => \$node_id,
+        "workgroup-id=i"       => \$workgroup_id,
+        "exclude-cloud=i"      => \$exclude_cloud,
+        "reverse=i"            => \$reverse,
+        "delay=i"              => \$delay
     );
     warn "l3connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
@@ -501,12 +537,22 @@ sub l3connections {
     $args->{workgroup_id} = $workgroup_id if defined $workgroup_id;
     $args->{state}        = 'active';
 
-    my $results = OESS::DB::VRF::get_vrfs(%$args);
-    die "Couldn't fetch l3connections from the database." if !defined $results;
+    my $results;
+    if (defined $connection_id_list) {
+        $results = load_connection_csv($connection_id_list);
+        die "Couldn't fetch l3connections from CSV $connection_id_list." if !defined $results;
+    } else {
+        $results = OESS::DB::VRF::get_vrfs(%$args);
+        die "Couldn't fetch l3connections from the database." if !defined $results;
+    }
 
     my $connections = [];
     foreach my $result (@$results) {
         my $conn = new OESS::VRF(db => $db, vrf_id => $result->{vrf_id});
+        if (!defined $conn) {
+            warn "ERROR $result->{vrf_id} Couldn't load l3connection.";
+            next;
+        }
         $conn->load_endpoints;
         foreach my $ep (@{$conn->endpoints}) {
             $ep->load_peers;
@@ -591,26 +637,28 @@ oess-migrate interfaces [options]
 oess-migrate l2connections [options]
 
  Options:
-   --connection-id    Migrate connection identified by connection-id
-   --delay            Introduce delay between migrations in seconds
-   --file             Path to CSV indicating old to new port mapping
-   --interface-id     Migrate all connections terminating on interface-id
-   --node-id          Migrate all connections terminating on node-id
-   --workgroup-id     Migrate all connections owned by workgroup-id
-   --exclude-cloud    Exclude all cloud connections from migration
-   --exclude-mp       Exclude all multi-point connections from migration
-   --reverse          Swap source and destination ports in CSV for undo operations
+   --connection-id         Migrate connection identified by connection-id
+   --connection-id-list    Migrate connection identified by connection-id
+   --delay                 Introduce delay between migrations in seconds
+   --file                  Path to CSV indicating old to new port mapping
+   --interface-id          Migrate all connections terminating on interface-id
+   --node-id               Migrate all connections terminating on node-id
+   --workgroup-id          Migrate all connections owned by workgroup-id
+   --exclude-cloud         Exclude all cloud connections from migration
+   --exclude-mp            Exclude all multi-point connections from migration
+   --reverse               Swap source and destination ports in CSV for undo operations
 
 oess-migrate l3connections [options]
 
  Options:
-   --connection-id    Migrate connection identified by connection-id
-   --delay            Introduce delay between migrations in seconds
-   --file             Path to CSV indicating old to new port mapping
-   --interface-id     Migrate all connections terminating on interface-id
-   --node-id          Migrate all connections terminating on node-id
-   --workgroup-id     Migrate all connections owned by workgroup-id
-   --exclude-cloud    Exclude all cloud connections from migration
-   --reverse          Swap source and destination ports in CSV for undo operations
+   --connection-id         Migrate connection identified by connection-id
+   --connection-id-list    Migrate connection identified by connection-id
+   --delay                 Introduce delay between migrations in seconds
+   --file                  Path to CSV indicating old to new port mapping
+   --interface-id          Migrate all connections terminating on interface-id
+   --node-id               Migrate all connections terminating on node-id
+   --workgroup-id          Migrate all connections owned by workgroup-id
+   --exclude-cloud         Exclude all cloud connections from migration
+   --reverse               Swap source and destination ports in CSV for undo operations
 
 =cut
