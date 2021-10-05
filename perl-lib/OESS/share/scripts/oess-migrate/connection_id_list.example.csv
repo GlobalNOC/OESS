@@ -1,2 +1,3 @@
-circuit_id,vrf_id
-3000,6000
+Type,connection_id
+l2vpn,3000
+l3vpn,6000

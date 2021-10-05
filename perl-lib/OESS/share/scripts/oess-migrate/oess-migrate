@@ -100,6 +100,7 @@ of the provided CSV.
 =cut
 sub load_connection_csv {
     my $file    = shift;
+    my $type    = shift;
 
     my $csv = new Text::CSV();
     my $rows = [];
@@ -111,7 +112,14 @@ sub load_connection_csv {
     }
     close $fh;
 
-    return $rows;
+    my $results = [];
+    foreach my $row (@$rows) {
+        if ($row->{Type} eq $type) {
+            push @$results, $row;
+        }
+    }
+
+    return $results;
 }
 
 =head2 is_cloud_connection
@@ -445,7 +453,7 @@ sub l2connections {
 
     my $results;
     if (defined $connection_id_list) {
-        $results = load_connection_csv($connection_id_list);
+        $results = load_connection_csv($connection_id_list, 'l2vpn');
         die "Couldn't fetch l2connections from CSV $connection_id_list." if !defined $results;
     } else {
         $results = OESS::DB::Circuit::fetch_circuits(%$args);
@@ -539,7 +547,7 @@ sub l3connections {
 
     my $results;
     if (defined $connection_id_list) {
-        $results = load_connection_csv($connection_id_list);
+        $results = load_connection_csv($connection_id_list, 'l3vpn');
         die "Couldn't fetch l3connections from CSV $connection_id_list." if !defined $results;
     } else {
         $results = OESS::DB::VRF::get_vrfs(%$args);
