@@ -115,6 +115,12 @@ sub load_connection_csv {
     my $results = [];
     foreach my $row (@$rows) {
         if ($row->{Type} eq $type) {
+            if ($type eq 'l2vpn') {
+                $row->{circuit_id} = $row->{connection_id};
+            }
+            if ($type eq 'l3vpn') {
+                $row->{vrf_id} = $row->{connection_id};
+            }
             push @$results, $row;
         }
     }
