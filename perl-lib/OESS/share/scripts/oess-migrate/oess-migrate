@@ -499,16 +499,25 @@ sub l2connections {
     my $success = [];
     my $failure = [];
     foreach my $conn (@$connections) {
+        my $start = time;
         my $err = migrate_l2connection($conn, $mapping);
+        my $end = time;
+        my $interval = $end - $start;
+
         if ($err) {
             $conn->{error} = $err;
-            warn "ERROR $conn->{circuit_id} $conn->{error}";
+            warn "ERROR $conn->{circuit_id} $conn->{error} $interval s";
             push @$failure, $conn;
         } else {
-            print "OK $conn->{circuit_id}\n";
+            print "OK $conn->{circuit_id} $interval s\n";
             push @$success, $conn;
         }
-        sleep $delay;
+
+        if ($delay - $interval > 0) {
+            my $n = $delay - $interval;
+            print "WAIT $n s\n";
+            sleep $n;
+        }
     }
 
     return 1;
@@ -592,16 +601,25 @@ sub l3connections {
     my $success = [];
     my $failure = [];
     foreach my $conn (@$connections) {
+        my $start = time;
         my $err = migrate_l3connection($conn, $mapping);
+        my $end = time;
+        my $interval = $end - $start;
+
         if ($err) {
             $conn->{error} = $err;
-            warn "ERROR $conn->{vrf_id} $conn->{error}";
+            warn "ERROR $conn->{vrf_id} $conn->{error} $interval s";
             push @$failure, $conn;
         } else {
-            print "OK $conn->{vrf_id}\n";
+            print "OK $conn->{vrf_id} $interval s\n";
             push @$success, $conn;
         }
-        sleep $delay;
+
+        if ($delay - $interval > 0) {
+            my $n = $delay - $interval;
+            print "WAIT $n s\n";
+            sleep $n;
+        }
     }
 
     return 1;
