@@ -146,8 +146,18 @@ sub fetch_interfaces {
         sub {
             my $cv = shift;
 
-            my $types  = ["Bundle-Ether", "GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
-            my $ports  = [];
+            my $types = ["Bundle-Ether", "GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
+            my $ports = [];
+            # TODO Get negotiated interface capacity/speed via NSO; Required for correct Bundle-Ether capacity/speed
+            # if not set via device configuration.
+            my $default_speeds = {
+                "Bundle-Ether"    =>   1000,
+                "GigabitEthernet" =>   1000,
+                "TenGigE"         =>  10000,
+                "FortyGigE"       =>  40000,
+                "HundredGigE"     => 100000,
+                "FourHundredGigE" => 400000,
+            };
 
             foreach my $key (keys %{$self->{nodes}}) {
                 my $node   = $self->{nodes}->{$key};
@@ -157,10 +167,11 @@ sub fetch_interfaces {
                 foreach my $type (@$types) {
                     next if !defined $result->{$type};
 
+                    my $default_speed = $default_speeds->{$type};
                     foreach my $port (@{$result->{$type}}) {
                         my $port_info = {
                             admin_state => (exists $port->{shutdown}) ? 'down' : 'up',
-                            bandwidth   => (exists $port->{speed}) ? $port->{speed} : 1000,
+                            bandwidth   => (exists $port->{speed}) ? $port->{speed} : $default_speed,
                             description => (exists $port->{description}) ? $port->{description} : '',
                             mtu         => (exists $port->{mtu}) ? $port->{mtu} : 0,
                             name        => $type . $port->{id},
