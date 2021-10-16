@@ -151,7 +151,7 @@ sub fetch_interfaces {
             # TODO Get negotiated interface capacity/speed via NSO; Required for correct Bundle-Ether capacity/speed
             # if not set via device configuration.
             my $default_speeds = {
-                "Bundle-Ether"    =>   1000,
+                "Bundle-Ether"    =>  10000,
                 "GigabitEthernet" =>   1000,
                 "TenGigE"         =>  10000,
                 "FortyGigE"       =>  40000,
