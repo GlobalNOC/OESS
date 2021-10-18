@@ -75,7 +75,7 @@ sub load_csv {
 
     foreach my $row (@$rows) {
         if ($row->{LEGACY_DEVICE} !~ /net\.internet2\.edu$/) 
-            $row->{LEGACY_DEVICE} = $row->{LEGACY_DEVICE} . '
+            $row->{LEGACY_DEVICE} = $row->{LEGACY_DEVICE} . '.net.internet2.edu';
         }
 
         if ($reverse) {
