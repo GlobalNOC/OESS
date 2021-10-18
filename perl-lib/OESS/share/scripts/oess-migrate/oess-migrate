@@ -20,6 +20,7 @@ use OESS::DB::VRF;
 use OESS::L2Circuit;
 use OESS::VRF;
 
+my $skipme = {};
 
 my $config;
 my $standard_delay = 60;
@@ -73,6 +74,10 @@ sub load_csv {
     my $mapping = {};
 
     foreach my $row (@$rows) {
+        if ($row->{LEGACY_DEVICE} !~ /net\.internet2\.edu$/) 
+            $row->{LEGACY_DEVICE} = $row->{LEGACY_DEVICE} . '
+        }
+
         if ($reverse) {
             my $i = $row->{NGI_INTERFACE};
             my $n = $row->{NGI_DEVICE};
@@ -468,6 +473,11 @@ sub l2connections {
 
     my $connections = [];
     foreach my $result (@$results) {
+        if (defined $skipme->{$result->{circuit_id}}) {      
+            print "SKIP LIST $result->{circuit_id}\n";
+            next;                             
+        }
+
         my $conn = new OESS::L2Circuit(db => $db, circuit_id => $result->{circuit_id});
         if (!defined $conn) {
             warn "ERROR $result->{circuit_id} Couldn't load l2connection.";
@@ -591,6 +601,11 @@ sub l3connections {
 
     my $connections = [];
     foreach my $result (@$results) {
+        if (defined $skipme->{$result->{circuit_id}}) {      
+            print "SKIP LIST $result->{circuit_id}\n";
+            next;                             
+        }
+
         my $conn = new OESS::VRF(db => $db, vrf_id => $result->{vrf_id});
         if (!defined $conn) {
             warn "ERROR $result->{vrf_id} Couldn't load l3connection.";
