@@ -22,7 +22,7 @@ use OESS::VRF;
 
 
 my $config;
-
+my $standard_delay = 60;
 
 =head2 load_config
 
@@ -498,11 +498,37 @@ sub l2connections {
 
     my $success = [];
     my $failure = [];
+
+    my $prev_workgroup_id = -1;
+    my $prev_interval = 0;
+
     foreach my $conn (@$connections) {
+        my $n_seconds = 0;
+
+        if ($prev_workgroup_id == -1) {
+            # First iteration
+            $n_seconds = 0;
+        }
+        elsif ($prev_workgroup_id == $conn->{workgroup_id}) {
+            # Previous connection owned by the same workgroup as
+            # this connection. Pause a bit longer than usual.
+            $n_seconds = $delay - $prev_interval;
+        }
+        else {
+            # Pause for the standard ammount of time between
+            # migrations.
+            $n_seconds = $standard_delay;
+        }
+
+        print "WAIT $n_seconds s\n";
+        sleep $n_seconds;
+
         my $start = time;
         my $err = migrate_l2connection($conn, $mapping);
         my $end = time;
-        my $interval = $end - $start;
+
+        $prev_interval = $end - $start;
+        $prev_workgroup_id = $conn->{workgroup_id};
 
         if ($err) {
             $conn->{error} = $err;
@@ -511,12 +537,6 @@ sub l2connections {
         } else {
             print "OK $conn->{circuit_id} $interval s\n";
             push @$success, $conn;
-        }
-
-        if ($delay - $interval > 0) {
-            my $n = $delay - $interval;
-            print "WAIT $n s\n";
-            sleep $n;
         }
     }
 
@@ -600,11 +620,37 @@ sub l3connections {
 
     my $success = [];
     my $failure = [];
+
+    my $prev_workgroup_id = -1;
+    my $prev_interval = 0;
+
     foreach my $conn (@$connections) {
+        my $n_seconds = 0;
+
+        if ($prev_workgroup_id == -1) {
+            # First iteration
+            $n_seconds = 0;
+        }
+        elsif ($prev_workgroup_id == $conn->{workgroup_id}) {
+            # Previous connection owned by the same workgroup as
+            # this connection. Pause a bit longer than usual.
+            $n_seconds = $delay - $prev_interval;
+        }
+        else {
+            # Pause for the standard ammount of time between
+            # migrations.
+            $n_seconds = $standard_delay;
+        }
+
+        print "WAIT $n_seconds s\n";
+        sleep $n_seconds;
+
         my $start = time;
         my $err = migrate_l3connection($conn, $mapping);
         my $end = time;
-        my $interval = $end - $start;
+
+        $prev_interval = $end - $start;
+        $prev_workgroup_id = $conn->{workgroup_id};
 
         if ($err) {
             $conn->{error} = $err;
@@ -613,12 +659,6 @@ sub l3connections {
         } else {
             print "OK $conn->{vrf_id} $interval s\n";
             push @$success, $conn;
-        }
-
-        if ($delay - $interval > 0) {
-            my $n = $delay - $interval;
-            print "WAIT $n s\n";
-            sleep $n;
         }
     }
 
