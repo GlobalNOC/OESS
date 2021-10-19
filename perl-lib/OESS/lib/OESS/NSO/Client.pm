@@ -331,6 +331,9 @@ sub create_l3connection {
                 md5_key    => $peer->md5_key,
                 ip_version => $peer->ip_version
             };
+            if (defined $ep->cloud_interconnect_type && $ep->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                $peer_obj->{ebgp_multihop_ttl} = 4;
+            }
             push @{$obj->{peer}}, $peer_obj;
         }
 
@@ -437,6 +440,9 @@ sub edit_l3connection {
                 md5_key    => $peer->md5_key,
                 ip_version => $peer->ip_version
             };
+            if (defined $ep->cloud_interconnect_type && $ep->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                $peer_obj->{ebgp_multihop_ttl} = 4;
+            }
             push @{$obj->{peer}}, $peer_obj;
         }
 
