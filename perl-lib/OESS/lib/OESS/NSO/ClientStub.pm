@@ -203,6 +203,7 @@ sub get_l3connections {
                     "device" => "Node 11",
                     "interface" => "e15/6",
                     "tag" => 300,
+                    "unit" => 300,
                     "bandwidth" => 200,
                     "peer" => [
                         {
@@ -226,6 +227,7 @@ sub get_l3connections {
                     "device" => "xr1",
                     "interface" => "GigabitEthernet0/1",
                     "tag" => 300,
+                    "unit" => 300,
                     "bandwidth" => 100,
                     "peer" => [
                         {
