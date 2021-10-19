@@ -651,11 +651,11 @@ sub nso_diff {
             $diff->{$ep->node} = "";
             $ep_index->{$ep->node} = {};
         }
-        $ep_index->{$ep->node}->{$ep->interface} = $ep;
+        $ep_index->{$ep->node}->{$ep->vrf_endpoint_id} = $ep;
     }
 
     foreach my $ep (@{$nsoc->{endpoint}}) {
-        if (!defined $ep_index->{$ep->{device}}->{$ep->{interface}}) {
+        if (!defined $ep_index->{$ep->{device}}->{$ep->{endpoint_id}}) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
             $diff->{$ep->{device}} .= "- $ep->{interface}\n";
             $diff->{$ep->{device}} .= "-   Bandwidth: $ep->{bandwidth}\n";
@@ -672,7 +672,7 @@ sub nso_diff {
             }
             next;
         }
-        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{interface}};
+        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{endpoint_id}};
 
         # Compare endpoints
         my $ok = 1;
@@ -681,7 +681,7 @@ sub nso_diff {
         $ok = 0 if $ep->{inner_tag} != $ref_ep->inner_tag;
         if (!$ok) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
-            $diff->{$ep->{device}} .= "  $ep->{interface}\n";
+            $diff->{$ep->{device}} .= "  $ep->{endpoint_id}\n";
         }
 
         if ($ep->{bandwidth} != $ref_ep->bandwidth) {
@@ -765,7 +765,7 @@ sub nso_diff {
         # End Compare an Endpoint's Peers
         $diff->{$ep->{device}} .= $peer_diff;
 
-        delete $ep_index->{$ep->{device}}->{$ep->{interface}};
+        delete $ep_index->{$ep->{device}}->{$ep->{endpoint_id}};
     }
 
     foreach my $device_key (keys %{$ep_index}) {
