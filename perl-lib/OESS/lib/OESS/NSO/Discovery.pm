@@ -513,6 +513,7 @@ sub vrf_stats_handler {
 
                 $self->handle_vrf_stats(node => $node->{name}, stats => $results->{$node->{name}});
             }
+            $self->{logger}->info("Statistics submitted to TSDS.");
             $cv->send;
         }
     );
@@ -535,8 +536,6 @@ sub vrf_stats_handler {
         );
     }
     $cv->end;
-
-    $self->{logger}->info("Statistics submitted to TSDS.");
 }
 
 =head2 handle_vrf_stats
