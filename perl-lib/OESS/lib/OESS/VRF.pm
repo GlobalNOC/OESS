@@ -681,7 +681,7 @@ sub nso_diff {
         $ok = 0 if $ep->{inner_tag} != $ref_ep->inner_tag;
         if (!$ok) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
-            $diff->{$ep->{device}} .= "  $ep->{endpoint_id}\n";
+            $diff->{$ep->{device}} .= "  $ep->{interface}\n";
         }
 
         if ($ep->{bandwidth} != $ref_ep->bandwidth) {
