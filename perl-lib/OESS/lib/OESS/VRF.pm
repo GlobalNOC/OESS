@@ -713,6 +713,7 @@ sub nso_diff {
                 $peer_diff .= "-     Peer ASN:  $pr->{peer_asn}\n";
                 $peer_diff .= "-     Peer IP:   $pr->{peer_ip}\n";
                 $peer_diff .= "-     BFD:       $pr->{bfd}\n";
+                next;
             }
 
             my $ref = $index->{$pr->{peer_id}};

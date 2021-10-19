@@ -651,8 +651,10 @@ sub get_vrf_statistics {
             # xml tag and ending cli prompt. This results in an XML
             # encoded string wrapped in the Response tag.
             my $raw_response = $result->{"tailf-ned-cisco-ios-xr-stats:output"}->{"result"};
-            $raw_response =~ s/^.*<Response/<Response/s;
-            $raw_response =~ s/<\/Response>.*\z/<\/Response>/s;
+            $raw_response =~ s/^(.|\s)*?<Response/<Response/; # Remove date and time prefix
+            $raw_response =~ s/<\?xml\sversion="1.0"\?>//g; # Remove xml document declarations
+            $raw_response =~ s/RP.*\#\z//; # Strip CLI Prompt
+            $raw_response = "<T>" . $raw_response . "</T>"; # Wrap all <Reponse> tags in single tag
 
             # Parse XMl string and extract statistics
             my $dom;
@@ -670,11 +672,11 @@ sub get_vrf_statistics {
             my $instance  = undef;
             foreach my $context ($instances->get_nodelist) {
 
-                my $instance_name = $context->findvalue('//Instance/Naming/InstanceName');
+                my $instance_name = $context->findvalue('./Naming/InstanceName');
                 $instance_name =~ s/\s+//g;
                 next if $instance_name ne 'default';
 
-                my $vrfs = $context->findnodes('//Instance/InstanceActive/VRFTable/VRF');
+                my $vrfs = $context->findnodes('./InstanceActive/VRFTable/VRF');
                 foreach my $context ($vrfs->get_nodelist) {
                     my $ok = $context->exists('./Naming/VRFName');
 
