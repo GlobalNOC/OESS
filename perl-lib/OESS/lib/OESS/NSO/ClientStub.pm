@@ -84,6 +84,7 @@ sub get_l2connections {
                     'endpoint_id' => 1,
                     'interface' => 'GigabitEthernet0/0',
                     'tag' => 1,
+                    'unit' => 1,
                     'device' => 'xr0'
                 },
                 {
@@ -91,6 +92,7 @@ sub get_l2connections {
                     'endpoint_id' => 2,
                     'interface' => 'GigabitEthernet0/1',
                     'tag' => 1,
+                    'unit' => 1,
                     'device' => 'xr0'
                 }
             ],

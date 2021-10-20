@@ -49,46 +49,46 @@ my $fwdctl = new OESS::NSO::FWDCTL(
 );
 
 my $expect1 = {
-    'Node 31' => '+ e15/4
-+   Bandwidth: 100
-+   Tag:       2010
-+   Peer 2:
-+     Local ASN: 7
-+     Local IP:  192.168.2.2/31
-+     Peer ASN:  64602
-+     Peer IP:   192.168.2.3
-+     BFD:       0
+    'Node 31' => '+  e15/4.200
++    Bandwidth: 100
++    Tag:       2010
++    Peer: 2
++      Local ASN: 7
++      Local IP:  192.168.2.2/31
++      Peer ASN:  64602
++      Peer IP:   192.168.2.3
++      BFD:       0
 ',
-    'Node 11' => '  e15/6
--   Bandwidth: 200
-+   Bandwidth: 100
--   Tag:       300
-+   Tag:       3010
-    Peer 1:
--     Local IP:  192.168.3.2/31
-+     Local IP:  192.168.1.2/31
--     Peer ASN:  64001
-+     Peer ASN:  64601
--     Peer IP:   192.168.3.3
-+     Peer IP:   192.168.1.3
--     BFD:      1
-+     BFD:      0
-+   Peer 3:
-+     Local ASN: 
-+     Local IP:  192.168.5.2/31
-+     Peer ASN:  64605
-+     Peer IP:   192.168.5.3
-+     BFD:       0
+    'Node 11' => '   e15/6.300
+-    Bandwidth: 200
++    Bandwidth: 100
+-    Tag:       300
++    Tag:       3010
+     Peer: 1
+-      Local IP:  192.168.3.2/31
++      Local IP:  192.168.1.2/31
+-      Peer ASN:  64001
++      Peer ASN:  64601
+-      Peer IP:   192.168.3.3
++      Peer IP:   192.168.1.3
+-      BFD:       1
++      BFD:       0
++    Peer: 3
++      Local ASN: 
++      Local IP:  192.168.5.2/31
++      Peer ASN:  64605
++      Peer IP:   192.168.5.3
++      BFD:       0
 ',
-    'xr1' => '- GigabitEthernet0/1
--   Bandwidth: 100
--   Tag:       300
--   Peer 2:
--     Local ASN: 64600
--     Local IP:  192.168.2.2/31
--     Peer ASN:  64602
--     Peer IP:   192.168.2.3
--     BFD:       0
+    'xr1' => '-  GigabitEthernet0/1.300
+-    Bandwidth: 100
+-    Tag:       300
+-    Peer: 2
+-      Local ASN: 64600
+-      Local IP:  192.168.2.2/31
+-      Peer ASN:  64602
+-      Peer IP:   192.168.2.3
+-      BFD:       0
 '
 };
 
@@ -97,9 +97,18 @@ ok(!defined $err, 'Vrf created');
 
 my ($text1, $err1) = $fwdctl->get_diff_text(node_id => 11);
 ok($text1 eq $expect1->{'Node 11'}, 'Got expected diff');
+if ($text1 ne $expect1->{'Node 11'}) {
+    print "Expected:\n$expect1->{'Node 11'}\nGot:\n$text1";
+}
 
 my ($text2, $err2) = $fwdctl->get_diff_text(node_id => 31);
 ok($text2 eq $expect1->{'Node 31'}, 'Got expected diff');
+if ($text2 ne $expect1->{'Node 31'}) {
+    print "Expected:\n$expect1->{'Node 31'}\nGot:\n$text2";
+}
 
 my ($text3, $err3) = $fwdctl->get_diff_text(node_name => 'xr1');
 ok($text3 eq $expect1->{'xr1'}, 'Got expected diff');
+if ($text3 ne $expect1->{'xr1'}) {
+    print "Expected:\n$expect1->{'xr1'}\nGot:\n$text3";
+}
