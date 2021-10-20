@@ -188,6 +188,7 @@ sub fetch_interfaces {
                 my $port = new OESS::Interface(db => $self->{db}, node => $data->{node}, name => $data->{name});
                 if (defined $port) {
                     $port->admin_state($data->{admin_state});
+                    $port->operational_state($data->{admin_state}); # Using admin_state as best guess for now
                     $port->bandwidth($data->{bandwidth});
                     $port->description($data->{description});
                     $port->mtu($data->{mtu});
