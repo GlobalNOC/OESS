@@ -9,6 +9,11 @@ container:
 #
 # Allow container to attach to host port via host.docker.internal hostname:
 # --add-host=host.docker.internal:host-gateway
+#
+# To support packet captures:
+# --cap-add=NET_RAW
+# --cap-add=NET_ADMIN
+#
 dev:
 	docker run -it \
 	--rm \
