@@ -24,6 +24,7 @@ use GRNOC::RabbitMQ::Dispatcher;
 use GRNOC::RabbitMQ::Method;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Dispatcher;
+use OESS::RabbitMQ::Topic qw(fwdctl_switch_topic_for_node);
 
 use OESS::DB;
 use OESS::DB::Circuit;
@@ -619,7 +620,7 @@ sub run{
     $switch = OESS::MPLS::Switch->new( %args );
 }')->fork->send_arg( %args )->run("run");
 
-    my $topic  = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+    my $topic = fwdctl_switch_topic_for_node(mgmt_addr => $self->{'node_by_id'}->{$id}->{'mgmt_addr'}, tcp_port => $self->{'node_by_id'}->{$id}->{'tcp_port'});
 
     $self->{'children'}->{$id}->{'rpc'} = 1;
     $self->{'children'}->{$id}->{'pending_diff'} = $node->{'pending_diff'};
@@ -698,10 +699,11 @@ sub update_cache {
         # Targeted Cache Update
         foreach my $ep (@{$conn->endpoints}) {
           my $addr = $self->{node_by_id}->{$ep->node_id}->{mgmt_addr};
+          my $port = $self->{node_by_id}->{$ep->node_id}->{tcp_port};
           next if !$addr;
 
             $condvar->begin;
-            $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$addr";
+            $self->{fwdctl_events}->{topic} = fwdctl_switch_topic_for_node(mgmt_addr => $addr, tcp_port => $port);
             $self->{fwdctl_events}->update_cache(
                 async_callback => sub {
                     my $result = shift;
@@ -718,9 +720,10 @@ sub update_cache {
                 next;
             }
             my $addr = $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+            my $port = $self->{'node_by_id'}->{$id}->{'tcp_port'};
             $condvar->begin();
 
-            $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$addr";
+            $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $addr, tcp_port => $port);
             $self->{'fwdctl_events'}->update_cache(
                 async_callback => sub {
                     my $result = shift;
@@ -797,7 +800,7 @@ sub send_message_to_child{
     my $method_name = $message->{'action'};
     delete $message->{'action'};
 
-    $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$id}->{'mgmt_addr'};
+    $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $self->{'node_by_id'}->{$id}->{'mgmt_addr'}, tcp_port => $self->{'node_by_id'}->{$id}->{'tcp_port'});
     $self->{'logger'}->info("Sending message to topic: " . $self->{'fwdctl_events'}->{'topic'} . "." . $method_name);
     $self->{'fwdctl_events'}->$method_name( %$message );
 
@@ -881,8 +884,9 @@ sub addVrf{
 
                 my $node_id = $self->{'node_info'}->{$node}->{'id'};
                 my $node_ip = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+                my $port = $self->{'node_by_id'}->{$node_id}->{'tcp_port'};
 
-                $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$node_ip";
+                $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $node_ip, tcp_port => $port);
                 $self->{'fwdctl_events'}->remove_vrf(
                     vrf_id => $vrf_id,
                     async_callback => sub {
@@ -900,8 +904,9 @@ sub addVrf{
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
         my $node_ip = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+        my $port = $self->{'node_by_id'}->{$node_id}->{'tcp_port'};
 
-        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch.$node_ip";
+        $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $node_ip, tcp_port => $port);
         $self->{'fwdctl_events'}->add_vrf(
             vrf_id         => $vrf_id,
             async_callback => sub {
@@ -1043,11 +1048,12 @@ sub modifyVrf {
 
         my $node_id = $self->{node_info}->{$node}->{id};
         my $node_ip = $self->{node_by_id}->{$node_id}->{mgmt_addr};
+        my $port = $self->{node_by_id}->{$node_id}->{tcp_port};
 
         $pending->{endpoints} = $self->filter_endpoints($node, \@pend_endpoints);
         $previous->{endpoints} = $self->filter_endpoints($node, \@prev_endpoints);
 
-        $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$node_ip";
+        $self->{fwdctl_events}->{topic} = fwdctl_switch_topic_for_node(mgmt_addr => $node_ip, tcp_port => $port);
         $self->{fwdctl_events}->modify_vrf(
             vrf_id   => $vrf_id,
             pending  => encode_json($pending),
@@ -1142,15 +1148,15 @@ sub delVrf{
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
 
-        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+        $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'}, tcp_port => $self->{'node_by_id'}->{$node_id}->{'tcp_port'});
         $self->{'fwdctl_events'}->remove_vrf(
             vrf_id => $vrf_id,
             async_callback => sub {
                 my $res = shift;
 
                 if($res->{'results'}->{'status'} != FWDCTL_SUCCESS){
-                    $self->{'logger'}->error("Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error.");
-                    $err .= "Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error. ";
+                    $self->{'logger'}->error("Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . "." . $self->{'node_by_id'}->{$node_id}->{'tcp_port'} . " reported an error.");
+                    $err .= "Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . "." . $self->{'node_by_id'}->{$node_id}->{'tcp_port'} . " reported an error. ";
                 }
                 $cv->end();
             });
@@ -1234,8 +1240,9 @@ sub addVlan{
             foreach my $node (keys %nodes){
                 my $node_id = $self->{'node_info'}->{$node}->{'id'};
                 my $node_addr = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+                my $port = $self->{'node_by_id'}->{$node_id}->{'tcp_port'};
 
-                $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $node_addr;
+                $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $node_addr, tcp_port => $port);
                 $self->{'fwdctl_events'}->remove_vlan(circuit_id => $circuit_id,
 						      async_callback => sub {
 							  $self->{'logger'}->error("Removed MPLS circuit from $node_addr.");
@@ -1255,15 +1262,15 @@ sub addVlan{
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
 
-        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+        $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'}, tcp_port => $self->{'node_by_id'}->{$node_id}->{'tcp_port'});
         $self->{'fwdctl_events'}->add_vlan(
             circuit_id => $circuit_id,
             async_callback => sub {
                 my $res = shift;
 
 		if($res->{'results'}->{'status'} != FWDCTL_SUCCESS){
-		    $self->{'logger'}->error("Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error.");
-		    $err .= "Switch : " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . " reported an error";
+		    $self->{'logger'}->error("Switch " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . "." . $self->{'node_by_id'}->{$node_id}->{'tcp_port'} . " reported an error.");
+		    $err .= "Switch : " . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'} . "." . $self->{'node_by_id'}->{$node_id}->{'tcp_port'} . " reported an error";
 		}
                 $cv->end();
             });
@@ -1329,13 +1336,14 @@ sub modifyVlan {
 
         my $node_id = $self->{node_info}->{$node}->{id};
         my $node_ip = $self->{node_by_id}->{$node_id}->{mgmt_addr};
+        my $port = $self->{node_by_id}->{$node_id}->{tcp_port};
 
         $pending->{endpoints} = $self->filter_endpoints($node, \@pend_endpoints);
         $pending->{site_id} = $self->determine_site_id($node, \@pend_endpoints);
         $previous->{endpoints} = $self->filter_endpoints($node, \@prev_endpoints);
         $previous->{site_id} = $self->determine_site_id($node, \@prev_endpoints);
 
-        $self->{fwdctl_events}->{topic} = "MPLS.FWDCTL.Switch.$node_ip";
+        $self->{fwdctl_events}->{topic} = fwdctl_switch_topic_for_node(mgmt_addr => $node_ip, tcp_port => $port);
         $self->{fwdctl_events}->modify_vlan(
             circuit_id => $circuit_id,
             pending    => encode_json($pending),
@@ -1416,10 +1424,11 @@ sub deleteVlan{
 
         my $node_id = $self->{'node_info'}->{$node}->{'id'};
         my $node_addr = $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+        my $port = $self->{'node_by_id'}->{$node_id}->{'tcp_port'};
 
         $self->{'logger'}->info("Sending deleteVLAN to child: " . $node_addr);
 
-        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $node_addr;
+        $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $node_addr, tcp_port => $port);
         $self->{'fwdctl_events'}->remove_vlan(
             circuit_id => $circuit_id,
             async_callback => sub {
@@ -1467,7 +1476,7 @@ sub diff {
             $self->{'children'}->{$node_id}->{'pending_diff'} = PENDING_DIFF_NONE;
         }
 
-        $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+        $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'}, tcp_port => $self->{'node_by_id'}->{$node_id}->{'tcp_port'});
         $self->{'fwdctl_events'}->diff(
             force_diff     => $force_diff,
             async_callback => sub {
@@ -1530,7 +1539,7 @@ sub get_diff_text {
         return &$error_cb($err);
     }
 
-    $self->{'fwdctl_events'}->{'topic'} = "MPLS.FWDCTL.Switch." . $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'};
+    $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $self->{'node_by_id'}->{$node_id}->{'mgmt_addr'}, tcp_port => $self->{'node_by_id'}->{$node_id}->{'tcp_port'});
     $self->{'fwdctl_events'}->get_diff_text(
         async_callback => sub {
             my $response = shift;
@@ -1695,7 +1704,7 @@ sub save_mpls_nodes_status {
 
     my $nodes = $self->{'db'}->get_current_nodes(type => 'mpls');
     foreach my $node (@{$nodes}) {
-        $self->{'fwdctl_events'}->{'topic'} = 'MPLS.FWDCTL.Switch.' . $node->{'mgmt_addr'};
+        $self->{'fwdctl_events'}->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $node->{'mgmt_addr'}, tcp_port => $node->{'tcp_port'});
 
         $self->{'fwdctl_events'}->is_connected(
             async_callback => sub {

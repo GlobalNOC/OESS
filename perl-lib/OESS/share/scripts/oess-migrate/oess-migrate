@@ -3,9 +3,12 @@
 use strict;
 use warnings;
 
+no warnings qw(uninitialized);
+
 use Data::Dumper;
 use Getopt::Long qw(:config auto_help);
 use GRNOC::CLI;
+use GRNOC::WebService::Client;
 use JSON;
 use Pod::Usage qw(pod2usage);
 use Text::CSV;
@@ -17,9 +20,10 @@ use OESS::DB::VRF;
 use OESS::L2Circuit;
 use OESS::VRF;
 
+my $skipme = {};
 
 my $config;
-
+my $standard_delay = 60;
 
 =head2 load_config
 
@@ -37,7 +41,7 @@ sub load_config {
     return decode_json($json);
 }
 
-=head2
+=head2 load_csv
 
 load_csv opens $file and then returns a mapping from old interfaces to
 new interfaces using the provided CSV.
@@ -70,6 +74,10 @@ sub load_csv {
     my $mapping = {};
 
     foreach my $row (@$rows) {
+        if ($row->{LEGACY_DEVICE} !~ /net\.internet2\.edu$/) 
+            $row->{LEGACY_DEVICE} = $row->{LEGACY_DEVICE} . '.net.internet2.edu';
+        }
+
         if ($reverse) {
             my $i = $row->{NGI_INTERFACE};
             my $n = $row->{NGI_DEVICE};
@@ -87,6 +95,42 @@ sub load_csv {
     }
 
     return $mapping;
+}
+
+=head2 load_connection_csv
+
+load_connection_csv opens $file and then returns a hash representing each row
+of the provided CSV.
+
+=cut
+sub load_connection_csv {
+    my $file    = shift;
+    my $type    = shift;
+
+    my $csv = new Text::CSV();
+    my $rows = [];
+
+    open my $fh, "<:encoding(utf8)", $file or die "$file: $!";
+    $csv->column_names($csv->getline($fh));
+    while (my $row = $csv->getline_hr($fh)) {
+        push @$rows, $row;
+    }
+    close $fh;
+
+    my $results = [];
+    foreach my $row (@$rows) {
+        if ($row->{Type} eq $type) {
+            if ($type eq 'l2vpn') {
+                $row->{circuit_id} = $row->{connection_id};
+            }
+            if ($type eq 'l3vpn') {
+                $row->{vrf_id} = $row->{connection_id};
+            }
+            push @$results, $row;
+        }
+    }
+
+    return $results;
 }
 
 =head2 is_cloud_connection
@@ -269,7 +313,6 @@ sub migrate_l3connection {
         endpoint                => $new_endpoints,
         external_identifier     => $vrf->{external_identifier},
     };
-
     my $res = $l3client->provision(%$req);
     if (!defined $res) {
         return $l3client->get_error;
@@ -291,15 +334,17 @@ sub interfaces {
     my $file          = undef;
     my $interface_id  = undef;
     my $exclude_cloud = undef;
+    my $reverse       = undef;
 
     GetOptions(
-        "file=s" => \$file,
+        "file=s"          => \$file,
         "interface-id=i"  => \$interface_id,
-        "exclude-cloud=i" => \$exclude_cloud
+        "exclude-cloud=i" => \$exclude_cloud,
+        "reverse=i"       => \$reverse
     );
 
     die "No interface mapping file provided." if !defined $file;
-    my $mapping = load_csv($file, 0);
+    my $mapping = load_csv($file, $reverse);
 
     if (defined $interface_id) {
         my $src_interface = OESS::DB::Interface::fetch(
@@ -323,7 +368,7 @@ sub interfaces {
             interface => $dst->[1]
         );
         if (!defined $dst_interface_id) {
-            warn "ERROR $interface_id Couldn't find destination interface_id for $dst->[0] $dst->[1].";
+            warn "ERROR $interface_id Couldn't find interface_id for destination $dst->[0] $dst->[1].";
             return;
         }
 
@@ -332,8 +377,7 @@ sub interfaces {
             warn "ERROR $interface_id $err";
         }
     } else {
-
-        foreach my $key (@$mapping) {
+        foreach my $key (keys %$mapping) {
             my @src = split(' - ', $key);
             my $src_interface_id = OESS::DB::Interface::get_interface(
                 db => $db,
@@ -365,7 +409,7 @@ sub interfaces {
                 interface => $dst->[1]
             );
             if (!defined $dst_interface_id) {
-                warn "ERROR $src_interface_id Couldn't find destination interface_id for $dst->[0] $dst->[1].";
+                warn "ERROR $src_interface_id Couldn't find interface_id for destination $dst->[0] $dst->[1].";
                 next;
             }
 
@@ -374,6 +418,8 @@ sub interfaces {
                 warn "ERROR $src_interface_id $err";
                 next;
             }
+
+            print "OK $src_interface_id to $dst_interface_id\n";
         }
 
     }
@@ -383,26 +429,32 @@ sub l2connections {
     my $db = shift;
 
     my $connection_id = undef;
+    my $connection_id_list = undef;
     my $file          = undef;
     my $interface_id  = undef;
     my $node_id       = undef;
     my $workgroup_id  = undef;
     my $exclude_cloud = undef;
     my $exclude_mp    = undef;
+    my $reverse       = undef;
+    my $delay         = 1;
 
     GetOptions(
-        "connection-id=i" => \$connection_id,
-        "file=s"          => \$file,
-        "interface-id=i"  => \$interface_id,
-        "node-id=i"       => \$node_id,
-        "workgroup-id=i"  => \$workgroup_id,
-        "exclude-cloud=i" => \$exclude_cloud,
-        "exclude-mp=i"    => \$exclude_mp
+        "connection-id=i"      => \$connection_id,
+        "connection-id-list=s" => \$connection_id_list,
+        "file=s"               => \$file,
+        "interface-id=i"       => \$interface_id,
+        "node-id=i"            => \$node_id,
+        "workgroup-id=i"       => \$workgroup_id,
+        "exclude-cloud=i"      => \$exclude_cloud,
+        "exclude-mp=i"         => \$exclude_mp,
+        "reverse=i"            => \$reverse,
+        "delay=i"              => \$delay
     );
     warn "l2connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
     die "No interface mapping file provided." if !defined $file;
-    my $mapping = load_csv($file);
+    my $mapping = load_csv($file, $reverse);
 
     my $args = { db => $db };
     $args->{circuit_id}   = $connection_id if defined $connection_id;
@@ -410,12 +462,27 @@ sub l2connections {
     $args->{node_id}      = $node_id if defined $node_id;
     $args->{workgroup_id} = $workgroup_id if defined $workgroup_id;
 
-    my $results = OESS::DB::Circuit::fetch_circuits(%$args);
-    die "Couldn't fetch l2connections from the database." if !defined $results;
+    my $results;
+    if (defined $connection_id_list) {
+        $results = load_connection_csv($connection_id_list, 'l2vpn');
+        die "Couldn't fetch l2connections from CSV $connection_id_list." if !defined $results;
+    } else {
+        $results = OESS::DB::Circuit::fetch_circuits(%$args);
+        die "Couldn't fetch l2connections from the database." if !defined $results;
+    }
 
     my $connections = [];
     foreach my $result (@$results) {
+        if (defined $skipme->{$result->{circuit_id}}) {      
+            print "SKIP LIST $result->{circuit_id}\n";
+            next;                             
+        }
+
         my $conn = new OESS::L2Circuit(db => $db, circuit_id => $result->{circuit_id});
+        if (!defined $conn) {
+            warn "ERROR $result->{circuit_id} Couldn't load l2connection.";
+            next;
+        }
         $conn->load_endpoints;
 
         if ($exclude_cloud == 1 && is_cloud_connection($conn)) {
@@ -431,21 +498,54 @@ sub l2connections {
         push @$connections, $conn;
     }
 
-    my $cli = new GRNOC::CLI();
-    my $n = @$connections;
-    my $continue = $cli->confirm("Migrate $n listed connection(s)?");
-    return 1 if !$continue;
+    # Ask for verification when moving more than one connection
+    if (!defined $connection_id) {
+        my $cli = new GRNOC::CLI();
+        my $n = @$connections;
+        my $continue = $cli->confirm("Migrate $n listed connection(s)?");
+        return 1 if !$continue;
+    }
 
     my $success = [];
     my $failure = [];
+
+    my $prev_workgroup_id = -1;
+    my $prev_interval = 0;
+
     foreach my $conn (@$connections) {
+        my $n_seconds = 0;
+
+        if ($prev_workgroup_id == -1) {
+            # First iteration
+            $n_seconds = 0;
+        }
+        elsif ($prev_workgroup_id == $conn->{workgroup_id}) {
+            # Previous connection owned by the same workgroup as
+            # this connection. Pause a bit longer than usual.
+            $n_seconds = $delay - $prev_interval;
+        }
+        else {
+            # Pause for the standard ammount of time between
+            # migrations.
+            $n_seconds = $standard_delay;
+        }
+
+        print "WAIT $n_seconds s\n";
+        sleep $n_seconds;
+
+        my $start = time;
         my $err = migrate_l2connection($conn, $mapping);
+        my $end = time;
+
+        $prev_interval = $end - $start;
+        $prev_workgroup_id = $conn->{workgroup_id};
+
         if ($err) {
             $conn->{error} = $err;
-            warn "ERROR $conn->{circuit_id} $conn->{error}";
+            warn "ERROR $conn->{circuit_id} $conn->{error} $interval s";
             push @$failure, $conn;
         } else {
-            print "OK $conn->{circuit_id}\n";
+            print "OK $conn->{circuit_id} $interval s\n";
             push @$success, $conn;
         }
     }
@@ -457,39 +557,60 @@ sub l3connections {
     my $db = shift;
 
     my $connection_id = undef;
+    my $connection_id_list = undef;
     my $file          = undef;
     my $interface_id  = undef;
     my $node_id       = undef;
     my $workgroup_id  = undef;
     my $exclude_cloud = undef;
     my $exclude_mp    = undef;
+    my $reverse       = undef;
+    my $delay         = 1;
 
     GetOptions(
-        "connection-id=i" => \$connection_id,
-        "file=s"          => \$file,
-        "interface-id=i"  => \$interface_id,
-        "node-id=i"       => \$node_id,
-        "workgroup-id=i"  => \$workgroup_id,
-        "exclude-cloud=i" => \$exclude_cloud
+        "connection-id=i"      => \$connection_id,
+        "connection-id-list=s" => \$connection_id_list,
+        "file=s"               => \$file,
+        "interface-id=i"       => \$interface_id,
+        "node-id=i"            => \$node_id,
+        "workgroup-id=i"       => \$workgroup_id,
+        "exclude-cloud=i"      => \$exclude_cloud,
+        "reverse=i"            => \$reverse,
+        "delay=i"              => \$delay
     );
     warn "l3connections c $connection_id f $file i $interface_id n $node_id w $workgroup_id";
 
     die "No interface mapping file provided." if !defined $file;
-    my $mapping = load_csv($file);
+    my $mapping = load_csv($file, $reverse);
 
     my $args = { db => $db };
-    $args->{vrf_id}   = $connection_id if defined $connection_id;
+    $args->{vrf_id}       = $connection_id if defined $connection_id;
     $args->{interface_id} = $interface_id if defined $interface_id;
     $args->{node_id}      = $node_id if defined $node_id;
     $args->{workgroup_id} = $workgroup_id if defined $workgroup_id;
     $args->{state}        = 'active';
 
-    my $results = OESS::DB::VRF::get_vrfs(%$args);
-    die "Couldn't fetch l3connections from the database." if !defined $results;
+    my $results;
+    if (defined $connection_id_list) {
+        $results = load_connection_csv($connection_id_list, 'l3vpn');
+        die "Couldn't fetch l3connections from CSV $connection_id_list." if !defined $results;
+    } else {
+        $results = OESS::DB::VRF::get_vrfs(%$args);
+        die "Couldn't fetch l3connections from the database." if !defined $results;
+    }
 
     my $connections = [];
     foreach my $result (@$results) {
+        if (defined $skipme->{$result->{circuit_id}}) {      
+            print "SKIP LIST $result->{circuit_id}\n";
+            next;                             
+        }
+
         my $conn = new OESS::VRF(db => $db, vrf_id => $result->{vrf_id});
+        if (!defined $conn) {
+            warn "ERROR $result->{vrf_id} Couldn't load l3connection.";
+            next;
+        }
         $conn->load_endpoints;
         foreach my $ep (@{$conn->endpoints}) {
             $ep->load_peers;
@@ -504,21 +625,54 @@ sub l3connections {
         push @$connections, $conn;
     }
 
-    my $cli = new GRNOC::CLI();
-    my $n = @$connections;
-    my $continue = $cli->confirm("Migrate $n listed connection(s)?");
-    return 1 if !$continue;
+    # Ask for verification when moving more than one connection
+    if (!defined $connection_id) {
+        my $cli = new GRNOC::CLI();
+        my $n = @$connections;
+        my $continue = $cli->confirm("Migrate $n listed connection(s)?");
+        return 1 if !$continue;
+    }
 
     my $success = [];
     my $failure = [];
+
+    my $prev_workgroup_id = -1;
+    my $prev_interval = 0;
+
     foreach my $conn (@$connections) {
+        my $n_seconds = 0;
+
+        if ($prev_workgroup_id == -1) {
+            # First iteration
+            $n_seconds = 0;
+        }
+        elsif ($prev_workgroup_id == $conn->{workgroup_id}) {
+            # Previous connection owned by the same workgroup as
+            # this connection. Pause a bit longer than usual.
+            $n_seconds = $delay - $prev_interval;
+        }
+        else {
+            # Pause for the standard ammount of time between
+            # migrations.
+            $n_seconds = $standard_delay;
+        }
+
+        print "WAIT $n_seconds s\n";
+        sleep $n_seconds;
+
+        my $start = time;
         my $err = migrate_l3connection($conn, $mapping);
+        my $end = time;
+
+        $prev_interval = $end - $start;
+        $prev_workgroup_id = $conn->{workgroup_id};
+
         if ($err) {
             $conn->{error} = $err;
-            warn "ERROR $conn->{vrf_id} $conn->{error}";
+            warn "ERROR $conn->{vrf_id} $conn->{error} $interval s";
             push @$failure, $conn;
         } else {
-            print "OK $conn->{vrf_id}\n";
+            print "OK $conn->{vrf_id} $interval s\n";
             push @$success, $conn;
         }
     }
@@ -565,28 +719,33 @@ oess-migrate interfaces [options]
    --file             Path to CSV indicating old to new port mapping
    --interface-id     Migrate a sinlge interface identified by interface-id
    --exclude-cloud    Exclude all cloud interfaces from migration
+   --reverse          Swap source and destination ports in CSV for undo operations
 
 oess-migrate l2connections [options]
 
  Options:
-   --connection-id    Migrate connection identified by connection-id
-   --delay            Introduce delay between migrations in seconds
-   --file             Path to CSV indicating old to new port mapping
-   --interface-id     Migrate all connections terminating on interface-id
-   --node-id          Migrate all connections terminating on node-id
-   --workgroup-id     Migrate all connections owned by workgroup-id
-   --exclude-cloud    Exclude all cloud connections from migration
-   --exclude-mp       Exclude all multi-point connections from migration
+   --connection-id         Migrate connection identified by connection-id
+   --connection-id-list    Migrate connection identified by connection-id
+   --delay                 Introduce delay between migrations in seconds
+   --file                  Path to CSV indicating old to new port mapping
+   --interface-id          Migrate all connections terminating on interface-id
+   --node-id               Migrate all connections terminating on node-id
+   --workgroup-id          Migrate all connections owned by workgroup-id
+   --exclude-cloud         Exclude all cloud connections from migration
+   --exclude-mp            Exclude all multi-point connections from migration
+   --reverse               Swap source and destination ports in CSV for undo operations
 
 oess-migrate l3connections [options]
 
  Options:
-   --connection-id    Migrate connection identified by connection-id
-   --delay            Introduce delay between migrations in seconds
-   --file             Path to CSV indicating old to new port mapping
-   --interface-id     Migrate all connections terminating on interface-id
-   --node-id          Migrate all connections terminating on node-id
-   --workgroup-id     Migrate all connections owned by workgroup-id
-   --exclude-cloud    Exclude all cloud connections from migration
+   --connection-id         Migrate connection identified by connection-id
+   --connection-id-list    Migrate connection identified by connection-id
+   --delay                 Introduce delay between migrations in seconds
+   --file                  Path to CSV indicating old to new port mapping
+   --interface-id          Migrate all connections terminating on interface-id
+   --node-id               Migrate all connections terminating on node-id
+   --workgroup-id          Migrate all connections owned by workgroup-id
+   --exclude-cloud         Exclude all cloud connections from migration
+   --reverse               Swap source and destination ports in CSV for undo operations
 
 =cut

@@ -36,6 +36,7 @@ use Log::Log4perl;
 
 use OESS::Database;
 use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Topic qw(fwdctl_switch_topic_for_node);
 use GRNOC::WebService;
 
 Log::Log4perl::init('/etc/oess/logging.conf');
@@ -201,7 +202,7 @@ sub get_mpls_node_status{
 	return $tmp;
     }
 
-    $mq->{'topic'} = 'MPLS.FWDCTL.Switch.' . $node->{'mgmt_addr'};
+    $mq->{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $node->{'mgmt_addr'}, tcp_port => $node->{'tcp_port'});
     my $result = $mq->is_connected();
     warn Dumper($result);
     $result = int($result->{'results'}->{'connected'});
