@@ -68,7 +68,7 @@ my $expect1 = {
 -      BFD:       1
 +      BFD:       0
 +    Peer: 3
-+      Local ASN: 
++      Local ASN: 7
 +      Local IP:  192.168.5.2/31
 +      Peer ASN:  64605
 +      Peer IP:   192.168.5.3

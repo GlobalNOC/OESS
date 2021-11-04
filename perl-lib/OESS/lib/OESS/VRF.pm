@@ -759,7 +759,7 @@ sub nso_diff {
             my @ref_peer_ip = split('/', $pr->peer_ip);
 
             $peer_diff .= "+    Peer: $pr->{vrf_ep_peer_id}\n";
-            $peer_diff .= "+      Local ASN: $pr->{local_asn}\n";
+            $peer_diff .= "+      Local ASN: $self->{local_asn}\n";
             $peer_diff .= "+      Local IP:  $pr->{local_ip}\n";
             $peer_diff .= "+      Peer ASN:  $pr->{peer_asn}\n";
             $peer_diff .= "+      Peer IP:   $ref_peer_ip[0]\n";
