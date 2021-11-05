@@ -540,30 +540,51 @@ Returns:
 =cut
 sub get_backbones {
     my $self = shift;
+    my $sub  = shift;
 
-    my $backbones;
-    eval {
-        my $res = $self->{www}->get(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/backbone:backbone/",
-            'Content-type' => 'application/yang-data+json'
-        );
-        if ($res->code >= 400) {
-            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
+    my $username = $self->{config_obj}->nso_username;
+    my $password = $self->{config_obj}->nso_password;
+
+    my $userpass = "$username:$password";
+    $userpass = Encode::encode("UTF-8", "$username:$password");
+
+    my $credentials = MIME::Base64::encode($userpass, '');
+
+    http_request(
+        GET => $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/backbone:backbone/",
+        headers => {
+            'content-type'     => 'application/yang-data+json',
+            'authorization'    => "Basic $credentials",
+            'www-authenticate' => 'Basic realm="restconf", charset="UTF-8"',
+        },
+        sub {
+            my ($body, $hdr) = @_;
+
+            my $response;
+
+            if ($hdr->{Status} >= 400) {
+                &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
+                return;
+            }
+
+            if ($body eq '') {
+                $response = [];
+            } else {
+                my $result = eval {
+                    my $res = decode_json($body);
+                    my $err = $self->get_json_errors($res);
+                    die $err if defined $err;
+                    return $res;
+                };
+                if ($@) {
+                    &$sub($response, "$@");
+                    return;
+                }
+                $response = $result->{'backbone:backbone'};
+            }
+            &$sub($response, undef);
         }
-        if ($res->content eq '') { # Empty payload indicates success
-            $backbones = [];
-        } else {
-            my $result = decode_json($res->content);
-            my $err = $self->get_json_errors($result);
-            die $err if defined $err;
-            $backbones = $result->{"backbone:backbone"};
-        }
-    };
-    if ($@) {
-        my $err = $@;
-        return (undef, $err);
-    }
-    return ($backbones, undef);
+    );
 }
 
 =head2 get_vrf_statistics
@@ -643,13 +664,21 @@ sub get_vrf_statistics {
         sub {
             my ($body, $hdr) = @_;
 
-            my $response = [];
+            my $response;
 
-            # TODO add eval
-            my $result = decode_json($body);
-            my $err = $self->get_json_errors($result);
-            if (defined $err) {
-                &$sub($response, $err);
+            if ($hdr->{Status} >= 400) {
+                &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
+                return;
+            }
+
+            my $result = eval {
+                my $res = decode_json($body);
+                my $err = $self->get_json_errors($res);
+                die $err if defined $err;
+                return $res;
+            };
+            if ($@) {
+                &$sub($response, "$@");
                 return;
             }
 
@@ -828,19 +857,24 @@ sub get_platform {
         sub {
             my ($body, $hdr) = @_;
 
-            my $response = [];
+            my $response;
 
-            eval {
-                my $result = decode_json($body);
-                my $err = $self->get_json_errors($result);
-                if (defined $err) {
-                    &$sub($result, $err);
-                }
-                &$sub($result->{'tailf-ncs:platform'}, $err);
+            if ($hdr->{Status} >= 400) {
+                &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
+                return;
+            }
+
+            my $result = eval {
+                my $res = decode_json($body);
+                my $err = $self->get_json_errors($res);
+                die $err if defined $err;
+                return $res;
             };
             if ($@) {
-                &$sub(undef, $@);
+                &$sub($response, "$@");
+                return;
             }
+            &$sub($result->{'tailf-ncs:platform'}, undef);
         }
     );
 }
@@ -903,19 +937,24 @@ sub get_interfaces {
         sub {
             my ($body, $hdr) = @_;
 
-            my $response = [];
+            my $response;
 
-            eval {
-                my $result = decode_json($body);
-                my $err = $self->get_json_errors($result);
-                if (defined $err) {
-                    &$sub($result, $err);
-                }
-                &$sub($result->{'tailf-ned-cisco-ios-xr:interface'}, $err);
+            if ($hdr->{Status} >= 400) {
+                &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
+                return;
+            }
+
+            my $result = eval {
+                my $res = decode_json($body);
+                my $err = $self->get_json_errors($res);
+                die $err if defined $err;
+                return $res;
             };
             if ($@) {
-                &$sub(undef, $@);
+                &$sub($response, "$@");
+                return;
             }
+            &$sub($result->{'tailf-ned-cisco-ios-xr:interface'}, undef);
         }
     );
 }

@@ -247,104 +247,70 @@ sub fetch_interfaces {
 sub link_handler {
     my $self = shift;
 
-    # lookup links name and put into index
-    my ($links, $links_err) = OESS::DB::Link::fetch_all(db => $self->{db}, controller => 'nso');
-
-    my $links_index = {};
-    foreach my $link (@$links) {
-        $links_index->{$link->{name}} = $link;
-    }
 
     # get links from nso
-    my ($backbones, $err) = $self->{nso}->get_backbones();
-    if (defined $err) {
-        $self->{logger}->error($err);
-        return;
-    }
-
-    # lookup nso links in index
-    foreach my $bb (@$backbones) {
-
-        my $n = (defined $bb->{summary}->{endpoint}) ? scalar @{$bb->{summary}->{endpoint}} : 0;
-        if ($n != 2) {
-            $self->{logger}->error("Couldn't process link $bb->{name}. Got $n endpoints but only expected 2.");
-            next;
+    $self->{nso}->get_backbones(sub {
+        my ($backbones, $err) = @_;
+        if (defined $err) {
+            $self->{logger}->error($err);
+            return;
         }
 
-        # Lookup interface ids of backbone edges
-        my $eps = [];
-        foreach my $ep (@{$bb->{summary}->{endpoint}}) {
-            my $id = OESS::DB::Interface::get_interface(
-                db        => $self->{db},
-                interface => $ep->{'if-full'},
-                node      => $ep->{'device'},
-            );
-            if (!defined $id) {
-                $self->{logger}->warn("Couldn't find interface for $ep->{'device'} - $ep->{'if-full'} in database.");
+        # lookup links name and put into index
+        my ($links, $links_err) = OESS::DB::Link::fetch_all(db => $self->{db}, controller => 'nso');
+
+        my $links_index = {};
+        foreach my $link (@$links) {
+            $links_index->{$link->{name}} = $link;
+        }
+
+        # lookup nso links in index
+        foreach my $bb (@$backbones) {
+            my $n = (defined $bb->{summary}->{endpoint}) ? scalar @{$bb->{summary}->{endpoint}} : 0;
+            if ($n != 2) {
+                $self->{logger}->error("Couldn't process link $bb->{name}. Got $n endpoints but only expected 2.");
                 next;
             }
-            push @$eps, { id => $id, ip => $ep->{'ipv4-address'} };
-        }
-        if (@$eps != 2) {
-            $self->{logger}->error("Couldn't sync link $bb->{name} due to interface lookup errors.");
-            next;
-        }
 
-        # We assume admin-state represents both status and
-        # link-state. This is likely a bad assumption.
-        if ($bb->{'admin-state'} eq 'in-service') {
-            $bb->{link_state} = 'active';
-            $bb->{status} = 'up';
-        } else {
-            $bb->{link_state} = 'available';
-            $bb->{status} = 'down';
-        }
-
-        #  if !exists create
-        if (!defined $links_index->{$bb->{name}}) {
-            $self->{logger}->info("Creating link $bb->{name}.");
-
-            my ($link_id, $link_err) = OESS::DB::Link::create(
-                db    => $self->{db},
-                model => {
-                    name           => $bb->{name},
-                    status         => $bb->{status},
-                    metric         => 1,
-                    interface_a_id => $eps->[0]->{id},
-                    ip_a           => $eps->[0]->{ip},
-                    interface_z_id => $eps->[1]->{id},
-                    ip_z           => $eps->[1]->{ip},
+            # Lookup interface ids of backbone edges
+            my $eps = [];
+            foreach my $ep (@{$bb->{summary}->{endpoint}}) {
+                my $id = OESS::DB::Interface::get_interface(
+                    db        => $self->{db},
+                    interface => $ep->{'if-full'},
+                    node      => $ep->{'device'},
+                );
+                if (!defined $id) {
+                    $self->{logger}->warn("Couldn't find interface for $ep->{'device'} - $ep->{'if-full'} in database.");
+                    next;
                 }
-            );
-            $self->{logger}->error($link_err) if defined $link_err;
-        }
-        #  el update if interfaces changed
-        else {
-            my $link = $links_index->{$bb->{name}};
-
-            my $interfaces_changed = 1;
-            if ($eps->[0]->{id} == $link->{interface_a_id} && $eps->[1]->{id} == $link->{interface_z_id}) {
-                $interfaces_changed = 0;
+                push @$eps, { id => $id, ip => $ep->{'ipv4-address'} };
             }
-            if ($eps->[0]->{id} == $link->{interface_z_id} && $eps->[1]->{id} == $link->{interface_a_id}) {
-                $interfaces_changed = 0;
+            if (@$eps != 2) {
+                $self->{logger}->error("Couldn't sync link $bb->{name} due to interface lookup errors.");
+                next;
             }
-            my $state_changed = ($bb->{link_state} ne $link->{link_state}) ? 1 : 0;
-            my $status_changed = ($bb->{status} ne $link->{status}) ? 1 : 0;
 
-            if ($interfaces_changed || $state_changed || $status_changed) {
-                my $msg = "Updating link $bb->{name}:";
-                $msg .= " interface changed." if $interfaces_changed;
-                $msg .= " state changed." if $state_changed;
-                $msg .= " status changed." if $status_changed;
-                $self->{logger}->info($msg);
+            # We assume admin-state represents both status and
+            # link-state. This is likely a bad assumption.
+            if ($bb->{'admin-state'} eq 'in-service') {
+                $bb->{link_state} = 'active';
+                $bb->{status} = 'up';
+            } else {
+                $bb->{link_state} = 'available';
+                $bb->{status} = 'down';
+            }
 
-                my ($link_id, $link_err) = OESS::DB::Link::update(
-                    db   => $self->{db},
-                    link => {
-                        link_id => $link->{link_id},
-                        link_state => $bb->{link_state},
-                        status => $bb->{status},
+            #  if !exists create
+            if (!defined $links_index->{$bb->{name}}) {
+                $self->{logger}->info("Creating link $bb->{name}.");
+
+                my ($link_id, $link_err) = OESS::DB::Link::create(
+                    db    => $self->{db},
+                    model => {
+                        name           => $bb->{name},
+                        status         => $bb->{status},
+                        metric         => 1,
                         interface_a_id => $eps->[0]->{id},
                         ip_a           => $eps->[0]->{ip},
                         interface_z_id => $eps->[1]->{id},
@@ -353,32 +319,70 @@ sub link_handler {
                 );
                 $self->{logger}->error($link_err) if defined $link_err;
             }
+            #  el update if interfaces changed
+            else {
+                my $link = $links_index->{$bb->{name}};
 
-            #  remove link from index
-            delete $links_index->{$bb->{name}};
+                my $interfaces_changed = 1;
+                if ($eps->[0]->{id} == $link->{interface_a_id} && $eps->[1]->{id} == $link->{interface_z_id}) {
+                    $interfaces_changed = 0;
+                }
+                if ($eps->[0]->{id} == $link->{interface_z_id} && $eps->[1]->{id} == $link->{interface_a_id}) {
+                    $interfaces_changed = 0;
+                }
+                my $state_changed = ($bb->{link_state} ne $link->{link_state}) ? 1 : 0;
+                my $status_changed = ($bb->{status} ne $link->{status}) ? 1 : 0;
+
+                if ($interfaces_changed || $state_changed || $status_changed) {
+                    my $msg = "Updating link $bb->{name}:";
+                    $msg .= " interface changed." if $interfaces_changed;
+                    $msg .= " state changed." if $state_changed;
+                    $msg .= " status changed." if $status_changed;
+                    $self->{logger}->info($msg);
+
+                    my ($link_id, $link_err) = OESS::DB::Link::update(
+                        db   => $self->{db},
+                        link => {
+                            link_id => $link->{link_id},
+                            link_state => $bb->{link_state},
+                            status => $bb->{status},
+                            interface_a_id => $eps->[0]->{id},
+                            ip_a           => $eps->[0]->{ip},
+                            interface_z_id => $eps->[1]->{id},
+                            ip_z           => $eps->[1]->{ip},
+                        }
+                    );
+                    $self->{logger}->error($link_err) if defined $link_err;
+                }
+
+                #  remove link from index
+                delete $links_index->{$bb->{name}};
+            }
+
         }
 
-    }
+        # decom all links still in index
+        foreach my $name (keys %$links_index) {
+            my $link = $links_index->{$name};
+            $self->{logger}->info("Decommissioning link $link->{name}.");
 
-    # decom all links still in index
-    foreach my $name (keys %$links_index) {
-        my $link = $links_index->{$name};
-        $self->{logger}->info("Decommissioning link $link->{name}.");
+            my ($link_id, $link_err) = OESS::DB::Link::update(
+                db   => $self->{db},
+                link => {
+                    link_id        => $link->{link_id},
+                    link_state     => 'decom',
+                    status         => 'down',
+                    interface_a_id => $link->{interface_a_id},
+                    ip_a           => $link->{ip_a},
+                    interface_z_id => $link->{interface_z_id},
+                    ip_z           => $link->{ip_z},
+                }
+            );
+            $self->{logger}->error($link_err) if defined $link_err;
+        }
 
-        my ($link_id, $link_err) = OESS::DB::Link::update(
-            db   => $self->{db},
-            link => {
-                link_id        => $link->{link_id},
-                link_state     => 'decom',
-                status         => 'down',
-                interface_a_id => $link->{interface_a_id},
-                ip_a           => $link->{ip_a},
-                interface_z_id => $link->{interface_z_id},
-                ip_z           => $link->{ip_z},
-            }
-        );
-        $self->{logger}->error($link_err) if defined $link_err;
-    }
+        return 1;
+    });
 
     return 1;
 }
