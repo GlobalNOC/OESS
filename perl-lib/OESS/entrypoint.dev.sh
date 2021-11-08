@@ -41,6 +41,7 @@ sed -i "s@TSDS_URL@$TSDS_URL@" /etc/oess/database.xml
 sed -i "s/TSDS_PASSWORD/$TSDS_PASSWORD/" /etc/oess/database.xml
 sed -i "s/TSDS_USERNAME/$TSDS_USERNAME/" /etc/oess/database.xml
 sed -i "s@TSDS_REALM@$TSDS_REALM@" /etc/oess/database.xml
+sed -i "s@GRAFANA_URL@$GRAFANA_URL@" /etc/oess/database.xml
 
 sed -i "s/root/$NETCONF_USERNAME/" /etc/oess/.passwd.xml
 sed -i "s/test/$NETCONF_PASSWORD/" /etc/oess/.passwd.xml
