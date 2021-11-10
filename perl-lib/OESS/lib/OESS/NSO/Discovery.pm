@@ -611,7 +611,7 @@ sub handle_vrf_stats {
         $self->{previous_peer}->{$stat->{node}}->{$stat->{vrf_name}}->{$stat->{remote_ip}} = $stat;
 
         eval {
-            $self->{logger}->debug("Updating VRF $stat->{vrf_name} neighbor $stat->{remote_ip} with state $peer_data->{state}.");
+            $self->{logger}->debug("Updating VRF $stat->{vrf_name} neighbor $stat->{remote_ip} on $stat->{node} with state $peer_data->{state}.");
             my $q = "
                 update vrf_ep_peer set operational_state=? where peer_ip like ? and vrf_ep_id in (
                   select vrf_ep_id from vrf_ep where vrf_id=?
@@ -623,7 +623,7 @@ sub handle_vrf_stats {
             );
         };
         if ($@) {
-            $self->{logger}->warn("Couldn't update VRF $stat->{vrf_name} neighbor with state $peer_data->{state}: $@");
+            $self->{logger}->warn("Couldn't update VRF $stat->{vrf_name} neighbor $stat->{remote_ip} on $stat->{node} with state $peer_data->{state}: $@");
         }
 
         if (@$all_val >= MAX_TSDS_MESSAGES || @$stats == 0) {
