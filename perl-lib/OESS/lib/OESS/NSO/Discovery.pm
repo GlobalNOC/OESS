@@ -62,15 +62,6 @@ sub new {
     return $self;
 }
 
-=head2 connection_handler
-
-=cut
-sub connection_handler {
-    my $self = shift;
-
-    return 1;
-}
-
 =head2 fetch_platform
 
 =cut
@@ -111,7 +102,7 @@ sub fetch_platform {
 
         $cv->begin;
         $self->{nso}->get_platform(
-            $node->{name},
+            $node->{short_name},
             sub {
                 my ($result, $err) = @_;
                 if (defined $err) {
@@ -214,6 +205,7 @@ sub fetch_interfaces {
                 }
             }
             $self->{db}->commit;
+            $self->{logger}->info("Interfaces fetched from NSO.");
 
             $cv->send;
         }
@@ -223,7 +215,7 @@ sub fetch_interfaces {
 
         $cv->begin;
         $self->{nso}->get_interfaces(
-            $node->{name},
+            $node->{short_name},
             sub {
                 my ($result, $err) = @_;
                 if (defined $err) {
@@ -237,8 +229,6 @@ sub fetch_interfaces {
         );
     }
     $cv->end;
-
-    $self->{logger}->info("Interfaces fetched from NSO.");
 }
 
 =head2 link_handler
@@ -278,7 +268,7 @@ sub link_handler {
                 my $id = OESS::DB::Interface::get_interface(
                     db        => $self->{db},
                     interface => $ep->{'if-full'},
-                    node      => $ep->{'device'},
+                    short_name => $ep->{'device'},
                 );
                 if (!defined $id) {
                     $self->{logger}->warn("Couldn't find interface for $ep->{'device'} - $ep->{'if-full'} in database.");
@@ -438,11 +428,6 @@ sub start {
     }
 
     # Setup polling subroutines
-    $self->{connection_timer} = AnyEvent->timer(
-        after    => 20,
-        interval => 60,
-        cb       => sub { $self->connection_handler(@_); }
-    );
     $self->{device_timer} = AnyEvent->timer(
         after    => 10,
         interval => 60,
@@ -524,10 +509,10 @@ sub vrf_stats_handler {
     );
     foreach my $key (keys %{$self->{nodes}}) {
         my $node = $self->{nodes}->{$key};
-
+        
         $cv->begin;
         $self->{nso}->get_vrf_statistics(
-            $node->{name},
+            $node->{short_name},
             sub {
                 my ($result, $err) = @_;
                 if (defined $err) {
@@ -560,7 +545,7 @@ sub handle_vrf_stats {
 
     while (@$stats > 0) {
         my $stat = shift @$stats;
-
+        
         my $prev_stat = $self->{previous_peer}->{$stat->{node}}->{$stat->{vrf_name}}->{$stat->{remote_ip}};
         if (!defined $prev_stat) {
             $self->{logger}->warn("Previous stats unavailable for $stat->{node}. Collection will resume with the next datapoints.");
@@ -590,7 +575,7 @@ sub handle_vrf_stats {
         };
         my $rib_metadata = {
             routing_table => $stat->{vrf_name},
-            node          => $stat->{node},
+            node          => $node,
         };
         push @$all_val, {
             type     => TSDS_RIB_TYPE,
@@ -611,7 +596,7 @@ sub handle_vrf_stats {
             peer_address => $stat->{remote_ip},
             vrf          => $stat->{vrf_name},
             as           => $stat->{remote_as},
-            node         => $stat->{node},
+            node         => $node,
         };
         push @$all_val, {
             type     => TSDS_PEER_TYPE,
