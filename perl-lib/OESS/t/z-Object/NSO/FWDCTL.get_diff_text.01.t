@@ -49,7 +49,7 @@ my $fwdctl = new OESS::NSO::FWDCTL(
 );
 
 my $expect1 = {
-    'Node 31' => '+  e15/4.200
+    'N31' => '+  e15/4.200
 +    Bandwidth: 100
 +    Tag:       2010
 +    Peer: 2
@@ -59,7 +59,7 @@ my $expect1 = {
 +      Peer IP:   192.168.2.3
 +      BFD:       0
 ',
-    'Node 11' => '   e15/6.300
+    'N11' => '   e15/6.300
 -    Bandwidth: 200
 +    Bandwidth: 100
 -    Tag:       300
@@ -96,15 +96,15 @@ my $err = $fwdctl->addVrf(vrf_id => 1);
 ok(!defined $err, 'Vrf created');
 
 my ($text1, $err1) = $fwdctl->get_diff_text(node_id => 11);
-ok($text1 eq $expect1->{'Node 11'}, 'Got expected diff');
-if ($text1 ne $expect1->{'Node 11'}) {
-    print "Expected:\n$expect1->{'Node 11'}\nGot:\n$text1";
+ok($text1 eq $expect1->{'N11'}, 'Got expected diff');
+if ($text1 ne $expect1->{'N11'}) {
+    print "Expected:\n$expect1->{'N11'}\nGot:\n$text1";
 }
 
 my ($text2, $err2) = $fwdctl->get_diff_text(node_id => 31);
-ok($text2 eq $expect1->{'Node 31'}, 'Got expected diff');
-if ($text2 ne $expect1->{'Node 31'}) {
-    print "Expected:\n$expect1->{'Node 31'}\nGot:\n$text2";
+ok($text2 eq $expect1->{'N31'}, 'Got expected diff');
+if ($text2 ne $expect1->{'N31'}) {
+    print "Expected:\n$expect1->{'N31'}\nGot:\n$text2";
 }
 
 my ($text3, $err3) = $fwdctl->get_diff_text(node_name => 'xr1');

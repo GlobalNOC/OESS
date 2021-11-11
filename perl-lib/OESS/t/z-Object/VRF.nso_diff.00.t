@@ -43,7 +43,7 @@ my ($nso_l3connections, $err) = $nso->get_l3connections();
 my $nso_l3connection = $nso_l3connections->[0];
 
 my $expect1 = {
-    'Node 31' => '+  e15/4.200
+    'N31' => '+  e15/4.200
 +    Bandwidth: 100
 +    Tag:       2010
 +    Peer: 2
@@ -53,7 +53,7 @@ my $expect1 = {
 +      Peer IP:   192.168.2.3
 +      BFD:       0
 ',
-    'Node 11' => '   e15/6.300
+    'N11' => '   e15/6.300
 -    Bandwidth: 200
 +    Bandwidth: 100
 -    Tag:       300

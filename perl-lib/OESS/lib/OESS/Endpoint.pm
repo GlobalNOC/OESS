@@ -134,6 +134,7 @@ sub to_hash{
     $obj->{'interface'} = $self->{'interface'};
     $obj->{'interface_id'} = $self->{'interface_id'};
     $obj->{'node'} = $self->{'node'};
+    $obj->{'short_node_name'} = $self->{'short_node_name'};
     $obj->{'node_id'} = $self->{'node_id'};
     $obj->{'controller'} = $self->{'controller'};
     $obj->{'description'} = $self->{'description'};
@@ -198,6 +199,7 @@ sub from_hash{
     $self->{'interface'} = $hash->{'interface'};
     $self->{'interface_id'} = $hash->{'interface_id'};
     $self->{'node'} = $hash->{'node'};
+    $self->{'short_node_name'} = $hash->{'short_node_name'};
     $self->{'node_id'} = $hash->{'node_id'};
     $self->{'controller'} = $hash->{'controller'};
     $self->{'description'} = $hash->{'description'};
@@ -499,6 +501,14 @@ sub description{
 sub node{
     my $self = shift;
     return $self->{'node'};
+}
+
+=head2 short_node_name
+
+=cut
+sub short_node_name{
+    my $self = shift;
+    return $self->{'short_node_name'};
 }
 
 =head2 node_id

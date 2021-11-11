@@ -647,11 +647,11 @@ sub nso_diff {
     my $endpoints = $self->endpoints || [];
 
     foreach my $ep (@{$endpoints}) {
-        if (!defined $ep_index->{$ep->node}) {
-            $diff->{$ep->node} = "";
-            $ep_index->{$ep->node} = {};
+        if (!defined $ep_index->{$ep->short_node_name}) {
+            $diff->{$ep->short_node_name} = "";
+            $ep_index->{$ep->short_node_name} = {};
         }
-        $ep_index->{$ep->node}->{$ep->vrf_endpoint_id} = $ep;
+        $ep_index->{$ep->short_node_name}->{$ep->vrf_endpoint_id} = $ep;
     }
 
     foreach my $ep (@{$nsoc->{endpoint}}) {
@@ -780,22 +780,22 @@ sub nso_diff {
     foreach my $device_key (keys %{$ep_index}) {
         foreach my $ep_key (keys %{$ep_index->{$device_key}}) {
             my $ep = $ep_index->{$device_key}->{$ep_key};
-            $diff->{$ep->node} = "" if !defined $diff->{$ep->node};
+            $diff->{$ep->short_node_name} = "" if !defined $diff->{$ep->short_node_name};
 
-            $diff->{$ep->node} .= "+  $ep->{interface}.$ep->{unit}\n";
-            $diff->{$ep->node} .= "+    Bandwidth: $ep->{bandwidth}\n";
-            $diff->{$ep->node} .= "+    Tag:       $ep->{tag}\n";
-            $diff->{$ep->node} .= "+    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+            $diff->{$ep->short_node_name} .= "+  $ep->{interface}.$ep->{unit}\n";
+            $diff->{$ep->short_node_name} .= "+    Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->short_node_name} .= "+    Tag:       $ep->{tag}\n";
+            $diff->{$ep->short_node_name} .= "+    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
 
             foreach my $peer (@{$ep->peers}) {
                 my @ref_peer_ip = split('/', $peer->{peer_ip});
 
-                $diff->{$ep->node} .= "+    Peer: $peer->{vrf_ep_peer_id}\n";
-                $diff->{$ep->node} .= "+      Local ASN: $self->{local_asn}\n";
-                $diff->{$ep->node} .= "+      Local IP:  $peer->{local_ip}\n";
-                $diff->{$ep->node} .= "+      Peer ASN:  $peer->{peer_asn}\n";
-                $diff->{$ep->node} .= "+      Peer IP:   $ref_peer_ip[0]\n";
-                $diff->{$ep->node} .= "+      BFD:       $peer->{bfd}\n";
+                $diff->{$ep->short_node_name} .= "+    Peer: $peer->{vrf_ep_peer_id}\n";
+                $diff->{$ep->short_node_name} .= "+      Local ASN: $self->{local_asn}\n";
+                $diff->{$ep->short_node_name} .= "+      Local IP:  $peer->{local_ip}\n";
+                $diff->{$ep->short_node_name} .= "+      Peer ASN:  $peer->{peer_asn}\n";
+                $diff->{$ep->short_node_name} .= "+      Peer IP:   $ref_peer_ip[0]\n";
+                $diff->{$ep->short_node_name} .= "+      BFD:       $peer->{bfd}\n";
             }
         }
     }

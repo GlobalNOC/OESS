@@ -47,7 +47,7 @@ my $nso_conn1 = {
             "vars" => {
                 "pdp" => "CHIC-JJJ-0",
             },
-            "device" => "Node 11",
+            "device" => "N11",
             "interface" => "e15/6",
             "tag" => 300,
             "unit" => 300,
@@ -69,7 +69,7 @@ my $nso_conn1 = {
             "vars" => {
                 "pdp" => "CHIC-JJJ-0",
             },
-            "device" => "Node 11",
+            "device" => "N11",
             "interface" => "e15/6",
             "tag" => 301,
             "unit" => 301,
@@ -89,7 +89,7 @@ my $nso_conn1 = {
     ]
 };
 my $diff1 = {
-    'Node 11' => '-  e15/6.300
+    'N11' => '-  e15/6.300
 -    Bandwidth: 200
 -    Tag:       300
 -    Peer: 1
@@ -126,7 +126,7 @@ my $nso_conn2 = {
             "vars" => {
                 "pdp" => "CHIC-JJJ-0",
             },
-            "device" => "Node 11",
+            "device" => "N11",
             "interface" => "e15/6",
             "tag" => 300,
             "unit" => 300,
@@ -148,7 +148,7 @@ my $nso_conn2 = {
             "vars" => {
                 "pdp" => "CHIC-JJJ-0",
             },
-            "device" => "Node 11",
+            "device" => "N11",
             "interface" => "e15/6",
             "tag" => 301,
             "unit" => 301,
@@ -168,7 +168,7 @@ my $nso_conn2 = {
     ]
 };
 my $diff2 = {
-    'Node 11' => '   e15/6.300
+    'N11' => '   e15/6.300
 -    Peer: 1
 -      Local ASN: 64600
 -      Local IP:  192.168.3.2/31
@@ -196,6 +196,7 @@ $oess_conn2->add_endpoint(new OESS::Endpoint(
     model => {
         vrf_endpoint_id   => 8,
         node              => 'Node 11',
+        short_node_name   => 'N11',
         interface         => 'e15/6',
         unit              => 300,
         tag               => 300,
@@ -210,6 +211,7 @@ $oess_conn2->add_endpoint(new OESS::Endpoint(
     model => {
         vrf_endpoint_id   => 9,
         node              => 'Node 11',
+        short_node_name   => 'N11',
         interface         => 'e15/6',
         unit              => 301,
         tag               => 301,
@@ -230,7 +232,7 @@ my $nso_conn3 = {
             "vars" => {
                 "pdp" => "CHIC-JJJ-0",
             },
-            "device" => "Node 11",
+            "device" => "N11",
             "interface" => "e15/6",
             "tag" => 300,
             "unit" => 300,
@@ -252,7 +254,7 @@ my $nso_conn3 = {
             "vars" => {
                 "pdp" => "CHIC-JJJ-0",
             },
-            "device" => "Node 11",
+            "device" => "N11",
             "interface" => "e15/6",
             "tag" => 301,
             "unit" => 301,
@@ -272,7 +274,7 @@ my $nso_conn3 = {
     ]
 };
 my $diff3 = {
-    'Node 11' => '   e15/6.300
+    'N11' => '   e15/6.300
      Peer: 1
 -      Local IP:  192.168.3.2/31
 +      Local IP:  192.168.5.2/31
@@ -302,6 +304,7 @@ my $ep8 = new OESS::Endpoint(
     model => {
         vrf_endpoint_id   => 8,
         node              => 'Node 11',
+        short_node_name   => 'N11',
         interface         => 'e15/6',
         unit              => 300,
         tag               => 300,
@@ -329,6 +332,7 @@ my $ep9 = new OESS::Endpoint(
     model => {
         vrf_endpoint_id   => 9,
         node              => 'Node 11',
+        short_node_name   => 'N11',
         interface         => 'e15/6',
         unit              => 301,
         tag               => 301,
@@ -362,7 +366,7 @@ my $nso_conn4 = {
             "vars" => {
                 "pdp" => "CHIC-JJJ-0",
             },
-            "device" => "Node 11",
+            "device" => "N11",
             "interface" => "e15/6",
             "tag" => 300,
             "unit" => 300,
@@ -384,7 +388,7 @@ my $nso_conn4 = {
             "vars" => {
                 "pdp" => "CHIC-JJJ-0",
             },
-            "device" => "Node 11",
+            "device" => "N11",
             "interface" => "e15/6",
             "tag" => 301,
             "unit" => 301,
@@ -404,7 +408,7 @@ my $nso_conn4 = {
     ]
 };
 my $diff4 = {
-    'Node 11' => '   e15/6.301
+    'N11' => '   e15/6.301
 -    Peer: 2
 -      Local ASN: 64600
 -      Local IP:  192.168.2.2/31
@@ -431,6 +435,7 @@ my $ep82 = new OESS::Endpoint(
     model => {
         vrf_endpoint_id   => 8,
         node              => 'Node 11',
+        short_node_name   => 'N11',
         interface         => 'e15/6',
         unit              => 300,
         tag               => 300,
@@ -458,6 +463,7 @@ my $ep92 = new OESS::Endpoint(
     model => {
         vrf_endpoint_id   => 9,
         node              => 'Node 11',
+        short_node_name   => 'N11',
         interface         => 'e15/6',
         unit              => 301,
         tag               => 301,

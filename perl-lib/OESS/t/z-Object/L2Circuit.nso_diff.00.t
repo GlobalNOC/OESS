@@ -83,11 +83,11 @@ my $nso_l2connection = {
 
 
 my $expect1 = {
-    'Node 11' => '+  e15/6.3126
+    'N11' => '+  e15/6.3126
 +    Bandwidth: 0
 +    Tag:       3126
 ',
-    'Node 31' => '+  e15/4.2005
+    'N31' => '+  e15/4.2005
 +    Bandwidth: 0
 +    Tag:       2005
 ',
@@ -118,8 +118,8 @@ my $expect3 = {};
 push @$nso_l2connection_tests, {
     model => {
         endpoints => [
-            { interface => 'GigabitEthernet0/0', node => 'xr0', tag => 1, unit => 1, bandwidth => 0 },
-            { interface => 'GigabitEthernet0/1', node => 'xr0', tag => 1, unit => 1, bandwidth => 0 }
+            { interface => 'GigabitEthernet0/0', short_node_name => 'xr0', tag => 1, unit => 1, bandwidth => 0 },
+            { interface => 'GigabitEthernet0/1', short_node_name => 'xr0', tag => 1, unit => 1, bandwidth => 0 }
         ]
     },
     result => $expect3

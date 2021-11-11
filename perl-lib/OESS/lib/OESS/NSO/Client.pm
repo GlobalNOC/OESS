@@ -68,7 +68,7 @@ sub create_l2connection {
         my $obj = {
             endpoint_id => $ep->circuit_ep_id,
             bandwidth   => $ep->bandwidth,
-            device      => $ep->node,
+            device      => $ep->short_node_name,
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag
@@ -155,7 +155,7 @@ sub edit_l2connection {
         my $obj = {
             endpoint_id => $ep->circuit_ep_id,
             bandwidth   => $ep->bandwidth,
-            device      => $ep->node,
+            device      => $ep->short_node_name,
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag
@@ -307,7 +307,7 @@ sub create_l3connection {
         my $obj = {
             endpoint_id => $ep->vrf_endpoint_id,
             bandwidth   => $ep->bandwidth,
-            device      => $ep->node,
+            device      => $ep->short_node_name,
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag,
@@ -416,7 +416,7 @@ sub edit_l3connection {
         my $obj = {
             endpoint_id => $ep->vrf_endpoint_id,
             bandwidth   => $ep->bandwidth,
-            device      => $ep->node,
+            device      => $ep->short_node_name,
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag,

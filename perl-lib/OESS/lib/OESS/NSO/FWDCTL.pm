@@ -563,9 +563,9 @@ sub get_diff_text {
     my $all_nodes = OESS::DB::Node::fetch_all(db => $self->{db}, controller => 'nso');
     foreach my $node (@$all_nodes) {
         if ($node->{node_id} eq $node_id) {
-            $node_name = $node->{name};
+            $node_name = $node->{short_name};
         }
-        $network_diff->{$node->{name}} = "";
+        $network_diff->{$node->{short_name}} = "";
     }
 
     foreach my $node (@$all_nodes) {
