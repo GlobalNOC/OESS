@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.13
+Version 2.0.14
 
 =cut
 
-our $VERSION = '2.0.13';
+our $VERSION = '2.0.14';
 
 =head1 SYNOPSIS
 
@@ -83,7 +83,7 @@ use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.13';
+use constant VERSION => '2.0.14';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
