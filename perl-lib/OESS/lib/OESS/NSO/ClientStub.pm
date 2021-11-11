@@ -202,7 +202,7 @@ sub get_l3connections {
                         "ce_id" => 1,
                         "remote_ce_id" => 2
                     },
-                    "device" => "Node 11",
+                    "device" => "N11",
                     "interface" => "e15/6",
                     "tag" => 300,
                     "unit" => 300,

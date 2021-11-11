@@ -22,7 +22,7 @@ use OESS::RabbitMQ::Dispatcher;
 use constant MAX_TSDS_MESSAGES => 30;
 use constant TSDS_RIB_TYPE => 'rib_table';
 use constant TSDS_PEER_TYPE => 'bgp_peer';
-use constant VRF_STATS_INTERVAL => 60;
+use constant VRF_STATS_INTERVAL => 240;
 
 =head1 OESS::NSO::Discovery
 

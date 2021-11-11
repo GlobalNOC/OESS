@@ -49,7 +49,7 @@ my $fwdctl = new OESS::NSO::FWDCTL(
 );
 
 my $expect1 = {
-    'Node 11' => '+  e15/6.3126
+    'N11' => '+  e15/6.3126
 +    Bandwidth: 0
 +    Tag:       3126
 -  e15/6.300
@@ -62,7 +62,7 @@ my $expect1 = {
 -      Peer IP:   192.168.3.3
 -      BFD:       1
 ',
-    'Node 31' => '+  e15/4.2005
+    'N31' => '+  e15/4.2005
 +    Bandwidth: 0
 +    Tag:       2005
 ',
@@ -79,13 +79,13 @@ my $err = $fwdctl->addVlan(circuit_id => 4081);
 ok(!defined $err, 'Vlan created');
 
 my ($text1, $err1) = $fwdctl->get_diff_text(node_id => 11);
-ok($text1 eq $expect1->{'Node 11'}, 'Got expected diff');
-if ($text1 ne $expect1->{'Node 11'}) {
-    print "Expected:\n$expect1->{'Node 11'}\nGot:\n$text1";
+ok($text1 eq $expect1->{'N11'}, 'Got expected diff');
+if ($text1 ne $expect1->{'N11'}) {
+    print "Expected:\n$expect1->{'N11'}\nGot:\n$text1";
 }
 
 my ($text2, $err2) = $fwdctl->get_diff_text(node_id => 31);
-ok($text2 eq $expect1->{'Node 31'}, 'Got expected diff');
+ok($text2 eq $expect1->{'N31'}, 'Got expected diff');
 
 my ($text3, $err3) = $fwdctl->get_diff_text(node_name => 'xr0');
 ok($text3 eq $expect1->{'xr0'}, 'Got expected diff');
