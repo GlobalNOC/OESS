@@ -93,7 +93,7 @@ sub start {
     # Setup polling subroutines
     $self->{connection_timer} = AnyEvent->timer(
         after    => 5,
-        interval => 30,
+        interval => 300,
         cb       => sub { $self->diff(@_); }
     );
 
