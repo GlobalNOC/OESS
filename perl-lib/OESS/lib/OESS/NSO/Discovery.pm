@@ -86,6 +86,8 @@ sub fetch_platform {
                 if (!defined $device) {
                     warn "Couldn't find node $result->{name}.";
                     $self->{logger}->error("Couldn't find node $result->{name}.");
+                    $self->{db}->rollback;
+                    next;
                 }
 
                 $device->model($result->{model});
