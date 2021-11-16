@@ -274,11 +274,6 @@ sub provision {
         return;
     }
 
-    if (@{$args->{endpoint}->{value}} > 2) {
-        $method->set_error("Support for Multi-Point Layer 2 Connections is currently disabled. Please contact your OESS administrator for more information.");
-        return;
-    }
-
     # Endpoint: { entity: 'entity name', bandwidth: 0, tag: 100, inner_tag: 100, peerings: [{ version: 4 }]  }
     foreach my $value (@{$args->{endpoint}->{value}}) {
         my $ep;
@@ -508,11 +503,6 @@ sub update {
 
     my $add_endpoints = [];
     my $del_endpoints = [];
-
-    if (@{$args->{endpoint}->{value}} > 2) {
-        $method->set_error("Support for Multi-Point Layer 2 Connections is currently disabled. Please contact your OESS administrator for more information.");
-        return;
-    }
 
     foreach my $value (@{$args->{endpoint}->{value}}) {
         my $ep;

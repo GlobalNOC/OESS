@@ -647,57 +647,55 @@ sub nso_diff {
     my $endpoints = $self->endpoints || [];
 
     foreach my $ep (@{$endpoints}) {
-        if (!defined $ep_index->{$ep->node}) {
-            $diff->{$ep->node} = "";
-            $ep_index->{$ep->node} = {};
+        if (!defined $ep_index->{$ep->short_node_name}) {
+            $diff->{$ep->short_node_name} = "";
+            $ep_index->{$ep->short_node_name} = {};
         }
-        $ep_index->{$ep->node}->{$ep->interface} = $ep;
+        $ep_index->{$ep->short_node_name}->{$ep->vrf_endpoint_id} = $ep;
     }
 
     foreach my $ep (@{$nsoc->{endpoint}}) {
-        if (!defined $ep_index->{$ep->{device}}->{$ep->{interface}}) {
+        if (!defined $ep_index->{$ep->{device}}->{$ep->{endpoint_id}}) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
-            $diff->{$ep->{device}} .= "- $ep->{interface}\n";
-            $diff->{$ep->{device}} .= "-   Bandwidth: $ep->{bandwidth}\n";
-            $diff->{$ep->{device}} .= "-   Tag:       $ep->{tag}\n";
-            $diff->{$ep->{device}} .= "-   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+            $diff->{$ep->{device}} .= "-  $ep->{interface}.$ep->{unit}\n";
+            $diff->{$ep->{device}} .= "-    Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->{device}} .= "-    Tag:       $ep->{tag}\n";
+            $diff->{$ep->{device}} .= "-    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
 
             foreach my $peer (@{$ep->{peer}}) {
-                $diff->{$ep->{device}} .= "-   Peer $peer->{peer_id}:\n";
-                $diff->{$ep->{device}} .= "-     Local ASN: $peer->{local_asn}\n";
-                $diff->{$ep->{device}} .= "-     Local IP:  $peer->{local_ip}\n";
-                $diff->{$ep->{device}} .= "-     Peer ASN:  $peer->{peer_asn}\n";
-                $diff->{$ep->{device}} .= "-     Peer IP:   $peer->{peer_ip}\n";
-                $diff->{$ep->{device}} .= "-     BFD:       $peer->{bfd}\n";
+                $diff->{$ep->{device}} .= "-    Peer: $peer->{peer_id}\n";
+                $diff->{$ep->{device}} .= "-      Local ASN: $peer->{local_asn}\n";
+                $diff->{$ep->{device}} .= "-      Local IP:  $peer->{local_ip}\n";
+                $diff->{$ep->{device}} .= "-      Peer ASN:  $peer->{peer_asn}\n";
+                $diff->{$ep->{device}} .= "-      Peer IP:   $peer->{peer_ip}\n";
+                $diff->{$ep->{device}} .= "-      BFD:       $peer->{bfd}\n";
             }
             next;
         }
-        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{interface}};
+        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{endpoint_id}};
 
         # Compare endpoints
-        my $ok = 1;
-        $ok = 0 if $ep->{bandwidth} != $ref_ep->bandwidth;
-        $ok = 0 if $ep->{tag} != $ref_ep->tag;
-        $ok = 0 if $ep->{inner_tag} != $ref_ep->inner_tag;
-        if (!$ok) {
-            $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
-            $diff->{$ep->{device}} .= "  $ep->{interface}\n";
-        }
+        my $ep_ok = 1;
+        my $ep_diff = "   $ep->{interface}.$ep->{unit}\n";
 
         if ($ep->{bandwidth} != $ref_ep->bandwidth) {
-            $diff->{$ep->{device}} .= "-   Bandwidth: $ep->{bandwidth}\n";
-            $diff->{$ep->{device}} .= "+   Bandwidth: $ref_ep->{bandwidth}\n";
+            $ep_ok = 0;
+            $ep_diff .= "-    Bandwidth: $ep->{bandwidth}\n";
+            $ep_diff .= "+    Bandwidth: $ref_ep->{bandwidth}\n";
         }
         if ($ep->{tag} != $ref_ep->tag) {
-            $diff->{$ep->{device}} .= "-   Tag:       $ep->{tag}\n";
-            $diff->{$ep->{device}} .= "+   Tag:       $ref_ep->{tag}\n";
+            $ep_ok = 0;
+            $ep_diff .= "-    Tag:       $ep->{tag}\n";
+            $ep_diff .= "+    Tag:       $ref_ep->{tag}\n";
         }
         if ($ep->{inner_tag} != $ref_ep->inner_tag) {
-            $diff->{$ep->{device}} .= "-   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
-            $diff->{$ep->{device}} .= "+   Inner Tag: $ref_ep->{inner_tag}\n" if defined $ref_ep->{inner_tag};
+            $ep_ok = 0;
+            $ep_diff .= "-    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+            $ep_diff .= "+    Inner Tag: $ref_ep->{inner_tag}\n" if defined $ref_ep->{inner_tag};
         }
 
         # Compare an Endpoint's Peers
+        my $peer_ok = 1;
         my $peer_diff = "";
         my $index = {};
         foreach my $peer (@{$ref_ep->peers}) {
@@ -706,13 +704,16 @@ sub nso_diff {
 
         foreach my $pr (@{$ep->{peer}}) {
             if (!defined $index->{$pr->{peer_id}}) {
+                $peer_ok = 0;
+
                 # Peer should be removed
-                $peer_diff .= "-   Peer $pr->{peer_id}\n";
-                $peer_diff .= "-     Local ASN: $pr->{local_asn}\n";
-                $peer_diff .= "-     Local IP:  $pr->{local_ip}\n";
-                $peer_diff .= "-     Peer ASN:  $pr->{peer_asn}\n";
-                $peer_diff .= "-     Peer IP:   $pr->{peer_ip}\n";
-                $peer_diff .= "-     BFD:       $pr->{bfd}\n";
+                $peer_diff .= "-    Peer: $pr->{peer_id}\n";
+                $peer_diff .= "-      Local ASN: $pr->{local_asn}\n";
+                $peer_diff .= "-      Local IP:  $pr->{local_ip}\n";
+                $peer_diff .= "-      Peer ASN:  $pr->{peer_asn}\n";
+                $peer_diff .= "-      Peer IP:   $pr->{peer_ip}\n";
+                $peer_diff .= "-      BFD:       $pr->{bfd}\n";
+                next;
             }
 
             my $ref = $index->{$pr->{peer_id}};
@@ -725,67 +726,76 @@ sub nso_diff {
             # thenetwork config.
             my @ref_peer_ip = split('/', $ref->peer_ip);
             $ok = 0 if $pr->{peer_ip} ne $ref_peer_ip[0];
+            $ok = 0 if $pr->{bfd} != $ref->bfd;
             if (!$ok) {
-                $peer_diff .= "    Peer $pr->{peer_id}:\n";
+                $peer_ok = 0;
+                $peer_diff .= "     Peer: $pr->{peer_id}\n";
             }
 
             if ($pr->{local_ip} ne $ref->local_ip) {
-                $peer_diff .= "-     Local IP:  $pr->{local_ip}\n";
-                $peer_diff .= "+     Local IP:  $ref->{local_ip}\n";
+                $peer_diff .= "-      Local IP:  $pr->{local_ip}\n";
+                $peer_diff .= "+      Local IP:  $ref->{local_ip}\n";
             }
             if ($pr->{peer_asn} != $ref->peer_asn) {
-                $peer_diff .= "-     Peer ASN:  $pr->{peer_asn}\n";
-                $peer_diff .= "+     Peer ASN:  $ref->{peer_asn}\n";
+                $peer_diff .= "-      Peer ASN:  $pr->{peer_asn}\n";
+                $peer_diff .= "+      Peer ASN:  $ref->{peer_asn}\n";
             }
             if ($pr->{peer_ip} ne $ref_peer_ip[0]) {
-                $peer_diff .= "-     Peer IP:   $pr->{peer_ip}\n";
-                $peer_diff .= "+     Peer IP:   $ref_peer_ip[0]\n";
+                $peer_diff .= "-      Peer IP:   $pr->{peer_ip}\n";
+                $peer_diff .= "+      Peer IP:   $ref_peer_ip[0]\n";
             }
             if ($pr->{bfd} != $ref->bfd) {
-                $peer_diff .= "-     BFD:      $pr->{bfd}\n";
-                $peer_diff .= "+     BFD:      $ref->{bfd}\n";
+                $peer_diff .= "-      BFD:       $pr->{bfd}\n";
+                $peer_diff .= "+      BFD:       $ref->{bfd}\n";
             }
 
             delete $index->{$pr->{peer_id}};
         }
 
         foreach my $id (keys %{$index}) {
+            $peer_ok = 0;
             # Peer should be added
             my $pr = $index->{$id};
             my @ref_peer_ip = split('/', $pr->peer_ip);
 
-            $peer_diff .= "+   Peer $pr->{vrf_ep_peer_id}:\n";
-            $peer_diff .= "+     Local ASN: $pr->{local_asn}\n";
-            $peer_diff .= "+     Local IP:  $pr->{local_ip}\n";
-            $peer_diff .= "+     Peer ASN:  $pr->{peer_asn}\n";
-            $peer_diff .= "+     Peer IP:   $ref_peer_ip[0]\n";
-            $peer_diff .= "+     BFD:       $pr->{bfd}\n";
+            $peer_diff .= "+    Peer: $pr->{vrf_ep_peer_id}\n";
+            $peer_diff .= "+      Local ASN: $self->{local_asn}\n";
+            $peer_diff .= "+      Local IP:  $pr->{local_ip}\n";
+            $peer_diff .= "+      Peer ASN:  $pr->{peer_asn}\n";
+            $peer_diff .= "+      Peer IP:   $ref_peer_ip[0]\n";
+            $peer_diff .= "+      BFD:       $pr->{bfd}\n";
         }
         # End Compare an Endpoint's Peers
-        $diff->{$ep->{device}} .= $peer_diff;
 
-        delete $ep_index->{$ep->{device}}->{$ep->{interface}};
+        if ($ep_ok && $peer_ok) {
+            $diff->{$ep->{device}} .= "";
+        } else {
+            $diff->{$ep->{device}} .= $ep_diff;
+            $diff->{$ep->{device}} .= $peer_diff;
+        }
+
+        delete $ep_index->{$ep->{device}}->{$ep->{endpoint_id}};
     }
 
     foreach my $device_key (keys %{$ep_index}) {
         foreach my $ep_key (keys %{$ep_index->{$device_key}}) {
             my $ep = $ep_index->{$device_key}->{$ep_key};
-            $diff->{$ep->node} = "" if !defined $diff->{$ep->node};
+            $diff->{$ep->short_node_name} = "" if !defined $diff->{$ep->short_node_name};
 
-            $diff->{$ep->node} .= "+ $ep->{interface}\n";
-            $diff->{$ep->node} .= "+   Bandwidth: $ep->{bandwidth}\n";
-            $diff->{$ep->node} .= "+   Tag:       $ep->{tag}\n";
-            $diff->{$ep->node} .= "+   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+            $diff->{$ep->short_node_name} .= "+  $ep->{interface}.$ep->{unit}\n";
+            $diff->{$ep->short_node_name} .= "+    Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->short_node_name} .= "+    Tag:       $ep->{tag}\n";
+            $diff->{$ep->short_node_name} .= "+    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
 
             foreach my $peer (@{$ep->peers}) {
                 my @ref_peer_ip = split('/', $peer->{peer_ip});
 
-                $diff->{$ep->node} .= "+   Peer $peer->{vrf_ep_peer_id}:\n";
-                $diff->{$ep->node} .= "+     Local ASN: $self->{local_asn}\n";
-                $diff->{$ep->node} .= "+     Local IP:  $peer->{local_ip}\n";
-                $diff->{$ep->node} .= "+     Peer ASN:  $peer->{peer_asn}\n";
-                $diff->{$ep->node} .= "+     Peer IP:   $ref_peer_ip[0]\n";
-                $diff->{$ep->node} .= "+     BFD:       $peer->{bfd}\n";
+                $diff->{$ep->short_node_name} .= "+    Peer: $peer->{vrf_ep_peer_id}\n";
+                $diff->{$ep->short_node_name} .= "+      Local ASN: $self->{local_asn}\n";
+                $diff->{$ep->short_node_name} .= "+      Local IP:  $peer->{local_ip}\n";
+                $diff->{$ep->short_node_name} .= "+      Peer ASN:  $peer->{peer_asn}\n";
+                $diff->{$ep->short_node_name} .= "+      Peer IP:   $ref_peer_ip[0]\n";
+                $diff->{$ep->short_node_name} .= "+      BFD:       $peer->{bfd}\n";
             }
         }
     }

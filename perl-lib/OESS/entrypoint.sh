@@ -3,8 +3,8 @@
 pwd
 ls -la
 
-cp perl-lib/OESS/t/conf/database.xml /etc/oess/database.xml
-cp perl-lib/OESS/t/conf/passwd.xml /etc/oess/.passwd.xml
+cp /OESS/t/conf/database.xml /etc/oess/database.xml
+cp /OESS/t/conf/passwd.xml /etc/oess/.passwd.xml
 
 rm -rf /usr/share/perl5/vendor_perl/OESS
 
@@ -14,8 +14,16 @@ sleep 3
 
 /usr/bin/mysqladmin -u root password test
 
+cd /OESS
 
-cd perl-lib/OESS
-perl Makefile.PL
-make
-cover -test
+if [ -z "$OESS_TEST_FILES" ]; then
+    echo "Running all tests:"
+    perl Makefile.PL
+    make
+    cover -test
+else
+    echo "Running select tests: $OESS_TEST_FILES"
+    perl Makefile.PL
+    make
+    make test TEST_FILES="$OESS_TEST_FILES"
+fi

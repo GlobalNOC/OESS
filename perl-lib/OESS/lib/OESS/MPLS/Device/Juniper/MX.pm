@@ -52,7 +52,7 @@ sub new{
     my $self = \%args;
     bless $self, $class;
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Device.Juniper.MX.' . $self->{'mgmt_addr'});
+    $self->{'logger'} = Log::Log4perl->get_logger("OESS.MPLS.Device.Juniper.MX.$self->{mgmt_addr}.$self->{tcp_port}");
     $self->{'logger'}->info("MPLS Juniper Switch Created: $self->{'mgmt_addr'}");
 
     #TODO: make this automatically figure out the right REV
@@ -1608,6 +1608,7 @@ sub diff {
     if ($force_diff) {
         $self->{'logger'}->info('Force diff was initiated. Starting installation.');
         $self->{'pending_diff'} = 0;
+        $self->{'logger'}->info('configuration: ' . Dumper($configuration));
         return $self->_edit_config(config => $configuration);
     }
 

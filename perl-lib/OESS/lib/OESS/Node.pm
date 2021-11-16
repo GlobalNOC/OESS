@@ -15,24 +15,25 @@ sub new{
     my $class = ref($that) || $that;
 
     my %args = (
-        db      => undef,
-        logger  => Log::Log4perl->get_logger("OESS.Node"),
-        name    => undef,
-        node_id => undef,
+        db         => undef,
+        logger     => Log::Log4perl->get_logger("OESS.Node"),
+        name       => undef,
+        node_id    => undef,
+        short_name => undef,
         @_
     );
     my $self = \%args;
 
     bless $self, $class;
 
-    if (!defined $self->{db}) {
+
+    if (defined $self->{db} && (defined $self->{name} || defined $self->{short_name} || defined $self->{node_id})) {
+        $self->_fetch_from_db();
+        return $self;
+    } else {
         $self->{'logger'}->error("No Database Object specified");
         return;
     }
-
-    $self->_fetch_from_db();
-
-    return $self;
 }
 
 =head2 from_hash
@@ -97,7 +98,8 @@ sub _fetch_from_db{
     my $hash = OESS::DB::Node::fetch(
         db => $db,
         name => $self->{name},
-        node_id => $self->{node_id}
+        node_id => $self->{node_id},
+        short_name => $self->{short_name}
     );
     $self->from_hash($hash);
 }

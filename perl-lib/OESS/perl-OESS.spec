@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.13
+Version: 2.0.14
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -53,6 +53,8 @@ Requires: perl(Getopt::Long)
 Requires: perl(Graph::Directed)
 Requires: perl(Graph::Undirected)
 Requires: perl(GRNOC::Config)
+Requires: perl(GRNOC::CLI)
+Requires: perl(Text::CSV)
 Requires: perl(GRNOC::Log)                  >= 1.0.4
 Requires: perl(GRNOC::RabbitMQ)             >= 1.1.1
 Requires: perl(GRNOC::RabbitMQ::Client)

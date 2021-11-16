@@ -126,9 +126,15 @@ sub get_interface{
     my $db = $params{'db'};
     my $interface_name= $params{'interface'};
     my $node_name = $params{'node'};
-    
-    my $interface = $db->execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where name=?)",[$interface_name, $node_name]);
+    my $node_short_name = $params{'short_name'};
+    my $interface;
 
+    if (defined($node_short_name)) {
+        $interface = $db->execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where short_name=?)",[$interface_name, $node_short_name]);
+    } else {
+        $interface = $db->execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where name=?)",[$interface_name, $node_name]);
+    }
+    
     if(!defined($interface) || !defined($interface->[0])){
         return;
     }

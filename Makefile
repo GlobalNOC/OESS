@@ -1,4 +1,4 @@
-OESS_VERSION=2.0.13
+OESS_VERSION=2.0.14
 OESS_NETWORK=oess
 
 container:
@@ -9,8 +9,14 @@ container:
 #
 # Allow container to attach to host port via host.docker.internal hostname:
 # --add-host=host.docker.internal:host-gateway
+#
+# To support packet captures:
+# --cap-add=NET_RAW
+# --cap-add=NET_ADMIN
+#
 dev:
 	docker run -it \
+	--rm \
 	--env-file .env \
 	--publish 8000:80 \
 	--publish 5672:5672 \
@@ -22,3 +28,7 @@ dev:
 
 documentation:
 	perl docs/generate-webservice-docs.pl
+
+test:
+	docker build . -f Dockerfile -t oess-test
+	docker run --rm -it -e OESS_TEST_FILES="$(TEST_FILES)" --volume ${PWD}/perl-lib/OESS:/OESS oess-test

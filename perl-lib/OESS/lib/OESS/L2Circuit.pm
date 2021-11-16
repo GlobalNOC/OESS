@@ -1224,6 +1224,7 @@ NSO L2Connection:
                 'endpoint_id' => 1,
                 'interface' => 'GigabitEthernet0/0',
                 'tag' => 1,
+                'unit' => 1,
                 'device' => 'xr0'
             },
             {
@@ -1231,6 +1232,7 @@ NSO L2Connection:
                 'endpoint_id' => 2,
                 'interface' => 'GigabitEthernet0/1',
                 'tag' => 1,
+                'unit' => 1,
                 'device' => 'xr0'
             }
         ]
@@ -1249,20 +1251,20 @@ sub nso_diff {
     my $endpoints = $self->endpoints || [];
 
     foreach my $ep (@{$endpoints}) {
-        if (!defined $ep_index->{$ep->node}) {
-            $diff->{$ep->node} = "";
-            $ep_index->{$ep->node} = {};
+        if (!defined $ep_index->{$ep->short_node_name}) {
+            $diff->{$ep->short_node_name} = "";
+            $ep_index->{$ep->short_node_name} = {};
         }
-        $ep_index->{$ep->node}->{$ep->interface} = $ep;
+        $ep_index->{$ep->short_node_name}->{$ep->interface} = $ep;
     }
 
     foreach my $ep (@{$nsoc->{endpoint}}) {
         if (!defined $ep_index->{$ep->{device}}->{$ep->{interface}}) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
-            $diff->{$ep->{device}} .= "- $ep->{interface}\n";
-            $diff->{$ep->{device}} .= "-   Bandwidth: $ep->{bandwidth}\n";
-            $diff->{$ep->{device}} .= "-   Tag:       $ep->{tag}\n";
-            $diff->{$ep->{device}} .= "-   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+            $diff->{$ep->{device}} .= "-  $ep->{interface}.$ep->{unit}\n";
+            $diff->{$ep->{device}} .= "-    Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->{device}} .= "-    Tag:       $ep->{tag}\n";
+            $diff->{$ep->{device}} .= "-    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
             next;
         }
         my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{interface}};
@@ -1274,20 +1276,20 @@ sub nso_diff {
         $ok = 0 if $ep->{inner_tag} != $ref_ep->inner_tag;
         if (!$ok) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
-            $diff->{$ep->{device}} .= "  $ep->{interface}\n";
+            $diff->{$ep->{device}} .= "  $ep->{interface}.$ep->{unit}\n";
         }
 
         if ($ep->{bandwidth} != $ref_ep->bandwidth) {
-            $diff->{$ep->{device}} .= "-   Bandwidth: $ep->{bandwidth}\n";
-            $diff->{$ep->{device}} .= "+   Bandwidth: $ref_ep->{bandwidth}\n";
+            $diff->{$ep->{device}} .= "-    Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->{device}} .= "+    Bandwidth: $ref_ep->{bandwidth}\n";
         }
         if ($ep->{tag} != $ref_ep->tag) {
-            $diff->{$ep->{device}} .= "-   Tag:       $ep->{tag}\n";
-            $diff->{$ep->{device}} .= "+   Tag:       $ref_ep->{tag}\n";
+            $diff->{$ep->{device}} .= "-    Tag:       $ep->{tag}\n";
+            $diff->{$ep->{device}} .= "+    Tag:       $ref_ep->{tag}\n";
         }
         if ($ep->{inner_tag} != $ref_ep->inner_tag) {
-            $diff->{$ep->{device}} .= "-   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
-            $diff->{$ep->{device}} .= "+   Inner Tag: $ref_ep->{inner_tag}\n" if defined $ref_ep->{inner_tag};
+            $diff->{$ep->{device}} .= "-    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+            $diff->{$ep->{device}} .= "+    Inner Tag: $ref_ep->{inner_tag}\n" if defined $ref_ep->{inner_tag};
         }
 
         delete $ep_index->{$ep->{device}}->{$ep->{interface}};
@@ -1296,12 +1298,12 @@ sub nso_diff {
     foreach my $device_key (keys %{$ep_index}) {
         foreach my $ep_key (keys %{$ep_index->{$device_key}}) {
             my $ep = $ep_index->{$device_key}->{$ep_key};
-            $diff->{$ep->node} = "" if !defined $diff->{$ep->node};
+            $diff->{$ep->short_node_name} = "" if !defined $diff->{$ep->short_node_name};
 
-            $diff->{$ep->node} .= "+ $ep->{interface}\n";
-            $diff->{$ep->node} .= "+   Bandwidth: $ep->{bandwidth}\n";
-            $diff->{$ep->node} .= "+   Tag:       $ep->{tag}\n";
-            $diff->{$ep->node} .= "+   Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
+            $diff->{$ep->short_node_name} .= "+  $ep->{interface}.$ep->{unit}\n";
+            $diff->{$ep->short_node_name} .= "+    Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->short_node_name} .= "+    Tag:       $ep->{tag}\n";
+            $diff->{$ep->short_node_name} .= "+    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
         }
     }
 

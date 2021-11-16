@@ -40,6 +40,9 @@ perl-lib/OESS/MYMETA.json
 perl-lib/OESS/MYMETA.yml
 perl-lib/OESS/lib/OESS/Collector
 perl-lib/OESS/lib/OESS/Collector.pm
+perl-lib/OESS/share/scripts/oess-migrate/connection_id_list.csv
+perl-lib/OESS/share/scripts/oess-migrate/shim_interface_mapping.csv
+perl-lib/OESS/share/scripts/oess-migrate/config.json
 etc/packer-config/output-virtualbox-iso/
 etc/packer-config/packer_cache/
 perl-lib/OESS/blib/
@@ -52,3 +55,4 @@ perl-lib/OESS/lib/OESS/t/conf/database.xml
 frontend/.htpasswd
 *.DS_Store
 .env
+.vscode

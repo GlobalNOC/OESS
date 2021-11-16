@@ -34,7 +34,12 @@ class GlobalState extends Component {
       
       let iframe3 = document.getElementById(`endpoints-statistics-iframe-route`);
       iframe3.dataset.vrf = this.connection.vrf_id;
-      iframe3.src = `${iframe3.dataset.url}&var-table=OESS-L3VPN-${this.connection.vrf_id}.inet.0&from=now-1h&to=now`;
+
+      if (this.connection.endpoints.length == 0 || this.connection.endpoints[0].controller === "nso") {
+        iframe3.src = `${iframe3.dataset.url}&var-table=OESS-VRF-${this.connection.vrf_id}&from=now-1h&to=now`;
+      } else {
+        iframe3.src = `${iframe3.dataset.url}&var-table=OESS-L3VPN-${this.connection.vrf_id}.inet.0&from=now-1h&to=now`;
+      }
 
       this.connection.endpoints.forEach(function(endpoint, eIndex) {
 
@@ -54,7 +59,7 @@ class GlobalState extends Component {
 
         let peerSelections = document.getElementById('peering-selection');
         peerSelections.appendChild(select);
-
+        
         let statGraph = `
 <div id="endpoints-statistics-${eIndex}" class="panel panel-default endpoints-statistics" style="display: none;">
   <div class="panel-heading" style="height: 40px;">
@@ -65,7 +70,7 @@ class GlobalState extends Component {
 
   <div style="padding-left: 15px; padding-right: 15px">
     <iframe id="endpoints-statistics-iframe-${eIndex}" data-url="[% g_port %]" data-node="${endpoint.node}" data-interface="${endpoint.interface}" data-unit="${endpoint.unit}" width="100%" height="300" frameborder="0"></iframe>
-    <iframe id="endpoints-statistics-iframe-peer-${eIndex}" data-url="[% g_peer %]" data-node="${endpoint.node}" data-vrf="${this.connection.vrf_id}" width="100%" height="300" frameborder="0"></iframe>
+    <iframe id="endpoints-statistics-iframe-peer-${eIndex}" data-url="[% g_peer %]" data-controller="${endpoint.controller}" data-node="${endpoint.node}" data-vrf="${this.connection.vrf_id}" width="100%" height="300" frameborder="0"></iframe>
   </div>
 </div>`;
 
@@ -126,7 +131,6 @@ class GlobalState extends Component {
 
   // Named saveCircuit to work with Object built from Layer2 Conns
   async saveCircuit() {
-    console.log('Connection:', this.connection);
 
     let addNetworkLoadingModal = $('#add-connection-loading');
     addNetworkLoadingModal.modal('show');
@@ -266,8 +270,9 @@ function updateStatisticsIFrame() {
     iframe.src = `${iframe.dataset.url}&var-node=${iframe.dataset.node}&var-interface=${iframe.dataset.interface}.${iframe.dataset.unit}` + range.value;
 
     let iframe2 = document.getElementById(`endpoints-statistics-iframe-peer-${container.value}`);
-    iframe2.src = `${iframe2.dataset.url}&var-node=${iframe2.dataset.node}&var-vrf=OESS-L3VPN-${iframe2.dataset.vrf}&var-peer=${peer.value}` + range.value;
-
-    let iframe3 = document.getElementById(`endpoints-statistics-iframe-route`);
-    iframe3.src = `${iframe3.dataset.url}&var-table=OESS-L3VPN-${iframe3.dataset.vrf}.inet.0` + range.value;
+    if (iframe2.dataset.controller === "nso") {
+      iframe2.src = `${iframe2.dataset.url}&var-node=${iframe2.dataset.node}&var-vrf=OESS-VRF-${iframe2.dataset.vrf}&var-peer=${peer.value.split('/')[0]}` + range.value;
+    } else {
+      iframe2.src = `${iframe2.dataset.url}&var-node=${iframe2.dataset.node}&var-vrf=OESS-L3VPN-${iframe2.dataset.vrf}&var-peer=${peer.value}` + range.value;
+    }
 }

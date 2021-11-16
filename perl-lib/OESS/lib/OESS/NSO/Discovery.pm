@@ -22,7 +22,7 @@ use OESS::RabbitMQ::Dispatcher;
 use constant MAX_TSDS_MESSAGES => 30;
 use constant TSDS_RIB_TYPE => 'rib_table';
 use constant TSDS_PEER_TYPE => 'bgp_peer';
-use constant VRF_STATS_INTERVAL => 60;
+use constant VRF_STATS_INTERVAL => 240;
 
 =head1 OESS::NSO::Discovery
 
@@ -62,15 +62,6 @@ sub new {
     return $self;
 }
 
-=head2 connection_handler
-
-=cut
-sub connection_handler {
-    my $self = shift;
-
-    return 1;
-}
-
 =head2 fetch_platform
 
 =cut
@@ -95,6 +86,8 @@ sub fetch_platform {
                 if (!defined $device) {
                     warn "Couldn't find node $result->{name}.";
                     $self->{logger}->error("Couldn't find node $result->{name}.");
+                    $self->{db}->rollback;
+                    next;
                 }
 
                 $device->model($result->{model});
@@ -111,7 +104,7 @@ sub fetch_platform {
 
         $cv->begin;
         $self->{nso}->get_platform(
-            $node->{name},
+            $node->{short_name},
             sub {
                 my ($result, $err) = @_;
                 if (defined $err) {
@@ -146,8 +139,18 @@ sub fetch_interfaces {
         sub {
             my $cv = shift;
 
-            my $types  = ["Bundle-Ether", "GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
-            my $ports  = [];
+            my $types = ["Bundle-Ether", "GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
+            my $ports = [];
+            # TODO Get negotiated interface capacity/speed via NSO; Required for correct Bundle-Ether capacity/speed
+            # if not set via device configuration.
+            my $default_speeds = {
+                "Bundle-Ether"    =>  10000,
+                "GigabitEthernet" =>   1000,
+                "TenGigE"         =>  10000,
+                "FortyGigE"       =>  40000,
+                "HundredGigE"     => 100000,
+                "FourHundredGigE" => 400000,
+            };
 
             foreach my $key (keys %{$self->{nodes}}) {
                 my $node   = $self->{nodes}->{$key};
@@ -157,10 +160,11 @@ sub fetch_interfaces {
                 foreach my $type (@$types) {
                     next if !defined $result->{$type};
 
+                    my $default_speed = $default_speeds->{$type};
                     foreach my $port (@{$result->{$type}}) {
                         my $port_info = {
                             admin_state => (exists $port->{shutdown}) ? 'down' : 'up',
-                            bandwidth   => (exists $port->{speed}) ? $port->{speed} : 1000,
+                            bandwidth   => (exists $port->{speed}) ? $port->{speed} : $default_speed,
                             description => (exists $port->{description}) ? $port->{description} : '',
                             mtu         => (exists $port->{mtu}) ? $port->{mtu} : 0,
                             name        => $type . $port->{id},
@@ -177,6 +181,7 @@ sub fetch_interfaces {
                 my $port = new OESS::Interface(db => $self->{db}, node => $data->{node}, name => $data->{name});
                 if (defined $port) {
                     $port->admin_state($data->{admin_state});
+                    $port->operational_state($data->{admin_state}); # Using admin_state as best guess for now
                     $port->bandwidth($data->{bandwidth});
                     $port->description($data->{description});
                     $port->mtu($data->{mtu});
@@ -202,6 +207,7 @@ sub fetch_interfaces {
                 }
             }
             $self->{db}->commit;
+            $self->{logger}->info("Interfaces fetched from NSO.");
 
             $cv->send;
         }
@@ -211,7 +217,7 @@ sub fetch_interfaces {
 
         $cv->begin;
         $self->{nso}->get_interfaces(
-            $node->{name},
+            $node->{short_name},
             sub {
                 my ($result, $err) = @_;
                 if (defined $err) {
@@ -225,8 +231,6 @@ sub fetch_interfaces {
         );
     }
     $cv->end;
-
-    $self->{logger}->info("Interfaces fetched from NSO.");
 }
 
 =head2 link_handler
@@ -235,104 +239,70 @@ sub fetch_interfaces {
 sub link_handler {
     my $self = shift;
 
-    # lookup links name and put into index
-    my ($links, $links_err) = OESS::DB::Link::fetch_all(db => $self->{db}, controller => 'nso');
-
-    my $links_index = {};
-    foreach my $link (@$links) {
-        $links_index->{$link->{name}} = $link;
-    }
 
     # get links from nso
-    my ($backbones, $err) = $self->{nso}->get_backbones();
-    if (defined $err) {
-        $self->{logger}->error($err);
-        return;
-    }
-
-    # lookup nso links in index
-    foreach my $bb (@$backbones) {
-
-        my $n = (defined $bb->{summary}->{endpoint}) ? scalar @{$bb->{summary}->{endpoint}} : 0;
-        if ($n != 2) {
-            $self->{logger}->error("Couldn't process link $bb->{name}. Got $n endpoints but only expected 2.");
-            next;
+    $self->{nso}->get_backbones(sub {
+        my ($backbones, $err) = @_;
+        if (defined $err) {
+            $self->{logger}->error($err);
+            return;
         }
 
-        # Lookup interface ids of backbone edges
-        my $eps = [];
-        foreach my $ep (@{$bb->{summary}->{endpoint}}) {
-            my $id = OESS::DB::Interface::get_interface(
-                db        => $self->{db},
-                interface => $ep->{'if-full'},
-                node      => $ep->{'device'},
-            );
-            if (!defined $id) {
-                $self->{logger}->warn("Couldn't find interface for $ep->{'device'} - $ep->{'if-full'} in database.");
+        # lookup links name and put into index
+        my ($links, $links_err) = OESS::DB::Link::fetch_all(db => $self->{db}, controller => 'nso');
+
+        my $links_index = {};
+        foreach my $link (@$links) {
+            $links_index->{$link->{name}} = $link;
+        }
+
+        # lookup nso links in index
+        foreach my $bb (@$backbones) {
+            my $n = (defined $bb->{summary}->{endpoint}) ? scalar @{$bb->{summary}->{endpoint}} : 0;
+            if ($n != 2) {
+                $self->{logger}->error("Couldn't process link $bb->{name}. Got $n endpoints but only expected 2.");
                 next;
             }
-            push @$eps, { id => $id, ip => $ep->{'ipv4-address'} };
-        }
-        if (@$eps != 2) {
-            $self->{logger}->error("Couldn't sync link $bb->{name} due to interface lookup errors.");
-            next;
-        }
 
-        # We assume admin-state represents both status and
-        # link-state. This is likely a bad assumption.
-        if ($bb->{'admin-state'} eq 'in-service') {
-            $bb->{link_state} = 'active';
-            $bb->{status} = 'up';
-        } else {
-            $bb->{link_state} = 'available';
-            $bb->{status} = 'down';
-        }
-
-        #  if !exists create
-        if (!defined $links_index->{$bb->{name}}) {
-            $self->{logger}->info("Creating link $bb->{name}.");
-
-            my ($link_id, $link_err) = OESS::DB::Link::create(
-                db    => $self->{db},
-                model => {
-                    name           => $bb->{name},
-                    status         => $bb->{status},
-                    metric         => 1,
-                    interface_a_id => $eps->[0]->{id},
-                    ip_a           => $eps->[0]->{ip},
-                    interface_z_id => $eps->[1]->{id},
-                    ip_z           => $eps->[1]->{ip},
+            # Lookup interface ids of backbone edges
+            my $eps = [];
+            foreach my $ep (@{$bb->{summary}->{endpoint}}) {
+                my $id = OESS::DB::Interface::get_interface(
+                    db        => $self->{db},
+                    interface => $ep->{'if-full'},
+                    short_name => $ep->{'device'},
+                );
+                if (!defined $id) {
+                    $self->{logger}->warn("Couldn't find interface for $ep->{'device'} - $ep->{'if-full'} in database.");
+                    next;
                 }
-            );
-            $self->{logger}->error($link_err) if defined $link_err;
-        }
-        #  el update if interfaces changed
-        else {
-            my $link = $links_index->{$bb->{name}};
-
-            my $interfaces_changed = 1;
-            if ($eps->[0]->{id} == $link->{interface_a_id} && $eps->[1]->{id} == $link->{interface_z_id}) {
-                $interfaces_changed = 0;
+                push @$eps, { id => $id, ip => $ep->{'ipv4-address'} };
             }
-            if ($eps->[0]->{id} == $link->{interface_z_id} && $eps->[1]->{id} == $link->{interface_a_id}) {
-                $interfaces_changed = 0;
+            if (@$eps != 2) {
+                $self->{logger}->error("Couldn't sync link $bb->{name} due to interface lookup errors.");
+                next;
             }
-            my $state_changed = ($bb->{link_state} ne $link->{link_state}) ? 1 : 0;
-            my $status_changed = ($bb->{status} ne $link->{status}) ? 1 : 0;
 
-            if ($interfaces_changed || $state_changed || $status_changed) {
-                my $msg = "Updating link $bb->{name}:";
-                $msg .= " interface changed." if $interfaces_changed;
-                $msg .= " state changed." if $state_changed;
-                $msg .= " status changed." if $status_changed;
-                $self->{logger}->info($msg);
+            # We assume admin-state represents both status and
+            # link-state. This is likely a bad assumption.
+            if ($bb->{'admin-state'} eq 'in-service') {
+                $bb->{link_state} = 'active';
+                $bb->{status} = 'up';
+            } else {
+                $bb->{link_state} = 'available';
+                $bb->{status} = 'down';
+            }
 
-                my ($link_id, $link_err) = OESS::DB::Link::update(
-                    db   => $self->{db},
-                    link => {
-                        link_id => $link->{link_id},
-                        link_state => $bb->{link_state},
-                        status => $bb->{status},
+            #  if !exists create
+            if (!defined $links_index->{$bb->{name}}) {
+                $self->{logger}->info("Creating link $bb->{name}.");
+
+                my ($link_id, $link_err) = OESS::DB::Link::create(
+                    db    => $self->{db},
+                    model => {
+                        name           => $bb->{name},
+                        status         => $bb->{status},
+                        metric         => 1,
                         interface_a_id => $eps->[0]->{id},
                         ip_a           => $eps->[0]->{ip},
                         interface_z_id => $eps->[1]->{id},
@@ -341,32 +311,70 @@ sub link_handler {
                 );
                 $self->{logger}->error($link_err) if defined $link_err;
             }
+            #  el update if interfaces changed
+            else {
+                my $link = $links_index->{$bb->{name}};
 
-            #  remove link from index
-            delete $links_index->{$bb->{name}};
+                my $interfaces_changed = 1;
+                if ($eps->[0]->{id} == $link->{interface_a_id} && $eps->[1]->{id} == $link->{interface_z_id}) {
+                    $interfaces_changed = 0;
+                }
+                if ($eps->[0]->{id} == $link->{interface_z_id} && $eps->[1]->{id} == $link->{interface_a_id}) {
+                    $interfaces_changed = 0;
+                }
+                my $state_changed = ($bb->{link_state} ne $link->{link_state}) ? 1 : 0;
+                my $status_changed = ($bb->{status} ne $link->{status}) ? 1 : 0;
+
+                if ($interfaces_changed || $state_changed || $status_changed) {
+                    my $msg = "Updating link $bb->{name}:";
+                    $msg .= " interface changed." if $interfaces_changed;
+                    $msg .= " state changed." if $state_changed;
+                    $msg .= " status changed." if $status_changed;
+                    $self->{logger}->info($msg);
+
+                    my ($link_id, $link_err) = OESS::DB::Link::update(
+                        db   => $self->{db},
+                        link => {
+                            link_id => $link->{link_id},
+                            link_state => $bb->{link_state},
+                            status => $bb->{status},
+                            interface_a_id => $eps->[0]->{id},
+                            ip_a           => $eps->[0]->{ip},
+                            interface_z_id => $eps->[1]->{id},
+                            ip_z           => $eps->[1]->{ip},
+                        }
+                    );
+                    $self->{logger}->error($link_err) if defined $link_err;
+                }
+
+                #  remove link from index
+                delete $links_index->{$bb->{name}};
+            }
+
         }
 
-    }
+        # decom all links still in index
+        foreach my $name (keys %$links_index) {
+            my $link = $links_index->{$name};
+            $self->{logger}->info("Decommissioning link $link->{name}.");
 
-    # decom all links still in index
-    foreach my $name (keys %$links_index) {
-        my $link = $links_index->{$name};
-        $self->{logger}->info("Decommissioning link $link->{name}.");
+            my ($link_id, $link_err) = OESS::DB::Link::update(
+                db   => $self->{db},
+                link => {
+                    link_id        => $link->{link_id},
+                    link_state     => 'decom',
+                    status         => 'down',
+                    interface_a_id => $link->{interface_a_id},
+                    ip_a           => $link->{ip_a},
+                    interface_z_id => $link->{interface_z_id},
+                    ip_z           => $link->{ip_z},
+                }
+            );
+            $self->{logger}->error($link_err) if defined $link_err;
+        }
 
-        my ($link_id, $link_err) = OESS::DB::Link::update(
-            db   => $self->{db},
-            link => {
-                link_id        => $link->{link_id},
-                link_state     => 'decom',
-                status         => 'down',
-                interface_a_id => $link->{interface_a_id},
-                ip_a           => $link->{ip_a},
-                interface_z_id => $link->{interface_z_id},
-                ip_z           => $link->{ip_z},
-            }
-        );
-        $self->{logger}->error($link_err) if defined $link_err;
-    }
+        return 1;
+    });
 
     return 1;
 }
@@ -422,11 +430,6 @@ sub start {
     }
 
     # Setup polling subroutines
-    $self->{connection_timer} = AnyEvent->timer(
-        after    => 20,
-        interval => 60,
-        cb       => sub { $self->connection_handler(@_); }
-    );
     $self->{device_timer} = AnyEvent->timer(
         after    => 10,
         interval => 60,
@@ -502,15 +505,16 @@ sub vrf_stats_handler {
 
                 $self->handle_vrf_stats(node => $node->{name}, stats => $results->{$node->{name}});
             }
+            $self->{logger}->info("Statistics submitted to TSDS.");
             $cv->send;
         }
     );
     foreach my $key (keys %{$self->{nodes}}) {
         my $node = $self->{nodes}->{$key};
-
+        
         $cv->begin;
         $self->{nso}->get_vrf_statistics(
-            $node->{name},
+            $node->{short_name},
             sub {
                 my ($result, $err) = @_;
                 if (defined $err) {
@@ -524,8 +528,6 @@ sub vrf_stats_handler {
         );
     }
     $cv->end;
-
-    $self->{logger}->info("Statistics submitted to TSDS.");
 }
 
 =head2 handle_vrf_stats
@@ -545,7 +547,7 @@ sub handle_vrf_stats {
 
     while (@$stats > 0) {
         my $stat = shift @$stats;
-
+        
         my $prev_stat = $self->{previous_peer}->{$stat->{node}}->{$stat->{vrf_name}}->{$stat->{remote_ip}};
         if (!defined $prev_stat) {
             $self->{logger}->warn("Previous stats unavailable for $stat->{node}. Collection will resume with the next datapoints.");
@@ -575,7 +577,7 @@ sub handle_vrf_stats {
         };
         my $rib_metadata = {
             routing_table => $stat->{vrf_name},
-            node          => $stat->{node},
+            node          => $node,
         };
         push @$all_val, {
             type     => TSDS_RIB_TYPE,
@@ -596,7 +598,7 @@ sub handle_vrf_stats {
             peer_address => $stat->{remote_ip},
             vrf          => $stat->{vrf_name},
             as           => $stat->{remote_as},
-            node         => $stat->{node},
+            node         => $node,
         };
         push @$all_val, {
             type     => TSDS_PEER_TYPE,
@@ -611,7 +613,7 @@ sub handle_vrf_stats {
         $self->{previous_peer}->{$stat->{node}}->{$stat->{vrf_name}}->{$stat->{remote_ip}} = $stat;
 
         eval {
-            $self->{logger}->debug("Updating VRF $stat->{vrf_name} neighbor $stat->{remote_ip} with state $peer_data->{state}.");
+            $self->{logger}->debug("Updating VRF $stat->{vrf_name} neighbor $stat->{remote_ip} on $stat->{node} with state $peer_data->{state}.");
             my $q = "
                 update vrf_ep_peer set operational_state=? where peer_ip like ? and vrf_ep_id in (
                   select vrf_ep_id from vrf_ep where vrf_id=?
@@ -623,7 +625,7 @@ sub handle_vrf_stats {
             );
         };
         if ($@) {
-            $self->{logger}->warn("Couldn't update VRF $stat->{vrf_name} neighbor with state $peer_data->{state}: $@");
+            $self->{logger}->warn("Couldn't update VRF $stat->{vrf_name} neighbor $stat->{remote_ip} on $stat->{node} with state $peer_data->{state}: $@");
         }
 
         if (@$all_val >= MAX_TSDS_MESSAGES || @$stats == 0) {
