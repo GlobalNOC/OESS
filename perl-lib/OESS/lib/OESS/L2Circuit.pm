@@ -1255,11 +1255,11 @@ sub nso_diff {
             $diff->{$ep->short_node_name} = "";
             $ep_index->{$ep->short_node_name} = {};
         }
-        $ep_index->{$ep->short_node_name}->{$ep->interface} = $ep;
+        $ep_index->{$ep->short_node_name}->{$ep->circuit_ep_id} = $ep;
     }
 
     foreach my $ep (@{$nsoc->{endpoint}}) {
-        if (!defined $ep_index->{$ep->{device}}->{$ep->{interface}}) {
+        if (!defined $ep_index->{$ep->{device}}->{$ep->{endpoint_id}}) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
             $diff->{$ep->{device}} .= "-  $ep->{interface}.$ep->{unit}\n";
             $diff->{$ep->{device}} .= "-    Bandwidth: $ep->{bandwidth}\n";
@@ -1267,7 +1267,7 @@ sub nso_diff {
             $diff->{$ep->{device}} .= "-    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
             next;
         }
-        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{interface}};
+        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{endpoint_id}};
 
         # Compare endpoints
         my $ok = 1;
@@ -1292,7 +1292,7 @@ sub nso_diff {
             $diff->{$ep->{device}} .= "+    Inner Tag: $ref_ep->{inner_tag}\n" if defined $ref_ep->{inner_tag};
         }
 
-        delete $ep_index->{$ep->{device}}->{$ep->{interface}};
+        delete $ep_index->{$ep->{device}}->{$ep->{endpoint_id}};
     }
 
     foreach my $device_key (keys %{$ep_index}) {
