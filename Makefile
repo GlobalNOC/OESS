@@ -24,6 +24,7 @@ dev:
 	--mount type=bind,src=${PWD}/perl-lib/OESS/lib/OESS,dst=/usr/share/perl5/vendor_perl/OESS \
 	--mount type=bind,src=${PWD}/frontend,dst=/usr/share/oess-frontend \
 	--mount type=bind,src=${PWD}/perl-lib/OESS/share,dst=/usr/share/doc/perl-OESS-${OESS_VERSION}/share \
+	--mount type=bind,src=${PWD}/app,dst=/usr/bin/oess \
 	oess:${OESS_VERSION} /bin/bash
 
 documentation:
