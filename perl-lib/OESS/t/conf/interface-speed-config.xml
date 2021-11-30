@@ -56,6 +56,4 @@
     <speed rate="5000" />
     <speed rate="10000" admin_only="1" />
   </interface-selector>
-
-
 </config>
