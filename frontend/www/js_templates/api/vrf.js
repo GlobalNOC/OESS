@@ -72,12 +72,12 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     endpoint.peers.forEach(function(p) {
       e.peers.push({
         vrf_ep_peer_id: p.vrf_ep_peer_id,
-        peer_asn: p.peer_asn,
-        md5_key:  p.md5_key,
-        local_ip: p.local_ip,
-        peer_ip:  p.peer_ip,
-        version:  p.ip_version,
-        bfd:      (p.bfd) ? 1 : 0
+        peer_asn:       p.peer_asn,
+        md5_key:        p.md5_key,
+        local_ip:       p.local_ip,
+        peer_ip:        p.peer_ip,
+        ip_version:     p.ip_version,
+        bfd:            (p.bfd) ? 1 : 0
       });
     });
 
