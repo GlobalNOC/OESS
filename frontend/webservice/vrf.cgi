@@ -540,7 +540,7 @@ sub provision_vrf{
 
                 $peering->{peer_asn} = (!defined $peering->{peer_asn} || $peering->{peer_asn} eq '') ? 64512 : $peering->{peering_asn};
                 $peering->{md5_key} = (!defined $peering->{md5_key} || $peering->{md5_key} eq '') ? md5_hex(rand) : $peering->{md5_key};
-                if ($peering->{version} == 'ipv4') {
+                if ($peering->{ip_version} == 'ipv4') {
                     $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
                     $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
                 } else {
@@ -633,7 +633,7 @@ sub provision_vrf{
 
                     $peering->{peer_asn} = (!defined $peering->{peer_asn} || $peering->{peer_asn} eq '') ? 64512 : $peering->{peering_asn};
                     $peering->{md5_key} = (!defined $peering->{md5_key} || $peering->{md5_key} eq '') ? md5_hex(rand) : $peering->{md5_key};
-                    if ($peering->{version} == 'ipv4') {
+                    if ($peering->{ip_version} == 'ipv4') {
                         $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
                         $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
                     } else {
