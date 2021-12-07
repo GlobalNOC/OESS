@@ -56,10 +56,10 @@ sub from_hash {
     $self->{pending_diff} = $hash->{pending_diff} || 0;
     $self->{admin_state} = $hash->{admin_state} || 'active';
     $self->{short_name} = $hash->{short_name};
-    $self->{vendor} = $hash->{vendor};
+    $self->{make} = $hash->{make};
     $self->{model} = $hash->{model};
     $self->{sw_version} = $hash->{sw_version};
-    $self->{mgmt_addr} = $hash->{mgmt_addr};
+    $self->{ip_address} = $hash->{ip_address};
     $self->{loopback_address} = $hash->{loopback_address};
     $self->{tcp_port} = $self->{tcp_port} || 830;
 
@@ -82,10 +82,10 @@ sub to_hash {
         pending_diff => $self->{pending_diff},
         admin_state => $self->{admin_state},
         short_name => $self->{short_name},
-        vendor => $self->{vendor},
+        make => $self->{make},
         model => $self->{model},
         sw_version => $self->{sw_version},
-        mgmt_addr => $self->{mgmt_addr},
+        ip_address => $self->{ip_address},
         loopback_address => $self->{loopback_address},
         tcp_port => $self->{tcp_port}
     };
@@ -202,17 +202,17 @@ sub longitude {
     return $self->{longitude};
 }
 
-=head2 mgmt_addr
+=head2 ip_address
 
 =cut
-sub mgmt_addr {
+sub ip_address {
     my $self = shift;
-    my $mgmt_addr = shift;
+    my $ip_address = shift;
 
-    if (defined $mgmt_addr) {
-         $self->{mgmt_addr} = $mgmt_addr;
+    if (defined $ip_address) {
+         $self->{ip_address} = $ip_address;
     }
-    return $self->{mgmt_addr};
+    return $self->{ip_address};
 }
 
 =head2 loopback_address
@@ -306,17 +306,17 @@ sub tcp_port {
     return $self->{tcp_port};
 }
 
-=head2 vendor
+=head2 make
 
 =cut
-sub vendor {
+sub make {
     my $self = shift;
-    my $vendor = shift;
+    my $make = shift;
 
-    if (defined $vendor) {
-         $self->{vendor} = $vendor;
+    if (defined $make) {
+         $self->{make} = $make;
     }
-    return $self->{vendor};
+    return $self->{make};
 }
 
 =head2 vlan_tag_range

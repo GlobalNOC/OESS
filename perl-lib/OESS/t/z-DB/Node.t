@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 83;
+use Test::More tests => 79;
 
 use OESSDatabaseTester;
 
@@ -71,7 +71,7 @@ my $model = {
     vendor => undef,
     model => undef,
     sw_version => undef,
-    mgmt_addr => undef,
+    ip_address => undef,
     loopback_address => undef,
     tcp_port => 830
 };
@@ -122,19 +122,19 @@ warn $new_node_err if defined $new_node_err;
 my $update_node_err = OESS::DB::Node::update(
     db   => $db,
     node => {
-        node_id    => $new_node_id,
-        name       => 'demo-switch2.example.com',
-        latitude   => 2,
-        longitude  => 2,
-        sw_version => '123',
-        controller => 'nso',
-        mgmt_addr  => '192.168.1.2'
+        node_id     => $new_node_id,
+        name        => 'demo-switch2.example.com',
+        latitude    => 2,
+        longitude   => 2,
+        sw_version  => '123',
+        controller  => 'nso',
+        ip_address  => '192.168.1.2'
     }
 );
 ok(!defined $update_node_err, "No error generated during node update.");
 warn $update_node_err if defined $update_node_err;
 
-$node = OESS::DB::Node::fetch(
+$node = OESS::DB::Node::fetch_v2(
     db      => $db,
     node_id => $new_node_id
 );
@@ -143,9 +143,7 @@ ok($node->{latitude} == 2, "Node latitude is $node->{latitude}.");
 ok($node->{longitude} == 2, "Node longitude is $node->{longitude}.");
 ok($node->{sw_version} eq '123', "Node sw_version is $node->{sw_version}.");
 ok($node->{controller} eq 'nso', "Node controller is $node->{controller}.");
-ok($node->{dpid} eq '3232235777', "Node dpid is $node->{dpid}.");
-ok($node->{admin_state} eq 'active', "Node admin_state is $node->{admin_state}.");
-ok($node->{mgmt_addr} eq '192.168.1.2', "Node ip_address is $node->{mgmt_addr}.");
+ok($node->{ip_address} eq '192.168.1.2', "Node ip_address is $node->{ip_address}.");
 
 
 # Verify two instantiation table entries for node
@@ -165,7 +163,7 @@ my $decom_node_err = OESS::DB::Node::decom(
 ok(!defined $decom_node_err, "No error generated during node decom.");
 warn $decom_node_err if defined $decom_node_err;
 
-$node = OESS::DB::Node::fetch(
+$node = OESS::DB::Node::fetch_v2(
     db      => $db,
     node_id => $new_node_id
 );
@@ -174,9 +172,7 @@ ok($node->{latitude} == 2, "Node latitude is $node->{latitude}.");
 ok($node->{longitude} == 2, "Node longitude is $node->{longitude}.");
 ok($node->{sw_version} eq '123', "Node sw_version is $node->{sw_version}.");
 ok($node->{controller} eq 'nso', "Node controller is $node->{controller}.");
-ok($node->{dpid} eq '3232235777', "Node dpid is $node->{dpid}.");
-ok($node->{admin_state} eq 'decom', "Node admin_state is $node->{admin_state}.");
-ok($node->{mgmt_addr} eq '192.168.1.2', "Node ip_address is $node->{mgmt_addr}.");
+ok($node->{ip_address} eq '192.168.1.2', "Node ip_address is $node->{ip_address}.");
 
 
 # Verify three instantiation table entries for node

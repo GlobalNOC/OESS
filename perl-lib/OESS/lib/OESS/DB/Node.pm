@@ -50,6 +50,7 @@ sub fetch_v2 {
 
     my $node_id = $params{'node_id'};
     my $node_name = $params{'name'};
+    my $short_name = $params{'short_name'};
     my $details;
 
     my $node;
@@ -61,11 +62,26 @@ sub fetch_v2 {
             node.longitude, node_instantiation.loopback_address,
             node_instantiation.vendor as make, node_instantiation.model,
             node.name, node.short_name, node_instantiation.sw_version,
-            node.vlan_tag_range as vlan_range
+            node.vlan_tag_range as vlan_range, node_instantiation.tcp_port,
+            node.pending_diff
             from node join node_instantiation on node.node_id=node_instantiation.node_id
             where node.node_id=? and node_instantiation.end_epoch=-1
             ",
             [ $node_id ]
+        );
+    } elsif (defined $node_name) {
+        $node = $db->execute_query("
+            select node.node_id, node_instantiation.controller,
+            node_instantiation.mgmt_addr as ip_address, node.latitude,
+            node.longitude, node_instantiation.loopback_address,
+            node_instantiation.vendor as make, node_instantiation.model,
+            node.name, node.short_name, node_instantiation.sw_version,
+            node.vlan_tag_range as vlan_range, node_instantiation.tcp_port,
+            node.pending_diff
+            from node join node_instantiation on node.node_id=node_instantiation.node_id
+            where node.name=? and node_instantiation.end_epoch=-1
+            ",
+            [ $node_name ]
         );
     } else {
         $node = $db->execute_query("
@@ -74,11 +90,12 @@ sub fetch_v2 {
             node.longitude, node_instantiation.loopback_address,
             node_instantiation.vendor as make, node_instantiation.model,
             node.name, node.short_name, node_instantiation.sw_version,
-            node.vlan_tag_range as vlan_range
+            node.vlan_tag_range as vlan_range, node_instantiation.tcp_port,
+            node.pending_diff
             from node join node_instantiation on node.node_id=node_instantiation.node_id
-            where node.name=? and node_instantiation.end_epoch=-1
+            where node.short_name=? and node_instantiation.end_epoch=-1
             ",
-            [ $node_name ]
+            [ $short_name ]
         );
     }
 
@@ -90,15 +107,41 @@ sub fetch_v2 {
 
 =cut
 sub fetch_all {
-    my %params = @_;
-    my $db = $params{'db'};
-    my $controller = $params{'controller'} || 'netconf';
-    my $status = $params{'status'} || 'active';
+    my $args = {
+        db         => undef,
+        controller => undef,
+        status     => 'active',
+        @_
+    };
 
-    return $db->execute_query(
-        "select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node_instantiation.end_epoch=-1 and node_instantiation.controller=? and admin_state=?",
-        [$controller, $status]
-    );
+    my $params = [];
+    my $values = [];
+
+    if (defined $args->{controller}) {
+        push @$params, "node_instantiation.controller=?";
+        push @$values, $args->{controller};
+    }
+    if (defined $args->{status}) {
+        push @$params, "node_instantiation.admin_state=?";
+        push @$values, $args->{status};
+    }
+    # Only get latest values
+    push @$params, "node_instantiation.end_epoch=?";
+    push @$values, -1;
+    my $where = (@$params > 0) ? 'where ' . join(' and ', @$params) : '';
+
+    my $q = "
+        select node.node_id, node_instantiation.controller,
+        node_instantiation.mgmt_addr as ip_address, node.latitude,
+        node.longitude, node_instantiation.loopback_address,
+        node_instantiation.vendor as make, node_instantiation.model,
+        node.name, node.short_name, node_instantiation.sw_version,
+        node.vlan_tag_range as vlan_range, node_instantiation.tcp_port,
+        node.pending_diff
+        from node join node_instantiation on node.node_id=node_instantiation.node_id
+        $where
+    ";
+    return $args->{db}->execute_query($q, $values);
 }
 
 =head2 get_node_interfaces
@@ -325,10 +368,10 @@ sub create {
             short_name             => 'host',            # Optional
 
             admin_state            => 'active',          # Optional
-            vendor                 => 'juniper',         # Optional
+            make                   => 'juniper',         # Optional
             model                  => 'mx',              # Optional
             sw_version             => '13.3R3',          # Optional
-            mgmt_addr              => '192.168.1.1',     # Optional
+            ip_address             => '192.168.1.1',     # Optional
             loopback_address       => '10.0.0.1',        # Optional
             tcp_port               => 830                # Optional
         }
@@ -410,9 +453,9 @@ sub update {
         $modified = 1;
         $node->{admin_state} = $args->{node}->{admin_state};
     }
-    if (exists $args->{node}->{vendor} && $args->{node}->{vendor} ne $node->{vendor}) {
+    if (exists $args->{node}->{make} && $args->{node}->{make} ne $node->{vendor}) {
         $modified = 1;
-        $node->{vendor} = $args->{node}->{vendor};
+        $node->{vendor} = $args->{node}->{make};
     }
     if (exists $args->{node}->{model} && $args->{node}->{model} ne $node->{model}) {
         $modified = 1;
@@ -422,9 +465,9 @@ sub update {
         $modified = 1;
         $node->{sw_version} = $args->{node}->{sw_version};
     }
-    if (exists $args->{node}->{mgmt_addr} && $args->{node}->{mgmt_addr} ne $node->{mgmt_addr}) {
+    if (exists $args->{node}->{ip_address} && $args->{node}->{ip_address} ne $node->{mgmt_addr}) {
         $modified = 1;
-        $node->{mgmt_addr} = $args->{node}->{mgmt_addr};
+        $node->{mgmt_addr} = $args->{node}->{ip_address};
     }
     if (exists $args->{node}->{loopback_address} && $args->{node}->{loopback_address} ne $node->{loopback_address}) {
         $modified = 1;

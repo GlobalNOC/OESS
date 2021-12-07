@@ -89,7 +89,8 @@ export const NodeForm = (props) => {
         <div className="form-group" style={{flex: '1'}}>
           <label htmlFor="make">Make</label>
           <select className="form-control" id="make" value={make} onChange={e => setMake(e.target.value)}>
-            <option value="Juniper">Juniper</option>
+          <option value="Cisco">Cisco</option>
+          <option value="Juniper">Juniper</option>
           </select>
         </div>
         <div className="form-group" style={{flex: '1'}}>
@@ -97,6 +98,8 @@ export const NodeForm = (props) => {
           <select className="form-control" id="model" value={model} onChange={e => setModel(e.target.value)}>
             <option value="MX">MX</option>
             <option value="QFX">QFX</option>
+            <option value="NCS-5500">NCS-5500</option>
+            <option value="8000">8000</option>
           </select>
         </div>
       </div>
