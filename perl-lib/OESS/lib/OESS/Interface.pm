@@ -27,6 +27,7 @@ sub new{
         interface_id => undef,
         logger       => Log::Log4perl->get_logger("OESS.Interface"),
         model        => undef,
+        bandwidth_validator_config => "/etc/oess/interface-speed-config.xml",
         @_
     );
 
@@ -496,8 +497,10 @@ sub is_bandwidth_valid {
         @_
     };
 
+    # Normal interfaces are not intended to limit the flow of traffic. Return 0
+    # if a user specifies a bandwidth other than 0 on this interface. 
     if (!defined $self->cloud_interconnect_type) {
-        return 1;
+        return ($args->{bandwidth} == 0) ? 1 : 0;
     }
 
     if ($self->cloud_interconnect_type eq 'aws-hosted-vinterface') {
@@ -505,8 +508,8 @@ sub is_bandwidth_valid {
     }
 
     my $validator = new OESS::Cloud::BandwidthValidator(
-        config => "/etc/oess/interface-speed-config.xml",
-        interface => $self
+        config_path => $self->{bandwidth_validator_config},
+        interface   => $self
     );
     $validator->load;
 

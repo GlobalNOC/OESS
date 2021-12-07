@@ -64,7 +64,7 @@ sub new {
         die;
     }
 
-    my $topic = $self->{'topic'} . "." .  $self->{'node'}->{'mgmt_addr'};
+    my $topic = $self->{'topic'} . "." .  $self->{'node'}->{'mgmt_addr'} . "." . $self->{'node'}->{'tcp_port'};
     $self->{'logger'}->error("Listening to topic: " . $topic);
 
     my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new(

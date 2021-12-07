@@ -254,7 +254,7 @@ sub diff {
     # Needed to ensure diff state may be set to PENDING_DIFF_NONE after approval
     my $all_nodes = OESS::DB::Node::fetch_all(db => $self->{db}, controller => 'nso');
     foreach my $node (@$all_nodes) {
-        $network_diff->{$node->{name}} = "";
+        $network_diff->{$node->{short_name}} = "";
     }
 
     foreach my $node_hash (@$all_nodes) {
@@ -346,30 +346,30 @@ sub diff {
     # If the database asserts there is no diff pending but memory
     # disagrees, then the pending state was modified by an admin. The
     # pending diff may now proceed.
-    foreach my $node_name (keys %$network_diff) {
-        my $node = new OESS::Node(db => $self->{db}, name => $node_name);
-        my $diff_len = length $network_diff->{$node_name};
+    foreach my $short_node_name (keys %$network_diff) {
+        my $node = new OESS::Node(db => $self->{db}, short_name => $short_node_name);
+        my $diff_len = length $network_diff->{$short_node_name};
 
         if ($diff_len < 30) {
-            $self->{pending_diff}->{$node_name} = PENDING_DIFF_NONE;
+            $self->{pending_diff}->{$short_node_name} = PENDING_DIFF_NONE;
             $node->pending_diff(PENDING_DIFF_NONE);
             $node->update;
-            $self->{logger}->info("Applying network diff. No approved required for $node_name.");
+            $self->{logger}->info("Applying network diff. No approval required for $short_node_name.") if $diff_len > 0;
         } else {
-            if ($self->{pending_diff}->{$node_name} == PENDING_DIFF_NONE) {
-                $self->{pending_diff}->{$node_name} = PENDING_DIFF;
+            if ($self->{pending_diff}->{$short_node_name} == PENDING_DIFF_NONE) {
+                $self->{pending_diff}->{$short_node_name} = PENDING_DIFF;
                 $node->pending_diff(PENDING_DIFF);
                 $node->update;
-                $self->{logger}->info("Not applying network diff. Manual approval required for $node_name.");
+                $self->{logger}->info("Not applying network diff. Manual approval required for $short_node_name.");
             }
 
-            if ($self->{pending_diff}->{$node_name} == PENDING_DIFF && $node->pending_diff == PENDING_DIFF_NONE) {
-                $self->{pending_diff}->{$node_name} = PENDING_DIFF_APPROVED;
-                $self->{logger}->info("Applying network diff. Manual approval granted for $node_name.");
+            if ($self->{pending_diff}->{$short_node_name} == PENDING_DIFF && $node->pending_diff == PENDING_DIFF_NONE) {
+                $self->{pending_diff}->{$short_node_name} = PENDING_DIFF_APPROVED;
+                $self->{logger}->info("Applying network diff. Manual approval granted for $short_node_name.");
             }
         }
 
-        $self->{logger}->debug("Diff for $node_name with length of $diff_len:\n$network_diff->{$node_name}");
+        $self->{logger}->debug("Diff for $short_node_name has length of $diff_len:\n$network_diff->{$short_node_name}");
     }
     $self->{logger}->debug('Changes: ' . Dumper($changes));
 
@@ -380,7 +380,7 @@ sub diff {
             # If conn endpoint on node with a blocked diff skip
             my $diff_approval_required = 0;
             foreach my $ep (@{$conn->endpoints}) {
-                if ($self->{pending_diff}->{$ep->node} == PENDING_DIFF) {
+                if ($self->{pending_diff}->{$ep->short_node_name} == PENDING_DIFF) {
                     $diff_approval_required =  1;
                     last;
                 }
@@ -402,7 +402,7 @@ sub diff {
             # If conn endpoint on node with a blocked diff skip
             my $diff_approval_required = 0;
             foreach my $ep (@{$conn->endpoints}) {
-                if ($self->{pending_diff}->{$ep->node} == PENDING_DIFF) {
+                if ($self->{pending_diff}->{$ep->short_node_name} == PENDING_DIFF) {
                     $diff_approval_required =  1;
                     last;
                 }
@@ -424,7 +424,7 @@ sub diff {
             # If conn endpoint on node with a blocked diff skip
             my $diff_approval_required = 0;
             foreach my $ep (@{$conn->{endpoint}}) {
-                if ($self->{pending_diff}->{$ep->{device}} == PENDING_DIFF) {
+                if ($self->{pending_diff}->{$ep->{short_node_name}} == PENDING_DIFF) {
                     $diff_approval_required =  1;
                     last;
                 }
@@ -445,7 +445,7 @@ sub diff {
             # If conn endpoint on node with a blocked diff skip
             my $diff_approval_required = 0;
             foreach my $ep (@{$conn->endpoints}) {
-                if ($self->{pending_diff}->{$ep->node} == PENDING_DIFF) {
+                if ($self->{pending_diff}->{$ep->short_node_name} == PENDING_DIFF) {
                     $diff_approval_required =  1;
                     last;
                 }
@@ -467,7 +467,7 @@ sub diff {
             # If conn endpoint on node with a blocked diff skip
             my $diff_approval_required = 0;
             foreach my $ep (@{$conn->endpoints}) {
-                if ($self->{pending_diff}->{$ep->node} == PENDING_DIFF) {
+                if ($self->{pending_diff}->{$ep->short_node_name} == PENDING_DIFF) {
                     $diff_approval_required =  1;
                     last;
                 }
@@ -489,7 +489,7 @@ sub diff {
             # If conn endpoint on node with a blocked diff skip
             my $diff_approval_required = 0;
             foreach my $ep (@{$conn->{endpoint}}) {
-                if ($self->{pending_diff}->{$ep->{device}} == PENDING_DIFF) {
+                if ($self->{pending_diff}->{$ep->{short_node_name}} == PENDING_DIFF) {
                     $diff_approval_required =  1;
                     last;
                 }
@@ -563,9 +563,9 @@ sub get_diff_text {
     my $all_nodes = OESS::DB::Node::fetch_all(db => $self->{db}, controller => 'nso');
     foreach my $node (@$all_nodes) {
         if ($node->{node_id} eq $node_id) {
-            $node_name = $node->{name};
+            $node_name = $node->{short_name};
         }
-        $network_diff->{$node->{name}} = "";
+        $network_diff->{$node->{short_name}} = "";
     }
 
     foreach my $node (@$all_nodes) {

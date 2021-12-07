@@ -34,6 +34,7 @@ use base "OESS::MPLS::Device";
       config => '/etc/oess/database.xml',
       loopback_addr => '127.0.0.1',
       mgmt_addr     => '192.168.1.1',
+      tcp_port      => 830,
       name          => 'demo.grnoc.iu.edu',
       node_id       => 1
     );
@@ -51,7 +52,7 @@ sub new{
     my $self = \%args;
     bless $self, $class;
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Device.Juniper.MX.' . $self->{'mgmt_addr'});
+    $self->{'logger'} = Log::Log4perl->get_logger("OESS.MPLS.Device.Juniper.MX.$self->{mgmt_addr}.$self->{tcp_port}");
     $self->{'logger'}->info("MPLS Juniper Switch Created: $self->{'mgmt_addr'}");
 
     #TODO: make this automatically figure out the right REV
@@ -335,30 +336,29 @@ sub get_system_information{
     my $loopback_addr;
 
     foreach my $int ($ints->get_nodelist){
-	my $xp = XML::LibXML::XPathContext->new( $int );
-	my $path = $self->{'root_namespace'}."junos-interface";
-	$xp->registerNs('j',$path);
-	my $name = trim($xp->findvalue('./j:name'));
-	next if ($name ne 'lo0');
+        my $xp = XML::LibXML::XPathContext->new( $int );
+        my $path = $self->{'root_namespace'}."junos-interface";
+        $xp->registerNs('j',$path);
+        my $name = trim($xp->findvalue('./j:name'));
+        next if ($name ne 'lo0');
 
-	my $logical_ints = $xp->find('./j:logical-interface');
-	foreach my $log (@{$logical_ints}){
-	    my $log_xp = XML::LibXML::XPathContext->new( $log );
-	    my $path = $self->{'root_namespace'}."junos-interface";
-	    $log_xp->registerNs('j',$path);
-	    my $log_name = trim($log_xp->findvalue('./j:name'));
-	    if($log_name eq 'lo0.0'){
-		my $addresses = $log_xp->find("./j:address-family");
-		foreach my $addr (@$addresses){
-		    my $af_xp = XML::LibXML::XPathContext->new( $addr );
-		    my $path = $self->{'root_namespace'}."junos-interface";
-		    $af_xp->registerNs('j',$path);
-		    my $af_name = trim($af_xp->findvalue('./j:address-family-name'));
-		    next if $af_name ne 'inet';
+        my $logical_ints = $xp->find('./j:logical-interface');
+        foreach my $log (@{$logical_ints}){
+            my $log_xp = XML::LibXML::XPathContext->new( $log );
+            my $path = $self->{'root_namespace'}."junos-interface";
+            $log_xp->registerNs('j',$path);
+            my $log_name = trim($log_xp->findvalue('./j:name'));
+            if($log_name eq 'lo0.0'){
+                my $addresses = $log_xp->find("./j:address-family");
+                foreach my $addr (@$addresses){
+                    my $af_xp = XML::LibXML::XPathContext->new( $addr );
+                    my $path = $self->{'root_namespace'}."junos-interface";
+                    $af_xp->registerNs('j',$path);
+                    my $af_name = trim($af_xp->findvalue('./j:address-family-name'));
+                    next if $af_name ne 'inet';
 
-		    foreach my $addr (@{$af_xp->find('./j:interface-address')}){
-
-			my $addrs = $af_xp->find('./j:ifa-local', $addr);
+                    foreach my $addr (@{$af_xp->find('./j:interface-address')}){
+                        my $addrs = $af_xp->find('./j:ifa-local', $addr);
                         foreach my $ad (@$addrs){
                             my $address = trim($ad->textContent);
                             next if(!defined($address));
@@ -368,21 +368,47 @@ sub get_system_information{
                             $loopback_addr = $address;
                         }
 
-			# Within the interface-address tag there may
-			# be an ifa-flags tag. If so the
-			# ifaf-preferred flag can be used to select
-			# the default loopback address
-			my $is_default = $af_xp->exists('./j:ifa-flags/j:ifaf-preferred', $addr);
+                        # Within the interface-address tag there may
+                        # be an ifa-flags tag. If so the
+                        # ifaf-preferred flag can be used to select
+                        # the default loopback address
+                        my $is_default = $af_xp->exists('./j:ifa-flags/j:ifaf-preferred', $addr);
                         if ($is_default) {
                             last;
                         }
-
                     }
-		}
-	    }
-	}
+                }
+            }
+        }
     }
 
+    my $error_msg;
+    if(!defined($host_name)){
+        $self->{'logger'}->error("Error: Could not find host name");
+        $error_msg = "Error: could not get system information";
+    }
+    if(!defined($loopback_addr)){
+        $self->{'logger'}->error("Error: Could not find loopback address");
+        $error_msg = "Error: could not get system information";
+    }
+    if(!defined($os_name)){
+        $self->{'logger'}->error("Error: Could not find os name");
+        $error_msg = "Error: could not get system information";
+    }
+    if(!defined($model)){
+        $self->{'logger'}->error("Error: Could not find model");
+        $error_msg = "Error: could not get system information";
+    }
+    if(!defined($version)){
+        $self->{'logger'}->error("Error: Could not find version");
+        $error_msg = "Error: could not get system information";
+    }
+
+    if(defined $error_msg){
+        $self->{'logger'}->error("device system info response: " . $system_info->toString());
+        $self->{'logger'}->error("device interfaces: " . $interfaces->toString());
+        return (undef, $error_msg);
+    }
     $self->{'loopback_addr'} = $loopback_addr;
     $self->{'major_rev'} = $major_rev;
 
@@ -1582,6 +1608,7 @@ sub diff {
     if ($force_diff) {
         $self->{'logger'}->info('Force diff was initiated. Starting installation.');
         $self->{'pending_diff'} = 0;
+        $self->{'logger'}->info('configuration: ' . Dumper($configuration));
         return $self->_edit_config(config => $configuration);
     }
 
@@ -1740,12 +1767,12 @@ sub connect {
     my $jnx;
 
     eval {
-        $self->{'logger'}->info("Connecting to device!");
+        $self->{'logger'}->info("Connecting to device $self->{mgmt_addr}:$self->{tcp_port}!");
         $jnx = new Net::Netconf::Manager( 'access' => 'ssh',
                                           'login' => $self->{'username'},
                                           'password' => $self->{'password'},
                                           'hostname' => $self->{'mgmt_addr'},
-                                          'port' => 830,
+                                          'port' => $self->{'tcp_port'},
                                           'debug_level' => 0 );
     };
 

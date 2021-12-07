@@ -7,7 +7,7 @@ use Data::Dumper;
 use Exporter qw(import);
 use Log::Log4perl;
 
-our @EXPORT = qw(discovery_topic_for_node fwdctl_topic_for_node fwdctl_topic_for_connection);
+our @EXPORT = qw(discovery_topic_for_node fwdctl_topic_for_node fwdctl_topic_for_connection discovery_switch_topic_for_node fwdctl_switch_topic_for_node);
 
 =head1 OESS::RabbitMQ::Topic
 
@@ -112,6 +112,96 @@ sub fwdctl_topic_for_node {
     }
     else {
         return (undef, "Unexpected controller '$controller' found for node.");
+    }
+}
+
+=head2 discovery_switch_topic_for_node
+
+    my ($topic, $err) = discovery_switch_topic_for_node(
+        mgmt_addr  => '127.0.0.1',
+        tcp_port   => 830,
+        controller => 'netconf'
+    );
+
+discovery_switch_topic_for_node returns the Discovery.Switch topic which
+should be used for working with C<$node>. The topic chosen is based on
+the controller associated with the C<$node>.
+
+=cut
+sub discovery_switch_topic_for_node {
+    # TODO Take Switch object as argument
+    # TODO Return error when used incorrectly
+    my $args = {
+        mgmt_addr  => undef,
+        tcp_port   => 830,
+        controller => 'netconf',
+        @_
+    };
+
+    my $controller = $args->{controller};
+
+    if ($controller eq 'openflow') {
+        # There are no switch processes in the 'openflow' controller
+        # return (undef, "Unexpected controller '$controller' found for node.");
+        return undef;
+    }
+    elsif ($controller eq 'netconf') {
+        # return ("MPLS.Discovery.Switch.$args->{mgmt_addr}.$args->{tcp_port}", undef);
+        return "MPLS.Discovery.Switch.$args->{mgmt_addr}.$args->{tcp_port}";
+    }
+    elsif ($controller eq 'nso') {
+        # There are no switch processes in the 'nso' controller
+        # return (undef, "Unexpected controller '$controller' found for node.");
+        return;
+    }
+    else {
+        # return (undef, "Unexpected controller '$controller' found for node.");
+        return;
+    }
+}
+
+=head2 fwdctl_switch_topic_for_node
+
+    my ($topic, $err) = fwdctl_switch_topic_for_node(
+        mgmt_addr  => '127.0.0.1',
+        tcp_port   => 830,
+        controller => 'netconf'
+    );
+
+fwdctl_switch_topic_for_node returns the FWDCTL.Switch topic which
+should be used for working with C<$node>. The topic chosen is based on
+the controller associated with the C<$node>.
+
+=cut
+sub fwdctl_switch_topic_for_node {
+    # TODO Take Switch object as argument
+    # TODO Return error when used incorrectly
+    my $args = {
+        mgmt_addr  => undef,
+        tcp_port   => 830,
+        controller => 'netconf',
+        @_
+    };
+
+    my $controller = $args->{controller};
+
+    if ($controller eq 'openflow') {
+        # There are no switch processes in the 'openflow' controller
+        # return (undef, "Unexpected controller '$controller' found for node.");
+        return;
+    }
+    elsif ($controller eq 'netconf') {
+        # return ("MPLS.FWDCTL.Switch.$args->{mgmt_addr}.$args->{tcp_port}", undef);
+        return "MPLS.FWDCTL.Switch.$args->{mgmt_addr}.$args->{tcp_port}";
+    }
+    elsif ($controller eq 'nso') {
+        # There are no switch processes in the 'nso' controller
+        # return (undef, "Unexpected controller '$controller' found for node.");
+        return;
+    }
+    else {
+        # return (undef, "Unexpected controller '$controller' found for node.");
+        return;
     }
 }
 

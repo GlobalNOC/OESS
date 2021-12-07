@@ -68,7 +68,7 @@ sub create_l2connection {
         my $obj = {
             endpoint_id => $ep->circuit_ep_id,
             bandwidth   => $ep->bandwidth,
-            device      => $ep->node,
+            device      => $ep->short_node_name,
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag
@@ -155,7 +155,7 @@ sub edit_l2connection {
         my $obj = {
             endpoint_id => $ep->circuit_ep_id,
             bandwidth   => $ep->bandwidth,
-            device      => $ep->node,
+            device      => $ep->short_node_name,
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag
@@ -307,7 +307,7 @@ sub create_l3connection {
         my $obj = {
             endpoint_id => $ep->vrf_endpoint_id,
             bandwidth   => $ep->bandwidth,
-            device      => $ep->node,
+            device      => $ep->short_node_name,
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag,
@@ -331,6 +331,9 @@ sub create_l3connection {
                 md5_key    => $peer->md5_key,
                 ip_version => $peer->ip_version
             };
+            if (defined $ep->cloud_interconnect_type && $ep->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                $peer_obj->{ebgp_multihop_ttl} = 4;
+            }
             push @{$obj->{peer}}, $peer_obj;
         }
 
@@ -413,7 +416,7 @@ sub edit_l3connection {
         my $obj = {
             endpoint_id => $ep->vrf_endpoint_id,
             bandwidth   => $ep->bandwidth,
-            device      => $ep->node,
+            device      => $ep->short_node_name,
             interface   => $ep->interface,
             unit        => $ep->unit,
             tag         => $ep->tag,
@@ -437,6 +440,9 @@ sub edit_l3connection {
                 md5_key    => $peer->md5_key,
                 ip_version => $peer->ip_version
             };
+            if (defined $ep->cloud_interconnect_type && $ep->cloud_interconnect_type eq 'gcp-partner-interconnect') {
+                $peer_obj->{ebgp_multihop_ttl} = 4;
+            }
             push @{$obj->{peer}}, $peer_obj;
         }
 
@@ -534,30 +540,51 @@ Returns:
 =cut
 sub get_backbones {
     my $self = shift;
+    my $sub  = shift;
 
-    my $backbones;
-    eval {
-        my $res = $self->{www}->get(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/backbone:backbone/",
-            'Content-type' => 'application/yang-data+json'
-        );
-        if ($res->code >= 400) {
-            die "HTTP Code: " . $res->code . " HTTP Content: " . $res->content;
+    my $username = $self->{config_obj}->nso_username;
+    my $password = $self->{config_obj}->nso_password;
+
+    my $userpass = "$username:$password";
+    $userpass = Encode::encode("UTF-8", "$username:$password");
+
+    my $credentials = MIME::Base64::encode($userpass, '');
+
+    http_request(
+        GET => $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/backbone:backbone/",
+        headers => {
+            'content-type'     => 'application/yang-data+json',
+            'authorization'    => "Basic $credentials",
+            'www-authenticate' => 'Basic realm="restconf", charset="UTF-8"',
+        },
+        sub {
+            my ($body, $hdr) = @_;
+
+            my $response;
+
+            if ($hdr->{Status} >= 400) {
+                &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
+                return;
+            }
+
+            if ($body eq '') {
+                $response = [];
+            } else {
+                my $result = eval {
+                    my $res = decode_json($body);
+                    my $err = $self->get_json_errors($res);
+                    die $err if defined $err;
+                    return $res;
+                };
+                if ($@) {
+                    &$sub($response, "$@");
+                    return;
+                }
+                $response = $result->{'backbone:backbone'};
+            }
+            &$sub($response, undef);
         }
-        if ($res->content eq '') { # Empty payload indicates success
-            $backbones = [];
-        } else {
-            my $result = decode_json($res->content);
-            my $err = $self->get_json_errors($result);
-            die $err if defined $err;
-            $backbones = $result->{"backbone:backbone"};
-        }
-    };
-    if ($@) {
-        my $err = $@;
-        return (undef, $err);
-    }
-    return ($backbones, undef);
+    );
 }
 
 =head2 get_vrf_statistics
@@ -637,35 +664,54 @@ sub get_vrf_statistics {
         sub {
             my ($body, $hdr) = @_;
 
-            my $response = [];
+            my $response;
 
-            # TODO add eval
-            my $result = decode_json($body);
-            my $err = $self->get_json_errors($result);
-            if (defined $err) {
-                &$sub($response, $err);
+            if ($hdr->{Status} >= 400) {
+                &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
+                return;
+            }
+
+            my $result = eval {
+                my $res = decode_json($body);
+                my $err = $self->get_json_errors($res);
+                die $err if defined $err;
+                return $res;
+            };
+            if ($@) {
+                &$sub($response, "$@");
+                return;
             }
 
             # Extract CLI payload from JSON response and strip leading
             # xml tag and ending cli prompt. This results in an XML
             # encoded string wrapped in the Response tag.
             my $raw_response = $result->{"tailf-ned-cisco-ios-xr-stats:output"}->{"result"};
-            $raw_response =~ s/^.*<Response/<Response/s;
-            $raw_response =~ s/<\/Response>.*\z/<\/Response>/s;
+            $raw_response =~ s/^(.|\s)*?<Response/<Response/; # Remove date and time prefix
+            $raw_response =~ s/<\?xml\sversion="1.0"\?>//g; # Remove xml document declarations
+            $raw_response =~ s/RP.*\#\z//; # Strip CLI Prompt
+            $raw_response = "<T>" . $raw_response . "</T>"; # Wrap all <Reponse> tags in single tag
 
             # Parse XMl string and extract statistics
-            my $dom = XML::LibXML->load_xml(string => $raw_response);
+            my $dom;
+            eval {
+                $dom = XML::LibXML->load_xml(string => $raw_response);
+            };
+            if ($@) {
+                $self->{logger}->error("Failed to load XML in get_vrf_statistics: $body");
+                &$sub($response, "$@");
+                return;
+            }
 
             # Lookup Instance named 'default' and get VRFTable from inside
             my $instances = $dom->findnodes('//Response/Get/Operational/BGP/InstanceTable/Instance');
             my $instance  = undef;
             foreach my $context ($instances->get_nodelist) {
 
-                my $instance_name = $context->findvalue('//Instance/Naming/InstanceName');
+                my $instance_name = $context->findvalue('./Naming/InstanceName');
                 $instance_name =~ s/\s+//g;
                 next if $instance_name ne 'default';
 
-                my $vrfs = $context->findnodes('//Instance/InstanceActive/VRFTable/VRF');
+                my $vrfs = $context->findnodes('./InstanceActive/VRFTable/VRF');
                 foreach my $context ($vrfs->get_nodelist) {
                     my $ok = $context->exists('./Naming/VRFName');
 
@@ -811,19 +857,24 @@ sub get_platform {
         sub {
             my ($body, $hdr) = @_;
 
-            my $response = [];
+            my $response;
 
-            eval {
-                my $result = decode_json($body);
-                my $err = $self->get_json_errors($result);
-                if (defined $err) {
-                    &$sub($result, $err);
-                }
-                &$sub($result->{'tailf-ncs:platform'}, $err);
+            if ($hdr->{Status} >= 400) {
+                &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
+                return;
+            }
+
+            my $result = eval {
+                my $res = decode_json($body);
+                my $err = $self->get_json_errors($res);
+                die $err if defined $err;
+                return $res;
             };
             if ($@) {
-                &$sub(undef, $@);
+                &$sub($response, "$@");
+                return;
             }
+            &$sub($result->{'tailf-ncs:platform'}, undef);
         }
     );
 }
@@ -886,19 +937,24 @@ sub get_interfaces {
         sub {
             my ($body, $hdr) = @_;
 
-            my $response = [];
+            my $response;
 
-            eval {
-                my $result = decode_json($body);
-                my $err = $self->get_json_errors($result);
-                if (defined $err) {
-                    &$sub($result, $err);
-                }
-                &$sub($result->{'tailf-ned-cisco-ios-xr:interface'}, $err);
+            if ($hdr->{Status} >= 400) {
+                &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
+                return;
+            }
+
+            my $result = eval {
+                my $res = decode_json($body);
+                my $err = $self->get_json_errors($res);
+                die $err if defined $err;
+                return $res;
             };
             if ($@) {
-                &$sub(undef, $@);
+                &$sub($response, "$@");
+                return;
             }
+            &$sub($result->{'tailf-ned-cisco-ios-xr:interface'}, undef);
         }
     );
 }

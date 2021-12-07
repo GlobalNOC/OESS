@@ -126,9 +126,15 @@ sub get_interface{
     my $db = $params{'db'};
     my $interface_name= $params{'interface'};
     my $node_name = $params{'node'};
-    
-    my $interface = $db->execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where name=?)",[$interface_name, $node_name]);
+    my $node_short_name = $params{'short_name'};
+    my $interface;
 
+    if (defined($node_short_name)) {
+        $interface = $db->execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where short_name=?)",[$interface_name, $node_short_name]);
+    } else {
+        $interface = $db->execute_query("select interface_id from interface where name=? and node_id=(select node_id from node where name=?)",[$interface_name, $node_name]);
+    }
+    
     if(!defined($interface) || !defined($interface->[0])){
         return;
     }
@@ -199,6 +205,116 @@ sub get_acls{
 
     my $acls = $db->execute_query("select * from interface_acl where interface_id = ?",[$interface_id]);
     return $acls;
+}
+
+=head2 move_acls
+
+move_acls transfers all ACLs from src_interface_id to
+dst_interface_id.
+
+    my $err = move_acls(
+        db => $db,
+        src_interface_id => 123,
+        dst_interface_id => 456
+    );
+    die $err if defined $err;
+
+=cut
+sub move_acls {
+    my $args = {
+        db => undef,
+        dst_interface_id => undef,
+        src_interface_id => undef,
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `dst_interface_id` is missing.' if !defined $args->{dst_interface_id};
+    return 'Required argument `src_interface_id` is missing.' if !defined $args->{src_interface_id};
+
+    my $ok = $args->{db}->execute_query(
+        "UPDATE interface_acl SET interface_id=? WHERE interface_acl.interface_id=?",
+        [$args->{dst_interface_id}, $args->{src_interface_id}]
+    );
+    return $args->{db}->get_error if !defined $ok;
+
+    return;
+}
+
+=head2 move_configuration
+
+move_configuration transfers all ACLs from src_interface_id to
+dst_interface_id.
+
+    my $err = move_acls(
+        db => $db,
+        src_interface_id => 123,
+        dst_interface_id => 456
+    );
+    die $err if defined $err;
+
+=cut
+sub move_configuration {
+    my $args = {
+        db => undef,
+        dst_interface_id => undef,
+        src_interface_id => undef,
+        @_
+    };
+
+    return 'Required argument `db` is missing.' if !defined $args->{db};
+    return 'Required argument `dst_interface_id` is missing.' if !defined $args->{dst_interface_id};
+    return 'Required argument `src_interface_id` is missing.' if !defined $args->{src_interface_id};
+
+    my $intf = fetch(
+        db => $args->{db},
+        interface_id => $args->{src_interface_id}
+    );
+    return "Couldn't find source interface $args->{src_interface_id}." if !defined $intf;
+    my $dintf = fetch(
+        db => $args->{db},
+        interface_id => $args->{dst_interface_id}
+    );
+    return "Couldn't find destination interface $args->{dst_interface_id}." if !defined $dintf;
+
+    my $q1 = "
+        UPDATE interface
+        SET cloud_interconnect_id=DEFAULT,cloud_interconnect_type=DEFAULT,description=?,
+            vlan_tag_range=DEFAULT,mpls_vlan_tag_range=DEFAULT,workgroup_id=DEFAULT,role=DEFAULT
+        WHERE interface.interface_id=?
+    ";
+
+    my $ok = $args->{db}->execute_query(
+        $q1,
+        [
+            $intf->{name},
+            $args->{src_interface_id},
+        ]
+    );
+    return $args->{db}->get_error if !defined $ok;
+
+    my $q2 = "
+        UPDATE interface
+        SET cloud_interconnect_id=?,cloud_interconnect_type=?,description=?,
+            vlan_tag_range=?,mpls_vlan_tag_range=?,workgroup_id=?,role=?
+        WHERE interface.interface_id=?
+    ";
+    $ok = $args->{db}->execute_query(
+        $q2,
+        [
+            $intf->{cloud_interconnect_id},
+            $intf->{cloud_interconnect_type},
+            $intf->{description},
+            $intf->{vlan_tag_range},
+            $intf->{mpls_vlan_tag_range},
+            $intf->{workgroup_id},
+            $intf->{role},
+            $args->{dst_interface_id},
+        ]
+    );
+    return $args->{db}->get_error if !defined $ok;
+
+    return;
 }
 
 =head2 vrf_vlans_in_use

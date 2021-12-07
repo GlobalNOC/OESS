@@ -14,21 +14,23 @@ sub new {
     my $class = ref($that) || $that;
 
     my %args = (
-        db      => undef,
-        model   => undef,
-        name    => undef,
-        node_id => undef,
-        logger  => Log::Log4perl->get_logger("OESS.Node"),
+        db         => undef,
+        logger     => Log::Log4perl->get_logger("OESS.Node"),
+        name       => undef,
+        node_id    => undef,
+        short_name => undef,
         @_
     );
 
     my $self = \%args;
     bless $self, $class;
 
-    if (defined $self->{db} && defined $self->{node_id}) {
+    if (defined $self->{db} && (defined $self->{name} || defined $self->{short_name} || defined $self->{node_id})) {
         $self->{model} = OESS::DB::Node::fetch_v2(
-            db      => $self->{db},
-            node_id => $self->{node_id}
+            db         => $self->{db},
+            name       => $self->{name},
+            node_id    => $self->{node_id},
+            short_name => $self->{short_name}
         );
     }
     return if !defined $self->{model};

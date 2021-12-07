@@ -43,46 +43,46 @@ my ($nso_l3connections, $err) = $nso->get_l3connections();
 my $nso_l3connection = $nso_l3connections->[0];
 
 my $expect1 = {
-    'Node 31' => '+ e15/4
-+   Bandwidth: 100
-+   Tag:       2010
-+   Peer 2:
-+     Local ASN: 7
-+     Local IP:  192.168.2.2/31
-+     Peer ASN:  64602
-+     Peer IP:   192.168.2.3
-+     BFD:       0
+    'N31' => '+  e15/4.200
++    Bandwidth: 100
++    Tag:       2010
++    Peer: 2
++      Local ASN: 7
++      Local IP:  192.168.2.2/31
++      Peer ASN:  64602
++      Peer IP:   192.168.2.3
++      BFD:       0
 ',
-    'Node 11' => '  e15/6
--   Bandwidth: 200
-+   Bandwidth: 100
--   Tag:       300
-+   Tag:       3010
-    Peer 1:
--     Local IP:  192.168.3.2/31
-+     Local IP:  192.168.1.2/31
--     Peer ASN:  64001
-+     Peer ASN:  64601
--     Peer IP:   192.168.3.3
-+     Peer IP:   192.168.1.3
--     BFD:      1
-+     BFD:      0
-+   Peer 3:
-+     Local ASN: 
-+     Local IP:  192.168.5.2/31
-+     Peer ASN:  64605
-+     Peer IP:   192.168.5.3
-+     BFD:       0
+    'N11' => '   e15/6.300
+-    Bandwidth: 200
++    Bandwidth: 100
+-    Tag:       300
++    Tag:       3010
+     Peer: 1
+-      Local IP:  192.168.3.2/31
++      Local IP:  192.168.1.2/31
+-      Peer ASN:  64001
++      Peer ASN:  64601
+-      Peer IP:   192.168.3.3
++      Peer IP:   192.168.1.3
+-      BFD:       1
++      BFD:       0
++    Peer: 3
++      Local ASN: 7
++      Local IP:  192.168.5.2/31
++      Peer ASN:  64605
++      Peer IP:   192.168.5.3
++      BFD:       0
 ',
-    'xr1' => '- GigabitEthernet0/1
--   Bandwidth: 100
--   Tag:       300
--   Peer 2:
--     Local ASN: 64600
--     Local IP:  192.168.2.2/31
--     Peer ASN:  64602
--     Peer IP:   192.168.2.3
--     BFD:       0
+    'xr1' => '-  GigabitEthernet0/1.300
+-    Bandwidth: 100
+-    Tag:       300
+-    Peer: 2
+-      Local ASN: 64600
+-      Local IP:  192.168.2.2/31
+-      Peer ASN:  64602
+-      Peer IP:   192.168.2.3
+-      BFD:       0
 '
 };
 push @$nso_l3connection_tests, { vrf_id => 1, result => $expect1 };

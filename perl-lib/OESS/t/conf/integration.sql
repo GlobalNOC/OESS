@@ -1,8 +1,8 @@
--- MySQL dump 10.16  Distrib 10.1.22-MariaDB, for Linux (x86_64)
+-- MySQL dump 10.14  Distrib 5.5.68-MariaDB, for Linux (x86_64)
 --
--- Host: localhost    Database: discovery
+-- Host: localhost    Database: oess
 -- ------------------------------------------------------
--- Server version	10.1.22-MariaDB
+-- Server version	5.5.68-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -16,12 +16,12 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Current Database: `discovery`
+-- Current Database: `oess`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `discovery` /*!40100 DEFAULT CHARACTER SET latin1 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess` /*!40100 DEFAULT CHARACTER SET utf8 */;
 
-USE `discovery`;
+USE `oess`;
 
 --
 -- Table structure for table `circuit`
@@ -72,9 +72,9 @@ CREATE TABLE `circuit_edge_interface_membership` (
   `start_epoch` int(10) NOT NULL,
   `extern_vlan_id` int(10) NOT NULL,
   `inner_tag` int(10) DEFAULT NULL,
+  `bandwidth` int(10) DEFAULT NULL,
   `circuit_edge_id` int(10) NOT NULL AUTO_INCREMENT,
   `unit` int(11) NOT NULL,
-  `bandwidth` int(10) DEFAULT '0',
   `mtu` int(11) NOT NULL DEFAULT '9000',
   PRIMARY KEY (`circuit_edge_id`),
   UNIQUE KEY `interface_id` (`interface_id`,`circuit_id`,`end_epoch`,`extern_vlan_id`),
@@ -160,14 +160,14 @@ DROP TABLE IF EXISTS `cloud_connection_vrf_ep`;
 CREATE TABLE `cloud_connection_vrf_ep` (
   `cloud_connection_vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
   `vrf_ep_id` int(11) DEFAULT NULL,
+  `circuit_ep_id` int(11) DEFAULT NULL,
   `cloud_account_id` varchar(255) NOT NULL,
   `cloud_connection_id` varchar(255) NOT NULL,
-  `circuit_ep_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`cloud_connection_vrf_ep_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   KEY `cloud_connection_circuit_ep_ibfk_1` (`circuit_ep_id`),
-  CONSTRAINT `cloud_connection_circuit_ep_ibfk_1` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE,
-  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE
+  CONSTRAINT `cloud_connection_vrf_ep_ibfk_1` FOREIGN KEY (`vrf_ep_id`) REFERENCES `vrf_ep` (`vrf_ep_id`) ON DELETE CASCADE,
+  CONSTRAINT `cloud_connection_circuit_ep_ibfk_1` FOREIGN KEY (`circuit_ep_id`) REFERENCES `circuit_edge_interface_membership` (`circuit_edge_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -271,15 +271,13 @@ DROP TABLE IF EXISTS `entity`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `entity` (
   `entity_id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255),
+  `name` varchar(255) DEFAULT NULL,
   `description` text,
   `logo_url` varchar(255) DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`entity_id`),
-  UNIQUE KEY `name` (`name`),
-  UNIQUE KEY `name_2` (`name`),
-  UNIQUE KEY `name_3` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -288,6 +286,7 @@ CREATE TABLE `entity` (
 
 LOCK TABLES `entity` WRITE;
 /*!40000 ALTER TABLE `entity` DISABLE KEYS */;
+INSERT INTO `entity` VALUES (1,'Root','Default Root Entity',NULL,NULL);
 /*!40000 ALTER TABLE `entity` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -342,7 +341,7 @@ CREATE TABLE `interface` (
   KEY `interface_ibfk_1` (`workgroup_id`),
   CONSTRAINT `interface_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
   CONSTRAINT `node_interface_fk` FOREIGN KEY (`node_id`) REFERENCES `node` (`node_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=207 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -351,7 +350,7 @@ CREATE TABLE `interface` (
 
 LOCK TABLES `interface` WRITE;
 /*!40000 ALTER TABLE `interface` DISABLE KEYS */;
-INSERT INTO `interface` VALUES (1,'xe-7/0/1',1,'xe-7/0/1',NULL,NULL,'up','unknown',2,NULL,'1-4095',NULL),(2,'xe-7/0/2',2,'xe-7/0/2',NULL,NULL,'up','unknown',2,NULL,'1-4095',NULL),(3,'xe-7/0/3',3,'xe-7/0/3',NULL,NULL,'up','trunk',2,NULL,'1-4095',NULL),(4,'xe-7/0/1',1,'xe-7/0/1',NULL,NULL,'up','unknown',3,NULL,'1-4095',NULL),(5,'xe-7/0/2',2,'xe-7/0/2',NULL,NULL,'up','unknown',3,NULL,'1-4095',NULL),(6,'xe-7/0/3',3,'xe-7/0/3',NULL,NULL,'up','trunk',3,NULL,'1-4095',NULL);
+INSERT INTO `interface` VALUES (1,'lc-0/0/0',NULL,'lc-0/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(2,'pfe-0/0/0',NULL,'pfe-0/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(3,'pfh-0/0/0',NULL,'pfh-0/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(4,'xe-0/0/0',NULL,'xe-0/0/0',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(5,'xe-0/0/1',NULL,'xe-0/0/1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(6,'xe-0/0/2',NULL,'xe-0/0/2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(7,'xe-0/0/3',NULL,'xe-0/0/3',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(8,'et-0/1/0',NULL,'sr10 to ixia slot 6 port 1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(9,'lc-0/2/0',NULL,'lc-0/2/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(10,'pfe-0/2/0',NULL,'pfe-0/2/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(11,'xe-0/2/0',NULL,'xe-0/2/0',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(12,'xe-0/2/1',NULL,'xe-0/2/1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(13,'xe-0/2/2',NULL,'xe-0/2/2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(14,'xe-0/2/3',NULL,'xe-0/2/3',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(15,'et-0/3/0',NULL,'lr4 to cisco',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(16,'lc-1/0/0',NULL,'lc-1/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(17,'pfe-1/0/0',NULL,'pfe-1/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(18,'pfh-1/0/0',NULL,'pfh-1/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(19,'xe-1/0/0',NULL,'xe-1/0/0',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(20,'xe-1/0/1',NULL,'xe-1/0/1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(21,'xe-1/0/2',NULL,'xe-1/0/2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(22,'xe-1/0/3',NULL,'xe-1/0/3',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(23,'et-1/1/0',NULL,'sr10 to ixia slot 6 port 2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(24,'lc-1/2/0',NULL,'lc-1/2/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(25,'pfe-1/2/0',NULL,'pfe-1/2/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(26,'xe-1/2/0',NULL,'xe-1/2/0',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(27,'xe-1/2/1',NULL,'xe-1/2/1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(28,'xe-1/2/2',NULL,'xe-1/2/2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(29,'xe-1/2/3',NULL,'xe-1/2/3',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(30,'et-1/3/0',NULL,'lr4 to cisco',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(31,'lc-7/0/0',NULL,'lc-7/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(32,'pfe-7/0/0',NULL,'pfe-7/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(33,'pfh-7/0/0',NULL,'pfh-7/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(34,'xe-7/0/0',NULL,'glimmerglass-1 7/7',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(35,'xe-7/0/1',NULL,'glimmerglass-3 3/3',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(36,'xe-7/0/2',NULL,'glimmerglass-2, 7/7',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(37,'xe-7/0/3',NULL,'test to 03.04-5200',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(38,'lc-7/1/0',NULL,'lc-7/1/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(39,'pfe-7/1/0',NULL,'pfe-7/1/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(40,'xe-7/1/0',NULL,'core3 34/1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(41,'xe-7/1/1',NULL,'xe-7/1/1',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(42,'xe-7/1/2',NULL,'xe-7/1/2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(43,'xe-7/1/3',NULL,'xe-7/1/3',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(44,'lc-7/2/0',NULL,'lc-7/2/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(45,'pfe-7/2/0',NULL,'pfe-7/2/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(46,'xe-7/2/0',NULL,'8201-1 Te0/0/0/30/1',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(47,'xe-7/2/1',NULL,'xe-7/2/1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(48,'xe-7/2/2',NULL,'xe-7/2/2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(49,'xe-7/2/3',NULL,'xe-7/2/3',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(50,'lc-7/3/0',NULL,'lc-7/3/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(51,'pfe-7/3/0',NULL,'pfe-7/3/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(52,'xe-7/3/0',NULL,'ncs-55a1-2 (AC) Te0/0/0/0',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(53,'xe-7/3/1',NULL,'xe-7/3/1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(54,'xe-7/3/2',NULL,'[ae0] SMN-RTSW EX4600 xe-0/0/22',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(55,'xe-7/3/3',NULL,'[ae0] SMN-RTSW EX4600 xe-0/0/23',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(56,'ge-11/0/0',NULL,'ge-11/0/0',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(57,'lc-11/0/0',NULL,'lc-11/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(58,'pfe-11/0/0',NULL,'pfe-11/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(59,'pfh-11/0/0',NULL,'pfh-11/0/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(60,'ge-11/0/1',NULL,'ge-11/0/1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(61,'ge-11/0/2',NULL,'ge-11/0/2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(62,'ge-11/0/3',NULL,'ge-11/0/3',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(63,'ge-11/0/4',NULL,'ge-11/0/4',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(64,'ge-11/0/5',NULL,'ge-11/0/5',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(65,'ge-11/0/6',NULL,'ge-11/0/6',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(66,'ge-11/0/7',NULL,'ge-11/0/7',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(67,'ge-11/0/8',NULL,'ge-11/0/8',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(68,'ge-11/0/9',NULL,'ge-11/0/9',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(69,'ge-11/1/0',NULL,'ge-11/1/0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(70,'ge-11/1/1',NULL,'ge-11/1/1',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(71,'ge-11/1/2',NULL,'ge-11/1/2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(72,'ge-11/1/3',NULL,'ge-11/1/3',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(73,'ge-11/1/4',NULL,'ge-11/1/4',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(74,'ge-11/1/5',NULL,'ge-11/1/5',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(75,'ge-11/1/6',NULL,'ge-11/1/6',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(76,'ge-11/1/7',NULL,'ge-11/1/7',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(77,'ge-11/1/8',NULL,'ge-11/1/8',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(78,'ge-11/1/9',NULL,'ge-11/1/9',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(79,'ae0',NULL,'EX4600 SMN-RTSW2 xe-0/0/22 & xe-0/0/22',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(80,'cbp0',NULL,'cbp0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(81,'demux0',NULL,'demux0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(82,'dsc',NULL,'dsc',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(83,'em0',NULL,'em0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(84,'em1',NULL,'em1',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(85,'esi',NULL,'esi',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(86,'fxp0',NULL,'fxp0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(87,'gre',NULL,'gre',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(88,'ipip',NULL,'ipip',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(89,'irb',NULL,'irb',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(90,'jsrv',NULL,'jsrv',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(91,'lo0',NULL,'lo0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(92,'lsi',NULL,'lsi',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(93,'mtun',NULL,'mtun',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(94,'pimd',NULL,'pimd',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(95,'pime',NULL,'pime',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(96,'pip0',NULL,'pip0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(97,'pp0',NULL,'pp0',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(98,'rbeb',NULL,'rbeb',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(99,'tap',NULL,'tap',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(100,'vtep',NULL,'vtep',NULL,NULL,'up','unknown',1,'-1','1-4095',NULL),(101,'lc-0/0/0',NULL,'lc-0/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(102,'pfe-0/0/0',NULL,'pfe-0/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(103,'pfh-0/0/0',NULL,'pfh-0/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(104,'xe-0/0/0',NULL,'xe-0/0/0',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(105,'xe-0/0/1',NULL,'xe-0/0/1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(106,'xe-0/0/2',NULL,'xe-0/0/2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(107,'xe-0/0/3',NULL,'xe-0/0/3',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(108,'et-0/1/0',NULL,'sr10 to ixia slot 6 port 1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(109,'lc-0/2/0',NULL,'lc-0/2/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(110,'pfe-0/2/0',NULL,'pfe-0/2/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(111,'xe-0/2/0',NULL,'xe-0/2/0',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(112,'xe-0/2/1',NULL,'xe-0/2/1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(113,'xe-0/2/2',NULL,'xe-0/2/2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(114,'xe-0/2/3',NULL,'xe-0/2/3',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(115,'et-0/3/0',NULL,'lr4 to cisco',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(116,'lc-1/0/0',NULL,'lc-1/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(117,'pfe-1/0/0',NULL,'pfe-1/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(118,'pfh-1/0/0',NULL,'pfh-1/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(119,'xe-1/0/0',NULL,'xe-1/0/0',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(120,'xe-1/0/1',NULL,'xe-1/0/1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(121,'xe-1/0/2',NULL,'xe-1/0/2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(122,'xe-1/0/3',NULL,'xe-1/0/3',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(123,'et-1/1/0',NULL,'sr10 to ixia slot 6 port 2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(124,'lc-1/2/0',NULL,'lc-1/2/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(125,'pfe-1/2/0',NULL,'pfe-1/2/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(126,'xe-1/2/0',NULL,'xe-1/2/0',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(127,'xe-1/2/1',NULL,'xe-1/2/1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(128,'xe-1/2/2',NULL,'xe-1/2/2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(129,'xe-1/2/3',NULL,'xe-1/2/3',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(130,'et-1/3/0',NULL,'lr4 to cisco',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(131,'lc-7/0/0',NULL,'lc-7/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(132,'pfe-7/0/0',NULL,'pfe-7/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(133,'pfh-7/0/0',NULL,'pfh-7/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(134,'xe-7/0/0',NULL,'glimmerglass-1 7/7',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(135,'xe-7/0/1',NULL,'glimmerglass-3 3/3',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(136,'xe-7/0/2',NULL,'glimmerglass-2, 7/7',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(137,'xe-7/0/3',NULL,'test to 03.04-5200',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(138,'lc-7/1/0',NULL,'lc-7/1/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(139,'pfe-7/1/0',NULL,'pfe-7/1/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(140,'xe-7/1/0',NULL,'core3 34/1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(141,'xe-7/1/1',NULL,'xe-7/1/1',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(142,'xe-7/1/2',NULL,'xe-7/1/2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(143,'xe-7/1/3',NULL,'xe-7/1/3',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(144,'lc-7/2/0',NULL,'lc-7/2/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(145,'pfe-7/2/0',NULL,'pfe-7/2/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(146,'xe-7/2/0',NULL,'8201-1 Te0/0/0/30/1',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(147,'xe-7/2/1',NULL,'xe-7/2/1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(148,'xe-7/2/2',NULL,'xe-7/2/2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(149,'xe-7/2/3',NULL,'xe-7/2/3',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(150,'lc-7/3/0',NULL,'lc-7/3/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(151,'pfe-7/3/0',NULL,'pfe-7/3/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(152,'xe-7/3/0',NULL,'ncs-55a1-2 (AC) Te0/0/0/0',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(153,'xe-7/3/1',NULL,'xe-7/3/1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(154,'xe-7/3/2',NULL,'[ae0] SMN-RTSW EX4600 xe-0/0/22',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(155,'xe-7/3/3',NULL,'[ae0] SMN-RTSW EX4600 xe-0/0/23',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(156,'ge-11/0/0',NULL,'ge-11/0/0',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(157,'lc-11/0/0',NULL,'lc-11/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(158,'pfe-11/0/0',NULL,'pfe-11/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(159,'pfh-11/0/0',NULL,'pfh-11/0/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(160,'ge-11/0/1',NULL,'ge-11/0/1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(161,'ge-11/0/2',NULL,'ge-11/0/2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(162,'ge-11/0/3',NULL,'ge-11/0/3',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(163,'ge-11/0/4',NULL,'ge-11/0/4',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(164,'ge-11/0/5',NULL,'ge-11/0/5',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(165,'ge-11/0/6',NULL,'ge-11/0/6',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(166,'ge-11/0/7',NULL,'ge-11/0/7',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(167,'ge-11/0/8',NULL,'ge-11/0/8',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(168,'ge-11/0/9',NULL,'ge-11/0/9',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(169,'ge-11/1/0',NULL,'ge-11/1/0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(170,'ge-11/1/1',NULL,'ge-11/1/1',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(171,'ge-11/1/2',NULL,'ge-11/1/2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(172,'ge-11/1/3',NULL,'ge-11/1/3',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(173,'ge-11/1/4',NULL,'ge-11/1/4',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(174,'ge-11/1/5',NULL,'ge-11/1/5',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(175,'ge-11/1/6',NULL,'ge-11/1/6',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(176,'ge-11/1/7',NULL,'ge-11/1/7',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(177,'ge-11/1/8',NULL,'ge-11/1/8',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(178,'ge-11/1/9',NULL,'ge-11/1/9',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(179,'ae0',NULL,'EX4600 SMN-RTSW2 xe-0/0/22 & xe-0/0/22',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(180,'cbp0',NULL,'cbp0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(181,'demux0',NULL,'demux0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(182,'dsc',NULL,'dsc',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(183,'em0',NULL,'em0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(184,'em1',NULL,'em1',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(185,'esi',NULL,'esi',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(186,'fxp0',NULL,'fxp0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(187,'gre',NULL,'gre',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(188,'ipip',NULL,'ipip',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(189,'irb',NULL,'irb',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(190,'jsrv',NULL,'jsrv',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(191,'lo0',NULL,'lo0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(192,'lsi',NULL,'lsi',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(193,'mtun',NULL,'mtun',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(194,'pimd',NULL,'pimd',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(195,'pime',NULL,'pime',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(196,'pip0',NULL,'pip0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(197,'pp0',NULL,'pp0',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(198,'rbeb',NULL,'rbeb',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(199,'tap',NULL,'tap',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(200,'vtep',NULL,'vtep',NULL,NULL,'up','unknown',2,'-1','1-4095',NULL),(201,'et-11/0/0',NULL,'[ae32] INTERCONNECT: LOSA2 test',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(202,'ae1',NULL,'EVPN-SVC-2',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(203,'ae32',NULL,'ae32',NULL,NULL,'down','unknown',1,'-1','1-4095',NULL),(204,'et-11/0/0',NULL,'[ae32] INTERCONNECT: LOSA2 test',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(205,'ae1',NULL,'EVPN-SVC-2',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL),(206,'ae32',NULL,'ae32',NULL,NULL,'down','unknown',2,'-1','1-4095',NULL);
 /*!40000 ALTER TABLE `interface` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -416,7 +415,7 @@ CREATE TABLE `interface_instantiation` (
 
 LOCK TABLES `interface_instantiation` WRITE;
 /*!40000 ALTER TABLE `interface_instantiation` DISABLE KEYS */;
-INSERT INTO `interface_instantiation` VALUES (1,-1,'up',1348237707,10000,9000),(2,-1,'up',1348237707,10000,9000),(3,-1,'up',1348237707,10000,9000),(4,-1,'up',1348237707,10000,9000),(5,-1,'up',1348237707,10000,9000),(6,-1,'up',1348237707,10000,9000);
+INSERT INTO `interface_instantiation` VALUES (1,-1,'up',1631649831,10000,9000),(2,-1,'up',1631649831,10000,9000),(3,-1,'up',1631649831,10000,9000),(4,-1,'up',1631649831,10000,9000),(5,-1,'up',1631649831,10000,9000),(6,-1,'up',1631649831,10000,9000),(7,-1,'up',1631649831,10000,9000),(8,-1,'up',1631649831,10000,9000),(9,-1,'up',1631649831,10000,9000),(10,-1,'up',1631649831,10000,9000),(11,-1,'up',1631649831,10000,9000),(12,-1,'up',1631649831,10000,9000),(13,-1,'up',1631649831,10000,9000),(14,-1,'up',1631649831,10000,9000),(15,-1,'up',1631649831,10000,9000),(16,-1,'up',1631649831,10000,9000),(17,-1,'up',1631649831,10000,9000),(18,-1,'up',1631649831,10000,9000),(19,-1,'up',1631649831,10000,9000),(20,-1,'up',1631649831,10000,9000),(21,-1,'up',1631649831,10000,9000),(22,-1,'up',1631649831,10000,9000),(23,-1,'up',1631649831,10000,9000),(24,-1,'up',1631649831,10000,9000),(25,-1,'up',1631649831,10000,9000),(26,-1,'up',1631649831,10000,9000),(27,-1,'up',1631649831,10000,9000),(28,-1,'up',1631649831,10000,9000),(29,-1,'up',1631649831,10000,9000),(30,-1,'up',1631649831,10000,9000),(31,-1,'up',1631649852,800,9000),(31,1631649852,'up',1631649831,10000,9000),(32,-1,'up',1631649852,800,9000),(32,1631649852,'up',1631649831,10000,9000),(33,-1,'up',1631649852,800,9000),(33,1631649852,'up',1631649831,10000,9000),(34,-1,'up',1631649852,10000,9192),(34,1631649852,'up',1631649831,10000,9000),(35,-1,'up',1631649852,10000,9192),(35,1631649852,'up',1631649831,10000,9000),(36,-1,'up',1631649852,10000,9192),(36,1631649852,'up',1631649831,10000,9000),(37,-1,'up',1631649852,10000,9192),(37,1631649852,'up',1631649831,10000,9000),(38,-1,'up',1631649852,800,9000),(38,1631649852,'up',1631649831,10000,9000),(39,-1,'up',1631649852,800,9000),(39,1631649852,'up',1631649831,10000,9000),(40,-1,'up',1631649852,10000,9192),(40,1631649852,'up',1631649831,10000,9000),(41,-1,'up',1631649852,10000,9192),(41,1631649852,'up',1631649831,10000,9000),(42,-1,'up',1631649852,10000,1514),(42,1631649852,'up',1631649831,10000,9000),(43,-1,'up',1631649852,10000,9192),(43,1631649852,'up',1631649831,10000,9000),(44,-1,'up',1631649852,800,9000),(44,1631649852,'up',1631649831,10000,9000),(45,-1,'up',1631649852,800,9000),(45,1631649852,'up',1631649831,10000,9000),(46,-1,'up',1631649852,10000,9192),(46,1631649852,'up',1631649831,10000,9000),(47,-1,'up',1631649852,10000,9192),(47,1631649852,'up',1631649831,10000,9000),(48,-1,'up',1631649852,10000,1514),(48,1631649852,'up',1631649831,10000,9000),(49,-1,'up',1631649852,10000,1514),(49,1631649852,'up',1631649831,10000,9000),(50,-1,'up',1631649852,800,9000),(50,1631649852,'up',1631649831,10000,9000),(51,-1,'up',1631649852,800,9000),(51,1631649852,'up',1631649831,10000,9000),(52,-1,'up',1631649852,10000,9192),(52,1631649852,'up',1631649831,10000,9000),(53,-1,'up',1631649852,10000,9192),(53,1631649852,'up',1631649831,10000,9000),(54,-1,'up',1631649852,10000,9192),(54,1631649852,'up',1631649831,10000,9000),(55,-1,'up',1631649852,10000,9192),(55,1631649852,'up',1631649831,10000,9000),(56,-1,'up',1631649831,10000,9000),(57,-1,'up',1631649852,800,9000),(57,1631649852,'up',1631649831,10000,9000),(58,-1,'up',1631649852,800,9000),(58,1631649852,'up',1631649831,10000,9000),(59,-1,'up',1631649852,800,9000),(59,1631649852,'up',1631649831,10000,9000),(60,-1,'up',1631649831,10000,9000),(61,-1,'up',1631649831,10000,9000),(62,-1,'up',1631649831,10000,9000),(63,-1,'up',1631649831,10000,9000),(64,-1,'up',1631649831,10000,9000),(65,-1,'up',1631649831,10000,9000),(66,-1,'up',1631649831,10000,9000),(67,-1,'up',1631649831,10000,9000),(68,-1,'up',1631649831,10000,9000),(69,-1,'up',1631649831,10000,9000),(70,-1,'up',1631649831,10000,9000),(71,-1,'up',1631649831,10000,9000),(72,-1,'up',1631649831,10000,9000),(73,-1,'up',1631649831,10000,9000),(74,-1,'up',1631649831,10000,9000),(75,-1,'up',1631649831,10000,9000),(76,-1,'up',1631649831,10000,9000),(77,-1,'up',1631649831,10000,9000),(78,-1,'up',1631649831,10000,9000),(79,-1,'up',1631649852,20000,9192),(79,1631649852,'up',1631649831,10000,9000),(80,-1,'up',1631649852,10000,9192),(80,1631649852,'up',1631649831,10000,9000),(81,-1,'up',1631649852,10000,9192),(81,1631649852,'up',1631649831,10000,9000),(82,-1,'up',1631649852,10000,0),(82,1631649852,'up',1631649831,10000,9000),(83,-1,'up',1631649852,1000,1514),(83,1631649852,'up',1631649831,10000,9000),(84,-1,'up',1631649852,1000,1514),(84,1631649852,'up',1631649831,10000,9000),(85,-1,'up',1631649852,0,0),(85,1631649852,'up',1631649831,10000,9000),(86,-1,'up',1631649852,1000,1514),(86,1631649852,'up',1631649831,10000,9000),(87,-1,'up',1631649852,0,0),(87,1631649852,'up',1631649831,10000,9000),(88,-1,'up',1631649852,0,0),(88,1631649852,'up',1631649831,10000,9000),(89,-1,'up',1631649852,10000,1514),(89,1631649852,'up',1631649831,10000,9000),(90,-1,'up',1631649852,10000,1514),(90,1631649852,'up',1631649831,10000,9000),(91,-1,'up',1631649852,10000,0),(91,1631649852,'up',1631649831,10000,9000),(92,-1,'up',1631649852,0,0),(92,1631649852,'up',1631649831,10000,9000),(93,-1,'up',1631649852,0,0),(93,1631649852,'up',1631649831,10000,9000),(94,-1,'up',1631649852,0,0),(94,1631649852,'up',1631649831,10000,9000),(95,-1,'up',1631649852,0,0),(95,1631649852,'up',1631649831,10000,9000),(96,-1,'up',1631649852,10000,9192),(96,1631649852,'up',1631649831,10000,9000),(97,-1,'up',1631649852,10000,1532),(97,1631649852,'up',1631649831,10000,9000),(98,-1,'up',1631649852,0,0),(98,1631649852,'up',1631649831,10000,9000),(99,-1,'up',1631649852,0,0),(99,1631649852,'up',1631649831,10000,9000),(100,-1,'up',1631649852,0,0),(100,1631649852,'up',1631649831,10000,9000),(101,-1,'up',1631649832,10000,9000),(102,-1,'up',1631649832,10000,9000),(103,-1,'up',1631649832,10000,9000),(104,-1,'up',1631649832,10000,9000),(105,-1,'up',1631649832,10000,9000),(106,-1,'up',1631649832,10000,9000),(107,-1,'up',1631649832,10000,9000),(108,-1,'up',1631649832,10000,9000),(109,-1,'up',1631649832,10000,9000),(110,-1,'up',1631649832,10000,9000),(111,-1,'up',1631649832,10000,9000),(112,-1,'up',1631649832,10000,9000),(113,-1,'up',1631649832,10000,9000),(114,-1,'up',1631649832,10000,9000),(115,-1,'up',1631649832,10000,9000),(116,-1,'up',1631649832,10000,9000),(117,-1,'up',1631649832,10000,9000),(118,-1,'up',1631649832,10000,9000),(119,-1,'up',1631649832,10000,9000),(120,-1,'up',1631649832,10000,9000),(121,-1,'up',1631649832,10000,9000),(122,-1,'up',1631649832,10000,9000),(123,-1,'up',1631649832,10000,9000),(124,-1,'up',1631649832,10000,9000),(125,-1,'up',1631649832,10000,9000),(126,-1,'up',1631649832,10000,9000),(127,-1,'up',1631649832,10000,9000),(128,-1,'up',1631649832,10000,9000),(129,-1,'up',1631649832,10000,9000),(130,-1,'up',1631649832,10000,9000),(131,-1,'up',1631649852,800,9000),(131,1631649852,'up',1631649832,10000,9000),(132,-1,'up',1631649852,800,9000),(132,1631649852,'up',1631649832,10000,9000),(133,-1,'up',1631649852,800,9000),(133,1631649852,'up',1631649832,10000,9000),(134,-1,'up',1631649852,10000,9192),(134,1631649852,'up',1631649832,10000,9000),(135,-1,'up',1631649852,10000,9192),(135,1631649852,'up',1631649832,10000,9000),(136,-1,'up',1631649853,10000,9192),(136,1631649853,'up',1631649832,10000,9000),(137,-1,'up',1631649853,10000,9192),(137,1631649853,'up',1631649832,10000,9000),(138,-1,'up',1631649853,800,9000),(138,1631649853,'up',1631649832,10000,9000),(139,-1,'up',1631649853,800,9000),(139,1631649853,'up',1631649832,10000,9000),(140,-1,'up',1631649853,10000,9192),(140,1631649853,'up',1631649832,10000,9000),(141,-1,'up',1631649853,10000,9192),(141,1631649853,'up',1631649832,10000,9000),(142,-1,'up',1631649853,10000,1514),(142,1631649853,'up',1631649832,10000,9000),(143,-1,'up',1631649853,10000,9192),(143,1631649853,'up',1631649832,10000,9000),(144,-1,'up',1631649853,800,9000),(144,1631649853,'up',1631649832,10000,9000),(145,-1,'up',1631649853,800,9000),(145,1631649853,'up',1631649832,10000,9000),(146,-1,'up',1631649853,10000,9192),(146,1631649853,'up',1631649832,10000,9000),(147,-1,'up',1631649853,10000,9192),(147,1631649853,'up',1631649832,10000,9000),(148,-1,'up',1631649853,10000,1514),(148,1631649853,'up',1631649832,10000,9000),(149,-1,'up',1631649853,10000,1514),(149,1631649853,'up',1631649832,10000,9000),(150,-1,'up',1631649853,800,9000),(150,1631649853,'up',1631649832,10000,9000),(151,-1,'up',1631649853,800,9000),(151,1631649853,'up',1631649832,10000,9000),(152,-1,'up',1631649853,10000,9192),(152,1631649853,'up',1631649832,10000,9000),(153,-1,'up',1631649853,10000,9192),(153,1631649853,'up',1631649832,10000,9000),(154,-1,'up',1631649853,10000,9192),(154,1631649853,'up',1631649832,10000,9000),(155,-1,'up',1631649853,10000,9192),(155,1631649853,'up',1631649832,10000,9000),(156,-1,'up',1631649832,10000,9000),(157,-1,'up',1631649853,800,9000),(157,1631649853,'up',1631649832,10000,9000),(158,-1,'up',1631649853,800,9000),(158,1631649853,'up',1631649832,10000,9000),(159,-1,'up',1631649853,800,9000),(159,1631649853,'up',1631649832,10000,9000),(160,-1,'up',1631649832,10000,9000),(161,-1,'up',1631649832,10000,9000),(162,-1,'up',1631649832,10000,9000),(163,-1,'up',1631649832,10000,9000),(164,-1,'up',1631649832,10000,9000),(165,-1,'up',1631649832,10000,9000),(166,-1,'up',1631649832,10000,9000),(167,-1,'up',1631649832,10000,9000),(168,-1,'up',1631649832,10000,9000),(169,-1,'up',1631649832,10000,9000),(170,-1,'up',1631649832,10000,9000),(171,-1,'up',1631649832,10000,9000),(172,-1,'up',1631649832,10000,9000),(173,-1,'up',1631649832,10000,9000),(174,-1,'up',1631649832,10000,9000),(175,-1,'up',1631649832,10000,9000),(176,-1,'up',1631649832,10000,9000),(177,-1,'up',1631649832,10000,9000),(178,-1,'up',1631649832,10000,9000),(179,-1,'up',1631649853,20000,9192),(179,1631649853,'up',1631649832,10000,9000),(180,-1,'up',1631649853,10000,9192),(180,1631649853,'up',1631649832,10000,9000),(181,-1,'up',1631649853,10000,9192),(181,1631649853,'up',1631649832,10000,9000),(182,-1,'up',1631649853,10000,0),(182,1631649853,'up',1631649832,10000,9000),(183,-1,'up',1631649853,1000,1514),(183,1631649853,'up',1631649832,10000,9000),(184,-1,'up',1631649853,1000,1514),(184,1631649853,'up',1631649832,10000,9000),(185,-1,'up',1631649853,0,0),(185,1631649853,'up',1631649832,10000,9000),(186,-1,'up',1631649853,1000,1514),(186,1631649853,'up',1631649832,10000,9000),(187,-1,'up',1631649853,0,0),(187,1631649853,'up',1631649832,10000,9000),(188,-1,'up',1631649853,0,0),(188,1631649853,'up',1631649832,10000,9000),(189,-1,'up',1631649853,10000,1514),(189,1631649853,'up',1631649832,10000,9000),(190,-1,'up',1631649853,10000,1514),(190,1631649853,'up',1631649832,10000,9000),(191,-1,'up',1631649853,10000,0),(191,1631649853,'up',1631649832,10000,9000),(192,-1,'up',1631649853,0,0),(192,1631649853,'up',1631649832,10000,9000),(193,-1,'up',1631649853,0,0),(193,1631649853,'up',1631649832,10000,9000),(194,-1,'up',1631649853,0,0),(194,1631649853,'up',1631649832,10000,9000),(195,-1,'up',1631649853,0,0),(195,1631649853,'up',1631649832,10000,9000),(196,-1,'up',1631649853,10000,9192),(196,1631649853,'up',1631649832,10000,9000),(197,-1,'up',1631649853,10000,1532),(197,1631649853,'up',1631649832,10000,9000),(198,-1,'up',1631649853,0,0),(198,1631649853,'up',1631649832,10000,9000),(199,-1,'up',1631649853,0,0),(199,1631649853,'up',1631649832,10000,9000),(200,-1,'up',1631649853,0,0),(200,1631649853,'up',1631649832,10000,9000),(201,-1,'up',1631649972,100000,9192),(201,1631649972,'up',1631649852,10000,9000),(202,-1,'up',1631649972,10000,9192),(202,1631649972,'up',1631649852,10000,9000),(203,-1,'up',1631649972,10000,9192),(203,1631649972,'up',1631649852,10000,9000),(204,-1,'up',1631649972,100000,9192),(204,1631649972,'up',1631649853,10000,9000),(205,-1,'up',1631649972,10000,9192),(205,1631649972,'up',1631649853,10000,9000),(206,-1,'up',1631649972,10000,9192),(206,1631649972,'up',1631649853,10000,9000);
 /*!40000 ALTER TABLE `interface_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -438,7 +437,7 @@ CREATE TABLE `link` (
   `in_maint` enum('yes','no') NOT NULL DEFAULT 'no',
   PRIMARY KEY (`link_id`),
   UNIQUE KEY `links_idx` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -447,7 +446,6 @@ CREATE TABLE `link` (
 
 LOCK TABLES `link` WRITE;
 /*!40000 ALTER TABLE `link` DISABLE KEYS */;
-INSERT INTO `link` VALUES (1,'link1',NULL,'up',100,'unknown',NULL,'no');
 /*!40000 ALTER TABLE `link` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -484,7 +482,6 @@ CREATE TABLE `link_instantiation` (
 
 LOCK TABLES `link_instantiation` WRITE;
 /*!40000 ALTER TABLE `link_instantiation` DISABLE KEYS */;
-INSERT INTO `link_instantiation` VALUES (1,-1,'active',1348601263,3,6,0,1,'198.169.70.2','198.169.70.3');
 /*!40000 ALTER TABLE `link_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -593,7 +590,7 @@ CREATE TABLE `network` (
 
 LOCK TABLES `network` WRITE;
 /*!40000 ALTER TABLE `network` DISABLE KEYS */;
-INSERT INTO `network` VALUES (1,'network.test',0,0,1);
+INSERT INTO `network` VALUES (1,'oess',0,0,1);
 /*!40000 ALTER TABLE `network` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -626,7 +623,7 @@ CREATE TABLE `node` (
   UNIQUE KEY `node_idx` (`name`),
   KEY `network_node_fk` (`network_id`),
   CONSTRAINT `network_node_fk` FOREIGN KEY (`network_id`) REFERENCES `network` (`network_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -635,7 +632,6 @@ CREATE TABLE `node` (
 
 LOCK TABLES `node` WRITE;
 /*!40000 ALTER TABLE `node` DISABLE KEYS */;
-INSERT INTO `node` VALUES (2,'node2',0,0,'unknown','up',1,'1-4095','1','1',4000,0,1,0,'no',0,'node2'),(3,'node3',0,0,'unknown','up',1,'1-4095','1','1',4000,0,1,0,'no',0,'node3');
 /*!40000 ALTER TABLE `node` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -673,7 +669,6 @@ CREATE TABLE `node_instantiation` (
 
 LOCK TABLES `node_instantiation` WRITE;
 /*!40000 ALTER TABLE `node_instantiation` DISABLE KEYS */;
-INSERT INTO `node_instantiation` VALUES (2,-1,1348237415,'active','00000002',0,1,'juniper','mx960','13.3R3','192.168.1.2','10.0.1.2',830,'netconf'),(3,-1,1348237415,'active','00000003',0,1,'juniper','mx960','13.3R3','192.168.1.3','10.0.1.3',830,'netconf');
 /*!40000 ALTER TABLE `node_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -822,7 +817,7 @@ CREATE TABLE `remote_auth` (
   UNIQUE KEY `remote_auth_idx` (`auth_name`),
   KEY `user_auth_values_fk` (`user_id`),
   CONSTRAINT `user_auth_values_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -831,6 +826,7 @@ CREATE TABLE `remote_auth` (
 
 LOCK TABLES `remote_auth` WRITE;
 /*!40000 ALTER TABLE `remote_auth` DISABLE KEYS */;
+INSERT INTO `remote_auth` VALUES (1,'admin',1),(2,'admin-nm',2),(3,'admin-ro',3),(4,'alpha',4),(5,'alpha-nm',5),(6,'alpha-ro',6),(7,'bravo',7),(8,'bravo-nm',8),(9,'bravo-ro',9);
 /*!40000 ALTER TABLE `remote_auth` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -935,7 +931,7 @@ CREATE TABLE `user` (
   `status` enum('active','decom') NOT NULL DEFAULT 'active',
   PRIMARY KEY (`user_id`),
   KEY `user_idx` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -944,6 +940,7 @@ CREATE TABLE `user` (
 
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
+INSERT INTO `user` VALUES (1,'admin@localhost','admin','admin',1,'active'),(2,'admin-nm@localhost','admin-nm','admin-nm',1,'active'),(3,'admin-ro@localhost','admin-ro','admin-ro',1,'active'),(4,'alpha@localhost','alpha','alpha',0,'active'),(5,'alpha-nm@localhost','alpha-nm','alpha-nm',0,'active'),(6,'alpha-ro@localhost','alpha-ro','alpha-ro',0,'active'),(7,'bravo@localhost','bravo','bravo',0,'active'),(8,'bravo-nm@localhost','bravo-nm','bravo-nm',0,'active'),(9,'bravo-ro@localhost','bravo-ro','bravo-ro',0,'active');
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -968,6 +965,7 @@ CREATE TABLE `user_entity_membership` (
 
 LOCK TABLES `user_entity_membership` WRITE;
 /*!40000 ALTER TABLE `user_entity_membership` DISABLE KEYS */;
+INSERT INTO `user_entity_membership` VALUES (1,1);
 /*!40000 ALTER TABLE `user_entity_membership` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -995,6 +993,7 @@ CREATE TABLE `user_workgroup_membership` (
 
 LOCK TABLES `user_workgroup_membership` WRITE;
 /*!40000 ALTER TABLE `user_workgroup_membership` DISABLE KEYS */;
+INSERT INTO `user_workgroup_membership` VALUES (1,1,'admin'),(1,2,'normal'),(1,3,'read-only'),(2,4,'admin'),(2,5,'normal'),(2,6,'read-only'),(3,7,'admin'),(3,8,'normal'),(3,9,'read-only');
 /*!40000 ALTER TABLE `user_workgroup_membership` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1020,10 +1019,10 @@ CREATE TABLE `vrf` (
   KEY `workgroup_id` (`workgroup_id`),
   KEY `created_by` (`created_by`),
   KEY `last_modified_by` (`last_modified_by`),
+  CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`),
   CONSTRAINT `vrf_ibfk_1` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`),
-  CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`),
-  CONSTRAINT `vrf_ibfk_3` FOREIGN KEY (`last_modified_by`) REFERENCES `user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  CONSTRAINT `vrf_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `user` (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6000 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1046,16 +1045,17 @@ CREATE TABLE `vrf_ep` (
   `vrf_ep_id` int(11) NOT NULL AUTO_INCREMENT,
   `inner_tag` int(10) DEFAULT NULL,
   `tag` int(10) DEFAULT NULL,
-  `bandwidth` int(10) DEFAULT '0',
+  `bandwidth` int(10) DEFAULT NULL,
   `vrf_id` int(10) DEFAULT NULL,
   `interface_id` int(10) NOT NULL,
   `state` enum('active','decom') DEFAULT NULL,
   `unit` int(11) NOT NULL,
+  `mtu` int(11) NOT NULL DEFAULT '9000',
   PRIMARY KEY (`vrf_ep_id`),
   KEY `vrf_id` (`vrf_id`),
   KEY `interface_id` (`interface_id`),
-  CONSTRAINT `vrf_ep_ibfk_1` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`),
-  CONSTRAINT `vrf_ep_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`)
+  CONSTRAINT `vrf_ep_ibfk_2` FOREIGN KEY (`interface_id`) REFERENCES `interface` (`interface_id`),
+  CONSTRAINT `vrf_ep_ibfk_1` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1083,10 +1083,10 @@ CREATE TABLE `vrf_ep_peer` (
   `operational_state` int(1) DEFAULT NULL,
   `state` enum('active','decom') DEFAULT NULL,
   `local_ip` varchar(255) DEFAULT NULL,
+  `ip_version` enum('ipv4','ipv6') DEFAULT NULL,
   `md5_key` varchar(255) DEFAULT NULL,
   `circuit_ep_id` int(11) DEFAULT NULL,
   `bfd` int(1) NOT NULL DEFAULT '0',
-  `ip_version` enum('ipv4','ipv6') DEFAULT NULL,
   PRIMARY KEY (`vrf_ep_peer_id`),
   KEY `vrf_ep_id` (`vrf_ep_id`),
   KEY `vrf_ep_peer_ibfk_2` (`circuit_ep_id`),
@@ -1123,7 +1123,7 @@ CREATE TABLE `workgroup` (
   `status` enum('active','decom') NOT NULL DEFAULT 'active',
   PRIMARY KEY (`workgroup_id`),
   UNIQUE KEY `workgroups_idx` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1132,6 +1132,7 @@ CREATE TABLE `workgroup` (
 
 LOCK TABLES `workgroup` WRITE;
 /*!40000 ALTER TABLE `workgroup` DISABLE KEYS */;
+INSERT INTO `workgroup` VALUES (1,'admin','admin',NULL,'admin',10,20,10,'active'),(2,'alpha','alpha',NULL,'normal',10,20,10,'active'),(3,'bravo','bravo',NULL,'normal',10,20,10,'active');
 /*!40000 ALTER TABLE `workgroup` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1170,4 +1171,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-07-13  1:01:13
+-- Dump completed on 2021-09-14 20:16:55

@@ -2375,6 +2375,16 @@ sub update_link {
     my $name    = $args->{'name'}{'value'};
     my $metric  = $args->{'metric'}{'value'} || 1;
 
+    my ($link, $link_err) = OESS::DB::Link::fetch(db => $db2, link_id => $args->{'link_id'}{'value'});
+    if (defined $link_err) {
+        $method->set_error($link_err);
+        return;
+    }
+    if ((defined $name && $name ne $link->{name}) && ($link->{'node_a_controller'} eq 'nso' || $link->{'node_z_controller'} eq 'nso')) {
+        $method->set_error("NSO based links cannot be renamed via OESS. Use NSO to perform this action.");
+        return;
+    }
+
     my $result2 = $db->update_link(
         link_id => $link_id,
         name    => $name,

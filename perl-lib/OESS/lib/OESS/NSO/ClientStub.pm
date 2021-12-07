@@ -84,6 +84,7 @@ sub get_l2connections {
                     'endpoint_id' => 1,
                     'interface' => 'GigabitEthernet0/0',
                     'tag' => 1,
+                    'unit' => 1,
                     'device' => 'xr0'
                 },
                 {
@@ -91,6 +92,7 @@ sub get_l2connections {
                     'endpoint_id' => 2,
                     'interface' => 'GigabitEthernet0/1',
                     'tag' => 1,
+                    'unit' => 1,
                     'device' => 'xr0'
                 }
             ],
@@ -200,9 +202,10 @@ sub get_l3connections {
                         "ce_id" => 1,
                         "remote_ce_id" => 2
                     },
-                    "device" => "Node 11",
+                    "device" => "N11",
                     "interface" => "e15/6",
                     "tag" => 300,
+                    "unit" => 300,
                     "bandwidth" => 200,
                     "peer" => [
                         {
@@ -226,6 +229,7 @@ sub get_l3connections {
                     "device" => "xr1",
                     "interface" => "GigabitEthernet0/1",
                     "tag" => 300,
+                    "unit" => 300,
                     "bandwidth" => 100,
                     "peer" => [
                         {

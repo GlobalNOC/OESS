@@ -27,4 +27,3 @@ else
     make
     make test TEST_FILES="$OESS_TEST_FILES"
 fi
-

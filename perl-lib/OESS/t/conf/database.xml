@@ -1,7 +1,38 @@
 <config local_as="OESS_LOCAL_ASN" snapp_config_location="t/conf/SNMP/snapp/snapp_config.xml" host="127.0.0.1" port="3306" admin_email="foo@bar.com" network_type="vpn-mpls">
   <nso username="NSO_USERNAME" password="NSO_PASSWORD" host="NSO_HOST" />
   <tsds url="TSDS_URL" username="TSDS_USERNAME" password="TSDS_PASSWORD" realm="TSDS_REALM" />
+  <grafana host="GRAFANA_URL">
+    <graph panelName="oess-l2-interface"  uid="3XwigBFnk" orgId="1" panelId="2"/>
+    <graph panelName="oess-interface"     uid="3XwigBFnk" orgId="1" panelId="2"/>
+    <graph panelName="oess-bgp-peer"      uid="3XwigBFnk" orgId="1" panelId="6"/>
+    <graph panelName="oess-routing-table" uid="3XwigBFnk" orgId="1" panelId="4"/>
+  </grafana>
   <rabbitMQ host="localhost" port="5672" user="guest" pass="guest"/>
   <credentials username="root" password="test" database="oess_test"/>
   <oscars host="https://nddi-dev.bldc.net.internet2.edu" cert="mycert.crt" key="mykey.key" topo="http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology"/>
+
+  <cloud user="admin" password="OESS_PASSWORD" realm="OESS">
+    <connection
+      region="us-east"
+      interconnect_type="azure-express-route"
+      resource_group="CrossConnection-SiliconValleyTest"
+      interconnect_id="OessTest-SJC-TEST-00GMR-CIS-1-PRI-A"
+      subscription_id="00000000-0000-0000-0000-000000000000"
+      client_id="ffffffff-ffff-ffff-ffff-ffffffffffff"
+      client_secret=""
+      tenant_id="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+      workgroup="admin"
+      base_url="https://management.azure.com" />
+    <connection
+      region="us-east"
+      interconnect_type="azure-express-route"
+      resource_group="CrossConnection-SiliconValleyTest"
+      interconnect_id="OessTest-SJC-TEST-00GMR-CIS-2-SEC-A"
+      subscription_id="00000000-0000-0000-0000-000000000000"
+      client_id="ffffffff-ffff-ffff-ffff-ffffffffffff"
+      client_secret=""
+      tenant_id="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+      workgroup="admin"
+      base_url="https://management.azure.com" />
+  </cloud>
 </config>

@@ -145,7 +145,7 @@ sub fetch_all {
             SELECT circuit_ep.circuit_edge_id AS circuit_ep_id, circuit_ep.circuit_id,
                    interface.interface_id, interface.name AS interface, interface.operational_state,
                    interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
-                   node.node_id, node.name AS node, node_instantiation.controller,
+                   node.node_id, node.name AS node, node.short_name AS short_node_name, node_instantiation.controller,
                    unit, extern_vlan_id AS tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
             FROM circuit_edge_interface_membership AS circuit_ep
@@ -207,25 +207,18 @@ sub fetch_all {
 
         $q = "
             SELECT vrf_ep.vrf_ep_id, vrf_ep.vrf_id,
-                   entity.entity_id, entity.name AS entity,
                    interface.interface_id, interface.name AS interface, interface.operational_state,
                    interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
-                   interface_acl.eval_position,
-                   node.node_id, node.name AS node, node_instantiation.controller,
+                   node.node_id, node.name AS node, node.short_name AS short_node_name, node_instantiation.controller,
                    unit, tag, inner_tag,
                    bandwidth, mtu, cloud_account_id, cloud_connection_id
             FROM vrf_ep
             JOIN interface ON interface.interface_id=vrf_ep.interface_id
             JOIN node ON node.node_id=interface.node_id
             JOIN node_instantiation ON node.node_id=node_instantiation.node_id and node_instantiation.end_epoch=-1
-            JOIN interface_acl ON interface_acl.interface_id=interface.interface_id
-            LEFT JOIN entity ON entity.entity_id=interface_acl.entity_id
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.vrf_ep_id=vrf_ep.vrf_ep_id
             $where
-            AND (vrf_ep.tag >= interface_acl.vlan_start)
-            AND (vrf_ep.tag <= interface_acl.vlan_end)
             AND vrf_ep.state != 'decom'
-            ORDER BY interface_acl.eval_position ASC
         ";
 
         my $vrf_endpoints = $args->{db}->execute_query($q, $values);
@@ -233,13 +226,28 @@ sub fetch_all {
             return (undef, "Couldn't find VRF Endpoints: " . $args->{db}->get_error);
         }
 
-        my $lookup = {};
+        my $entity_q = "
+          SELECT entity_id, name
+          FROM entity
+          WHERE entity_id IN (
+              SELECT entity_id
+              FROM interface_acl
+              WHERE interface_id=? AND (vlan_start <= ? AND vlan_end >= ?)
+          )
+        ";
         foreach my $e (@$vrf_endpoints) {
-            if (!defined $lookup->{$e->{vrf_ep_id}}) {
-                $lookup->{$e->{vrf_ep_id}} = 1;
-                $e->{type} = 'vrf';
-                push @$endpoints, $e;
+            my $entity = $args->{db}->execute_query($entity_q, [
+                $e->{interface_id},
+                $e->{tag},
+                $e->{tag}
+            ]);
+            if (defined $entity && defined $entity->[0]) {
+                $e->{entity_id} = $entity->[0]->{entity_id};
+                $e->{entity} = $entity->[0]->{name};
             }
+
+            $e->{type} = 'vrf';
+            push @$endpoints, $e;
         }
     }
 

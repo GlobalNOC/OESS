@@ -21,12 +21,16 @@ sub fetch{
 
     my $node_id = $params{'node_id'};
     my $node_name = $params{'name'};
+    my $short_name = $params{'short_name'};
     my $details;
 
     my $node;
 
     if (defined $node_id) {
         $node = $db->execute_query("select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node.node_id=? and node_instantiation.end_epoch=-1", [ $node_id ]);
+    }
+    elsif (defined $short_name) {
+        $node = $db->execute_query("select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node.short_name=? and node_instantiation.end_epoch=-1", [ $short_name ]);
     } else {
         $node = $db->execute_query("select * from node join node_instantiation on node.node_id=node_instantiation.node_id where node.name=? and node_instantiation.end_epoch=-1", [ $node_name ]);
     }

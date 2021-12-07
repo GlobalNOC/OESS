@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.12
+Version: 2.0.14
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -53,6 +53,8 @@ Requires: perl(Getopt::Long)
 Requires: perl(Graph::Directed)
 Requires: perl(Graph::Undirected)
 Requires: perl(GRNOC::Config)
+Requires: perl(GRNOC::CLI)
+Requires: perl(Text::CSV)
 Requires: perl(GRNOC::Log)                  >= 1.0.4
 Requires: perl(GRNOC::RabbitMQ)             >= 1.1.1
 Requires: perl(GRNOC::RabbitMQ::Client)
@@ -118,6 +120,7 @@ rm -rf $RPM_BUILD_ROOT
 make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/upgrade
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/customer-templates
+%__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/scripts
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
@@ -131,6 +134,7 @@ make pure_install
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
 cp -ar share/customer-templates/* $RPM_BUILD_ROOT/%{docdir}/share/customer-templates/
+cp -ar share/scripts/* $RPM_BUILD_ROOT/%{docdir}/share/scripts/
 %__install share/mpls/templates/juniper/13.3R8/EVPN/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/EVPN
 %__install share/mpls/templates/juniper/13.3R8/L2CCC/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC
 %__install share/mpls/templates/juniper/13.3R8/L2VPLS/* $RPM_BUILD_ROOT/%{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS
@@ -306,6 +310,7 @@ rm -rf $RPM_BUILD_ROOT
 %{docdir}/share/nddi.sql
 %{docdir}/share/upgrade/*
 %{docdir}/share/customer-templates/*
+%{docdir}/share/scripts/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/EVPN/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2CCC/*
 %{docdir}/share/mpls/templates/juniper/13.3R8/L2VPLS/*

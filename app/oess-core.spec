@@ -1,5 +1,5 @@
 Name:		oess-core
-Version:	2.0.12
+Version:	2.0.14
 Release:	1%{?dist}
 Summary:	The core OESS service providers
 
@@ -20,7 +20,7 @@ Requires: /bin/bash
 Requires: /usr/bin/perl
 Requires: perl(base), perl(constant), perl(strict), perl(warnings)
 
-Requires: perl-OESS >= 2.0.12
+Requires: perl-OESS >= 2.0.14
 
 Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
 Requires: perl(CPAN), perl(CPAN::Shell)
