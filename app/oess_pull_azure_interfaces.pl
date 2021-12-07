@@ -118,9 +118,9 @@ sub find_matching_azure_subnet{
     my $peering = $azure_connection_info->{properties}->{peerings};
     foreach my $ip (@$peering){
         if($cloud_interconnect_id =~ m/-SEC-/){
-            $azure_peering_subnet = $ip->{properties}->{secondaryPeerAddresssubnet};
+            $azure_peering_subnet = $ip->{properties}->{secondaryPeerAddressPrefix};
         }elsif($cloud_interconnect_id =~ m/-PRI-/){
-            $azure_peering_subnet = $ip->{properties}->{primaryPeerAddresssubnet};
+            $azure_peering_subnet = $ip->{properties}->{primaryPeerAddressPrefix};
         }else{
             $azure_peering_subnet = undef;
         }
