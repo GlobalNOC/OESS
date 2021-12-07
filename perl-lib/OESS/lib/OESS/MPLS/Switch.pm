@@ -59,7 +59,7 @@ sub new {
     $0 = "oess_mpls_switch.$self->{type}($self->{node}->{mgmt_addr})";
 
     $self->create_device_object();
-    if(!defined($self->{'device'})){
+    if (!defined $self->{'device'}) {
         $self->{'logger'}->error("Unable to create Device instance!");
         die;
     }

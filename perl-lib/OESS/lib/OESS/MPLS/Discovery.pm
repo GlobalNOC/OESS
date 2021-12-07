@@ -253,38 +253,28 @@ really this creates a switch object that can handle our RabbitMQ
 requests and returns results from the device
 
 =cut
-sub make_baby{
+sub make_baby {
     my $self = shift;
     my $id = shift;
 
-    $self->{'logger'}->debug("Before the fork");
-    if (defined $self->{'children'}->{$id}) {
+    if (defined $self->{'children'}->{$id}->{'rpc'} && $self->{'children'}->{$id}->{'rpc'} == 1) {
         return 1;
     }
+    $self->{'logger'}->info("Forking into Switch process.");
 
     my $node = $self->{'db'}->get_node_by_id(node_id => $id);
 
     my %args;
     $args{'id'} = $id;
+    $args{'config'} = $self->{'config_obj'}->filename;
     $args{'share_file'} = '/var/run/oess/mpls_share.'. $id;
-    $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
-    $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
-    $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
-    $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
-    $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
-    $args{'vendor'} = $node->{'vendor'};
-    $args{'model'} = $node->{'model'};
-    $args{'sw_version'} = $node->{'sw_version'};
-    $args{'mgmt_addr'} = $node->{'mgmt_addr'};
-    $args{'tcp_port'} = $node->{'tcp_port'};
-    $args{'name'} = $node->{'name'};
-    $args{'use_cache'} = 0;
-    $args{'topic'} = "MPLS.Discovery.Switch";
     $args{'type'} = 'discovery';
+    $args{'topic'} = discovery_switch_topic_for_node(mgmt_addr => $node->{'mgmt_addr'}, tcp_port => $node->{'tcp_port'});
+
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
 use warnings;
-use Data::Dumper;
+
 my $switch;
 my $logger;
 
@@ -292,14 +282,14 @@ Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
 sub run{
     my $fh = shift;
     my %args = @_;
-    $logger = Log::Log4perl->get_logger("MPLS.Discovery.MASTER");
+
+    $logger = Log::Log4perl->get_logger("OESS.MPLS.Discovery.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
-    $args{"node"} = {"vendor" => $args{"vendor"}, "model" => $args{"model"}, "sw_version" => $args{"sw_version"}, "name" => $args{"name"}, "mgmt_addr" => $args{"mgmt_addr"}, "tcp_port" => $args{"tcp_port"}};			  
     $switch = OESS::MPLS::Switch->new( %args );
 }')->fork->send_arg( %args )->run("run");
 
-    $self->{'children'}->{$id} = {};
     $self->{'children'}->{$id}->{'rpc'} = 1;
+    return 1;
 }
 
 =head2 int_handler
