@@ -47,6 +47,22 @@ sub register_ro_methods{
 
     $svc->register_method($method);
 
+    my $method = GRNOC::WebService::Method->new(
+        name => "get_interfaces",
+        description => "returns a list of interfaces for a node",
+        callback => sub { get_interfaces(@_) }
+      );
+    $method->add_input_parameter( name => 'node_id',
+                                  pattern => $GRNOC::WebService::Regex::INTEGER,
+                                  required => 1,
+                                  description => 'Node ID to fetch details'
+     );
+    $method->add_input_parameter( name => 'workgroupd_id',
+                                  pattern => $GRNOC::WebService::Regex::INTEGER,
+                                  required => 0,
+                                  description => 'Workgroup ID to filter results'
+     );
+    $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
         name => "is_vlan_available",
@@ -75,7 +91,8 @@ sub register_ro_methods{
     $method = GRNOC::WebService::Method->new(
         name => "get_workgroup_interfaces",
         description => "returns a list of available vlan tags ",
-        callback => sub { get_workgroup_interfaces(@_) }
+        callback => sub { get_workgroup_interfaces(@_) },
+        method_deprecated => "This method has been deprecated in favor of interface.cgi?method=get_interfaces."
     );
 
     $method->add_input_parameter( name => 'workgroup_id',
@@ -239,9 +256,25 @@ sub get_workgroup_interfaces{
     }
 
     return {results => \@res};
+}
 
-
-    
+sub get_interfaces{
+    my $method = shift;
+    my $params = shift;
+    my $node_id = $params->{'node_id'}{'value'};
+    my $workgroup_id = $params->{'workgroup_id'}{'value'};
+    my $interfaces;
+    if (defined $workgroup_id){
+        $interfaces = OESS::DB::Interface::get_interfaces(db => $db, node_id => $node_id);
+    } else {
+        $interfaces = OESS::DB::Interface::get_interfaces(db => $db, node_id => $node_id);
+    }
+    my @results;
+    foreach my $interface_id (@$interfaces){
+        my $interface = OESS::Interface->new(interface_id => $interface_id, db => $db);
+        push(@results, $interface->to_hash());
+    }
+    return {results => \@results};
 }
 
 sub main{

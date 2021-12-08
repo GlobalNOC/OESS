@@ -76,6 +76,7 @@ sub from_hash{
     $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
     $self->{'bandwidth'} = $hash->{'bandwidth'} || 0;
     $self->{'provisionable_bandwidth'} = $hash->{'provisionable_bandwidth'};
+    $self->{'role'} = $hash->{'role'} || 'unknown';
     $self->{'mtu'} = $hash->{'mtu'} || 0;
 
     return 1;
@@ -99,6 +100,7 @@ sub to_hash{
         workgroup_id => $self->workgroup_id(),
         utilized_bandwidth => $self->{'utilized_bandwidth'},
         bandwidth => $self->{'bandwidth'},
+        role => $self->{'role'},
         provisionable_bandwidth => $self->{'provisionable_bandwidth'},
         mtu => $self->{'mtu'}
     };
@@ -333,7 +335,8 @@ sub acls{
 
 =cut
 sub role{
-
+    my $self = shift;
+    return $self->{'role'};
 }
 
 =head2 node
