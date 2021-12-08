@@ -46,17 +46,17 @@ export default class NavBar extends React.Component{
               <span className="icon-bar"></span>
               <span className="icon-bar"></span>
             </button>
-            <NavBrand linkTo={`${path}new`} src={`${path}media/internet2-logo.png`} text={"Cloud Connect"} />
+            <NavBrand linkTo={path} src={`${path}media/internet2-logo.png`} text={"Cloud Connect"} />
           </div>
 
           <div className="collapse navbar-collapse" id="navbar-collapse">
             <ul className="nav navbar-nav">
               <NavDropdown text="New Connection" user={user}>
-                <NavLink linkTo={`${path}new/index.cgi?action=provision_l2vpn`} text="Layer 2" />
-                <NavLink linkTo={`${path}new/index.cgi?action=provision_cloud`} text="Layer 3" />
+                <NavLink linkTo={`${path}index.cgi?action=provision_l2vpn`} text="Layer 2" />
+                <NavLink linkTo={`${path}index.cgi?action=provision_cloud`} text="Layer 3" />
               </NavDropdown>
-              <NavLink linkTo={`${path}new/index.cgi?action=phonebook`} text="Explore" />
-              <NavLink linkTo={`${path}new/index.cgi?action=acl`} text="Workgroup" />
+              <NavLink linkTo={`${path}index.cgi?action=phonebook`} text="Explore" />
+              <NavLink linkTo={`${path}index.cgi?action=acl`} text="Workgroup" />
             </ul>
             <ul className="nav navbar-nav navbar-right">
               {adminLink}
