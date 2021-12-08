@@ -51,16 +51,18 @@ sub register_ro_methods{
         name => "get_interfaces",
         description => "returns a list of interfaces for a node",
         callback => sub { get_interfaces(@_) }
-      );
-    $method->add_input_parameter( name => 'node_id',
-                                  pattern => $GRNOC::WebService::Regex::INTEGER,
-                                  required => 1,
-                                  description => 'Node ID to fetch details'
+    );
+    $method->add_input_parameter(
+        name => 'node_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 0,
+        description => 'Node ID to fetch details'
      );
-    $method->add_input_parameter( name => 'workgroupd_id',
-                                  pattern => $GRNOC::WebService::Regex::INTEGER,
-                                  required => 0,
-                                  description => 'Workgroup ID to filter results'
+    $method->add_input_parameter(
+        name => 'workgroupd_id',
+        pattern => $GRNOC::WebService::Regex::INTEGER,
+        required => 0,
+        description => 'Workgroup ID to filter results'
      );
     $svc->register_method($method);
 
@@ -101,63 +103,11 @@ sub register_ro_methods{
                                   description => 'Workgroup ID to fetch details'
         );
     
-    $svc->register_method($method);    
-
-    $method = GRNOC::WebService::Method->new(
-	name => "get_interfaces",
-	description => "returns all interfaces on a node or a specific interface if specified",
-	callback => sub { get_interfaces(@_) }
-	);
-    $method->add_input_parameter( name => 'node',
-				  pattern => $GRNOC::WebService::Regex::HOSTNAME,
-				  required => 1,
-				  description => "Node to fetch interfaces on");
-    
-    $method->add_input_parameter(name => 'name',
-				 pattern => $GRNOC::WebService::Regex::TEXT,
-				 required => 0,
-				 description => "Possible interface name to search for on specific node");
     $svc->register_method($method);
-
 }
 
 sub register_rw_methods{
     
-}
-
-sub get_interfaces{
-    my $method = shift;
-    my $params = shift;
-
-    
-    my $node = $params->{'node'}{'value'};
-    my $name = $params->{'name'}{'value'};
-
-#    warn Dumper($name);
-#    warn Dumper($node);
-
-    my $n = OESS::Node->new( db => $db, name => $node);
-
-#    warn Dumper($n);
-    if(defined($n)){
-	my $interfaces = $n->interfaces();
-	my @ints;
-
-	if(defined($name)){
-	    foreach my $interface (@$interfaces){
-		if($interface->name eq $name){
-		    return {results => [$interface->to_hash()]};
-		}
-	    }
-	}else{
-	    foreach my $interface( @$interfaces){
-		push(@ints, $interface->to_hash());
-	    }
-	    return {results => {interfaces => \@ints}};
-	}
-    }
-    $method->set_error("Unable to find node: $node");
-    return;
 }
 
 sub get_available_vlans{
@@ -261,20 +211,19 @@ sub get_workgroup_interfaces{
 sub get_interfaces{
     my $method = shift;
     my $params = shift;
-    my $node_id = $params->{'node_id'}{'value'};
-    my $workgroup_id = $params->{'workgroup_id'}{'value'};
-    my $interfaces;
-    if (defined $workgroup_id){
-        $interfaces = OESS::DB::Interface::get_interfaces(db => $db, node_id => $node_id);
-    } else {
-        $interfaces = OESS::DB::Interface::get_interfaces(db => $db, node_id => $node_id);
+
+    my $interfaces = OESS::DB::Interface::get_interfaces(
+        db => $db,
+        node_id => $params->{node_id}{value},
+        workgroup_id => $params->{workgroup_id}{value}
+    );
+
+    my $results = [];
+    foreach my $interface_id (@$interfaces) {
+        my $interface = OESS::Interface->new(db => $db, interface_id => $interface_id);
+        push @$results, $interface->to_hash;
     }
-    my @results;
-    foreach my $interface_id (@$interfaces){
-        my $interface = OESS::Interface->new(interface_id => $interface_id, db => $db);
-        push(@results, $interface->to_hash());
-    }
-    return {results => \@results};
+    return { results => $results };
 }
 
 sub main{

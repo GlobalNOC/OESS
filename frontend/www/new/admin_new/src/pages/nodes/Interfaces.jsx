@@ -73,19 +73,19 @@ class Interfaces extends React.Component {
         interfaces.forEach(x => x.utilized_total_bandwith = x.utilized_bandwidth + ' / ' + x.bandwidth);
        
         let columns = [
+            {name: '', style: {verticalAlign: 'middle', fontSize: '.6em'}, render: (intf) => <span title={intf.operational_state}>{(intf.operational_state === "up") ? "🟢" : "🔴"}</span>},
             {name: 'ID', key: 'interface_id'},
             {name: 'Name', key: 'name'},
             {name: 'Description', key: 'description'},
-            {name: 'Status', key: 'operational_status', key:  'operational_state'},
-            {name: 'Utilized/Total Bandwidth(Mps)', key: 'utilized_total_bandwith'},
-            {name: 'Cloud Interconnection Type', key: 'cloud_interconnect_type'},
+            {name: 'Reserved Bandwidth (Mps)', key: 'utilized_total_bandwith'},
+            {name: 'Cloud Interconnect Type', key: 'cloud_interconnect_type'},
             {name: 'Role', key: 'role'}
         ];
 
         return (
             <div>
                 <div>
-                    <p className="title">Interfaces</p>
+                    <p className="title"><b>Interfaces</b></p>
                     <p className="subtitle">{this.state.node.name}</p>
                 </div>
                 <br />
