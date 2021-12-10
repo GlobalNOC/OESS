@@ -3,6 +3,8 @@ import ReactDOM from "react-dom";
 
 import { Link } from "react-router-dom";
 
+import { config } from '../../config.jsx';
+
 import getUsers, { deleteUser } from '../../api/users.jsx';
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
@@ -92,6 +94,10 @@ class Users extends React.Component {
     });
 
     const rowButtons = (data) => {
+      if (config.third_party_mgmt == 1) {
+        return <div></div>;
+      }
+
       return (
         <div>
           <div className="btn-group">
@@ -122,6 +128,7 @@ class Users extends React.Component {
         <div>
           <p className="title"><b>Users</b></p>
           <p className="subtitle">Create, edit, or delete Users</p>
+          <p>Third party mgmt {config.third_party_mgmt}</p>
         </div>
         <br />
 
@@ -132,7 +139,7 @@ class Users extends React.Component {
               <input type="text" className="form-control" id="user_search" placeholder="Filter Users" aria-describedby="icon" onChange={(e) => this.filterUsers(e)} />
             </div>
           </div>
-          <Link to="/users/new" className="btn btn-default">Create User</Link>
+          { config.third_party_mgmt == 1 ? null : <Link to="/users/new" className="btn btn-default">Create User</Link> }
         </form>
         <br />
 

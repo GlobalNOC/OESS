@@ -3,6 +3,8 @@ import ReactDOM from "react-dom";
 
 import { Link } from "react-router-dom";
 
+import { config } from '../../config.jsx';
+
 import { deleteWorkgroup, getAllWorkgroups } from '../../api/workgroup.js';
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
@@ -90,6 +92,14 @@ class Workgroups extends React.Component {
     });
 
     const rowButtons = (data) => {
+      if (config.third_party_mgmt == 1) {
+        return (
+          <div>
+            <Link to={`/workgroups/${data.workgroup_id}/users`} className="btn btn-default btn-xs">Manage Users</Link>
+          </div>
+        );
+      }
+
       return (
         <div>
           <Link to={`/workgroups/${data.workgroup_id}/users/add`} className="btn btn-default btn-xs">Add User</Link>&nbsp;
@@ -133,7 +143,7 @@ class Workgroups extends React.Component {
               <input type="text" className="form-control" id="user_search" placeholder="Filter Workgroups" aria-describedby="icon" onChange={(e) => this.filterWorkgroups(e)}/>
             </div>
           </div>
-          <Link to="/workgroups/new" className="btn btn-default">Create Workgroup</Link>
+          { config.third_party_mgmt == 1 ? null : <Link to="/workgroups/new" className="btn btn-default">Create Workgroup</Link> }
         </form>
         <br />
 

@@ -1,5 +1,8 @@
 import React, { useContext, useState } from "react";
+
 import { Link } from "react-router-dom";
+
+import { config } from '../../config.jsx';
 
 import { getWorkgroupUsers, modifyWorkgroupUser, removeWorkgroupUser } from '../../api/workgroup.js';
 import { PageContext } from "../../contexts/PageContext.jsx";
@@ -98,7 +101,7 @@ class WorkgroupUsers extends React.Component {
 
     const roleSelect = (data) => {
       return (
-        <select className="form-control input-sm" style={{height: '22px', padding: '1px 5px'}} defaultValue={data.role} onChange={(e) => this.modifyWorkgroupUserHandler(data, e.target.value)}>
+        <select className="form-control input-sm" style={{height: '22px', padding: '1px 5px'}} defaultValue={data.role} disabled={config.third_party_mgmt == 1} onChange={(e) => this.modifyWorkgroupUserHandler(data, e.target.value)}>
           <option value="read-only">Read-Only</option>
           <option value="normal">Normal</option>
           <option value="admin">Admin</option>
@@ -107,6 +110,10 @@ class WorkgroupUsers extends React.Component {
     };
 
     const rowButtons = (data) => {
+      if (config.third_party_mgmt == 1) {
+        return <div></div>;
+      }
+
       return <button type="button" className="btn btn-default btn-xs" onClick={(e) => this.removeWorkgroupUserHandler(data)}>Remove User</button>;
     }
 
@@ -134,7 +141,7 @@ class WorkgroupUsers extends React.Component {
               <input type="text" className="form-control" id="user_search" placeholder="Filter Users" aria-describedby="icon" onChange={(e) => this.filterUsers(e)}/>
             </div>
           </div>
-          <Link to={`/workgroups/${this.props.match.params["id"]}/users/add`} className="btn btn-default">Add User</Link>
+          { config.third_party_mgmt == 1 ? null : <Link to={`/workgroups/${this.props.match.params["id"]}/users/add`} className="btn btn-default">Add User</Link> }
         </form>
         <br />
 
