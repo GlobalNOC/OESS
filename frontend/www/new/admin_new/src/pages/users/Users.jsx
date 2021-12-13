@@ -128,7 +128,6 @@ class Users extends React.Component {
         <div>
           <p className="title"><b>Users</b></p>
           <p className="subtitle">Create, edit, or delete Users</p>
-          <p>Third party mgmt {config.third_party_mgmt}</p>
         </div>
         <br />
 
