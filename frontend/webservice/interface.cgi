@@ -11,11 +11,12 @@ use OESS::VRF;
 use OESS::Entity;
 use OESS::Workgroup;
 
+
 my $db = OESS::DB->new();
 my $svc = GRNOC::WebService::Dispatcher->new();
 
 
-sub register_ro_methods{
+sub register_ro_methods {
 
     my $method = GRNOC::WebService::Method->new(
         name => "get_available_vlans",
@@ -46,6 +47,19 @@ sub register_ro_methods{
                                   description => 'VRF ID of the VRF being edited (if one is being edited)');
 
     $svc->register_method($method);
+
+    my $get_interface = GRNOC::WebService::Method->new(
+        name        => "get_interface",
+        description => "get_interface returns the requested interface",
+        callback    => sub { get_interface(@_) }
+    );
+    $get_interface->add_input_parameter(
+        name        => 'interface_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 1,
+        description => 'InterfaceId of interface'
+    );
+    $svc->register_method($get_interface);
 
     my $method = GRNOC::WebService::Method->new(
         name => "get_interfaces",
@@ -106,11 +120,40 @@ sub register_ro_methods{
     $svc->register_method($method);
 }
 
-sub register_rw_methods{
-    
+sub register_rw_methods {
+    my $edit_interface = GRNOC::WebService::Method->new(
+        name        => "edit_interface",
+        description => "edit_interface edits interface interface_id",
+        callback    => sub { edit_interface(@_) }
+    );
+    $edit_interface->add_input_parameter(
+        name        => 'interface_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 1,
+        description => 'Identifier used to lookup the interface'
+    );
+    $edit_interface->add_input_parameter(
+        name        => 'workgroup_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 0,
+        description => 'Identifier of workgroup used to grant ownership of interface'
+    );
+    $edit_interface->add_input_parameter(
+        name        => 'cloud_interconnect_id',
+        pattern     => $GRNOC::WebService::Regex::TEXT,
+        required    => 0,
+        description => 'Physical interconnect ID used by connector'
+    );
+    $edit_interface->add_input_parameter(
+        name        => 'cloud_interconnect_type',
+        pattern     => $GRNOC::WebService::Regex::TEXT,
+        required    => 0,
+        description => 'Physical interconnect type of connector'
+    );
+    $svc->register_method($edit_interface);
 }
 
-sub get_available_vlans{
+sub get_available_vlans {
     my $method = shift;
     my $params = shift;
 
@@ -157,7 +200,7 @@ sub get_available_vlans{
     return {results => {available_vlans => \@allowed_vlans}};
 }
 
-sub is_vlan_available{
+sub is_vlan_available {
     my $method = shift;
     my $params = shift;
 
@@ -174,7 +217,7 @@ sub is_vlan_available{
     return {results => {allowed => $interface->vlan_valid( workgroup_id => $workgroup_id, vlan => $vlan )}};
 }
 
-sub get_workgroup_interfaces{
+sub get_workgroup_interfaces {
     my $method = shift;
     my $params = shift;
     my $workgroup_id = $params->{'workgroup_id'}{'value'};
@@ -208,7 +251,22 @@ sub get_workgroup_interfaces{
     return {results => \@res};
 }
 
-sub get_interfaces{
+sub get_interface {
+    my $method = shift;
+    my $params = shift;
+
+    my $interface = new OESS::Interface(
+        db => $db,
+        interface_id => $params->{interface_id}{value}
+    );
+    if (!defined $interface) {
+        $method->set_error("Couldn't find interface $params->{interface_id}{value}.");
+        return;
+    }
+    return { results => [ $interface->to_hash ] };
+}
+
+sub get_interfaces {
     my $method = shift;
     my $params = shift;
 
@@ -224,6 +282,38 @@ sub get_interfaces{
         push @$results, $interface->to_hash;
     }
     return { results => $results };
+}
+
+sub edit_interface {
+    my $method = shift;
+    my $params = shift;
+
+    my $interface = new OESS::Interface(
+        db => $db,
+        interface_id => $params->{interface_id}{value}
+    );
+    if (!defined $interface) {
+        $method->set_error("Couldn't find interface $params->{interface_id}{value}.");
+        return;
+    }
+
+    # Allow for cloud_interconnect_type to be set to the empty string
+    if ($params->{cloud_interconnect_type}{is_set} && !defined $params->{cloud_interconnect_type}{value}) {
+        $params->{cloud_interconnect_type}{value} = '';
+    }
+
+    if (defined $params->{workgroup_id}{value}) {
+        $interface->workgroup_id($params->{workgroup_id}{value});
+    }
+    if (defined $params->{cloud_interconnect_id}{value}) {
+        $interface->cloud_interconnect_id($params->{cloud_interconnect_id}{value});
+    }
+    if (defined $params->{cloud_interconnect_type}{value}) {
+        $interface->cloud_interconnect_type($params->{cloud_interconnect_type}{value});
+    }
+    $interface->update_db;
+
+    return { results => [ $interface->to_hash ] };
 }
 
 sub main{

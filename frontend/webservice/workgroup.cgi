@@ -96,7 +96,7 @@ $edit_workgroup->add_input_parameter(
     name        => 'workgroup_id',
     pattern     => $GRNOC::WebService::Regex::INTEGER,
     required    => 1,
-    description => 'identifier used to lookup the workgroup'
+    description => 'Identifier used to lookup the workgroup'
 );
 $ws->register_method($edit_workgroup);
 

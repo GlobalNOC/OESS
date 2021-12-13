@@ -53,6 +53,8 @@ class Interfaces extends React.Component {
 
             if ( (new RegExp(this.state.filter, 'i').test(x.name)) ) {
                 return true;
+            } else if ( (new RegExp(this.state.filter, 'i').test(x.description)) ) {
+                return true;
             } else if ( this.state.filter == x.interface_id ) {
                 return true;
             } else {
@@ -71,7 +73,15 @@ class Interfaces extends React.Component {
             }
         });
         interfaces.forEach(x => x.utilized_total_bandwith = x.utilized_bandwidth + ' / ' + x.bandwidth);
-       
+        
+        const rowButtons = (data) => {
+            return (
+            <div>
+                <Link to={`/nodes/${data.node_id}/interfaces/${data.interface_id}`} className="btn btn-default btn-xs">Edit Interface</Link>
+            </div>
+            );
+        }
+
         let columns = [
             {name: '', style: {verticalAlign: 'middle', fontSize: '.6em'}, render: (intf) => <span title={intf.operational_state}>{(intf.operational_state === "up") ? "🟢" : "🔴"}</span>},
             {name: 'ID', key: 'interface_id'},
@@ -79,23 +89,24 @@ class Interfaces extends React.Component {
             {name: 'Description', key: 'description'},
             {name: 'Reserved Bandwidth (Mps)', key: 'utilized_total_bandwith'},
             {name: 'Cloud Interconnect Type', key: 'cloud_interconnect_type'},
-            {name: 'Role', key: 'role'}
+            {name: 'Role', key: 'role'},
+            {name: '', render: rowButtons, style: {textAlign: 'right'}}
         ];
 
         return (
             <div>
                 <div>
-                    <p className="title"><b>Interfaces</b></p>
-                    <p className="subtitle">{this.state.node.name}</p>
+                    <p className="title"><b>Node Interfaces</b></p>
+                    <p className="subtitle">Edit Node Interfaces</p>
                 </div>
                 <br />
                 <form id="user_search_div" className="form-inline">
-                        <div className="form-group">
-                            <div className="input-group">
-                                <span className="input-group-addon" id="icon"><span className="glyphicon glyphicon-search" aria-hidden="true"></span></span>
-                                <input type="text" className="form-control" id="user_search" placeholder="Filter Interfaces" aria-describedby="icon" onChange={(e) => this.filterInterfaces(e)} />
-                            </div>
+                    <div className="form-group">
+                        <div className="input-group">
+                            <span className="input-group-addon" id="icon"><span className="glyphicon glyphicon-search" aria-hidden="true"></span></span>
+                            <input type="text" className="form-control" id="user_search" placeholder="Filter Interfaces" aria-describedby="icon" onChange={(e) => this.filterInterfaces(e)} />
                         </div>
+                    </div>
                 </form>
                 <Table columns={columns} rows={interfaces} />
                 <center>

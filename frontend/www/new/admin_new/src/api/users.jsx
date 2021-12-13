@@ -1,9 +1,5 @@
 import { config } from '.././config.jsx';
 
-//const config = require('./test.json');
-
-
-let path = config.base_url;
 
 export async function getUser(user_id) {
   let url = `${config.base_url}/services/user.cgi?method=get_user`;
@@ -21,7 +17,7 @@ export async function getUser(user_id) {
 }
 
 export async function getUsers() {
-    let url = `${path}/services/user.cgi?method=get_users`;
+    let url = `${config.base_url}/services/user.cgi?method=get_users`;
 
     try {
         const resp = await fetch(url, { method: 'get', credentials: 'include' });
@@ -67,7 +63,7 @@ export async function deleteUser(user_id) {
 }
 
 export async function editUser(user) {
-  let url = `${path}/services/user.cgi?method=edit_user`;
+  let url = `${config.base_url}/services/user.cgi?method=edit_user`;
   url += `&user_id=${user.userId}`;
   url += `&first_name=${user.firstName}`;
   url += `&last_name=${user.lastName}`;

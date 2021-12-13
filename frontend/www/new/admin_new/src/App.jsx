@@ -23,7 +23,7 @@ import { EditUser } from "./pages/users/EditUser.jsx";
 import { CreateNode } from "./pages/nodes/CreateNode.jsx";
 import { EditNode } from "./pages/nodes/EditNode.jsx";
 import { Interfaces } from "./pages/nodes/Interfaces.jsx";
-
+import { EditInterface } from "./pages/nodes/interfaces/EditInterface.jsx";
 
 const App = () => {
   return (
@@ -51,10 +51,10 @@ const App = () => {
               <Route path="/users" component={Users}></Route>
               
               <Route path="/nodes/new"><CreateNode /></Route>
+              <Route path="/nodes/:id/interfaces/:interfaceId" component={EditInterface}></Route>
               <Route path="/nodes/:id/interfaces" component={Interfaces}></Route>
               <Route path="/nodes/:id" component={EditNode}></Route>
               <Route path="/nodes" component={Nodes}></Route>
-
 
               <Route path="/workgroups/new">
                 <CreateWorkgroup />
