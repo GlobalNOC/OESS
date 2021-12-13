@@ -42,7 +42,28 @@ export const createNode = async (node) => {
 }
 
 export const editNode = async (node) => {
-  return 1;
+  let validControllers = ['netconf', 'nso', 'openflow'];
+  if (!validControllers.includes(node.controller)) {
+    throw `Invalid controller '${node.controller}' used in editNode.`;
+  }
+
+  let url = `${config.base_url}/services/node.cgi?method=edit_node`;
+  url += `&node_id=${node.nodeId}`;
+  url += `&name=${node.name}`;
+  url += `&short_name=${node.shortName}`;
+  url += `&longitude=${node.longitude}`;
+  url += `&latitude=${node.latitude}`;
+  url += `&vlan_range=${node.vlanRange}`;
+  url += `&ip_address=${node.ipAddress}`;
+  url += `&tcp_port=${node.tcpPort}`;
+  url += `&make=${node.make}`;
+  url += `&model=${node.model}`;
+  url += `&controller=${node.controller}`;
+
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  const data = await resp.json();
+  if (data.error_text) throw data.error_text;
+  return data.results[0];
 };
 
 export const getNode = async (nodeId) => {

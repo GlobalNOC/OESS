@@ -51,7 +51,7 @@ sub from_hash {
     $self->{name} = $hash->{name};
     $self->{latitude} = $hash->{latitude};
     $self->{longitude} = $hash->{longitude};
-    $self->{vlan_tag_range} = $hash->{vlan_tag_range};
+    $self->{vlan_tag_range} = $hash->{vlan_range};
     $self->{operational_state_mpls} = $hash->{operational_state_mpls} || 'up';
     $self->{pending_diff} = $hash->{pending_diff} || 0;
     $self->{admin_state} = $hash->{admin_state} || 'active';
@@ -77,7 +77,7 @@ sub to_hash {
         name => $self->{'name'},
         latitude => $self->{'latitude'},
         longitude => $self->{'longitude'},
-        vlan_tag_range => $self->{vlan_tag_range},
+        vlan_range => $self->{vlan_tag_range},
         operational_state_mpls => $self->{operational_state_mpls},
         pending_diff => $self->{pending_diff},
         admin_state => $self->{admin_state},
@@ -322,7 +322,7 @@ sub make {
 =head2 vlan_tag_range
 
 =cut
-sub vlan_tag_range {
+sub vlan_range {
     my $self = shift;
     my $vlan_tag_range = shift;
 
