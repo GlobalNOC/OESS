@@ -27,11 +27,11 @@ const editNodeComponent = (props) => {
     } catch (error) {
       setStatus({type:'error', message:error.toString()});
     }
-    history.push('/workgroups');
+    history.goBack();
   };
 
   let cancelHandler = async () => {
-    history.push('/nodes');
+    history.goBack();
   };
 
   if (node == null) {

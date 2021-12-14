@@ -12,8 +12,10 @@ use OESS::Entity;
 use OESS::Workgroup;
 
 
-my $db = OESS::DB->new();
-my $svc = GRNOC::WebService::Dispatcher->new();
+my $config = new OESS::Config(config_filename => '/etc/oess/database.xml');
+my $db = new OESS::DB(config_obj => $config);
+my $ac = new OESS::AccessController::Default(db => $db);
+my $svc = new GRNOC::WebService::Dispatcher();
 
 
 sub register_ro_methods {
@@ -146,7 +148,7 @@ sub register_rw_methods {
     );
     $edit_interface->add_input_parameter(
         name        => 'cloud_interconnect_type',
-        pattern     => $GRNOC::WebService::Regex::TEXT,
+        pattern     => '^(aws-hosted-connection|azure-express-route|gcp-partner-interconnect|)$',
         required    => 0,
         description => 'Physical interconnect type of connector'
     );
@@ -287,6 +289,17 @@ sub get_interfaces {
 sub edit_interface {
     my $method = shift;
     my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_system_access(role => 'admin');
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
 
     my $interface = new OESS::Interface(
         db => $db,

@@ -5,13 +5,7 @@ const validateForm = (e) => {
 };
 
 export const NodeForm = (props) => {
-
-  // let tName = (props.node && props.node.name) ? props.node.name : '';
-
-  let node = {};
-  if (props.node !== null) {
-    node = props.node;
-  }
+  let node = (props.node === null) ? {} : props.node;
 
   const [name, setName] = useState(node.name || '');
   const [shortName, setShortName] = useState(node.short_name || 'demo');
@@ -24,6 +18,7 @@ export const NodeForm = (props) => {
   const [model, setModel] = useState(node.model || 'MX');
   const [controller, setController] = useState(node.controller || 'netconf');
   const [swVersion, setSwVersion] = useState(node.sw_version || 'unknown');
+  const [nodeId, setNodeId] = useState(node.node_id || 0);
 
   let onSubmit = (e) => {
     e.preventDefault();
@@ -37,7 +32,8 @@ export const NodeForm = (props) => {
       tcpPort,
       make,
       model,
-      controller
+      controller,
+      nodeId
     };
     let ok = validateForm(node);
     if (!ok) return;
@@ -80,6 +76,10 @@ export const NodeForm = (props) => {
       <div className="form-group">
         <label htmlFor="name">Name</label>
         <input type="text" className="form-control" id="name" placeholder="sw1.example.com" value={name} onChange={e => setName(e.target.value)} />
+      </div>
+      <div className="form-group">
+        <label htmlFor="short-name">Short Name</label>
+        <input type="text" className="form-control" id="short-name" placeholder="sw1" value={shortName} onChange={e => setShortName(e.target.value)} />
       </div>
       <div className="form-group">
         <label htmlFor="ip-address">IP Address</label>
@@ -136,8 +136,9 @@ export const NodeForm = (props) => {
       </div>
 
       {nsoControllerInputs}
-
       <br/>
+      <input type="hidden" name="node_id" value={nodeId} />
+
       <button type="submit" className="btn btn-primary" style={{margin: '0 2px'}}>Submit</button>
       <button type="button" className="btn btn-default" style={{margin: '0 2px'}} data-dismiss="modal" onClick={onCancel}>Cancel</button>
     </form>

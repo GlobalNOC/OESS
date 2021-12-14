@@ -14,6 +14,7 @@ use OESS::DB;
 use OESS::Node;
 use OESS::RabbitMQ::Client;
 
+
 my $config = new OESS::Config(config_filename => '/etc/oess/database.xml');
 my $db = new OESS::DB(config_obj => $config);
 my $mq = OESS::RabbitMQ::Client->new(config_obj => $config);
@@ -279,52 +280,56 @@ sub edit_node {
         return;
     }
     my ($ok, $access_err) = $user->has_system_access(role => 'admin');
-    return (undef, $access_err) if defined $access_err;
-    my $node = {};
-    if (!defined $params->{node_id}{value}){
-        $method->set_error("The parameter node_id is not defined.)");
+    if (defined $access_err) {
+        $method->set_error($access_err);
         return;
-    }    
-    $node->{node_id} = $params->{node_id}{value};
+    }
 
-    if (defined $params->{name}{value}){
-        $node->{name} = $params->{name}{value};
+    my $node = new OESS::Node(
+        db => $db,
+        node_id => $params->{node_id}{value}
+    );
+    if (!defined $node) {
+        $method->set_error("Couldn't find node $params->{node_id}{value}.");
+        return;
     }
-    if (defined $params->{short_name}{value}){
-        $node->{short_name} = $params->{short_name}{value};
+
+    if (defined $params->{name}{value}) {
+        $node->name($params->{name}{value});
     }
-    if (defined $params->{latitude}{value}){
-        $node->{latitude} = $params->{latitude}{value};
+    if (defined $params->{short_name}{value}) {
+        $node->short_name($params->{name}{value});
     }
-    if (defined $params->{longitude}{value}){
-        $node->{longitude} = $params->{longitude}{value};
+    if (defined $params->{latitude}{value}) {
+        $node->latitude($params->{latitude}{value});
     }
-    if (defined $params->{vlan_range}{value}){
-        $node->{vlan_range} = $params->{vlan_range}{value};
+    if (defined $params->{longitude}{value}) {
+        $node->longitude($params->{longitude}{value});
     }
-    if (defined $params->{ip_address}{value}){
-        $node->{ip_address} = $params->{ip_address}{value};
+    if (defined $params->{vlan_range}{value}) {
+        $node->vlan_range($params->{vlan_range}{value});
     }
-    if (defined $params->{tcp_port}{value}){
-        $node->{tcp_port} = $params->{tcp_port}{value};
+    if (defined $params->{ip_address}{value}) {
+        $node->ip_address($params->{ip_address}{value});
+    }
+    if (defined $params->{tcp_port}{value}) {
+        $node->tcp_port($params->{tcp_port}{value});
     }
     if (defined $params->{make}{value}){
-        $node->{make} = $params->{make}{value};
+        $node->make($params->{make}{value});
     }
-    if (defined $params->{model}{value}){
-        $node->{model} = $params->{model}{value};
+    if (defined $params->{model}{value}) {
+        $node->model($params->{model}{value});
     }
-    if (defined $params->{controller}{value}){
-        $node->{controller} = $params->{controller}{value};
-    }
-
-    my $update_err = OESS::DB::Node::update(db => $db, node => $node);
-    if (defined $update_err) {
-        $method->set_error($update_err);
-        return;
+    if (defined $params->{controller}{value}) {
+        $node->controller($params->{controller}{value});
     }
 
-    return { results => [{ success => 1 }] };
+    my $ok = $node->update;
+    if (!defined $ok) {
+        $ok = 0;
+    }
+    return { results => [{ success => $ok }] };
 }
 
 

@@ -363,7 +363,7 @@ sub create {
             latitude               => 1,                 # Optional
             longitude              => 1,                 # Optional
             operational_state_mpls => 'up',              # Optional
-            vlan_tag_range         => '1-4095',          # Optional
+            vlan_range             => '1-4095',          # Optional
             pending_diff           => 1                  # Optional
             short_name             => 'host',            # Optional
 
@@ -389,7 +389,6 @@ sub update {
     return 'Required argument `db` is missing.' if !defined $args->{db};
     return 'Required argument `node` is missing.' if !defined $args->{node};
     return 'Required argument `node->node_id` is missing.' if !defined $args->{node}->{node_id};
-
     my $params = [];
     my $values = [];
 
@@ -417,9 +416,9 @@ sub update {
         push @$params, 'operational_state_mpls=?';
         push @$values, $args->{node}->{operational_state_mpls};
     }
-    if (exists $args->{node}->{vlan_tag_range}) {
+    if (exists $args->{node}->{vlan_range}) {
         push @$params, 'vlan_tag_range=?';
-        push @$values, $args->{node}->{vlan_tag_range};
+        push @$values, $args->{node}->{vlan_range};
     }
     if (exists $args->{node}->{pending_diff}) {
         push @$params, 'pending_diff=?';
