@@ -319,7 +319,7 @@ sub make {
     return $self->{make};
 }
 
-=head2 vlan_tag_range
+=head2 vlan_range
 
 =cut
 sub vlan_range {
