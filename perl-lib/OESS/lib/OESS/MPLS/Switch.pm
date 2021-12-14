@@ -38,7 +38,7 @@ sub new {
         config    => '/etc/oess/database.xml',
         id        => 0,
         node      => undef,
-        topic     => 'MPLS.FWDCTL.Switch',
+        topic     => undef,
         type      => 'unknown', # Used to name switch procs viewed via `ps`
         use_cache => 1,
         @_
@@ -63,23 +63,23 @@ sub new {
         $self->{'logger'}->error("Unable to create Device instance!");
         die;
     }
-
-    my $topic = $self->{'topic'} . "." .  $self->{'node'}->{'mgmt_addr'} . "." . $self->{'node'}->{'tcp_port'};
-    $self->{'logger'}->error("Listening to topic: " . $topic);
+    if (!defined $self->{topic}) {
+        $self->{topic} = "MPLS.FWDCTL.Switch.$self->{node}->{mgmt_addr}.$self->{node}->{tcp_port}";
+    }
 
     my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new(
         host => $self->{'config_obj'}->rabbitmq_host,
         port => $self->{'config_obj'}->rabbitmq_port,
         user => $self->{'config_obj'}->rabbitmq_user,
         pass => $self->{'config_obj'}->rabbitmq_pass,
-        topic => $topic,
+        topic => $self->{topic},
         exchange => 'OESS',
         exclusive => 1
     );
     $self->_register_rpc_methods( $dispatcher );
+    $self->{'logger'}->info("Listening to topic: " . $self->{topic});
 
-    #attempt to reconnect!
-    warn "Setting up reconnect timer\n";
+    # Setup reconnect timer
     $self->{'connect_timer'} = AnyEvent->timer(
         after    => 60,
         interval => 60,
@@ -88,15 +88,15 @@ sub new {
                 $self->{'logger'}->warn("Device is not connected. Attempting to connect");
                 return $self->{'device'}->connect();
             }
-        });
+        }
+    );
 
     #try and connect up right away
     my $ok = $self->{'device'}->connect();
     if (!$ok) {
-        warn "Unable to connect\n";
         $self->{'logger'}->error("Connection to device could not be established.");
     } else {
-        $self->{'logger'}->debug("Connection to device was established.");
+        $self->{'logger'}->info("Connection to $self->{node}->{mgmt_addr}:$self->{node}->{tcp_port} was established.");
     }
 
     $self->{'ckts'} = {};

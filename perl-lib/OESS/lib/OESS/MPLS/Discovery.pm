@@ -126,8 +126,8 @@ sub new {
 
     $self->{'tsds_svc'} = GRNOC::WebService::Client->new(
         url    => $self->{config_obj}->tsds_url . "/push.cgi",
-        uid    => $self->{config_obj}->tsds_user,
-        passwd => $self->{config_obj}->tsds_pass,
+        uid    => $self->{config_obj}->tsds_username,
+        passwd => $self->{config_obj}->tsds_password,
         realm  => $self->{config_obj}->tsds_realm,
         usePost => 1,
         debug   => 1

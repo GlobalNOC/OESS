@@ -163,38 +163,6 @@ sub rabbitmq_vhost {
     return $ENV{RABBITMQ_VHOST} || $self->{config}->{rabbitMQ}->{vhost} || '/';
 }
 
-=head2 tsds_user
-
-=cut
-sub tsds_user {
-    my $self = shift;
-    return $ENV{TSDS_USER} || $self->{config}->{tsds}->{username};
-}
-
-=head2 tsds_pass
-
-=cut
-sub tsds_pass {
-    my $self = shift;
-    return $ENV{TSDS_PASS} || $self->{config}->{tsds}->{password};
-}
-
-=head2 tsds_url
-
-=cut
-sub tsds_url {
-    my $self = shift;
-    return $ENV{TSDS_URL} || $self->{config}->{tsds}->{url};
-}
-
-=head2 tsds_realm
-
-=cut
-sub tsds_realm {
-    my $self = shift;
-    return $ENV{TSDS_REALM} || $self->{config}->{tsds}->{realm};
-}
-
 =head2 oess_netconf_overlay
 
 =cut
@@ -394,8 +362,7 @@ sub nso_username {
 =cut
 sub tsds_url {
     my $self = shift;
-    return if (!defined $self->{config}->{tsds});
-    return $self->{config}->{tsds}->{url};
+    return $ENV{TSDS_URL} || $self->{config}->{tsds}->{url};
 }
 
 =head2 tsds_password
@@ -403,8 +370,7 @@ sub tsds_url {
 =cut
 sub tsds_password {
     my $self = shift;
-    return if (!defined $self->{config}->{tsds});
-    return $self->{config}->{tsds}->{password};
+    return $ENV{TSDS_PASSWORD} || $self->{config}->{tsds}->{password};
 }
 
 =head2 tsds_username
@@ -412,8 +378,7 @@ sub tsds_password {
 =cut
 sub tsds_username {
     my $self = shift;
-    return if (!defined $self->{config}->{tsds});
-    return $self->{config}->{tsds}->{username};
+    return $ENV{TSDS_USERNAME} || $self->{config}->{tsds}->{username};
 }
 
 =head2 tsds_realm
@@ -421,8 +386,7 @@ sub tsds_username {
 =cut
 sub tsds_realm {
     my $self = shift;
-    return if (!defined $self->{config}->{tsds});
-    return $self->{config}->{tsds}->{realm};
+    return $ENV{TSDS_REALM} || $self->{config}->{tsds}->{realm};
 }
 
 1;

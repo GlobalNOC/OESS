@@ -5,6 +5,9 @@ use warnings;
 
 use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
+
+use OESS::AccessController::Default;
+use OESS::Config;
 use OESS::DB;
 use OESS::Interface;
 use OESS::VRF;
@@ -63,7 +66,7 @@ sub register_ro_methods {
     );
     $svc->register_method($get_interface);
 
-    my $method = GRNOC::WebService::Method->new(
+    $method = GRNOC::WebService::Method->new(
         name => "get_interfaces",
         description => "returns a list of interfaces for a node",
         callback => sub { get_interfaces(@_) }
