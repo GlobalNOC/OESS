@@ -62,15 +62,10 @@ async function provisionCircuit(workgroupID, description, endpoints, start=-1, e
     form.append('endpoint', JSON.stringify(e));
   });
 
-  try {
-    const resp = await fetch(url, {method: 'post', credentials: 'include', body: form});
-    const data = await resp.json();
-    if ('error_text' in data) throw(data.error_text);
-    return data;
-  } catch(error) {
-    console.log('Failure occurred in updateCircuit:', error);
-    return null;
-  }
+  const resp = await fetch(url, {method: 'post', credentials: 'include', body: form});
+  const data = await resp.json();
+  if ('error_text' in data) throw data.error_text;
+  return data;
 }
 
 async function getCircuit(id, workgroupId) {
