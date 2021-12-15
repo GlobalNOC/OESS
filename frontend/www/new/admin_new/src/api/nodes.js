@@ -86,16 +86,17 @@ export const getNodes = async () => {
   return data.results;
 };
 
-export const getDiffText = async (nodeId) => {
+export const getDiff = async (nodeId) => {
+  // let url = `${config.base_url}services/node.cgi?method=get_diff`;
   let url = `${config.base_url}services/admin/admin.cgi?method=get_diff_text`;
   url += `&node_id=${nodeId}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
-  if(!resp.ok) throw resp.statusText;
+  if (!resp.ok) throw resp.statusText;
   const data = await resp.json();
 
   if (data.error_text) throw data.error_text;
-  return data.results;
+  return data.results[0].text;
 }
 
 export const deleteNode = async (nodeId) => {
