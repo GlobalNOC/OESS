@@ -12,6 +12,7 @@ export const DiffApprovalForm = (props) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        setError(null);
         setLoading(true);
 
         getDiff(props.nodeId).then(text => {
@@ -47,18 +48,14 @@ export const DiffApprovalForm = (props) => {
             </div>
         );
         disabled = true;
-    }
-
-    if (error) {
+    } else if (error) {
         content = (
             <div style={{padding: '1em 1em'}} className="panel panel-danger">
                 <span className="text-danger">{error}</span>
             </div>
         );
         disabled = true;
-    }
-
-    if (text === '') {
+    } else if (text === '') {
         content = (
             <div style={{padding: '1em 1em'}} className="panel panel-success">
                 <span className="text-success">There are no pending changes.</span>

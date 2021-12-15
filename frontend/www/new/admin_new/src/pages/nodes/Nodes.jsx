@@ -7,6 +7,8 @@ import { getNodes, deleteNode } from "../../api/nodes.js";
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
 import { Table } from "../../components/generic_components/Table.jsx";
+import { DiffApprovalForm } from "../../components/nodes/diff/DiffApprovalForm.jsx";
+import { BaseModal } from "../../components/generic_components/BaseModal.jsx";
 
 class Nodes extends React.Component {
   constructor(props) {
@@ -15,7 +17,9 @@ class Nodes extends React.Component {
       pageNumber: 0,
       pageSize:   4,
       filter:     '',
-      nodes:      []
+      nodes:      [],
+      diffNodeId: -1,
+      visible:    false
     };
 
     this.filterNodes = this.filterNodes.bind(this);
@@ -88,7 +92,7 @@ class Nodes extends React.Component {
     const rowButtons = (data) => {
       return (
         <div>
-          <Link to={`/nodes/${data.node_id}/users/add`} className="btn btn-default btn-xs">Preview Changes</Link>&nbsp;
+          <button type="button" className="btn btn-default btn-xs" onClick={() => this.setState({visible: true, diffNodeId: data.node_id})}>Preview Changes</button>&nbsp;
           <div className="btn-group">
               <Link to={`/nodes/${data.node_id}`} className="btn btn-default btn-xs">Edit Node</Link>
               <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -117,6 +121,10 @@ class Nodes extends React.Component {
     
     return (
       <div>
+        <BaseModal visible={this.state.visible} header="Preview Changes" modalID="diff-approval-modal" onClose={() => {this.setState({visible: false}); console.log(this.state); } }>
+          <DiffApprovalForm nodeId={this.state.diffNodeId} onCancel={() => this.setState({visible: false})} />
+        </BaseModal>
+
         <div>
           <p className="title"><b>Nodes</b></p>
           <p className="subtitle">Create, edit, or delete Nodes</p>
