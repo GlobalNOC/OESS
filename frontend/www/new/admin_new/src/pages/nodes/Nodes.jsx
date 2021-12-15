@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 
 import { Link } from "react-router-dom";
 
-import { getNodes, deleteNode } from "../../api/nodes.js";
+import { getNodes, deleteNode, approveDiff } from "../../api/nodes.js";
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
 import { Table } from "../../components/generic_components/Table.jsx";
@@ -14,16 +14,18 @@ class Nodes extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      pageNumber: 0,
-      pageSize:   4,
-      filter:     '',
-      nodes:      [],
-      diffNodeId: -1,
-      visible:    false
+      pageNumber:   0,
+      pageSize:     4,
+      filter:       '',
+      nodes:        [],
+      diffNodeId:   -1,
+      diffNodeName: '',
+      visible:      false
     };
 
     this.filterNodes = this.filterNodes.bind(this);
     this.deleteNode = this.deleteNode.bind(this);
+    this.onApprovalHandler = this.onApprovalHandler.bind(this);
   }
   
   async componentDidMount() {
@@ -41,6 +43,16 @@ class Nodes extends React.Component {
       filter:     e.target.value,
       pageNumber: 0
     });
+  }
+
+  async onApprovalHandler(e) {
+    try {
+      await approveDiff(this.state.diffNodeId);
+      this.context.setStatus({type: 'success', message: `Pending changes for Node '${this.state.diffNodeName}' were successfully approved.`});
+    } catch(error) {
+      this.context.setStatus({type: 'error', message: error.toString()});
+    }
+    this.setState({visible: false});
   }
 
   async deleteNode(node) {
@@ -89,10 +101,28 @@ class Nodes extends React.Component {
       }
     });
 
+    
     const rowButtons = (data) => {
+      console.log(data);
+      let diffButton = (
+        <button type="button" className="btn btn-default btn-xs" onClick={() => this.setState({visible: true, diffNodeId: data.node_id, diffNodeName: data.name})}>
+          <span className="glyphicon glyphicon-ok-sign" aria-hidden="true"></span>&nbsp;
+          Pending Changes
+        </button>
+      );
+
+      if (data.pending_diff == 1) {
+        diffButton = (
+          <button  type="button" className="btn btn-warning btn-xs" onClick={() => this.setState({visible: true, diffNodeId: data.node_id, diffNodeName: data.name})}>
+            <span className="glyphicon glyphicon-info-sign" aria-hidden="true"></span>&nbsp;
+            Pending Changes
+          </button>
+        );
+      }  
+
       return (
         <div>
-          <button type="button" className="btn btn-default btn-xs" onClick={() => this.setState({visible: true, diffNodeId: data.node_id})}>Preview Changes</button>&nbsp;
+          {diffButton}&nbsp;
           <div className="btn-group">
               <Link to={`/nodes/${data.node_id}`} className="btn btn-default btn-xs">Edit Node</Link>
               <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -121,8 +151,8 @@ class Nodes extends React.Component {
     
     return (
       <div>
-        <BaseModal visible={this.state.visible} header="Preview Changes" modalID="diff-approval-modal" onClose={() => {this.setState({visible: false}); console.log(this.state); } }>
-          <DiffApprovalForm nodeId={this.state.diffNodeId} onCancel={() => this.setState({visible: false})} />
+        <BaseModal visible={this.state.visible} header={`Pending Changes: ${this.state.diffNodeName}`} modalID="diff-approval-modal" onClose={() => this.setState({visible: false})}>
+          <DiffApprovalForm nodeId={this.state.diffNodeId} onCancel={() => this.setState({visible: false})} onApproval={this.onApprovalHandler} />
         </BaseModal>
 
         <div>

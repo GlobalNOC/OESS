@@ -28,7 +28,7 @@ export const DiffApprovalForm = (props) => {
         e.preventDefault();
     
         if (props.onApproval) {
-          props.onApproval(node);
+          props.onApproval(e);
         }
       };
     
