@@ -306,7 +306,7 @@ sub edit_node {
         $method->set_error($err);
         return;
     }
-    my ($ok, $access_err) = $user->has_system_access(role => 'normal');
+    my ($access_ok, $access_err) = $user->has_system_access(role => 'normal');
     if (defined $access_err) {
         $method->set_error($access_err);
         return;

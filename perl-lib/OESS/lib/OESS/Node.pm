@@ -61,7 +61,7 @@ sub from_hash {
     $self->{sw_version} = $hash->{sw_version};
     $self->{ip_address} = $hash->{ip_address};
     $self->{loopback_address} = $hash->{loopback_address};
-    $self->{tcp_port} = $self->{tcp_port} || 830;
+    $self->{tcp_port} = $hash->{tcp_port} || 830;
 
     return 1;
 }
