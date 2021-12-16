@@ -325,7 +325,7 @@ sub edit_node {
         $node->name($params->{name}{value});
     }
     if (defined $params->{short_name}{value}) {
-        $node->short_name($params->{name}{value});
+        $node->short_name($params->{short_name}{value});
     }
     if (defined $params->{latitude}{value}) {
         $node->latitude($params->{latitude}{value});
