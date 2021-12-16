@@ -99,8 +99,7 @@ export const approveDiff = async (nodeId) => {
 };
 
 export const getDiff = async (nodeId) => {
-  // let url = `${config.base_url}/services/node.cgi?method=get_diff`;
-  let url = `${config.base_url}/services/admin/admin.cgi?method=get_diff_text`;
+  let url = `${config.base_url}/services/node.cgi?method=get_diff`;
   url += `&node_id=${nodeId}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
@@ -108,7 +107,7 @@ export const getDiff = async (nodeId) => {
   const data = await resp.json();
 
   if (data.error_text) throw data.error_text;
-  return data.results[0].text;
+  return data.results[0];
 };
 
 export const deleteNode = async (nodeId) => {

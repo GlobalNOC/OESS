@@ -48,7 +48,11 @@ class Nodes extends React.Component {
   async onApprovalHandler(e) {
     try {
       await approveDiff(this.state.diffNodeId);
-      this.context.setStatus({type: 'success', message: `Pending changes for Node '${this.state.diffNodeName}' were successfully approved.`});
+      this.context.setStatus({type: 'success', message: `Pending changes for '${this.state.diffNodeName}' were successfully approved.`});
+
+      // Attempt to reload nodes
+      let nodes = await getNodes();
+      this.setState({ nodes });
     } catch(error) {
       this.context.setStatus({type: 'error', message: error.toString()});
     }

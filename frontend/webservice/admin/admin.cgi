@@ -839,7 +839,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name            => "get_diff_text",
         description     => "Returns diff text for the specified node.",
-        callback        => sub { get_diff_text(@_); }
+        callback        => sub { get_diff_text(@_); },
+        method_deprecated => "This method has been deprecated in favor of node.cgi?method=get_diff."
         );
 
     $method->add_input_parameter(
@@ -854,7 +855,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name            => "set_diff_approval",
         description     => "Approves or rejects a large diff.",
-        callback        => sub { set_diff_approval( @_ ) }
+        callback        => sub { set_diff_approval( @_ ) },
+        method_deprecated => "This method has been deprecated in favor of node.cgi?method=approve_diff."
         );
 
     $method->add_input_parameter(
