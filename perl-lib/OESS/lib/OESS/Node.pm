@@ -61,7 +61,7 @@ sub from_hash {
     $self->{sw_version} = $hash->{sw_version};
     $self->{ip_address} = $hash->{ip_address};
     $self->{loopback_address} = $hash->{loopback_address};
-    $self->{tcp_port} = $self->{tcp_port} || 830;
+    $self->{tcp_port} = $hash->{tcp_port} || 830;
 
     return 1;
 }
@@ -117,20 +117,26 @@ sub create {
 =cut
 sub update {
     my $self = shift;
+    # If set assume higher lvl abstraction is handling the transaction
+    my $in_transaction = shift;
 
     if (!defined $self->{db}) {
         $self->{'logger'}->error("Could not update Node: No database object specified.");
         return;
     }
 
+    $self->{db}->start_transaction if !defined $in_transaction;
     my $err = OESS::DB::Node::update(
         db => $self->{db},
         node => $self->to_hash
     );
     if (defined $err) {
+        $self->{db}->rollback;
+        warn "Could not update Node: $err";
         $self->{'logger'}->error("Could not update Node: $err");
         return;
     }
+    $self->{db}->commit if !defined $in_transaction;
 
     return 1;
 }

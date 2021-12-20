@@ -13,6 +13,7 @@ use OESS::Config;
 use OESS::DB;
 use OESS::Node;
 use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Topic qw(discovery_topic_for_node fwdctl_topic_for_node);
 
 
 my $config = new OESS::Config(config_filename => '/etc/oess/database.xml');
@@ -195,6 +196,32 @@ $delete_node->add_input_parameter(
     );
 $ws->register_method($delete_node);
 
+my $approve_diff = GRNOC::WebService::Method->new(
+    name        => "approve_diff",
+    description => "approve_diff approves any pending configuration changes for installation",
+    callback    => sub { approve_diff(@_) }
+    );
+$approve_diff->add_input_parameter(
+    name        => 'node_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'NodeId of node'
+    );
+$ws->register_method($approve_diff);
+
+my $get_diff = GRNOC::WebService::Method->new(
+    name        => "get_diff",
+    description => "get_diff returns any pending configuration changes which require approval",
+    callback    => sub { get_diff(@_) }
+    );
+$get_diff->add_input_parameter(
+    name        => 'node_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'NodeId of node'
+    );
+$ws->register_method($get_diff);
+
 sub create_node {
     my $method = shift;
     my $params = shift;
@@ -207,7 +234,7 @@ sub create_node {
         return;
     }
         
-    my ($ok, $access_err) = $user->has_system_access(role => 'admin');
+    my ($ok, $access_err) = $user->has_system_access(role => 'normal');
     if (defined $access_err){
         $db->rollback;
         $method->set_error($access_err);
@@ -279,7 +306,7 @@ sub edit_node {
         $method->set_error($err);
         return;
     }
-    my ($ok, $access_err) = $user->has_system_access(role => 'admin');
+    my ($access_ok, $access_err) = $user->has_system_access(role => 'normal');
     if (defined $access_err) {
         $method->set_error($access_err);
         return;
@@ -298,7 +325,7 @@ sub edit_node {
         $node->name($params->{name}{value});
     }
     if (defined $params->{short_name}{value}) {
-        $node->short_name($params->{name}{value});
+        $node->short_name($params->{short_name}{value});
     }
     if (defined $params->{latitude}{value}) {
         $node->latitude($params->{latitude}{value});
@@ -359,12 +386,95 @@ sub delete_node {
     my $method = shift;
     my $params = shift;
 
-    my $err = OESS::DB::Node::decom(db => $db, node_id => $params->{node_id}{value});
-    if(defined $err){
-       $method->set_error($err);
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_system_access(role => 'normal');
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
+
+    my $decom_err = OESS::DB::Node::decom(db => $db, node_id => $params->{node_id}{value});
+    if(defined $decom_err){
+       $method->set_error($decom_err);
         return;
     }
     return { results => [{ success => 1 }] };
+}
+
+sub approve_diff {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_system_access(role => 'normal');
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
+
+    my $node = new OESS::Node(db => $db, node_id => $params->{node_id}{value});
+    if (!defined $node) {
+        $method->set_error("Couldn't find node $params->{node_id}{value}.");
+        return;
+    }
+
+    $node->pending_diff(0);
+    $node->update;
+
+    return { results => [{ success => 1 }] };
+}
+
+sub get_diff {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_system_access(role => 'read-only');
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
+
+    my $node = new OESS::Node(db => $db, node_id => $params->{node_id}{value});
+    if (!defined $node) {
+        $method->set_error("Couldn't find node $params->{node_id}{value}.");
+        return;
+    }
+
+    my ($topic, $topic_err) = fwdctl_topic_for_node($node);
+    if (defined $topic_err) {
+        $method->set_error($topic_err);
+        return;
+    }
+    $mq->{topic} = $topic;
+
+    my $cv = AnyEvent->condvar;
+    $mq->get_diff_text(
+        node_id        => $node->node_id,
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+    my $result = $cv->recv;
+    if (defined $result->{error}) {
+        $method->set_error("$topic: $result->{error}");
+        return;
+    }
+
+    return { results => [$result->{results}] };
 }
 
 $ws->handle_request;

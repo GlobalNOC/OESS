@@ -476,6 +476,10 @@ sub update {
         $modified = 1;
         $node->{tcp_port} = $args->{node}->{tcp_port};
     }
+    if (exists $args->{node}->{controller} && $args->{node}->{controller} ne $node->{controller}) {
+        $modified = 1;
+        $node->{controller} = $args->{node}->{controller};
+    }
 
     # No changes required to instantiation table
     return if (!$modified);
@@ -491,8 +495,8 @@ sub update {
         INSERT INTO node_instantiation (
             admin_state, vendor, model, sw_version, mgmt_addr,
             loopback_address, tcp_port, node_id, openflow, mpls,
-            dpid, start_epoch, end_epoch
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
+            dpid, controller, start_epoch, end_epoch
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,UNIX_TIMESTAMP(NOW()),-1)
         ",
         [
             $node->{admin_state},
@@ -505,7 +509,8 @@ sub update {
             $args->{node}->{node_id},
             $args->{node}->{openflow} || 0,
             $args->{node}->{mpls} || 1,
-            $node->{dpid}
+            $node->{dpid},
+            $node->{controller}
         ]
     );
     if (!defined $inst_ok) {

@@ -86,17 +86,29 @@ export const getNodes = async () => {
   return data.results;
 };
 
-export const getDiffText = async (nodeId) => {
-  let url = `${config.base_url}services/admin/admin.cgi?method=get_diff_text`;
+export const approveDiff = async (nodeId) => {
+  let url = `${config.base_url}/services/node.cgi?method=approve_diff`;
   url += `&node_id=${nodeId}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
-  if(!resp.ok) throw resp.statusText;
+  if (!resp.ok) throw resp.statusText;
   const data = await resp.json();
 
   if (data.error_text) throw data.error_text;
   return data.results;
-}
+};
+
+export const getDiff = async (nodeId) => {
+  let url = `${config.base_url}/services/node.cgi?method=get_diff`;
+  url += `&node_id=${nodeId}`;
+
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  if (!resp.ok) throw resp.statusText;
+  const data = await resp.json();
+
+  if (data.error_text) throw data.error_text;
+  return data.results[0];
+};
 
 export const deleteNode = async (nodeId) => {
   let url = `${config.base_url}/services/node.cgi?method=delete_node`;
@@ -105,5 +117,5 @@ export const deleteNode = async (nodeId) => {
   const data = await resp.json();
 
   if (data.error_text) throw data.error_text;
-  return;
-}
+  return data.results;
+};

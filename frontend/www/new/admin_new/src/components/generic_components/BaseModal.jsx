@@ -4,35 +4,35 @@ class BaseModal extends Component {
   render() {
     // this.props.children
     // this.props.header
-    // TODO this.props.modalID
+    // this.props.modalID
 
-    let classes = 'modal fade';
-    let style = {display: 'none', zIndex: 2};
-    let backdrop = null;
+  let classes = 'modal fade';
+  let style = {display: 'none', zIndex: 2};
+  let backdrop = null;
 
-    if (this.props.visible) {
-      classes = 'modal fade in';
-      style = {display: 'block', zIndex: 2};
-      backdrop = <div className="modal-backdrop fade in" />;
-    }
+  if (this.props.visible) {
+    classes = 'modal fade in';
+    style = {display: 'block', zIndex: 3};
+    backdrop = <div className="modal-backdrop fade in" style={{zIndex: 3}} />;
+  }
 
-    let onClose = (this.props.onClose) ? this.props.onClose : () => {};
+  let onClose = (this.props.onClose) ? this.props.onClose : () => {};
 
 	return (
       <div>
         {backdrop}
 
         <div className={classes} style={style} id={this.props.modalID} tabIndex="-1" role="dialog" aria-labelledby={this.props.modalID}>
-  		  <div className="modal-dialog" role="document">
-    	    <div className="modal-content">
-      		  <div className="modal-header">
-        	    <button type="button" className="close" aria-label="Close" onClick={onClose}>
+          <div className="modal-dialog" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <button type="button" className="close" aria-label="Close" onClick={onClose}>
                   <span aria-hidden="true">&times;</span>
                 </button>
-        	    <h4 className="modal-title" id={this.props.modalID}>{this.props.header}</h4>
-     		  </div>
-      		  <div className="modal-body">
-                {this.props.children}
+                <h4 className="modal-title" id={this.props.modalID}>{this.props.header}</h4>
+              </div>
+              <div className="modal-body">
+                  {this.props.children}
               </div>
             </div>
           </div>
