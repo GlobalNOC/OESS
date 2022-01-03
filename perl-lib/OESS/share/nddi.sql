@@ -150,6 +150,37 @@ LOCK TABLES `circuit_instantiation` WRITE;
 /*!40000 ALTER TABLE `circuit_instantiation` ENABLE KEYS */;
 UNLOCK TABLES;
 
+--
+-- Table structure for table `connection_instantiation`
+--
+
+DROP TABLE IF EXISTS `connection_instantiation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `connection_instantiation` (
+  `end_epoch` int(10) NOT NULL,
+  `connection_id` int(10) NOT NULL,
+  `start_epoch` int(10) NOT NULL,
+  `connection_state` enum('scheduled','deploying','active','decom','looped','reserved','provisioned') NOT NULL DEFAULT 'scheduled',
+  `modified_by_user_id` int(10) NOT NULL,
+  `reason` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`end_epoch`,`connection_id`),
+  KEY `user_connection_instantiaiton_fk` (`modified_by_user_id`),
+  KEY `vrf_connection_instantiaiton_fk` (`connection_id`),
+  CONSTRAINT `vrf_connection_instantiaiton_fk` FOREIGN KEY (`connection_id`) REFERENCES `vrf` (`vrf_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `user_connection_instantiaiton_fk` FOREIGN KEY (`modified_by_user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `connection_instantiation`
+--
+
+LOCK TABLES `connection_instantiation` WRITE;
+/*!40000 ALTER TABLE `connection_instantiation` DISABLE KEYS */;
+/*!40000 ALTER TABLE `connection_instantiation` ENABLE KEYS */;
+UNLOCK TABLES;
+
 
 --
 -- Table structure for table `cloud_connection_vrf_ep`
