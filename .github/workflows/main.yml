@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - '**-dev'
+      - 'admin-ui-refresh'
       - 'master'
 
 jobs:
