@@ -87,6 +87,17 @@ sub update {
         $args
     );
 
+    my $query = "update connection_instantiation set end_epoch = unix_timestamp(NOW()) where connection_id = ? and end_epoch = -1";
+    my $update_end_epoch = $db->execute_query($query, [$vrf->{vrf_id}]);
+    if (!defined $update_end_epoch) {
+        return (undef, $db->get_error);
+    }
+
+    my $vrf_inst_id = $db->execute_query("insert into connection_instantiation (end_epoch, connection_id, start_epoch, connection_state, modified_by_user_id, reason) values (-1, ?, unix_timestamp(now()), 'active', ?, 'User requested connection edit')", [$vrf->{vrf_id}, $vrf->{last_modified_by_id}]);
+    if (!defined $vrf_inst_id) {
+        return (undef, $db->get_error);
+    }
+
     return $result;
 }
 
@@ -100,6 +111,11 @@ sub create{
 
     my $vrf_id = $db->execute_query("insert into vrf (name, description, workgroup_id, local_asn, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$model->{'name'}, $model->{'description'},$model->{'workgroup_id'}, $model->{'local_asn'}, $model->{'created_by_id'}, $model->{'last_modified_by_id'}]);
     if (!defined $vrf_id) {
+        return (undef, $db->get_error);
+    }
+
+    my $vrf_inst_id = $db->execute_query("insert into connection_instantiation (end_epoch, connection_id, start_epoch, connection_state, modified_by_user_id, reason) values (-1, ?, unix_timestamp(now()), 'active', ?, 'Connection Creation')", [$vrf_id, $model->{'last_modified_by_id'}]);
+    if (!defined $vrf_inst_id) {
         return (undef, $db->get_error);
     }
 
@@ -382,6 +398,17 @@ sub decom{
     my $user = $params{'user_id'};
 
     my $res = $db->execute_query("update vrf set state = 'decom', last_modified_by = ?, last_modified = unix_timestamp(now()) where vrf_id = ?",[$user, $vrf_id]);
+
+    my $query = "update connection_instantiation set end_epoch = unix_timestamp(NOW()) where connection_id = ? and end_epoch = -1";
+    my $result = $db->execute_query($query, [$vrf_id]);
+    if (!defined $result) {
+        return (undef, $db->get_error);
+    }
+
+    my $vrf_inst_id = $db->execute_query("insert into connection_instantiation (end_epoch, connection_id, start_epoch, connection_state, modified_by_user_id, reason) values (-1, ?, unix_timestamp(now()), 'decom', ?, 'Connection Deletion')", [$vrf_id, $user]);
+    if (!defined $vrf_inst_id) {
+        return (undef, $db->get_error);
+    }
     return $res;
 
 }
