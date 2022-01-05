@@ -21,6 +21,7 @@ class GlobalState extends Component {
 
       loadCommands(this.connection);
 
+      this.history = await getConnectionHistory(id);
 
       document.getElementById('provision-time').innerHTML = '';
       document.getElementById('remove-time').innerHTML = '';
@@ -171,12 +172,15 @@ $(function () {
 
 let state = new GlobalState();
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
+let history = null;
 
 document.addEventListener('DOMContentLoaded', async function() {
   await loadUserMenu();
 
   let url = new URL(window.location.href);
   let id = url.searchParams.get('vrf_id');
+
+  history = new CircuitHistory({workgroupID: session.data.workgroup_id});
 
   state.selectConnection(id).then(async () => {
     let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.connection.workgroup.workgroup_id && !session.data.isReadOnly);
@@ -213,6 +217,9 @@ async function update() {
 
   let list = document.getElementById('endpoints2-list');
   list.innerHTML = '';
+
+  let historyElem = document.querySelector('#history');
+  historyElem.innerHTML = await history.render(state);
 
   state.connection.endpoints.map(function(e, i) {
     e.index = i;
