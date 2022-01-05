@@ -352,9 +352,17 @@ sub role{
 =head2 node
 
 =cut
-sub node{
+sub node {
     my $self = shift;
     return $self->{'node'};
+}
+
+=head2 node_id
+
+=cut
+sub node_id {
+    my $self = shift;
+    return $self->{'node_id'};
 }
 
 =head2 workgroup_id
