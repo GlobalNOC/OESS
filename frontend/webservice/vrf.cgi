@@ -16,6 +16,7 @@ use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_connection);
 use OESS::Cloud;
 use OESS::Config;
 use OESS::DB;
+use OESS::Database;
 use OESS::DB::User;
 use OESS::DB::Entity;
 use OESS::User;
@@ -26,6 +27,7 @@ Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $config = new OESS::Config();
 my $db = OESS::DB->new();
+my $db2 = OESS::Database->new();
 my $svc = GRNOC::WebService::Dispatcher->new();
 my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
                                       timeout  => 120 );
@@ -64,6 +66,24 @@ sub register_ro_methods {
         required => 1,
         description => 'Identifier of Workgroup used to fetch Layer3 Connections.'
     );
+    $svc->register_method($method);
+
+    #get_connection_history
+    $method = GRNOC::WebService::Method->new(
+        name            => 'get_connection_history',
+        description     => 'returns a list of network events that have affected this connection',
+        callback        => sub { get_connection_history( @_ ) }
+	);
+
+    #add the required input parameter circuit_id
+    $method->add_input_parameter(
+        name            => 'connection_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => 'The id of the conneciton to fetch network events for.'
+    );
+
+    #register the get_connection_history() method
     $svc->register_method($method);
 }
 
@@ -161,6 +181,26 @@ sub register_rw_methods{
     );
 
     $svc->register_method($method);
+
+}
+
+sub get_connection_history{
+
+    my ( $method, $args ) = @_;
+    my $results;
+
+    my $connection_id = $args->{'connection_id'}{'value'};
+
+    my $events = $db2->get_connection_history( connection_id => $connection_id );
+     if ( !defined $events ) {
+         $method->set_error( $db2->get_error() );
+         return;
+     }
+     else {
+         $results->{'results'} = $events;
+     }
+
+     return $events;
 
 }
 

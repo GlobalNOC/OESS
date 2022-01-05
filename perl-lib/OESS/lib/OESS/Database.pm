@@ -1868,6 +1868,47 @@ sub get_circuit_scheduled_events {
     return $events;
 }
 
+=head2 get_connection_history
+
+Returns an array of hashes containing information about events for this connection
+
+=cut
+
+sub get_connection_history {
+    my $self = shift;
+    my %args = @_;
+    my $events;
+    my $connection_id = $args{'connection_id'};
+
+    my $query = " select remote_auth.auth_name, concat(user.given_names, ' ', user.family_name) as full_name, connection_instantiation.reason, " .
+                " from_unixtime(connection_instantiation.end_epoch) as end_time, " .
+                " from_unixtime(connection_instantiation.start_epoch) as start_time " .
+                " from vrf " .
+                " join connection_instantiation on vrf.vrf_id = connection_instantiation.connection_id " .
+                " join user on user.user_id = connection_instantiation.modified_by_user_id " .
+                " left join remote_auth on remote_auth.user_id = user.user_id " .
+                " where vrf.vrf_id = ? order by connection_instantiation.start_epoch DESC";
+
+    my $results = $self->_execute_query($query, [$connection_id]);
+    if ( !defined $results) {
+        $self->_set_error("Internal error fetching connection instantiation events");
+        return;
+    }
+
+    foreach my $row (@$results){
+	push (@$events, {"username"  => $row->{'auth_name'},
+            "fullname"  => $row->{'full_name'},
+            "scheduled" => -1,
+            "activated" => $row->{'start_time'},
+            "layout"    => "",
+            "reason"    => $row->{'reason'},
+            "ended" => $row->{'end_time'}
+	      }
+	    );
+    }
+
+    return $events;
+}
 
 =head2 get_circuit_history
 
