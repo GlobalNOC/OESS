@@ -24,6 +24,9 @@ test:
 container:
 	docker build -f Dockerfile.dev --tag oess:${OESS_VERSION} .
 
+clean-container:
+	docker build --no-cache -f Dockerfile.dev --tag oess:${OESS_VERSION} .
+
 # To attach OESS to an existing docker network:
 # --network ${OESS_NETWORK}
 #

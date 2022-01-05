@@ -3,15 +3,20 @@
 use strict;
 use warnings;
 
+use AnyEvent;
 use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 
 use OESS::AccessController::Default;
 use OESS::Config;
 use OESS::DB;
-use OESS::Interface;
-use OESS::VRF;
+use OESS::DB::ACL;
+use OESS::Endpoint;
 use OESS::Entity;
+use OESS::Interface;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_node);
+use OESS::VRF;
 use OESS::Workgroup;
 
 
@@ -156,6 +161,25 @@ sub register_rw_methods {
         description => 'Physical interconnect type of connector'
     );
     $svc->register_method($edit_interface);
+
+    my $migrate_interface = GRNOC::WebService::Method->new(
+        name        => "migrate_interface",
+        description => "moves all entities, connections, and configuration from src_interface_id to dst_interface_id",
+        callback    => sub { migrate_interface(@_) }
+    );
+    $migrate_interface->add_input_parameter(
+        name        => 'src_interface_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 1,
+        description => 'Identifier used to lookup the interface'
+    );
+    $migrate_interface->add_input_parameter(
+        name        => 'dst_interface_id',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 1,
+        description => 'Identifier used to lookup the interface'
+    );
+    $svc->register_method($migrate_interface);
 }
 
 sub get_available_vlans {
@@ -298,7 +322,7 @@ sub edit_interface {
         $method->set_error($err);
         return;
     }
-    my ($ok, $access_err) = $user->has_system_access(role => 'admin');
+    my ($ok, $access_err) = $user->has_system_access(role => 'normal');
     if (defined $access_err) {
         $method->set_error($access_err);
         return;
@@ -332,8 +356,141 @@ sub edit_interface {
     return { results => [ $interface->to_hash ] };
 }
 
-sub main{
+sub migrate_interface {
+    my $method = shift;
+    my $params = shift;
 
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $err) {
+        $method->set_error($err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_system_access(role => 'normal');
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
+
+    $db->start_transaction();
+
+    # Move configuration
+    my $src_interface = new OESS::Interface(
+        db => $db,
+        interface_id => $params->{src_interface_id}{value}
+    );
+    if (!defined $src_interface) {
+        $method->set_error("Couldn't find source interface $params->{src_interface_id}{value}.");
+        return;
+    }
+
+    my $dst_interface = new OESS::Interface(
+        db => $db,
+        interface_id => $params->{dst_interface_id}{value}
+    );
+    if (!defined $dst_interface) {
+        $method->set_error("Couldn't find destination interface $params->{dst_interface_id}{value}.");
+        return;
+    }
+
+    $dst_interface->cloud_interconnect_id($src_interface->cloud_interconnect_id);
+    $dst_interface->cloud_interconnect_type($src_interface->cloud_interconnect_type);
+    $dst_interface->workgroup_id($src_interface->workgroup_id);
+    my $dst_ok = $dst_interface->update_db();
+    if (!defined $dst_ok) {
+        $method->set_error("Couldn't update destination interface: " . $db->get_error);
+        $db->rollback();
+        return;
+    }
+
+    $src_interface->{cloud_interconnect_id} = undef;
+    $src_interface->{cloud_interconnect_type} = undef;
+    $src_interface->{workgroup_id} = undef;
+    my $src_ok = $src_interface->update_db();
+    if (!defined $src_ok) {
+        $method->set_error("Couldn't update source interface: " . $db->get_error);
+        $db->rollback();
+        return;
+    }
+
+    # Move connection endpoints
+    my $endpoints_ok = OESS::Endpoint::move_endpoints(
+        db => $db,
+        new_interface_id  => $params->{dst_interface_id}{value},
+        orig_interface_id => $params->{src_interface_id}{value}
+    );
+    if (!defined $endpoints_ok) {
+        $method->set_error("Couldn't move Endpoints: " . $db->get_error);
+        $db->rollback();
+        return;
+    }
+
+    # Move entities
+    my $acls = OESS::DB::ACL::fetch_all(
+        db => $db,
+        interface_id => $params->{src_interface_id}{value}
+    );
+    foreach my $acl (@$acls) {
+        my $obj = OESS::ACL->new(db => $db, model => $acl);
+        $obj->interface_id($params->{dst_interface_id}{value});
+
+        my $ok = $obj->update_db();
+        if (!defined $ok) {
+            $method->set_error("Couldn't move ACLs: $err");
+            $db->rollback();
+            return;
+        }
+    }
+
+    $db->commit();
+
+    my $src_node = new OESS::Node(
+        db => $db,
+        node_id => $src_interface->node_id
+    );
+    my $dst_node = new OESS::Node(
+        db => $db,
+        node_id => $dst_interface->node_id
+    );
+    if ($src_node->controller ne $dst_node->controller) {
+        $method->set_error("Interfaces cannot be migrated between controllers, as this would result in Connections with Endpoints on multiple controllers.");
+        return;
+    }
+
+    my ($topic, $topic_err) = fwdctl_topic_for_node($src_node);
+    if (defined $topic_err) {
+        $method->set_error($topic_err);
+        return;
+    }
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic    => $topic,
+        timeout  => 60
+    );
+    if (!defined $mq) {
+        $method->set_error("Couldn't create RabbitMQ client.");
+        return;
+    }
+
+    my $cv = AnyEvent->condvar;
+    $mq->update_cache(
+        async_callback => sub {
+            my $result = shift;
+            $cv->send($result);
+        }
+    );
+    my $result = $cv->recv();
+    if (!defined $result) {
+        $method->set_error("Error while calling `update_cache` via RabbitMQ.");
+        return;
+    }
+    if (defined $result->{error}) {
+        $method->set_error("Error while calling `update_cache`: $result->{error}");
+        return;
+    }
+
+    return { results => [ { success => $result->{results}->{status} } ] };
+}
+
+sub main {
     register_ro_methods();
     register_rw_methods();
     $svc->handle_request();

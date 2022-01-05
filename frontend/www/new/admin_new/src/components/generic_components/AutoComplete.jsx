@@ -22,13 +22,17 @@ export const AutoComplete = (props) => {
     const [filteredSuggestions, setFilteredSuggestions] = useState([]);    
     const [input, setInput] = useState(''); // Text of input box
 
+    // If props.value is changed, select the associated suggestion.
     useEffect(() => {
+        let inputText = '';
         for (let i=0; i < props.suggestions.length; i++) {
             if (props.suggestions[i].value == props.value) {
-                setInput(props.suggestions[i].name);
+                inputText = props.suggestions[i].name;
+                break;
             }
         }
-    }, [props.suggestions]);
+        setInput(inputText);
+    }, [props.value, props.suggestions]);
 
     const onSuggestionsFetchRequestedHandler = (input) => {
         // input = { value: '', reason: '' }

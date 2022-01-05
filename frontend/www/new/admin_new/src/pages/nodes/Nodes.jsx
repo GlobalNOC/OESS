@@ -122,23 +122,23 @@ class Nodes extends React.Component {
             Pending Changes
           </button>
         );
-      }  
+      }
 
       return (
         <div>
           {diffButton}&nbsp;
           <div className="btn-group">
-              <Link to={`/nodes/${data.node_id}`} className="btn btn-default btn-xs">Edit Node</Link>
-              <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <span>▾</span>{/* className="caret" doesn't work idk why */}
-                <span className="sr-only">Toggle Dropdown</span>
-              </button>
-              <ul className="dropdown-menu" style={{fontSize: '12px'}}>
-                <li><a href="#" onClick={() => this.deleteNode(data)}>Delete Node</a></li>
-                <li role="separator" className="divider" style={{margin: '4px 0'}}></li>
-                <li><Link to={`/nodes/${data.node_id}/interfaces`}>Manage Interfaces</Link></li>
-              </ul>
-            </div>
+            <Link to={`/nodes/${data.node_id}`} className="btn btn-default btn-xs">Edit Node</Link>
+            <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span>▾</span>{/* className="caret" doesn't work idk why */}
+              <span className="sr-only">Toggle Dropdown</span>
+            </button>
+            <ul className="dropdown-menu" style={{fontSize: '12px'}}>
+              <li><a href="#" onClick={() => this.deleteNode(data)}>Delete Node</a></li>
+              <li role="separator" className="divider" style={{margin: '4px 0'}}></li>
+              <li><Link to={`/nodes/${data.node_id}/interfaces`}>Manage Interfaces</Link></li>
+            </ul>
+          </div>
         </div>
       );
     };

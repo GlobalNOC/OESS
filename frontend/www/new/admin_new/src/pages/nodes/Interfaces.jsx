@@ -1,10 +1,12 @@
 import React from 'react';
 import { getNode } from '../../api/nodes.js';
-import { getInterfaces } from '../../api/interfaces.js';
+import { getInterfaces, migrateInterface } from '../../api/interfaces.js';
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
 import { Table } from "../../components/generic_components/Table.jsx";
 import { Link } from "react-router-dom";
+import { MigrateInterfaceForm } from '../../components/interfaces/MigrateInterfaceForm.jsx';
+import { BaseModal } from '../../components/generic_components/BaseModal.jsx';
 
 class Interfaces extends React.Component {
     constructor(props) {
@@ -15,9 +17,12 @@ class Interfaces extends React.Component {
             pageSize: 20,
             pageNumber: 0,
             filter: '',
-            match: props.match
+            match: props.match,
+            interface: null,
+            migrateInterfaceModalVisible: false
         }
         this.filterInterfaces = this.filterInterfaces.bind(this);
+        this.migrateInterface = this.migrateInterface.bind(this);
     }
 
     async componentDidMount(){
@@ -36,6 +41,20 @@ class Interfaces extends React.Component {
             filter:     e.target.value,
             pageNumber: 0
         });
+    }
+
+    async migrateInterface(data) {
+        let ok = confirm("Are you sure you wish to continue?")
+        if (!ok) return;
+        console.info('migrateInterface:', data);
+
+        try {
+            await migrateInterface(data.srcInterfaceId, data.dstInterfaceId);
+            history.go(0); // refresh
+        } catch(error) {
+            this.setState({migrateInterfaceModalVisible: false});
+            this.context.setStatus({type: 'error', message: error.toString()});
+        }
     }
 
     render() {
@@ -77,7 +96,16 @@ class Interfaces extends React.Component {
         const rowButtons = (data) => {
             return (
             <div>
-                <Link to={`/nodes/${data.node_id}/interfaces/${data.interface_id}`} className="btn btn-default btn-xs">Edit Interface</Link>
+                <div className="btn-group">
+                    <Link to={`/nodes/${data.node_id}/interfaces/${data.interface_id}`} className="btn btn-default btn-xs">Edit Interface</Link>
+                    <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <span>▾</span>{/* className="caret" doesn't work idk why */}
+                        <span className="sr-only">Toggle Dropdown</span>
+                    </button>
+                    <ul className="dropdown-menu" style={{fontSize: '12px'}}>
+                        <li><a href="#" onClick={() => this.setState({migrateInterfaceModalVisible: true, interface: data})}>Migrate Interface</a></li>
+                    </ul>
+                </div>
             </div>
             );
         }
@@ -88,18 +116,32 @@ class Interfaces extends React.Component {
             {name: 'Name', key: 'name'},
             {name: 'Description', key: 'description'},
             {name: 'Reserved Bandwidth (Mps)', key: 'utilized_total_bandwith'},
-            {name: 'Cloud Interconnect Type', key: 'cloud_interconnect_type'},
+            {name: 'Interconnect Type', key: 'cloud_interconnect_type'},
             {name: 'Role', key: 'role'},
             {name: '', render: rowButtons, style: {textAlign: 'right'}}
         ];
 
+        let interfaceComp = null;
+        let interfaceCompHdr = '';
+        if (this.state.interface) {
+            interfaceComp = (
+                <MigrateInterfaceForm interfaceId={this.state.interface.interface_id} onCancel={() => this.setState({migrateInterfaceModalVisible: false})} onSubmit={this.migrateInterface} />
+            );
+            interfaceCompHdr = `Migrate Interface: ${this.state.interface.node} - ${this.state.interface.name}`;
+        }
+
         return (
             <div>
+                <BaseModal visible={this.state.migrateInterfaceModalVisible} header={interfaceCompHdr} modalID="migrate-interface-modal" onClose={() => this.setState({migrateInterfaceModalVisible: false})}>
+                    {interfaceComp}
+                </BaseModal>
+
                 <div>
                     <p className="title"><b>Node Interfaces</b></p>
                     <p className="subtitle">Edit Node Interfaces</p>
                 </div>
                 <br />
+
                 <form id="user_search_div" className="form-inline">
                     <div className="form-group">
                         <div className="input-group">

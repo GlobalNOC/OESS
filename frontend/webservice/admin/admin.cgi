@@ -191,7 +191,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name        => 'move_interface_configuration',
         description => "Moves an interface's entire configuration.",
-        callback    => sub { move_interface_configuration(@_) }
+        callback    => sub { move_interface_configuration(@_) },
+        method_deprecated => "This method has been deprecated in favor of interface.cgi?method=migrate_interface."
     );
     $method->add_input_parameter(
         name        => 'orig_interface_id',
