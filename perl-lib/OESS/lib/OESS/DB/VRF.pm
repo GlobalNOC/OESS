@@ -93,7 +93,7 @@ sub update {
         return (undef, $db->get_error);
     }
 
-    my $vrf_inst_id = $db->execute_query("insert into connection_instantiation (end_epoch, connection_id, start_epoch, connection_state, modified_by_user_id, reason) values (-1, ?, unix_timestamp(now()), 'active', ?, 'User requested connection edit')", [$vrf->{vrf_id}, $vrf->{last_modified_by_id}]);
+    my $vrf_inst_id = $db->execute_query("insert into connection_instantiation (end_epoch, connection_id, start_epoch, connection_state, modified_by_user_id, reason) values (-1, ?, unix_timestamp(now()), ?, ?, 'User requested connection edit')", [$vrf->{vrf_id}, $vrf->{state}, $vrf->{last_modified_by_id}]);
     if (!defined $vrf_inst_id) {
         return (undef, $db->get_error);
     }
