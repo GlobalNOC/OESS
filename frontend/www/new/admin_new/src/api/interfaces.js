@@ -35,3 +35,15 @@ export const editInterface = async (intf) => {
   if (data.error_text) throw data.error_text;
   return data.results;
 }
+
+export const migrateInterface = async (srcInterfaceId, dstInterfaceId) => {
+  let url = `${config.base_url}/services/interface.cgi?method=migrate_interface`;
+  url += `&src_interface_id=${srcInterfaceId}`;
+  url += `&dst_interface_id=${dstInterfaceId}`;
+
+  const resp = await fetch(url, { method: 'get', credentials: 'include' });
+  const data = await resp.json();
+
+  if (data.error_text) throw data.error_text;
+  return data.results;
+};

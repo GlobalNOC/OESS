@@ -1,6 +1,6 @@
 import React from 'react';
 import { getNode } from '../../api/nodes.js';
-import { getInterfaces } from '../../api/interfaces.js';
+import { getInterfaces, migrateInterface } from '../../api/interfaces.js';
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { PageSelector } from '../../components/generic_components/PageSelector.jsx';
 import { Table } from "../../components/generic_components/Table.jsx";
@@ -43,12 +43,18 @@ class Interfaces extends React.Component {
         });
     }
 
-    migrateInterface(data) {
+    async migrateInterface(data) {
         let ok = confirm("Are you sure you wish to continue?")
         if (!ok) return;
-
         console.info('migrateInterface:', data);
-        this.setState({migrateInterfaceModalVisible: false});
+
+        try {
+            await migrateInterface(data.srcInterfaceId, data.dstInterfaceId);
+            history.go(0); // refresh
+        } catch(error) {
+            this.setState({migrateInterfaceModalVisible: false});
+            this.context.setStatus({type: 'error', message: error.toString()});
+        }
     }
 
     render() {
@@ -110,7 +116,7 @@ class Interfaces extends React.Component {
             {name: 'Name', key: 'name'},
             {name: 'Description', key: 'description'},
             {name: 'Reserved Bandwidth (Mps)', key: 'utilized_total_bandwith'},
-            {name: 'Cloud Interconnect Type', key: 'cloud_interconnect_type'},
+            {name: 'Interconnect Type', key: 'cloud_interconnect_type'},
             {name: 'Role', key: 'role'},
             {name: '', render: rowButtons, style: {textAlign: 'right'}}
         ];
