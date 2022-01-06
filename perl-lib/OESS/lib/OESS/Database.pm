@@ -1868,6 +1868,46 @@ sub get_circuit_scheduled_events {
     return $events;
 }
 
+=head2 get_vrf_history
+
+Returns an array of hashes containing information about events for this connection
+
+=cut
+
+sub get_vrf_history {
+    my $self = shift;
+    my %args = @_;
+    my $events;
+    my $vrf_id = $args{'vrf_id'};
+
+    my $query = " select remote_auth.auth_name, concat(user.given_names, ' ', user.family_name) as full_name, history.event, " .
+                " from_unixtime(history.date) as last_updated " .
+                " from vrf " .
+                " join vrf_history on vrf.vrf_id = vrf_history.vrf_id " .
+                " join history on vrf_history.history_id = history.history_id" .
+                " join user on user.user_id = history.user_id " .
+                " left join remote_auth on remote_auth.user_id = user.user_id " .
+                " where vrf.vrf_id = ? order by history.date DESC";
+
+    my $results = $self->_execute_query($query, [$vrf_id]);
+    if ( !defined $results) {
+        $self->_set_error("Internal error fetching connection instantiation events");
+        return;
+    }
+
+    foreach my $row (@$results){
+	push (@$events, {"username"  => $row->{'auth_name'},
+            "fullname"  => $row->{'full_name'},
+            "scheduled" => -1,
+            "activated" => $row->{'last_updated'},
+            "layout"    => "",
+            "reason"    => $row->{'event'}
+	      }
+	    );
+    }
+
+    return $events;
+}
 
 =head2 get_circuit_history
 
