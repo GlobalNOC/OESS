@@ -14,6 +14,7 @@ use OESS::Workgroup;
 use OESS::DB::Endpoint;
 
 use Data::Dumper;
+use JSON::XS;
 
 my $logger = Log::Log4perl->get_logger("OESS.DB.VRF");
 
@@ -87,6 +88,20 @@ sub update {
         $args
     );
 
+    my $vrf_history_query = "select history_id from vrf_history where vrf_id = ?";
+    my $history_id_reponse = $db->execute_query($vrf_history_query, [$vrf->{vrf_id}]);
+    if (!defined $history_id_reponse) {
+        return (undef, $db->get_error);
+    }
+    my $history_id = $history_id_reponse->[0]->{'history_id'};
+
+    my $vrf_object = encode_json($vrf);
+    my $vrf_inst_query = "insert into history (history_id, date, user_id, workgroup_id, event, state, type, object) values (?, unix_timestamp(now()), ?, ?, 'User requested connection edit', ?, 'VRF', ?)";
+    my $history = $db->execute_query($vrf_inst_query, [$history_id, $vrf->{last_modified_by_id}, $vrf->{workgroup_id}, $vrf->{state}, $vrf_object]);
+    if (!defined $history) {
+        return (undef, $db->get_error);
+    }
+
     return $result;
 }
 
@@ -100,6 +115,18 @@ sub create{
 
     my $vrf_id = $db->execute_query("insert into vrf (name, description, workgroup_id, local_asn, created, created_by, last_modified, last_modified_by, state) VALUES (?,?,?,?,unix_timestamp(now()), ?, unix_timestamp(now()), ?, 'active')", [$model->{'name'}, $model->{'description'},$model->{'workgroup_id'}, $model->{'local_asn'}, $model->{'created_by_id'}, $model->{'last_modified_by_id'}]);
     if (!defined $vrf_id) {
+        return (undef, $db->get_error);
+    }
+
+    my $vrf_history_id = $db->execute_query("insert into vrf_history (vrf_id) values (?)", [$vrf_id]);
+    if (!defined $vrf_history_id) {
+        return (undef, $db->get_error);
+    }
+
+    $model->{'vrf_id'} = $vrf_id;
+    my $vrf_object = encode_json($model);
+    my $history_id = $db->execute_query("insert into history (history_id, date, state, user_id, workgroup_id, event, type, object) values (?, unix_timestamp(now()), 'active', ?, ?, 'Connection Creation', 'VRF', ?)", [$vrf_history_id, $model->{'last_modified_by_id'}, $model->{'workgroup_id'}, $vrf_object]);
+    if (!defined $history_id) {
         return (undef, $db->get_error);
     }
 
@@ -382,6 +409,19 @@ sub decom{
     my $user = $params{'user_id'};
 
     my $res = $db->execute_query("update vrf set state = 'decom', last_modified_by = ?, last_modified = unix_timestamp(now()) where vrf_id = ?",[$user, $vrf_id]);
+
+    my $vrf_history_query = "select history_id from vrf_history where vrf_id = ?";
+    my $history_id_reponse = $db->execute_query($vrf_history_query, [$vrf_id]);
+    if (!defined $history_id_reponse) {
+        return (undef, $db->get_error);
+    }
+    my $history_id = $history_id_reponse->[0]->{'history_id'};
+
+    my $vrf_inst_id = $db->execute_query("insert into history (date, history_id, state, user_id, event, type, object) values (unix_timestamp(now()), ?, 'decom', ?, 'Connection Deletion', 'VRF', '')", [$history_id, $user]);
+    if (!defined $vrf_inst_id) {
+        return (undef, $db->get_error);
+    }
+
     return $res;
 
 }
