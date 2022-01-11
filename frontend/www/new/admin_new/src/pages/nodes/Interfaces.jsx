@@ -94,15 +94,21 @@ class Interfaces extends React.Component {
         interfaces.forEach(x => x.utilized_total_bandwith = x.utilized_bandwidth + ' / ' + x.bandwidth);
         
         const rowButtons = (data) => {
+            // If workgroup_id == null then management of acls or connection
+            // migrations don't really make sense.
+            let dropdownDisabled = (data.workgroup_id == null) ? true : false;
+
             return (
             <div>
                 <div className="btn-group">
                     <Link to={`/nodes/${data.node_id}/interfaces/${data.interface_id}`} className="btn btn-default btn-xs">Edit Interface</Link>
-                    <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" disabled={dropdownDisabled}>
                         <span>▾</span>{/* className="caret" doesn't work idk why */}
                         <span className="sr-only">Toggle Dropdown</span>
                     </button>
                     <ul className="dropdown-menu" style={{fontSize: '12px'}}>
+                    <li><Link to={`/nodes/${data.node_id}/interfaces/${data.interface_id}/acls`}>Manage ACLs</Link></li>
+                        <li role="separator" className="divider" style={{margin: '4px 0'}}></li>
                         <li><a href="#" onClick={() => this.setState({migrateInterfaceModalVisible: true, interface: data})}>Migrate Interface</a></li>
                     </ul>
                 </div>

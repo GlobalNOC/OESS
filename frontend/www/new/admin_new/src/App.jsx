@@ -23,6 +23,9 @@ import { EditUser } from "./pages/users/EditUser.jsx";
 import { CreateNode } from "./pages/nodes/CreateNode.jsx";
 import { EditNode } from "./pages/nodes/EditNode.jsx";
 import { Interfaces } from "./pages/nodes/Interfaces.jsx";
+import { Acls } from "./pages/nodes/interfaces/Acls.jsx";
+import { CreateAcl } from "./pages/nodes/interfaces/acls/CreateAcl.jsx";
+import { EditAcl } from "./pages/nodes/interfaces/acls/EditAcl.jsx";
 import { EditInterface } from "./pages/nodes/interfaces/EditInterface.jsx";
 
 const App = () => {
@@ -51,10 +54,13 @@ const App = () => {
               <Route path="/users" component={Users}></Route>
               
               <Route path="/nodes/new"><CreateNode /></Route>
-              <Route path="/nodes/:id/interfaces/:interfaceId" component={EditInterface}></Route>
-              <Route path="/nodes/:id/interfaces" component={Interfaces}></Route>
-              <Route path="/nodes/:id" component={EditNode}></Route>
-              <Route path="/nodes" component={Nodes}></Route>
+              <Route path="/nodes/:id/interfaces/:interfaceId/acls/new" component={CreateAcl} />
+              <Route path="/nodes/:id/interfaces/:interfaceId/acls/:interfaceAclId" component={EditAcl} />
+              <Route path="/nodes/:id/interfaces/:interfaceId/acls" component={Acls} />
+              <Route path="/nodes/:id/interfaces/:interfaceId" component={EditInterface} />
+              <Route path="/nodes/:id/interfaces" component={Interfaces} />
+              <Route path="/nodes/:id" component={EditNode} />
+              <Route path="/nodes" component={Nodes} />
 
               <Route path="/workgroups/new">
                 <CreateWorkgroup />
