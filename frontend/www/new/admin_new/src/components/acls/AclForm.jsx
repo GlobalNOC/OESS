@@ -6,7 +6,6 @@ import { WorkgroupAutoComplte } from "../workgroups/WorkgroupAutoComplete";
 
 export const AclForm = (props) => {
   let acl = (props.acl == null) ? {} : props.acl;
-  console.log('AclForm', props, acl);
 
   const [interfaceAclId, setInterfaceAclId] = useState(acl.interface_acl_id || -1);
   const [interfaceId, setInterfaceId] = useState(acl.interface_id || -1);

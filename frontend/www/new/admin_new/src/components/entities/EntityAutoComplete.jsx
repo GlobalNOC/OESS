@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { useContext } from "react";
 
 import { getEntities } from "../../api/entities";
+import { PageContext } from "../../contexts/PageContext";
 
 import { AutoComplete } from "../generic_components/AutoComplete";
 
@@ -8,10 +10,11 @@ import { AutoComplete } from "../generic_components/AutoComplete";
 export const EntityAutoComplte = (props) => {
   const [entities, setEntities] = useState([]);
 
+  const { workgroup } = useContext(PageContext);
+
   useEffect(() => {
     try {
-      getEntities().then((entities) => {
-        console.info(entities);
+      getEntities(workgroup.workgroup_id).then((entities) => {
         setEntities(entities);
       });
     } catch (error) {

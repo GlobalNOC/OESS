@@ -32,9 +32,8 @@ export const createAcl = async (acl) => {
   url += `&end=${acl.end}`;
   url += `&interface_id=${acl.interfaceId}`;
   url += `&notes=${acl.notes}`;
-
-  if (acl.workgroupId !== null && acl.workgroupId !== -1) url += `&workgroup_id=${acl.workgroupId}`;
-  if (acl.entityId !== null && acl.entityId !== -1) url += `&entity_id=${acl.entityId}`;
+  url += `&workgroup_id=${acl.workgroupId}`;
+  url += `&entity_id=${acl.entityId}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
   const data = await resp.json();
@@ -69,12 +68,9 @@ export const editAcl = async (acl) => {
   url += `&interface_id=${acl.interfaceId}`;
   url += `&notes=${acl.notes}`;
   url += `&eval_position=${acl.evalPosition}`;
-
-  url += ('interfaceId' in acl) ? `&interface_id=${acl.interfaceId}` : '';
+  url += `&workgroup_id=${acl.workgroupId}`;
+  url += `&entity_id=${acl.entityId}`;
   url += ('notes' in acl) ? `&notes=${acl.notes}` : '';
-
-  if (acl.workgroupId !== null && acl.workgroupId !== -1) url += `&workgroup_id=${acl.workgroupId}`;
-  if (acl.entityId !== null && acl.entityId !== -1) url += `&entity_id=${acl.entityId}`;
 
   const resp = await fetch(url, {method: 'get', credentials: 'include'});
   const data = await resp.json();

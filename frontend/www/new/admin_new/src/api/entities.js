@@ -1,8 +1,9 @@
 import { config } from '../config.jsx';
 
 
-export const getEntities = async () => {
-  let url = `${config.base_url}/services/entities.cgi?method=get_entities`;
+export const getEntities = async (workgroupId) => {
+  let url = `${config.base_url}/services/entity.cgi?method=get_entities`;
+  url += `&workgroup_id=${workgroupId}`;
 
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});

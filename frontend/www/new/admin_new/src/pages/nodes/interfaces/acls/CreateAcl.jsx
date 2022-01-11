@@ -17,11 +17,11 @@ export const createAclComponent = (props) => {
     } catch (error) {
       setStatus({type:'error', message:error});
     }
-    history.go(-1);
+    history.goBack();
   };
   
   let cancelHandler = async () => {
-    history.go(-1);
+    history.goBack();
   };
   
   return (
