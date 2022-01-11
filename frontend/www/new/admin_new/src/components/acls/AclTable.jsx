@@ -40,8 +40,8 @@ const aclTableComponent = (props) => {
             end: acl.end,
             interfaceId: acl.interface_id,
             notes: acl.notes,
-            entityId: acl.entity_id,
-            workgroupId: acl.workgroup_id
+            entityId: acl.entity_id || -1,
+            workgroupId: acl.workgroup_id || -1
         }).then(result => {
             props.reloadAcls();
             page.setStatus({type: 'success', message: `ACL entry was successfully edited.`});
@@ -60,8 +60,8 @@ const aclTableComponent = (props) => {
             end: acl.end,
             interfaceId: acl.interface_id,
             notes: acl.notes,
-            entityId: acl.entity_id,
-            workgroupId: acl.workgroup_id
+            entityId: acl.entity_id || -1,
+            workgroupId: acl.workgroup_id || -1
         }).then(result => {
             props.reloadAcls();
             page.setStatus({type: 'success', message: `ACL entry was successfully edited.`});
