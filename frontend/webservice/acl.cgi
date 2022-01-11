@@ -184,9 +184,9 @@ sub create_acl {
     my $method = shift;
     my $params = shift;
 
-    my $workgroup_id   = $params->{workgroup_id}{value} || undef;
+    my $workgroup_id   = $params->{workgroup_id}{value} || -1;
     my $workgroup_name = "All workgroups";
-    if (defined $workgroup_id){
+    if ($workgroup_id != -1) {
         $workgroup_name = OESS::DB::Workgroup::fetch(db => $db, workgroup_id => $workgroup_id)->{name};
     }
 
@@ -215,14 +215,14 @@ sub create_acl {
     $logger->debug("Initiating creation of ACL at <time> for $workgroup_name.");    
     
     my $acl_model = { 
-        workgroup_id  => $params->{"workgroup_id"}{'value'} || undef,
+        workgroup_id  => $params->{"workgroup_id"}{'value'} || -1,
         interface_id  => $params->{"interface_id"}{'value'},
         allow_deny    => $params->{"allow_deny"}{'value'},
         eval_position => $params->{"eval_position"}{'value'} || undef,
         start         => $vlan_start,
         end           => $vlan_end || undef,
         notes         => $params->{"notes"}{'value'} || undef,
-        entity_id     => $params->{"entity_id"}{'value'} || undef,
+        entity_id     => $params->{"entity_id"}{'value'} || -1,
         user_id       => $user->user_id
     };
     my ($acl_id, $acl_error) = OESS::DB::ACL::create(db => $db, model => $acl_model);
@@ -371,9 +371,9 @@ sub edit_acl {
 	}
     }
 
-    $acl->{workgroup_id}  = $params->{workgroup_id}{value};
-    $acl->{interface_id}  = $params->{interface_id}{value};
-    $acl->{entity_id}     = $params->{entity_id}{value};
+    $acl->{workgroup_id} = $params->{workgroup_id}{value};
+    $acl->{entity_id} = $params->{entity_id}{value};
+    $acl->{interface_id} = $params->{interface_id}{value};
     $acl->{allow_deny}    = $params->{allow_deny}{value};
     $acl->{eval_position} = $params->{eval_position}{value};
     $acl->{start}         = $params->{start}{value};
