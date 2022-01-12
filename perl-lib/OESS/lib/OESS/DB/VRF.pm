@@ -487,6 +487,9 @@ sub get_vrfs{
     return $vrfs;
 }
 
+=head2 get_vrf_history
+
+=cut
 sub get_vrf_history{
     my %params = @_;
     my $events;
