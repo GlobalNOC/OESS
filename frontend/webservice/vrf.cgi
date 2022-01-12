@@ -15,7 +15,6 @@ use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_connection);
 use OESS::Cloud;
 use OESS::Config;
-use OESS::Database;
 use OESS::DB;
 use OESS::DB::User;
 use OESS::DB::Entity;
@@ -27,7 +26,6 @@ Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $config = new OESS::Config();
 my $db = OESS::DB->new();
-my $db2 = OESS::Database->new();
 my $svc = GRNOC::WebService::Dispatcher->new();
 my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
                                       timeout  => 120 );
@@ -191,9 +189,9 @@ sub get_vrf_history{
 
     my $vrf_id = $args->{'vrf_id'}{'value'};
 
-    my $events = $db2->get_vrf_history( vrf_id => $vrf_id );
+    my $events = OESS::DB::VRF::get_vrf_history( db => $db, vrf_id => $vrf_id);
      if ( !defined $events ) {
-         $method->set_error( $db2->get_error() );
+         $method->set_error( $db->get_error() );
          return;
      }
      else {

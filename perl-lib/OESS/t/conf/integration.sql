@@ -158,7 +158,7 @@ DROP TABLE IF EXISTS `history`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `history` (
-  `history_id` int(10) NOT NULL,
+  `history_id` int(10) NOT NULL AUTO_INCREMENT,
   `date` int(10) NOT NULL,
   `user_id` int(10) NOT NULL,
   `workgroup_id` int(10) NOT NULL,
@@ -168,6 +168,7 @@ CREATE TABLE `history` (
   `object` TEXT NOT NULL,
   PRIMARY KEY (`date`,`history_id`),
   KEY `user_history_fk` (`user_id`),
+  KEY `history_id` (`history_id`),
   CONSTRAINT `user_history_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -194,7 +195,8 @@ CREATE TABLE `vrf_history` (
   PRIMARY KEY (`history_id`, `vrf_id`),
   KEY `history_vrf_history_fk` (`history_id`),
   KEY `vrf_vrf_history_fk` (`vrf_id`),
-  CONSTRAINT `vrf_vrf_history_fk` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `vrf_vrf_history_fk` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `history_vrf_history` FOREIGN KEY (`history_id`) REFERENCES `history` (`history_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
