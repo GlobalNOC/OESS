@@ -337,19 +337,33 @@ sub edit_interface {
         return;
     }
 
-    # Allow for cloud_interconnect_type to be set to the empty string
-    if ($params->{cloud_interconnect_type}{is_set} && !defined $params->{cloud_interconnect_type}{value}) {
-        $params->{cloud_interconnect_type}{value} = '';
-    }
-
     if (defined $params->{workgroup_id}{value}) {
+        # If we're enabling for a workgroup we want to
+        # generate a default allow all rule.
+        if (!defined $interface->workgroup_id) {
+            my $acl = new OESS::ACL(
+                db => $db,
+                model => {
+                    workgroup_id  => -1,
+                    interface_id  => $interface->interface_id,
+                    allow_deny    => 'allow',
+                    eval_position => 10,
+                    start         => 2,
+                    end           => 4094,
+                    notes         => 'Default ACL'
+                }
+            );
+            $acl->create;
+        }
         $interface->workgroup_id($params->{workgroup_id}{value});
     }
-    if (defined $params->{cloud_interconnect_id}{value}) {
-        $interface->cloud_interconnect_id($params->{cloud_interconnect_id}{value});
+
+    # We use $obj->{attr} syntax to support setting attribute to undef
+    if ($params->{cloud_interconnect_id}{is_set}) {
+        $interface->{cloud_interconnect_id} = $params->{cloud_interconnect_id}{value};
     }
-    if (defined $params->{cloud_interconnect_type}{value}) {
-        $interface->cloud_interconnect_type($params->{cloud_interconnect_type}{value});
+    if ($params->{cloud_interconnect_type}{is_set}) {
+        $interface->{cloud_interconnect_type} = $params->{cloud_interconnect_type}{value};
     }
     $interface->update_db;
 
