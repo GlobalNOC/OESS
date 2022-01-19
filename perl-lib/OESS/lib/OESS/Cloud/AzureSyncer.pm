@@ -7,6 +7,10 @@ use Data::Dumper;
 use JSON::XS;
 use Log::Log4perl;
 
+use OESS::DB;
+use OESS::DB::Endpoint;
+use OESS::Endpoint;
+
 =head1 OESS::Cloud::AzureSyncer
 
     my $endpoints = $syncer->fetch_azure_endpoints_from_oess();
@@ -55,6 +59,7 @@ use Log::Log4perl;
 sub new {
     my $class = shift;
     my $args  = {
+        azure       => undef,
         config      => undef,
         config_file => "/etc/oess/database.xml",
         logger      => Log::Log4perl->get_logger("OESS.Cloud.AzureSyncer"),
@@ -84,7 +89,7 @@ sub fetch_cross_connections_from_azure {
     }
 
     foreach my $account (@{$accounts->{connection}}) {
-        if ($cloud->{interconnect_type} ne 'azure-express-route') {
+        if ($account->{interconnect_type} ne 'azure-express-route') {
             next;
         }
         push @$configs, $account;
@@ -94,15 +99,39 @@ sub fetch_cross_connections_from_azure {
     # (cloud_connection_id) to the full Azure CrossConnection object which
     # includes its peering information.
     foreach my $config (@$configs) {
-        my $connectionsWithNoPeering = ($azure->expressRouteCrossConnections($config->{interconnect_id}));
+        my $connectionsWithNoPeering = ($self->{azure}->expressRouteCrossConnections($config->{interconnect_id}));
         foreach my $conn (@$connectionsWithNoPeering) {
-            my $connWithPeering = $azure->expressRouteCrossConnection($config->{interconnect_id}, $conn->{name});
+            my $connWithPeering = $self->{azure}->expressRouteCrossConnection($config->{interconnect_id}, $conn->{name});
             $connWithPeering->{interconnect_id} = $config->{interconnect_id}; # I'm not sure if this is needed later on or not
             $result->{$conn->{id}} = $connWithPeering;
         }
     }
 
     return $result;
+}
+
+=head2 fetch_azure_endpoints_from_oess
+
+=cut
+sub fetch_azure_endpoints_from_oess {
+    my $self = shift;
+
+    my $db = new OESS::DB(config_obj => $self->{config});
+
+    my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(
+        db => $db,
+        cloud_interconnect_type => 'azure-express-route'
+    );
+    return (undef, $eps_err) if defined $eps_err;
+
+    my $result = [];
+    foreach my $ep (@$eps) {
+        my $obj = new OESS::Endpoint(db => $db, model => $ep);
+        $obj->load_peers;
+        push @$result, $obj;
+    }
+
+    return ($result, undef);
 }
 
 
