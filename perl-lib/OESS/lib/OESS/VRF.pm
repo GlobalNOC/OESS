@@ -801,7 +801,21 @@ sub nso_diff {
     }
 
     foreach my $key (keys %$diff) {
-        delete $diff->{$key} if ($diff->{$key} eq '');
+        my $conn_name = "OESS-VRF-" . ($self->vrf_id || $nsoc->{connection_id}) . ":\n";
+        my $conn_diff = "";
+
+        if (!defined $self->workgroup) {
+            $conn_diff .= "- Workgroup: " . $nsoc->{workgroup} . "\n";
+        } elsif ($self->workgroup->name ne $nsoc->{workgroup}) {
+            $conn_diff .= "- Workgroup: " . $nsoc->{workgroup} . "\n";
+            $conn_diff .= "+ Workgroup: " . $self->workgroup->name . "\n";
+        }
+
+        if ($diff->{$key} eq '' && $conn_diff eq '') {
+            delete $diff->{$key};
+        } else {
+            $diff->{$key} = $conn_name . $conn_diff . $diff->{$key};
+        }
     }
 
     return $diff;
