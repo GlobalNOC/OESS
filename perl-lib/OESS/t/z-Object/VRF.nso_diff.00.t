@@ -43,7 +43,8 @@ my ($nso_l3connections, $err) = $nso->get_l3connections();
 my $nso_l3connection = $nso_l3connections->[0];
 
 my $expect1 = {
-    'N31' => '+  e15/4.200
+    'N31' => 'OESS-VRF-1:
++  e15/4.200
 +    Bandwidth: 100
 +    Tag:       2010
 +    Peer: 2
@@ -53,7 +54,8 @@ my $expect1 = {
 +      Peer IP:   192.168.2.3
 +      BFD:       0
 ',
-    'N11' => '   e15/6.300
+    'N11' => 'OESS-VRF-1:
+   e15/6.300
 -    Bandwidth: 200
 +    Bandwidth: 100
 -    Tag:       300
@@ -74,7 +76,8 @@ my $expect1 = {
 +      Peer IP:   192.168.5.3
 +      BFD:       0
 ',
-    'xr1' => '-  GigabitEthernet0/1.300
+    'xr1' => 'OESS-VRF-1:
+-  GigabitEthernet0/1.300
 -    Bandwidth: 100
 -    Tag:       300
 -    Peer: 2
@@ -95,6 +98,7 @@ foreach my $test (@$nso_l3connection_tests) {
         model  => $test->{model}
     );
     $conn->load_endpoints;
+    $conn->load_workgroup;
     foreach my $ep (@{$conn->endpoints}) {
         $ep->load_peers;
     }
