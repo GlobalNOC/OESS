@@ -29,13 +29,16 @@ use OESS::Endpoint;
         my $subnets = $syncer->get_peering_addresses_from_azure($conn, $ep->cloud_interconnect_id);
 
         # Azure connection may have only one peering for both ipv4 and ipv6
+        $ep->load_peers;
         foreach $peer (@{$ep->peers}) {
-            my $subnet = $subnets->{peer->ip_version};
-            if ($subnet->{remote_ip} ne $peer->remote_ip || $subnet->{local_ip} ne $peer->local_ip) {
-                $peer->remote_ip($subnet->{remote_ip});
-                $peer->local_ip($subnet->{local_ip});
-                $peer->update;
+            if ($peer->ip_version eq 'ipv4') {
+                $peer->remote_ip($subnet->{ipv4}->{remote_ip});
+                $peer->local_ip($subnet->{ipv4}->{local_ip});
+            } else {
+                $peer->remote_ip($subnet->{ipv6}->{remote_ip});
+                $peer->local_ip($subnet->{ipv6}->{local_ip});
             }
+            $peer->update;
         }
 
         if ($conn->{bandwidthInMbps} != $ep->bandwidth) {
@@ -73,7 +76,7 @@ sub new {
 
 =head2 fetch_cross_connections_from_azure
 
-    my $conns = $syncer->fetch_cross_connections_from_azure();
+    my ($conns, $err) = $syncer->fetch_cross_connections_from_azure();
 
 =cut
 sub fetch_cross_connections_from_azure {
@@ -107,7 +110,7 @@ sub fetch_cross_connections_from_azure {
         }
     }
 
-    return $result;
+    return ($result, undef);
 }
 
 =head2 fetch_azure_endpoints_from_oess
@@ -137,11 +140,60 @@ sub fetch_azure_endpoints_from_oess {
 
 =head2 get_peering_addresses_from_azure
 
+get_peering_addresses_from_azure gets the peering addresses from the subnet
+associated with $interconnect_id from $conn.
+
 =cut
 sub get_peering_addresses_from_azure {
     my $self = shift;
+    my $conn = shift;
+    my $interconnect_id = shift;
 
-    return { ipv4 => undef, ipv6 => undef };
+    my $result = {
+        ipv4 => { ip_version => 'ipv4', remote_ip => '', local_ip => '' },
+        ipv6 => { ip_version => 'ipv6', remote_ip => '', local_ip => '' },
+    };
+
+    foreach my $peering (@{$conn->{properties}->{peerings}}) {
+        next if $peering->{properties}->{peeringType} ne "AzurePrivatePeering";
+
+        my $prefix;
+        if ($interconnect_id eq $conn->{properties}->{primaryAzurePort}) {
+            $prefix = $peering->{properties}->{primaryPeerAddressPrefix};
+        } else {
+            $prefix = $peering->{properties}->{secondaryPeerAddressPrefix};
+        }
+
+        # if is_ipv4($prefix)
+        warn $prefix;
+        $result->{ipv4}->{local_ip}  = get_nth_ip($prefix, 1);
+        $result->{ipv4}->{remote_ip} = get_nth_ip($prefix, 2);
+        
+        # if is_ipv6($prefix)
+        # $result->{ipv6}->{local_ip}  = undef;
+        # $result->{ipv6}->{remote_ip} = undef;
+    }
+
+    return $result;
+}
+
+=head2 get_nth_ip
+
+=cut
+sub get_nth_ip {
+    my $ip = shift;
+    my $increment = shift;
+
+    $ip =~ m/^(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)/;
+    my $firstOctet = $1;
+    my $secondOctet = $2;
+    my $thirdOctet = $3;
+    my $lastOctet = $4;
+
+    $ip =~ m/\/(\d\d?)$/;
+    my $subnet = $1;
+    $lastOctet = int($lastOctet) + $increment;
+    return "$firstOctet.$secondOctet.$thirdOctet.$lastOctet/$subnet";
 }
 
 return 1;
