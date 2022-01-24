@@ -157,11 +157,11 @@ sub get_peering_addresses_from_azure {
     my $conn = shift;
     my $interconnect_id = shift;
 
-    # my $result = {
-    #     ipv4 => { ip_version => 'ipv4', remote_ip => '', local_ip => '' },
-    #     ipv6 => { ip_version => 'ipv6', remote_ip => '', local_ip => '' },
-    # };
-    my $result = { ipv4 => undef, ipv6 => undef };
+    # my $result = [
+    #     { ip_version => 'ipv4', remote_ip => '', local_ip => '' },
+    #     { ip_version => 'ipv6', remote_ip => '', local_ip => '' },
+    # ];
+    my $result = [];
 
     foreach my $peering (@{$conn->{properties}->{peerings}}) {
         next if $peering->{properties}->{peeringType} ne "AzurePrivatePeering";
@@ -176,9 +176,12 @@ sub get_peering_addresses_from_azure {
             }
 
             my $ip = new Net::IP($prefix);
-            $result->{ipv4}->{local_ip}   = get_nth_ip($ip, 1);
-            $result->{ipv4}->{remote_ip}  = get_nth_ip($ip, 2);
-            $result->{ipv4}->{remote_asn} = $peering->{properties}->{azureASN};
+            push @$result, {
+                ip_version => 'ipv4',
+                local_ip   => get_nth_ip($ip, 1),
+                remote_ip  => get_nth_ip($ip, 2),
+                remote_asn => $peering->{properties}->{azureASN}
+            };
         }
 
         # ipv6PeeringConfig is defined when v6 prefix is assigned
@@ -189,10 +192,14 @@ sub get_peering_addresses_from_azure {
             } else {
                 $prefix = $peering->{properties}->{ipv6PeeringConfig}->{secondaryPeerAddressPrefix};
             }
-            my $ipv6 = new Net::IP($prefix);
-            $result->{ipv6}->{local_ip}   = get_nth_ip($ipv6, 1);
-            $result->{ipv6}->{remote_ip}  = get_nth_ip($ipv6, 2);
-            $result->{ipv6}->{remote_asn} = $peering->{properties}->{azureASN};
+
+            my $ip = new Net::IP($prefix);
+            push @$result, {
+                ip_version => 'ipv6',
+                local_ip   => get_nth_ip($ip, 1),
+                remote_ip  => get_nth_ip($ip, 2),
+                remote_asn => $peering->{properties}->{azureASN}
+            };
         }
     }
 

@@ -39,62 +39,43 @@ sub main {
 
     foreach my $ep (@{$endpoints}) {
         my $conn = $conns->{$ep->cloud_connection_id};
-        my $subnets = $syncer->get_peering_addresses_from_azure($conn, $ep->cloud_interconnect_id);
-        warn Dumper($subnets);
-
-        my $subnet_count = keys %$subnets;
+        my $remote_peers = $syncer->get_peering_addresses_from_azure($conn, $ep->cloud_interconnect_id);
 
         $ep->load_peers;
+        my $local_peers = $ep->peers;
 
-        # TODO Review peer sync logic
-        # Ensure at least 1 peer for every subnet configured in Azure
-        my $peers = $ep->peers;
-        while (@$peers < $subnet_count) {
-            my $peer = new OESS::Peer(
-                db => $db,
-                model => {
-                    local_ip  => '192.168.200.249/30',
-                    peer_asn  => 12076,
-                    peer_ip   => '192.168.200.250/30',
-                    status    => 'down'
-                }
-            );
-            $peer->create(vrf_ep_id => $ep->vrf_endpoint_id);
-            $ep->add_peer($peer);
+        my $i = 0;
+        while ($i < @$remote_peers) {
+            my $peer;
+            if ($i+1 > @$local_peers) {
+                # While more remote_peers than local_peers create one
+                my $peer = new OESS::Peer(
+                    db => $db,
+                    model => {
+                        local_ip   => $remote_peers->[$i]->{local_ip},
+                        peer_asn   => $remote_peers->[$i]->{remote_asn},
+                        peer_ip    => $remote_peers->[$i]->{remote_ip},
+                        status     => 'up',
+                        ip_version => $remote_peers->[$i]->{ip_version}
+                    }
+                );
+                $peer->create(vrf_ep_id => $ep->vrf_endpoint_id);
+            } else {
+                $local_peers->[$i]->local_ip($remote_peers->[$i]->{local_ip});
+                $local_peers->[$i]->peer_asn($remote_peers->[$i]->{remote_asn});
+                $local_peers->[$i]->peer_ip($remote_peers->[$i]->{remote_ip});
+                $local_peers->[$i]->ip_version($remote_peers->[$i]->{ip_version});
+                $local_peers->[$i]->update;
+            }
 
-            $peers = $ep->peers;
+            $i++;
         }
 
-        for (my $i = 0; $i < @$peers; $i++) {
-            if ($i == 0) {
-                $peers->[$i]->local_ip($subnets->{ipv4}->{local_ip});
-                $peers->[$i]->peer_ip($subnets->{ipv4}->{remote_ip});
-                $peers->[$i]->peer_asn($subnets->{ipv4}->{remote_asn});
-                $peers->[$i]->ip_version($subnets->{ipv4}->{ip_version});
-                $peers->[$i]->update;
-            }
-            elsif ($i == 1) {
-                $peers->[$i]->local_ip($subnets->{ipv6}->{local_ip});
-                $peers->[$i]->peer_ip($subnets->{ipv6}->{remote_ip});
-                $peers->[$i]->peer_asn($subnets->{ipv4}->{remote_asn});
-                $peers->[$i]->ip_version($subnets->{ipv6}->{ip_version});
-                $peers->[$i]->update;
-            }
-            else {
-                # Azure supports at most two peerings
-            }
+        while ($i < @$local_peers) {
+            # While more local_peers than remote_peers remove one
+            $local_peers->[$i]->decom;
+            $i++;
         }
-
-        # foreach my $peer (@{$ep->peers}) {
-            # if ($peer->ip_version eq 'ipv4') {
-            #     $peer->peer_ip($subnets->{ipv4}->{remote_ip});
-            #     $peer->local_ip($subnets->{ipv4}->{local_ip});
-            # } else {
-            #     $peer->peer_ip($subnets->{ipv6}->{remote_ip});
-            #     $peer->local_ip($subnets->{ipv6}->{local_ip});
-            # }
-            # $peer->update;
-        # }
 
         if ($ep->bandwidth != $conn->{properties}->{bandwidthInMbps}) {
             $ep->bandwidth($conn->{properties}->{bandwidthInMbps});
