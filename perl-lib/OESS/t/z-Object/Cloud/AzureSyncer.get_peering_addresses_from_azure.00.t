@@ -45,12 +45,12 @@ my $ni_id = $db->execute_query(
     "insert into node_instantiation (node_id,start_epoch,end_epoch,admin_state,dpid,openflow,mpls,controller) values (?,UNIX_TIMESTAMP(NOW()),-1,'active',987654567,0,1,'nso')",
     [5071]
 );
-warn "node inst $ni_id";
+
 my $vrf_id = $db->execute_query(
     "insert into vrf (name,description,workgroup_id,state,local_asn,created_by,last_modified_by) values (?,?,?,?,?,?,?)",
     ["demo","demo",21,"active",64789,1,1]
 );
-warn "vrf $vrf_id";
+
 my $ep1_id = $db->execute_query(
     "insert into vrf_ep (vrf_id,interface_id,unit,tag,bandwidth,state,mtu) values (?,?,?,?,?,?,?)",
     [$vrf_id,40871,100,100,0,"active",1500]
@@ -59,7 +59,6 @@ my $ep2_id = $db->execute_query(
     "insert into vrf_ep (vrf_id,interface_id,unit,tag,bandwidth,state,mtu) values (?,?,?,?,?,?,?)",
     [$vrf_id,40891,100,100,0,"active",1500]
 );
-warn "ep $ep1_id $ep2_id";
 
 my $cld_ep1_id = $db->execute_query(
     "insert into cloud_connection_vrf_ep (vrf_ep_id,cloud_account_id,cloud_connection_id) values (?,?,?)",
@@ -69,7 +68,6 @@ my $cld_ep2_id = $db->execute_query(
     "insert into cloud_connection_vrf_ep (vrf_ep_id,cloud_account_id,cloud_connection_id) values (?,?,?)",
     [$ep2_id,"11111111-1111-1111-1111-111111111111","/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/CrossConnection-SiliconValleyTest/providers/Microsoft.Network/expressRouteCrossConnections/11111111-1111-1111-1111-111111111111"]
 );
-warn "cld_ep $cld_ep1_id $cld_ep2_id";
 
 my $pr1_id = $db->execute_query(
     "insert into vrf_ep_peer (vrf_ep_id,ip_version,state,operational_state,local_ip,peer_ip,peer_asn) values (?,?,?,?,?,?,?)",
@@ -79,8 +77,7 @@ my $pr2_id = $db->execute_query(
     "insert into vrf_ep_peer (vrf_ep_id,ip_version,state,operational_state,local_ip,peer_ip,peer_asn) values (?,?,?,?,?,?,?)",
     [$ep2_id,"ipv4","active",1,"192.168.100.253/30","192.168.100.254/30",12076]
 );
-warn "peer $pr1_id $pr2_id";
-warn $db->get_error;
+
 
 my $azure = new OESS::Cloud::AzureSyncer(
     config => new OESS::Config(config_filename => "$path/../../conf/database.xml"),
@@ -97,26 +94,13 @@ my $ep1 = $endpoints->[0];
 my $conn1 = $conns->{$ep1->cloud_connection_id};
 
 my $subnets1 = $azure->get_peering_addresses_from_azure($conn1, $ep1->cloud_interconnect_id);
-ok($subnets1->{ipv4}->{local_ip} eq "192.168.100.249/30", "Got expected local_ip");
-ok($subnets1->{ipv4}->{remote_ip} eq "192.168.100.250/30", "Got expected remote_ip");
+ok($subnets1->[0]->{local_ip} eq "192.168.100.249/30", "Got expected local_ip");
+ok($subnets1->[0]->{remote_ip} eq "192.168.100.250/30", "Got expected remote_ip");
 
 my $ep2 = $endpoints->[1];
 my $conn2 = $conns->{$ep1->cloud_connection_id};
 
 my $subnets2 = $azure->get_peering_addresses_from_azure($conn2, $ep2->cloud_interconnect_id);
-ok($subnets2->{ipv4}->{local_ip} eq "192.168.100.253/30", "Got expected local_ip");
-ok($subnets2->{ipv4}->{remote_ip} eq "192.168.100.254/30", "Got expected remote_ip");
+ok($subnets2->[0]->{local_ip} eq "192.168.100.253/30", "Got expected local_ip");
+ok($subnets2->[0]->{remote_ip} eq "192.168.100.254/30", "Got expected remote_ip");
 
-
-# warn Dumper($conns);
-# warn Dumper($err);
-
-# +----------------------------+--------------+------+-----+---------+----------------+
-# | Field                      | Type         | Null | Key | Default | Extra          |
-# +----------------------------+--------------+------+-----+---------+----------------+
-# | cloud_connection_vrf_ep_id | int(11)      | NO   | PRI | NULL    | auto_increment |
-# | vrf_ep_id                  | int(11)      | YES  | MUL | NULL    |                |
-# | circuit_ep_id              | int(11)      | YES  | MUL | NULL    |                |
-# | cloud_account_id           | varchar(255) | NO   |     | NULL    |                |
-# | cloud_connection_id        | varchar(255) | NO   |     | NULL    |                |
-# +----------------------------+--------------+------+-----+---------+----------------+
