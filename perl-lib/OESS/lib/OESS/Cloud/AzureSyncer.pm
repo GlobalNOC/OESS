@@ -24,24 +24,16 @@ use OESS::Endpoint;
 
         # ipv4 will end in '/30' and ipv6 will end in '/126'
         # should return:
-        # {
-        #     ipv4 => { ip_version => 'ipv4', remote_ip => '', local_ip => '' }
-        #     ipv6 => { ip_version => 'ipv6', remote_ip => '', local_ip => '' }
-        # }
+        # [
+        #     { ip_version => 'ipv4', remote_ip => '', local_ip => '' },
+        #     { ip_version => 'ipv6', remote_ip => '', local_ip => '' }
+        # ]
         my $subnets = $syncer->get_peering_addresses_from_azure($conn, $ep->cloud_interconnect_id);
 
         # Azure connection may have only one peering for both ipv4 and ipv6
         $ep->load_peers;
-        foreach my $peer (@{$ep->peers}) {
-            if ($peer->ip_version eq 'ipv4') {
-                $peer->remote_ip($subnet->{ipv4}->{remote_ip});
-                $peer->local_ip($subnet->{ipv4}->{local_ip});
-            } else {
-                $peer->remote_ip($subnet->{ipv6}->{remote_ip});
-                $peer->local_ip($subnet->{ipv6}->{local_ip});
-            }
-            $peer->update;
-        }
+        
+        # Compare $subnets and $ep->peers here
 
         if ($conn->{bandwidthInMbps} != $ep->bandwidth) {
             $ep->bandwidth($conn->{bandwidthInMbps});
