@@ -6,6 +6,8 @@ use warnings;
 use Data::Dumper;
 use JSON::XS;
 use Log::Log4perl;
+use Net::IP;
+use Net::IP qw(ip_is_ipv4);
 
 use OESS::DB;
 use OESS::DB::Endpoint;
@@ -30,7 +32,7 @@ use OESS::Endpoint;
 
         # Azure connection may have only one peering for both ipv4 and ipv6
         $ep->load_peers;
-        foreach $peer (@{$ep->peers}) {
+        foreach my $peer (@{$ep->peers}) {
             if ($peer->ip_version eq 'ipv4') {
                 $peer->remote_ip($subnet->{ipv4}->{remote_ip});
                 $peer->local_ip($subnet->{ipv4}->{local_ip});
@@ -143,35 +145,55 @@ sub fetch_azure_endpoints_from_oess {
 get_peering_addresses_from_azure gets the peering addresses from the subnet
 associated with $interconnect_id from $conn.
 
+Returns
+    {
+        ipv4 => { ip_version => 'ipv4', remote_ip => '', local_ip => '' }
+        ipv6 => { ip_version => 'ipv6', remote_ip => '', local_ip => '' }
+    }
+
 =cut
 sub get_peering_addresses_from_azure {
     my $self = shift;
     my $conn = shift;
     my $interconnect_id = shift;
 
-    my $result = {
-        ipv4 => { ip_version => 'ipv4', remote_ip => '', local_ip => '' },
-        ipv6 => { ip_version => 'ipv6', remote_ip => '', local_ip => '' },
-    };
+    # my $result = {
+    #     ipv4 => { ip_version => 'ipv4', remote_ip => '', local_ip => '' },
+    #     ipv6 => { ip_version => 'ipv6', remote_ip => '', local_ip => '' },
+    # };
+    my $result = { ipv4 => undef, ipv6 => undef };
 
     foreach my $peering (@{$conn->{properties}->{peerings}}) {
         next if $peering->{properties}->{peeringType} ne "AzurePrivatePeering";
 
-        my $prefix;
-        if ($interconnect_id eq $conn->{properties}->{primaryAzurePort}) {
-            $prefix = $peering->{properties}->{primaryPeerAddressPrefix};
-        } else {
-            $prefix = $peering->{properties}->{secondaryPeerAddressPrefix};
+        # primaryPeerAddressPrefix is defined when v4 prefix is assigned
+        if (defined $peering->{properties}->{primaryPeerAddressPrefix}) {
+            my $prefix;
+            if ($interconnect_id eq $conn->{properties}->{primaryAzurePort}) {
+                $prefix = $peering->{properties}->{primaryPeerAddressPrefix};
+            } else {
+                $prefix = $peering->{properties}->{secondaryPeerAddressPrefix};
+            }
+
+            my $ip = new Net::IP($prefix);
+            $result->{ipv4}->{local_ip}   = get_nth_ip($ip, 1);
+            $result->{ipv4}->{remote_ip}  = get_nth_ip($ip, 2);
+            $result->{ipv4}->{remote_asn} = $peering->{properties}->{azureASN};
         }
 
-        # if is_ipv4($prefix)
-        warn $prefix;
-        $result->{ipv4}->{local_ip}  = get_nth_ip($prefix, 1);
-        $result->{ipv4}->{remote_ip} = get_nth_ip($prefix, 2);
-        
-        # if is_ipv6($prefix)
-        # $result->{ipv6}->{local_ip}  = undef;
-        # $result->{ipv6}->{remote_ip} = undef;
+        # ipv6PeeringConfig is defined when v6 prefix is assigned
+        if (defined $peering->{properties}->{ipv6PeeringConfig}) {
+            my $prefix;
+            if ($interconnect_id eq $conn->{properties}->{primaryAzurePort}) {
+                $prefix = $peering->{properties}->{ipv6PeeringConfig}->{primaryPeerAddressPrefix};
+            } else {
+                $prefix = $peering->{properties}->{ipv6PeeringConfig}->{secondaryPeerAddressPrefix};
+            }
+            my $ipv6 = new Net::IP($prefix);
+            $result->{ipv6}->{local_ip}   = get_nth_ip($ipv6, 1);
+            $result->{ipv6}->{remote_ip}  = get_nth_ip($ipv6, 2);
+            $result->{ipv6}->{remote_asn} = $peering->{properties}->{azureASN};
+        }
     }
 
     return $result;
@@ -179,21 +201,29 @@ sub get_peering_addresses_from_azure {
 
 =head2 get_nth_ip
 
+Returns the nth IP Address of the provided subnet. An $increment of zero will
+return the network address.
+
+Examples:
+
+    my $ipv6 = get_nth_ip(new Net::IP("2001:db8:85a3::8a2e:370:7334/126"), 1);
+    # $ipv6 will equal "2001:db8:85a3::8a2e:370:7335/126"
+
+    my $ipv4 = get_nth_ip(new Net::IP("192.168.100.248/30"), 1);
+    # $ipv4 will equal "192.168.100.249/30"
+
 =cut
 sub get_nth_ip {
     my $ip = shift;
     my $increment = shift;
 
-    $ip =~ m/^(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)\.(\d\d?\d?)/;
-    my $firstOctet = $1;
-    my $secondOctet = $2;
-    my $thirdOctet = $3;
-    my $lastOctet = $4;
+    # my $ip = new Net::IP($addr);
+    my $mask = $ip->prefixlen();
 
-    $ip =~ m/\/(\d\d?)$/;
-    my $subnet = $1;
-    $lastOctet = int($lastOctet) + $increment;
-    return "$firstOctet.$secondOctet.$thirdOctet.$lastOctet/$subnet";
+    my $new_ip   = $ip + $increment;
+    my $new_addr = $new_ip->ip . "/$mask";
+
+    return $new_addr;
 }
 
 return 1;
