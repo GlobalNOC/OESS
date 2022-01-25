@@ -16,7 +16,7 @@ jobs:
       - name: Copy repo to /github/workspace
         uses: actions/checkout@v2
       - name: Run perl-OESS tests
-        uses: jonstout/OESS@master
+        uses: GlobalNOC/OESS@master
       - name: Archive code coverage results
         uses: actions/upload-artifact@v1
         with:
