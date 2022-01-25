@@ -66,6 +66,9 @@ sub create {
         $error = $args->{db}->get_error();
     }
 
+    my $query = "insert into acl_history values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Created')";
+    my $acl_history = $args->{db}->execute_query($query,[$args->{model}->{user_id}, $args->{model}->{workgroup_id}, $args->{model}->{interface_id}, $id]);
+
     return ($id, $error);
 }
 
@@ -340,6 +343,22 @@ sub remove_all {
         return (-1, "Error removing acls");
     }
     return ($count, undef);
+}
+
+=head2 get_acl_history
+=cut
+
+sub get_acl_history {
+    my $args = {
+        db => undef,
+        interface_acl_id => undef,
+        interface_id => undef,
+        workgroup_id => undef,
+        @_
+    };
+
+    my $query = "select * from acl_history where interface_id = ? and interface_acl_id = ? and workgroup_id = ?";
+    return $args->{db}->execute_query($query, [$args->{interface_id}, $args->{interface_acl_id}, $args->{workgroup_id}]);
 }
 
 return 1;
