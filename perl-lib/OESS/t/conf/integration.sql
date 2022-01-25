@@ -166,7 +166,7 @@ CREATE TABLE `history` (
   `state` enum('scheduled','deploying','active','decom','looped','reserved','provisioned') NOT NULL DEFAULT 'scheduled',
   `type` varchar(255) DEFAULT NULL,
   `object` TEXT NOT NULL,
-  PRIMARY KEY (`date`,`history_id`),
+  PRIMARY KEY (`history_id`),
   KEY `user_history_fk` (`user_id`),
   KEY `history_id` (`history_id`),
   CONSTRAINT `user_history_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
