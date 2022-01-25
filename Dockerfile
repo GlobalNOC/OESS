@@ -6,5 +6,8 @@ RUN yum -y install epel-release
 RUN yum -y install perl mariadb-server
 RUN yum -y install perl-Carp-Always perl-Test-Deep perl-Test-Exception perl-Test-Pod perl-Test-Pod-Coverage perl-Devel-Cover perl-AnyEvent-HTTP perl-Net-IP
 RUN yum -y install perl-OESS oess-core oess-frontend
+
+COPY perl-lib/OESS /OESS
+
 RUN chmod 777 /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
