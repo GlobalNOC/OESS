@@ -143,13 +143,18 @@ sub run_command {
 
     my $config = GRNOC::Config->new(config_file => '/etc/oess/.passwd.xml');
 
+    my $cli_type = "junos";
+    if ($node->{vendor} eq "cisco"){
+	$cli_type = "ios";
+    }
+
     my $proxy = GRNOC::RouterProxy->new(
         hostname    => $node,
         port        => 22,
         username    => $config->get('/config/@default_user')->[0],
         password    => $config->get('/config/@default_pw')->[0],
         method      => 'ssh',
-        type        => 'junos',
+        type        => $cli_type,
         maxlines    => 1000,
         timeout     => 15
     );
@@ -158,7 +163,12 @@ sub run_command {
     my $tt = Template->new();
     $tt->process(\$cmd->{template}, { node => $node, interface => $intf, unit => $unit, peer => $peer }, \$cmd_string);
 
-    my $result = $proxy->junosSSH($cmd_string);
+    my $result;
+    if ($node->{vendor} eq 'junos') {
+	$result = $proxy->junosSSH($cmd_string);
+    } elsif ($node->{vendor} eq 'cisco') {
+	$result = $proxy->ciscoSSH($cmd_string);
+    }
     return { results => [ $result ] };
 }
 
