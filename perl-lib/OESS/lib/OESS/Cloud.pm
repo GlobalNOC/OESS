@@ -8,6 +8,7 @@ use Log::Log4perl;
 
 use OESS::Cloud::AWS;
 use OESS::Cloud::Azure;
+use OESS::Cloud::AzurePeeringConfig;
 use OESS::Cloud::GCP;
 use OESS::Config;
 use OESS::DB::Endpoint;
@@ -33,6 +34,8 @@ a replacement for the parent VRF's endpoints.
 
 =cut
 sub setup_endpoints {
+    my $db         = shift;
+    my $vrf_id     = shift; # undef for l2conns
     my $vrf_name   = shift;
     my $endpoints  = shift; # OESS::Endpoint
     my $is_admin   = shift; # 1 or 0
@@ -43,6 +46,10 @@ sub setup_endpoints {
     my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
     my $azure_connections = {};
+    my $azure_peering_config = new OESS::Cloud::AzurePeeringConfig(db => $db);
+    if (defined $vrf_id) {
+        $azure_peering_config->load($vrf_id);
+    }
 
     foreach my $ep (@$endpoints) {
         if (!$ep->cloud_interconnect_id) {
@@ -166,17 +173,8 @@ sub setup_endpoints {
 
             # Configure peering information only on layer 3
             # connections.
-            my $peering;
-            if (defined $ep->vrf_endpoint_id) {
-                $peering = {
-                    vlan             => $ep->tag,
-                    local_asn        => $config->local_as,
-                    primary_prefix   => '192.168.100.248/30',
-                    secondary_prefix => '192.168.100.252/30'
-                };
-            }
-
             my $conn = $azure->expressRouteCrossConnection($ep->cloud_interconnect_id, $ep->cloud_account_id);
+            my $peering = $azure_peering_config->cross_connection_peering($ep->cloud_account_id);
 
             # Validate that configured bandwidth reservation allowed
             my $ep_intf = new OESS::Interface(db => $ep->{db}, interface_id => $ep->interface_id);
@@ -191,6 +189,8 @@ sub setup_endpoints {
                 region           => $conn->{location},
                 peering_location => $conn->{properties}->{peeringLocation},
                 bandwidth        => $conn->{properties}->{bandwidthInMbps},
+                vlan             => $ep->tag,
+                local_asn        => $config->local_as,
                 peering          => $peering
             );
 
