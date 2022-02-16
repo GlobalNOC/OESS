@@ -10,6 +10,7 @@ use OESS::Cloud::AWS;
 use OESS::Cloud::Azure;
 use OESS::Cloud::AzurePeeringConfig;
 use OESS::Cloud::GCP;
+use OESS::Cloud::Oracle;
 use OESS::Config;
 use OESS::DB::Endpoint;
 
@@ -207,9 +208,54 @@ sub setup_endpoints {
 
             push @$result, $ep;
 
+        } elsif ($ep->cloud_interconnect_type eq 'oracle-fast-connect') {
+            $logger->info("Adding cloud interconnect of type oracle-fast-connect.");
+            my $oracle = new OESS::Cloud::Oracle();
+            my $conn_type = 'l2';
+            my $auth_key = '';
+            my $oess_ip = undef;
+            my $peer_ip = undef;
+            my $oess_ipv6 = undef;
+            my $peer_ipv6 = undef;
+
+            # Layer3 Connection Check
+            if (defined $ep->vrf_endpoint_id) {
+                $conn_type = 'l3';
+                foreach my $peer (@{$ep->peers}) {
+                    # Auth key is assumed to be the same for all peers on a
+                    # given endpoint.
+                    $auth_key = (defined $peer->md5_key) ? $peer->md5_key : '';
+
+                    if ($peer->ip_version eq 'ipv4') {
+                        $oess_ip = $peer->local_ip;
+                        $peer_ip = $peer->peer_ip;
+                    } else {
+                        $oess_ipv6 = $peer->local_ip;
+                        $peer_ipv6 = $peer->peer_ip;
+                    }
+                }
+            }
+
+            my $res = $oracle->update_virtual_circuit(
+                ocid      => $ep->cloud_account_id,
+                name      => $vrf_name,
+                type      => $conn_type,
+                bandwidth => $ep->bandwidth,
+                auth_key  => $auth_key,
+                mtu       => $ep->mtu,
+                oess_asn  => $config->local_as,
+                oess_ip   => $oess_ip,
+                peer_ip   => $peer_ip,
+                oess_ipv6 => $oess_ipv6,
+                peer_ipv6 => $oess_ipv6,
+                vlan      => $ep->tag
+            );
+
+            $ep->cloud_connection_id($res->{id});
+
+            push @$result, $ep;
         } else {
             $logger->warn("Cloud interconnect type is not supported.");
-            push @$result, $ep;
         }
     }
 
@@ -320,6 +366,15 @@ sub cleanup_endpoints {
                 bandwidth        => $conn->{properties}->{bandwidthInMbps},
                 vlan             => $ep->tag
             );
+
+        } elsif ($ep->cloud_interconnect_type eq 'oracle-fast-connect') {
+            my $oracle = new OESS::Cloud::Oracle();
+
+            my $interconnect_id = $ep->cloud_interconnect_id;
+            my $connection_id = $ep->cloud_connection_id;
+
+            $logger->info("Removing oracle-fast-connect $connection_id from $interconnect_id.");
+            my $res = $oracle->delete_virtual_circuit($connection_id);
 
         } else {
             $logger->warn("Cloud interconnect type is not supported.");

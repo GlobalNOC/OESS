@@ -69,6 +69,40 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       throw('At least one peering on each endpoint must be specified.');
     }
 
+    let ipv4PeerCount = 0;
+    let ipv6PeerCount = 0;
+
+    for (let i = 0; i < endpoint.peers.length; i++) {
+      if (endpoint.peers[i].ip_version === 'ipv4') {
+        ipv4PeerCount += 1;
+      } else {
+        ipv6PeerCount += 1;
+      }
+    }
+
+    let hasOneIpv4Peering       = (ipv4PeerCount == 1);
+    let hasOneIpv6Peering       = (ipv6PeerCount == 1);
+    let hasAtMostOneIpv6Peering = (ipv6PeerCount <= 1);
+
+    if (endpoint.cloud_interconnect_type === 'oracle-fast-connect') {
+      if (!(hasOneIpv4Peering && hasAtMostOneIpv6Peering)) {
+        throw('Oracle FastConnect endpoints must have a single IPv4 peering, and may have up to one IPv6 peering.');
+      }
+    }
+
+    if (endpoint.cloud_interconnect_type === 'azure-express-route') {
+      if (!(hasOneIpv4Peering && hasAtMostOneIpv6Peering)) {
+        throw('Azure ExpressRoute endpoints must have a single IPv4 peering, and may have up to one IPv6 peering.');
+      }
+
+      if (hasOneIpv6Peering) {
+        ok = confirm('IPv6 peerings must be configured via the Azure Portal. Allow up to 15 minutes for changes to be reflected within OESS.');
+        if (!ok) {
+          throw('Provisioning canceled.');
+        }
+      }
+    }
+
     endpoint.peers.forEach(function(p) {
       e.peers.push({
         vrf_ep_peer_id: p.vrf_ep_peer_id,
