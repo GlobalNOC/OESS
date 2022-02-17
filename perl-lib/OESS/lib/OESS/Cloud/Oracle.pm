@@ -62,11 +62,14 @@ sub get_virtual_circuit {
 
 =head2 get_virtual_circuits
 
+    my ($virtual_circuits, $err) = $oracle->get_virtual_circuits();
+    die $err if defined $err;
+
 =cut
 sub get_virtual_circuits {
     my $self = shift;
 
-    return [
+    my $results = [
         {
             "id" =>  "UniqueVirtualCircuitId123",
             "displayName" => "ProviderTestVirtualCircuit",
@@ -88,6 +91,7 @@ sub get_virtual_circuits {
             "region" => "IAD"
         }
     ];
+    return ($results, undef);
 }
 
 =head2 update_virtual_circuit

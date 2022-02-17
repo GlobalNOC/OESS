@@ -56,6 +56,12 @@ sub get_virtual_circuit {
                 "vlan" => 1234,
                 "oracleBgpPeeringIp" => "10.0.0.19/31",
                 "customerBgpPeeringIp" => "10.0.0.18/31",
+            },
+            {
+                "crossConnectOrCrossConnectGroupId" => "CrossConnect11",
+                "vlan" => 1234,
+                "customerBgpPeeringIp" => "10.0.0.20/31",
+                "oracleBgpPeeringIp" => "10.0.0.21/31",
             }],
             "lifecycleState" => "PENDING_PROVIDER",
             "providerState" => "INACTIVE",
@@ -77,7 +83,7 @@ sub get_virtual_circuit {
             "oracleBgpAsn" => "561",
             "customerBgpAsn" => "1234",
             "crossConnectMappings" => [{
-                "crossConnectOrCrossConnectGroupId" => "CrossConnect1",
+                "crossConnectOrCrossConnectGroupId" => "CrossConnect2",
                 "vlan" => 1234,
                 "oracleBgpPeeringIp" => "10.0.0.19/31",
                 "customerBgpPeeringIp" => "10.0.0.18/31",
@@ -103,7 +109,7 @@ sub get_virtual_circuit {
             "oracleBgpAsn" => "561",
             "customerBgpAsn" => "1234",
             "crossConnectMappings" => [{
-                "crossConnectOrCrossConnectGroupId" => "CrossConnect1",
+                "crossConnectOrCrossConnectGroupId" => "CrossConnect3",
                 "vlan" => 1234,
                 "oracleBgpPeeringIp" => "10.0.0.19/31",
                 "customerBgpPeeringIp" => "10.0.0.18/31",
@@ -121,11 +127,14 @@ sub get_virtual_circuit {
 
 =head2 get_virtual_circuits
 
+    my ($virtual_circuits, $err) = $oracle->get_virtual_circuits();
+    die $err if defined $err;
+
 =cut
 sub get_virtual_circuits {
     my $self = shift;
 
-    return [
+    my $results = [
         {
             "id" =>  "UniqueVirtualCircuitId123",
             "displayName" => "ProviderTestVirtualCircuit",
@@ -140,8 +149,14 @@ sub get_virtual_circuits {
             "crossConnectMappings" => [{
                 "crossConnectOrCrossConnectGroupId" => "CrossConnect1",
                 "vlan" => 1234,
-                "oracleBgpPeeringIp" => "10.0.0.19/31",
                 "customerBgpPeeringIp" => "10.0.0.18/31",
+                "oracleBgpPeeringIp" => "10.0.0.19/31",
+            },
+            {
+                "crossConnectOrCrossConnectGroupId" => "CrossConnect11",
+                "vlan" => 1234,
+                "customerBgpPeeringIp" => "10.0.0.20/31",
+                "oracleBgpPeeringIp" => "10.0.0.21/31",
             }],
             "lifecycleState" => "PENDING_PROVIDER",
             "providerState" => "INACTIVE",
@@ -160,7 +175,7 @@ sub get_virtual_circuits {
             "oracleBgpAsn" => "561",
             "customerBgpAsn" => "1234",
             "crossConnectMappings" => [{
-                "crossConnectOrCrossConnectGroupId" => "CrossConnect1",
+                "crossConnectOrCrossConnectGroupId" => "CrossConnect2",
                 "vlan" => 1234,
                 "oracleBgpPeeringIp" => "10.0.0.19/31",
                 "customerBgpPeeringIp" => "10.0.0.18/31",
@@ -183,7 +198,7 @@ sub get_virtual_circuits {
             "oracleBgpAsn" => "561",
             "customerBgpAsn" => "1234",
             "crossConnectMappings" => [{
-                "crossConnectOrCrossConnectGroupId" => "CrossConnect1",
+                "crossConnectOrCrossConnectGroupId" => "CrossConnect3",
                 "vlan" => 1234,
                 "oracleBgpPeeringIp" => "10.0.0.19/31",
                 "customerBgpPeeringIp" => "10.0.0.18/31",
@@ -195,6 +210,7 @@ sub get_virtual_circuits {
             "type" => "PUBLIC"
         }
     ];
+    return ($results, undef);
 }
 
 =head2 update_virtual_circuit
@@ -241,7 +257,7 @@ sub update_virtual_circuit {
 
 =cut
 sub delete_virtual_circuit {
-    my $self = shift
+    my $self = shift;
     my $id = shift;
 
     if ($id eq "UniqueVirtualCircuitId123") {
@@ -261,6 +277,12 @@ sub delete_virtual_circuit {
                 "vlan" => 1234,
                 "oracleBgpPeeringIp" => "10.0.0.19/31",
                 "customerBgpPeeringIp" => "10.0.0.18/31",
+            },
+            {
+                "crossConnectOrCrossConnectGroupId" => "CrossConnect11",
+                "vlan" => 1234,
+                "customerBgpPeeringIp" => "10.0.0.20/31",
+                "oracleBgpPeeringIp" => "10.0.0.21/31",
             }],
             "lifecycleState" => "TERMINATING",
             "providerState" => "ACTIVE",
@@ -282,7 +304,7 @@ sub delete_virtual_circuit {
             "oracleBgpAsn" => "561",
             "customerBgpAsn" => "1234",
             "crossConnectMappings" => [{
-                "crossConnectOrCrossConnectGroupId" => "CrossConnect1",
+                "crossConnectOrCrossConnectGroupId" => "CrossConnect2",
                 "vlan" => 1234,
                 "oracleBgpPeeringIp" => "10.0.0.19/31",
                 "customerBgpPeeringIp" => "10.0.0.18/31",
@@ -308,7 +330,7 @@ sub delete_virtual_circuit {
             "oracleBgpAsn" => "561",
             "customerBgpAsn" => "1234",
             "crossConnectMappings" => [{
-                "crossConnectOrCrossConnectGroupId" => "CrossConnect1",
+                "crossConnectOrCrossConnectGroupId" => "CrossConnect3",
                 "vlan" => 1234,
                 "oracleBgpPeeringIp" => "10.0.0.19/31",
                 "customerBgpPeeringIp" => "10.0.0.18/31",

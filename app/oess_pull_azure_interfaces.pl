@@ -18,7 +18,7 @@ use OESS::Config;
 
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
-my $logger = Log::Log4perl->get_logger('OESS.Cloud.Azure.Syncer');
+my $logger = Log::Log4perl->get_logger('OESS.Cloud.AzureSyncer');
 
 
 sub main {
@@ -36,7 +36,7 @@ sub main {
     my ($conns, $azure_err) = $syncer->fetch_cross_connections_from_azure();
     die $azure_err if defined $azure_err;
 
-    foreach my $ep (@{$endpoints}) {
+    foreach my $ep (@$endpoints) {
         my $conn = $conns->{$ep->cloud_connection_id};
         my $remote_peers = $syncer->get_peering_addresses_from_azure($conn, $ep->cloud_interconnect_id);
 
