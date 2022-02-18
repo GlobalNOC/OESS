@@ -97,19 +97,57 @@ sub get_peering_addresses_from_oracle {
 
 =head2 update_local_peers
 
-update_local_peers sets the peers of an OESS Connection to the values saved
-within an Oracle VirtualCircuit.
+update_local_peers sets the peers of an OESS Endpoint to the values saved
+within an Oracle VirtualCircuit's CrossConnectMapping.
 
 =cut
 sub update_local_peers {
     my $self = shift;
     my $args = {
-        local_peers  => undef,
+        endpoint     => undef,
         remote_peers => undef,
         @_
     };
+
+    my $endpoint = $args->{endpoint};
+    my $local_peers = $args->{endpoint}->peers;
+    my $remote_peers = $args->{remote_peers};
+
+    my $i = 0;
+    while ($i < @$remote_peers) {
+        my $peer;
+        if ($i+1 > @$local_peers) {
+            # While more remote_peers than local_peers create one
+            my $peer = new OESS::Peer(
+                db => $endpoint->{db},
+                model => {
+                    local_ip   => $remote_peers->[$i]->{local_ip},
+                    peer_asn   => $remote_peers->[$i]->{remote_asn},
+                    peer_ip    => $remote_peers->[$i]->{remote_ip},
+                    status     => 'up',
+                    ip_version => $remote_peers->[$i]->{ip_version}
+                }
+            );
+            $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
+            $endpoint->add_peer($peer);
+        } else {
+            $local_peers->[$i]->local_ip($remote_peers->[$i]->{local_ip});
+            $local_peers->[$i]->peer_asn($remote_peers->[$i]->{remote_asn});
+            $local_peers->[$i]->peer_ip($remote_peers->[$i]->{remote_ip});
+            $local_peers->[$i]->ip_version($remote_peers->[$i]->{ip_version});
+            $local_peers->[$i]->update;
+        }
+
+        $i++;
+    }
+
+    while ($i < @$local_peers) {
+        # While more local_peers than remote_peers remove one
+        $local_peers->[$i]->decom;
+        $i++;
+    }
     
-    return 1;
+    return;
 }
 
 =head2 update_remote_peers

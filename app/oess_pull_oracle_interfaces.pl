@@ -62,10 +62,11 @@ sub main {
                     $logger->warn("Unexpected CrossConnectMapping encountered on $cloud_interconnect_id for VirtualCircuit $ocid.");
                     next;
                 }
+                my $remote_peers = $syncer->get_peering_addresses_from_oracle($conns->{$ocid}, $cloud_interconnect_id);
 
                 my $err = $syncer->update_local_peers(
-                    cross_connect => $cc,
-                    endpoint      => $ep
+                    endpoint     => $ep
+                    remote_peers => $remote_peers,
                 );
                 $logger->error($err) if defined $err;
                 delete $endpoint_index->{$ocid}->{$cloud_interconnect_id};

@@ -15,7 +15,7 @@ use lib "$path/../..";
 
 
 use Data::Dumper;
-use Test::More tests => 9;
+use Test::More tests => 14;
 
 use OESSDatabaseTester;
 
@@ -90,20 +90,36 @@ ok(@$endpoints == 2, "Fetched expected number of endpoints.");
 my ($conns, $err) = $oracle->fetch_virtual_circuits_from_oracle();
 ok(keys %$conns == 3, "Fetched expected number of virtual circuits.");
 
-my $ep1 = $endpoints->[0];
-my $conn1 = $conns->{$ep1->cloud_connection_id};
 
-my $subnets1 = $oracle->get_peering_addresses_from_oracle($conn1, $ep1->cloud_interconnect_id);
-ok($subnets1->[0]->{local_ip} eq "10.0.0.18/31", "Got expected local_ip");
-ok($subnets1->[0]->{remote_ip} eq "10.0.0.19/31", "Got expected remote_ip");
+my $conn = $conns->{"UniqueVirtualCircuitId123"};
+my $eps  = {};
 
-my $ep2 = $endpoints->[1];
-my $conn2 = $conns->{$ep2->cloud_connection_id};
+$eps->{$endpoints->[0]->cloud_interconnect_id} = $endpoints->[0];
+$eps->{$endpoints->[1]->cloud_interconnect_id} = $endpoints->[1];
 
-ok($conn1->{id} eq $conn2->{id}, "Got expected connection id.");
+foreach my $cc (@{$conn->{crossConnectMappings}}) {
+    my $endpoint     = $eps->{$cc->{crossConnectOrCrossConnectGroupId}};
+    my $remote_peers = $oracle->get_peering_addresses_from_oracle($conn, $cc->{crossConnectOrCrossConnectGroupId});
 
-my $subnets2 = $oracle->get_peering_addresses_from_oracle($conn2, $ep2->cloud_interconnect_id);
-ok($subnets2->[0]->{local_ip} eq "10.0.0.20/31", "Got expected local_ip");
-ok($subnets2->[0]->{remote_ip} eq "10.0.0.21/31", "Got expected remote_ip");
-ok($subnets2->[1]->{local_ip} eq "fd99:8e08:a70d:c444::2/127", "Got expected local_ip");
-ok($subnets2->[1]->{remote_ip} eq "fd99:8e08:a70d:c444::3/127", "Got expected remote_ip");
+    my $err1 = $oracle->update_local_peers(
+        endpoint     => $endpoint,
+        remote_peers => $remote_peers
+    );
+    ok(!defined $err1, "No error while updating local peers.");
+}
+
+
+my ($endpoints2, $err2) = $oracle->fetch_oracle_endpoints_from_oess();
+ok(@$endpoints2 == 2, "Fetched expected number of endpoints.");
+
+ok($endpoints2->[0]->peers->[0]->{ip_version} eq 'ipv4', "Got expected ip version");
+ok($endpoints2->[0]->peers->[0]->{local_ip} eq '10.0.0.18/31', "Got expected local ip");
+ok($endpoints2->[0]->peers->[0]->{peer_ip} eq '10.0.0.19/31', "Got expected peer ip");
+
+ok($endpoints2->[1]->peers->[0]->{ip_version} eq 'ipv4', "Got expected ip version");
+ok($endpoints2->[1]->peers->[0]->{local_ip} eq '10.0.0.20/31', "Got expected local ip");
+ok($endpoints2->[1]->peers->[0]->{peer_ip} eq '10.0.0.21/31', "Got expected peer ip");
+
+ok($endpoints2->[1]->peers->[1]->{ip_version} eq 'ipv6', "Got expected ip version");
+ok($endpoints2->[1]->peers->[1]->{local_ip} eq 'fd99:8e08:a70d:c444::2/127', "Got expected local ip");
+ok($endpoints2->[1]->peers->[1]->{peer_ip} eq 'fd99:8e08:a70d:c444::3/127', "Got expected peer ip");
