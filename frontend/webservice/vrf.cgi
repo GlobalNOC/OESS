@@ -395,6 +395,32 @@ sub provision_vrf{
                     name => $ep->{interface},
                     node => $ep->{node}
                 );
+                
+                if (defined $interface && $interface->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
+                    my @parts = split(/\//, $ep->{cloud_account_id});
+                    my $region = $parts[2];
+                    if ($region eq 'any') {
+                        # Remove 'any' zone from pairing key and try first zone
+                        warn "Pairing key had a zone of 'any', switching to primary zone";
+                        my $new_cloud_account_id = substr( $ep->{cloud_account_id}, 0, -3 ).'1';
+
+                        # Check database if primary zonne for this pairing key is already used, if so, switch to secondary
+                        my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $db, cloud_account_id => $new_cloud_account_id);
+                        if (defined $eps_err) {
+                            warn Dumper($eps_err);
+                            return undef;
+                        }
+                        my $cloud_account_ep_count = (defined $eps) ? scalar @$eps : 0;
+                        warn "$cloud_account_ep_count Endpoints used with this cloud_account_id";
+
+                        # If the primary zone is already used, try to use the secondary zone
+                        if ($cloud_account_ep_count == 1) {
+                            warn $new_cloud_account_id." is already being used, trying secondary zone";
+                            $new_cloud_account_id = substr( $ep->{cloud_account_id}, 0, -3 ).'2';
+                        }
+                        $ep->{cloud_account_id} = $new_cloud_account_id;
+                    }
+                }
             }
             # if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
             #     # Continue
