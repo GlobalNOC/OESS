@@ -278,6 +278,7 @@ sub cleanup_endpoints {
 
             my $interconnect_id = $ep->cloud_interconnect_id;
             my $connection_id = $ep->cloud_connection_id;
+            my $pairing_key = $ep->cloud_account_id;
             if (!defined $connection_id || $connection_id eq '') {
                 next;
             }
@@ -285,7 +286,8 @@ sub cleanup_endpoints {
             $logger->info("Removing gcp-partner-interconnect $connection_id from $interconnect_id.");
             my $res = $gcp->delete_interconnect_attachment(
                 interconnect_id => $interconnect_id,
-                connection_id => $connection_id
+                connection_id => $connection_id,
+                pairing_key => $pairing_key
             );
 
         } elsif ($ep->cloud_interconnect_type eq 'azure-express-route') {

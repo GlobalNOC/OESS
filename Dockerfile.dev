@@ -7,7 +7,7 @@ RUN curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-serve
 RUN yum makecache
 RUN yum -y install epel-release
 RUN yum -y install perl httpd mariadb-server rabbitmq-server
-RUN yum -y install perl-Carp-Always perl-Test-Deep perl-Test-Exception perl-Test-Pod perl-Test-Pod-Coverage perl-Devel-Cover perl-Net-AMQP-RabbitMQ perl-LWP-Protocol-https perl-AnyEvent-HTTP perl-GRNOC-CLI perl-Text-CSV
+RUN yum -y install perl-Carp-Always perl-Test-Deep perl-Test-Exception perl-Test-Pod perl-Test-Pod-Coverage perl-Devel-Cover perl-Net-AMQP-RabbitMQ perl-LWP-Protocol-https perl-AnyEvent-HTTP perl-GRNOC-CLI perl-Text-CSV perl-Net-IP
 RUN yum -y install perl-OESS oess-core oess-frontend yui2
 
 COPY app/mpls/mpls_discovery.pl /usr/bin/mpls_discovery.pl
@@ -21,6 +21,7 @@ COPY app/etc/firmware.xml /etc/oess/firmware.xml
 COPY perl-lib/OESS/t/conf/database.xml /etc/oess/database.xml
 COPY perl-lib/OESS/t/conf/interface-speed-config.xml /etc/oess/interface-speed-config.xml
 COPY perl-lib/OESS/t/conf/logging.conf /etc/oess/logging.conf
+COPY perl-lib/OESS/t/conf/interface-speed-config.xml /etc/oess/interface-speed-config.xml
 COPY perl-lib/OESS/t/conf/passwd.xml /etc/oess/.passwd.xml
 COPY perl-lib/OESS/t/conf/integration.sql /etc/oess/integration.sql
 

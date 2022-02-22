@@ -455,7 +455,8 @@ sub edit_l3connection {
         "oess-l3connection:oess-l3connection" => [
             {
                 "connection_id" => $conn->vrf_id,
-                "endpoint" => $eps
+                "endpoint" => $eps,
+                "workgroup" => (defined $conn->workgroup) ? $conn->workgroup->name : 'Unknown Workgroup'
             }
         ]
     };

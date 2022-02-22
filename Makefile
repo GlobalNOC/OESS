@@ -55,4 +55,4 @@ documentation:
 
 test:
 	docker build . -f Dockerfile -t oess-test
-	docker run --rm -it -e OESS_TEST_FILES="$(TEST_FILES)" --volume ${PWD}/perl-lib/OESS:/OESS oess-test
+	docker run --rm -it -e OESS_TEST_FILES="$(TEST_FILES)" --volume ${PWD}/perl-lib/OESS:/perl-lib/OESS oess-test
