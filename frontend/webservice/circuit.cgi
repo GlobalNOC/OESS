@@ -466,6 +466,12 @@ sub update {
 
     $db->start_transaction;
 
+    my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
+    if (!defined $user) {
+	$method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+	return;
+    }
+
     my ($is_admin, $is_admin_err) = OESS::DB::User::has_system_access(
         db       => $db,
         role     => 'normal',
@@ -490,6 +496,7 @@ sub update {
     $circuit->remote_url($args->{remote_url}->{value});
     $circuit->remote_requester($args->{remote_requester}->{value});
     $circuit->external_identifier($args->{external_identifier}->{value});
+    $circuit->user_id($user->{user_id});
 
     my $err = $circuit->update;
     if (defined $err) {
@@ -612,7 +619,7 @@ sub update {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9000 : 1500);
             }
 
-            my $err = $endpoint->update_db;
+	    my $err = $endpoint->update_db;
             if (defined $err) {
                 $method->set_error("Couldn't update Endpoint: $err");
                 $db->rollback;
