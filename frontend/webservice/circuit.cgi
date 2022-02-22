@@ -417,7 +417,7 @@ sub provision {
 
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
-            OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints, $is_admin);
+            OESS::Cloud::setup_endpoints($db, undef, $circuit->description, $circuit->endpoints, $is_admin);
 
             foreach my $ep (@{$circuit->endpoints}) {
                 # It's expected that layer2 connections to azure pass
@@ -664,7 +664,7 @@ sub update {
     if (!$args->{skip_cloud_provisioning}{value}) {
         eval {
             OESS::Cloud::cleanup_endpoints($del_endpoints);
-            OESS::Cloud::setup_endpoints($circuit->description, $add_endpoints, $is_admin);
+            OESS::Cloud::setup_endpoints($db, undef, $circuit->description, $add_endpoints, $is_admin);
 
             foreach my $ep (@{$circuit->endpoints}) {
                 # It's expected that layer2 connections to azure pass
