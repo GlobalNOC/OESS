@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #-------------------------------------------------------------------
-#----- OESS 2.0.13 - 2.0.14 upgrade module                         
+#----- OESS 2.0.14 - 2.0.15 upgrade module                         
 #-----                                                               
 #----- Copyright(C) 2010 The Trustees of Indiana University          
 #--------------------------------------------------------------------
@@ -8,7 +8,7 @@
 #----- $Id: $                                                        
 #-----                                                               
 #----- This is run when upgrading the database from     
-#----- version 2.0.13 to version 2.0.14                               
+#----- version 2.0.14 to version 2.0.15                               
 #-------------------------------------------------------------------- 
 
 use strict;
@@ -55,6 +55,9 @@ sub upgrade{
     my $dbh = $dbq->{'dbh'};
     my $str;
     my $sth;
+
+    $sth = $dbh->prepare("ALTER TABLE workgroup MODIFY `name` varchar(20) NOT NULL");
+    $sth->execute() or die "Unable to update workgroup 'name' length to 20";
 
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
