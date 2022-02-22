@@ -25,13 +25,20 @@ use OESS::VRF;
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $config = new OESS::Config();
-my $db = OESS::DB->new();
-my $svc = GRNOC::WebService::Dispatcher->new();
-my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
-                                      timeout  => 120 );
+my $db     = new OESS::DB(config_obj => $config);
 
-my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.event',
-                                              timeout  => 15 );
+my $mq = OESS::RabbitMQ::Client->new(
+    topic      => 'OF.FWDCTL.RPC',
+    timeout    => 120,
+    config_obj => $config
+);
+my $log_client = OESS::RabbitMQ::Client->new(
+    topic      => 'OF.FWDCTL.event',
+    timeout    => 15,
+    config_obj => $config
+);
+
+my $svc = GRNOC::WebService::Dispatcher->new();
 
 sub register_ro_methods {
     my $method = GRNOC::WebService::Method->new(

@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 58;
+use Test::More tests => 79;
 
 use OESSDatabaseTester;
 
@@ -71,17 +71,17 @@ my $model = {
     vendor => undef,
     model => undef,
     sw_version => undef,
-    mgmt_addr => undef,
+    ip_address => undef,
     loopback_address => undef,
     tcp_port => 830
 };
 
 foreach my $key (keys %$model) {
     if (defined $model->{$key}) {
-       ok($node->{$key} eq $model->{$key}, "got expected $key from db"); 
+       ok($node->{$key} eq $model->{$key}, "got expected $key from db");
     } else {
        ok(!defined $node->{$key}, "got expected $key from db");
-    }    
+    }
 }
 
 $node = OESS::DB::Node::fetch(
@@ -93,10 +93,104 @@ warn "Error during fetch with node_name" if !defined $node;
 
 foreach my $key (keys %$model) {
     if (defined $model->{$key}) {
-       ok($node->{$key} eq $model->{$key}, "got expected $key from db"); 
+       ok($node->{$key} eq $model->{$key}, "got expected $key from db");
     } else {
        ok(!defined $node->{$key}, "got expected $key from db");
-    }    
+    }
 }
 
 
+# create node
+my ($new_node_id, $new_node_err) = OESS::DB::Node::create(
+    db    => $db,
+    model => {
+        name       => 'demo-switch.example.com',
+        latitude   => 1.01,
+        longitude  => 1.01,
+        ip_address => '192.168.1.1',
+        make       => 'Juniper',
+        model      => 'MX',
+        controller => 'netconf'
+    }
+);
+ok($new_node_id == 5736, "Node $new_node_id created.");
+ok(!defined $new_node_err, "No error generated during node creation.");
+warn $new_node_err if defined $new_node_err;
+
+
+# edit node
+my $update_node_err = OESS::DB::Node::update(
+    db   => $db,
+    node => {
+        node_id     => $new_node_id,
+        name        => 'demo-switch2.example.com',
+        latitude    => 2,
+        longitude   => 2,
+        sw_version  => '123',
+        controller  => 'nso',
+        ip_address  => '192.168.1.2'
+    }
+);
+ok(!defined $update_node_err, "No error generated during node update.");
+warn $update_node_err if defined $update_node_err;
+
+$node = OESS::DB::Node::fetch_v2(
+    db      => $db,
+    node_id => $new_node_id
+);
+ok($node->{name} eq 'demo-switch2.example.com', "Node name is $node->{name}.");
+ok($node->{latitude} == 2, "Node latitude is $node->{latitude}.");
+ok($node->{longitude} == 2, "Node longitude is $node->{longitude}.");
+ok($node->{sw_version} eq '123', "Node sw_version is $node->{sw_version}.");
+ok($node->{controller} eq 'nso', "Node controller is $node->{controller}.");
+ok($node->{ip_address} eq '192.168.1.2', "Node ip_address is $node->{ip_address}.");
+
+
+# Verify two instantiation table entries for node
+my $res = $db->execute_query("select * from node_instantiation where node_id=?", [$new_node_id]);
+ok(@$res == 2, "Got expected number of node_instantiations entries.");
+
+
+# Must be 1 second between all node updates
+sleep 1;
+
+
+# decom node
+my $decom_node_err = OESS::DB::Node::decom(
+    db      => $db,
+    node_id => $new_node_id
+);
+ok(!defined $decom_node_err, "No error generated during node decom.");
+warn $decom_node_err if defined $decom_node_err;
+
+$node = OESS::DB::Node::fetch_v2(
+    db      => $db,
+    node_id => $new_node_id
+);
+ok($node->{name} eq 'demo-switch2.example.com', "Node name is $node->{name}.");
+ok($node->{latitude} == 2, "Node latitude is $node->{latitude}.");
+ok($node->{longitude} == 2, "Node longitude is $node->{longitude}.");
+ok($node->{sw_version} eq '123', "Node sw_version is $node->{sw_version}.");
+ok($node->{controller} eq 'nso', "Node controller is $node->{controller}.");
+ok($node->{ip_address} eq '192.168.1.2', "Node ip_address is $node->{ip_address}.");
+
+
+# Verify three instantiation table entries for node
+my $res2 = $db->execute_query("select * from node_instantiation where node_id=?", [$new_node_id]);
+ok(@$res2 == 3, "Got expected number of node_instantiations entries.");
+
+# Delete node
+my $del_err = OESS::DB::Node::delete(
+    db      => $db,
+    node_id => $new_node_id
+);
+ok(!defined $del_err, "No error generated during node delete.");
+warn $del_err if defined $del_err;
+
+# Verify zero entries for node
+my $res3 = $db->execute_query("select * from node where node_id=?", [$new_node_id]);
+ok(@$res3 == 0, "Got expected number of node entries.");
+
+# Verify zero instantiation table entries for node
+my $res4 = $db->execute_query("select * from node_instantiation where node_id=?", [$new_node_id]);
+ok(@$res4 == 0, "Got expected number of node_instantiations entries.");

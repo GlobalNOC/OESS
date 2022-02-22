@@ -678,6 +678,11 @@ sub nso_diff {
         my $ep_ok = 1;
         my $ep_diff = "   $ep->{interface}.$ep->{unit}\n";
 
+        if ($ep->{interface} ne $ref_ep->interface) {
+            $ep_ok = 0;
+            $ep_diff  = "-  $ep->{interface}.$ep->{unit}\n";
+            $ep_diff .= "+  $ref_ep->{interface}.$ref_ep->{unit}\n";
+        }
         if ($ep->{bandwidth} != $ref_ep->bandwidth) {
             $ep_ok = 0;
             $ep_diff .= "-    Bandwidth: $ep->{bandwidth}\n";

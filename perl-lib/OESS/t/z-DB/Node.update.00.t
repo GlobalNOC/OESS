@@ -15,7 +15,7 @@ use lib "$path/..";
 
 
 use Data::Dumper;
-use Test::More tests => 20;
+use Test::More tests => 17;
 
 use OESSDatabaseTester;
 
@@ -42,15 +42,15 @@ my $model = {
     name                   => 'host.examle.com', # Optional
     latitude               => 1,                 # Optional
     longitude              => 1,                 # Optional
-    operational_state_mpls => 'up',              # Optional
-    vlan_tag_range         => '1-4095',          # Optional
+    # operational_state_mpls => 'up',              # Optional
+    # vlan_tag_range         => '1-4095',          # Optional
     pending_diff           => 1,                 # Optional
     short_name             => 'host',            # Optional
-    admin_state            => 'active',          # Optional
-    vendor                 => 'juniper',         # Optional
+    # admin_state            => 'active',          # Optional
+    make                   => 'juniper',         # Optional
     model                  => 'mx',              # Optional
     sw_version             => '13.3R3',          # Optional
-    mgmt_addr              => '192.168.1.1',     # Optional
+    ip_address             => '192.168.1.1',     # Optional
     loopback_address       => '10.0.0.1',        # Optional
     tcp_port               => 830                # Optional
 };
@@ -80,7 +80,7 @@ my $i3 = $db->execute_query("select * from node_instantiation where node_id=1");
 my $icount3 = @$i2;
 ok($icount3 == $icount1+1, "Got expected number of instantiation entries.");
 
-my $intf = OESS::DB::Node::fetch(
+my $intf = OESS::DB::Node::fetch_v2(
     db => $db,
     node_id => 1
 );

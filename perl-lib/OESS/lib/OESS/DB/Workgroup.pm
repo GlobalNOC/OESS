@@ -260,7 +260,7 @@ sub add_user {
     my $args = {
         db             => undef,
         user_id        => undef,
-        workgroup_id        => undef,
+        workgroup_id   => undef,
         role           => undef,
         @_
     };

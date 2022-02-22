@@ -6,12 +6,15 @@ use OESS::Config;
 use OESS::MPLS::FWDCTL;
 use OESS::NSO::FWDCTLService;
 
+use AnyEvent;
 use English;
-use Data::Dumper;
 use Getopt::Long;
 use Log::Log4perl;
 use Proc::Daemon;
 use XML::Simple;
+
+use OESS::Config;
+use OESS::MPLS::FWDCTL;
 
 my $pid_file = "/var/run/oess/mpls_fwdctl.pid";
 my $cnf_file = "/etc/oess/database.xml";
@@ -139,6 +142,7 @@ sub main{
     #not a daemon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
+        $SIG{INT} = sub{ exit(0); }; # Used to cleanly exit from `docker run`
         core();
     }
 

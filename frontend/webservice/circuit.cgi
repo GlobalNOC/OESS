@@ -12,6 +12,7 @@ use Log::Log4perl;
 use GRNOC::WebService::Dispatcher;
 use GRNOC::WebService::Method;
 
+use OESS::Config;
 use OESS::Cloud;
 use OESS::DB;
 use OESS::DB::User;
@@ -28,11 +29,13 @@ use OESS::VRF;
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
+my $config = new OESS::Config();
+my $db     = new OESS::DB(config_obj => $config);
 
-my $db = OESS::DB->new();
 my $mq = OESS::RabbitMQ::Client->new(
-    topic   => 'OF.FWDCTL.RPC',
-    timeout => 120
+    topic      => 'OF.FWDCTL.RPC',
+    timeout    => 120,
+    config_obj => $config
 );
 
 my $ws = GRNOC::WebService::Dispatcher->new();

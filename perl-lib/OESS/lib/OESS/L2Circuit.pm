@@ -1271,12 +1271,19 @@ sub nso_diff {
 
         # Compare endpoints
         my $ok = 1;
+        
+        $ok = 0 if $ep->{interface} ne $ref_ep->interface;
         $ok = 0 if $ep->{bandwidth} != $ref_ep->bandwidth;
         $ok = 0 if $ep->{tag} != $ref_ep->tag;
         $ok = 0 if $ep->{inner_tag} != $ref_ep->inner_tag;
         if (!$ok) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
-            $diff->{$ep->{device}} .= "  $ep->{interface}.$ep->{unit}\n";
+            if ($ep->{interface} ne $ref_ep->interface) {
+                $diff->{$ep->{device}} .= "-  $ep->{interface}.$ep->{unit}\n";
+                $diff->{$ep->{device}} .= "+  $ref_ep->{interface}.$ref_ep->{unit}\n";
+            } else {
+                $diff->{$ep->{device}} .= "  $ep->{interface}.$ep->{unit}\n";
+            }
         }
 
         if ($ep->{bandwidth} != $ref_ep->bandwidth) {
