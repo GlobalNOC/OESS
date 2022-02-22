@@ -15,10 +15,10 @@ const createWorkgroupComponent = (props) => {
     try {
       await createWorkgroup(e);
       setStatus({type:'success', message:`Workgroup '${e.name}' was successfully created.`});
+      history.push('/workgroups');
     } catch (error) {
       setStatus({type:'error', message:error});
     }
-    history.push('/workgroups');
   };
 
   let cancelHandler = async () => {

@@ -207,6 +207,11 @@ sub create_workgroup {
     my ($ok, $access_err) = $user->has_system_access(role => 'normal');
     return (undef, $access_err) if defined $access_err;
 
+    if (length($params->{name}{value}) > 20) {
+        $method->set_error("Workgroup name cannot exceed 20 characters in length.");
+        return;
+    }
+
     my ($workgroup_id, $wg_err) = $ac->create_workgroup(
         description => $params->{description}{value},
         external_id => $params->{external_id}{value},
@@ -271,6 +276,11 @@ sub edit_workgroup {
     }
     if (!defined $params->{external_id}{value} && $params->{external_id}{is_set}) {
         $params->{external_id}{value} = "";
+    }
+
+    if (length($params->{name}{value}) > 20) {
+        $method->set_error("Workgroup name cannot exceed 20 characters in length.");
+        return;
     }
 
     my $wg_err = $ac->edit_workgroup(
