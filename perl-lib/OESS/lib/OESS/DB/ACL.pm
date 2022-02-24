@@ -6,6 +6,7 @@ use warnings;
 package OESS::DB::ACL;
 
 use Log::Log4perl;
+use OESS::AccessController::Default;
 
 my $logger = Log::Log4perl->get_logger("OESS.ACL");
 
@@ -287,6 +288,14 @@ sub update {
     my $fields = join(', ', @$params);
     
     push @$values, $args->{acl}->{interface_acl_id};
+
+    my $ac = new OESS::AccessController::Default(db => $args->{db});
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    my $workgroup_id = $args->{acl}->{workgroup_id} ? $args->{acl}->{workgroup_id} : '-1';
+    my $interface_id = $args->{acl}->{interface_id} ? $args->{acl}->{interface_id} : '-1';
+    my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
+                 values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Updated')";
+    my $acl_history = $args->{db}->execute_query($query,[$user->user_id, $workgroup_id, $interface_id, $args->{acl}->{interface_acl_id}]);
 
     return $args->{db}->execute_query(
         "UPDATE interface_acl SET $fields WHERE interface_acl_id=?",
