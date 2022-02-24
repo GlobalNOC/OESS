@@ -35,6 +35,7 @@ use OESS::DB::User;
 
 use GRNOC::WebService;
 use OESS::Webservice;
+use OESS::AccessController::Default;
 
 use OESS::ACL;
 
@@ -113,6 +114,14 @@ sub register_webservice_methods {
 	pattern         => $GRNOC::WebService::Regex::INTEGER,
 	required        => 0,
 	description     => "the workgroup the ACL is applied to."
+	); 
+
+    #add the optional input parameter user_workgroup_id
+    $method->add_input_parameter(
+	name            => 'user_workgroup_id',
+	pattern         => $GRNOC::WebService::Regex::INTEGER,
+	required        => 0,
+	description     => "the workgroup the user is a part of."
 	); 
 
     $method->add_input_parameter(
@@ -372,8 +381,8 @@ sub add_acl {
         $method-> set_error($err);
         return;
     }
-
-   
+    my $ac = new OESS::AccessController::Default(db => $db);
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
     my $interface_name = $interface->{name};
     my $vlan_start = $args->{"vlan_start"}{'value'};
     my $vlan_end = $args->{"vlan_end"}{'value'};
@@ -381,6 +390,7 @@ sub add_acl {
     $logger->debug("Initiating creation of ACL at <time> for ");    
     my $acl_model = { 
         workgroup_id  => $args->{"workgroup_id"}{'value'} || undef,
+        user_workgroup_id => $args->{"user_workgroup_id"}{'value'} || undef,
         interface_id  => $args->{"interface_id"}{'value'},
         allow_deny    => $args->{"allow_deny"}{'value'},
         eval_position => $args->{"eval_position"}{'value'} || undef,
@@ -388,7 +398,7 @@ sub add_acl {
         end      => $args->{"vlan_end"}{'value'} || undef,
         notes         => $args->{"notes"}{'value'} || undef,
         entity_id     => $args->{"entity_id"}{'value'} || undef,
-        user_id       => $user_id
+        user_id       => $user->user_id
     };
     my ($acl_id, $acl_error) = OESS::DB::ACL::create(db => $db, model => $acl_model);
     if ( defined $acl_error ) {
