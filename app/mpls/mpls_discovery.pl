@@ -1,13 +1,12 @@
 #!/usr/bin/perl
-
 use strict;
 use warnings;
-use AnyEvent;
 
+use AnyEvent;
 use English;
 use Getopt::Long;
+use Log::Log4perl;
 use Proc::Daemon;
-use Data::Dumper;
 
 use GRNOC::WebService::Client;
 
@@ -131,6 +130,7 @@ sub main{
     #not a daemon, just run the core;
     else {
         $SIG{HUP} = sub{ exit(0); };
+        $SIG{INT} = sub{ exit(0); }; # Used to cleanly exit from `docker run`
         core();
     }
 

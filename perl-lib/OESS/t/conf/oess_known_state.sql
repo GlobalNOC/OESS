@@ -1136,7 +1136,7 @@ DROP TABLE IF EXISTS `workgroup`;
 CREATE TABLE `workgroup` (
   `workgroup_id` int(10) NOT NULL AUTO_INCREMENT,
   `description` varchar(255) NOT NULL,
-  `name` varchar(255) NOT NULL,
+  `name` varchar(20) NOT NULL,
   `external_id` varchar(255) DEFAULT NULL,
   `type` enum('demo','normal','admin') NOT NULL DEFAULT 'normal',
   `max_mac_address_per_end` int(10) DEFAULT '10',

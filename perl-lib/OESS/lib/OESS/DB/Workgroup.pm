@@ -125,6 +125,7 @@ sub create {
     return (undef, 'Required argument `db` is missing.') if !defined $args->{db};
     return (undef, 'Required argument `model` is missing.') if !defined $args->{model};
     return (undef, 'Required argument `model->name` is missing.') if !defined $args->{model}->{name};
+    return (undef, 'Required argument `model->name` is over 20 characters.') if length($args->{model}->{name}) > 20;
     if (!defined $args->{model}->{description}) {
         $args->{model}->{description} = "";
     }
@@ -260,7 +261,7 @@ sub add_user {
     my $args = {
         db             => undef,
         user_id        => undef,
-        workgroup_id        => undef,
+        workgroup_id   => undef,
         role           => undef,
         @_
     };

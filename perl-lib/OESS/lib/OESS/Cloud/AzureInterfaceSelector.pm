@@ -74,6 +74,10 @@ sub select_interface {
     }
 
     my $conn = $self->{azure}->expressRouteCrossConnection($interconnect_id, $self->{service_key});
+    if (defined $conn->{error}) {
+        $self->{logger}->error($conn->{error}->{message});
+        return;
+    }
     my $primary_id = $conn->{properties}->{primaryAzurePort};
     my $secondary_id = $conn->{properties}->{secondaryAzurePort};
 

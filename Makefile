@@ -1,8 +1,31 @@
 OESS_VERSION=2.0.14
 OESS_NETWORK=oess
+TEST_FILES=
 
+include .env
+
+build:
+	htpasswd -b -c  frontend/.htpasswd admin "${OESS_PASS}"
+	docker build . -f frontend/Dockerfile -t oess-frontend
+	docker build . -f app/mpls/Dockerfile.discovery -t oess-netconf-discovery
+	docker build . -f app/mpls/Dockerfile.fwdctl -t oess-netconf-fwdctl
+
+start:
+	docker stack deploy oess-dev --compose-file docker-compose.development.yml
+
+stop:
+	docker stack rm oess-dev
+
+test:
+	docker build . -f Dockerfile -t oess-test
+	docker run -it -e OESS_TEST_FILES="$(TEST_FILES)" --volume ${PWD}/perl-lib/OESS:/OESS oess-test
+
+# For single container builds. Should only be used for testing.
 container:
 	docker build -f Dockerfile.dev --tag oess:${OESS_VERSION} .
+
+clean-container:
+	docker build --no-cache -f Dockerfile.dev --tag oess:${OESS_VERSION} .
 
 # To attach OESS to an existing docker network:
 # --network ${OESS_NETWORK}
@@ -32,4 +55,4 @@ documentation:
 
 test:
 	docker build . -f Dockerfile -t oess-test
-	docker run --rm -it -e OESS_TEST_FILES="$(TEST_FILES)" --volume ${PWD}/perl-lib/OESS:/OESS oess-test
+	docker run --rm -it -e OESS_TEST_FILES="$(TEST_FILES)" --volume ${PWD}/perl-lib/OESS:/perl-lib/OESS oess-test

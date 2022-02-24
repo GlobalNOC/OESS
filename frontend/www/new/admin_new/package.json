@@ -1,0 +1,44 @@
+{
+  "name": "admin_new",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "NODE_ENV=development parcel serve --port 1234 --hmr-port 1235 src/index.html",
+    "dev2": "NODE_ENV=development parcel watch --public-url /oess/new/admin --hmr-port 1235 src/index.html",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "parcel build --public-url /oess/new/admin src/index.html"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babel/runtime": "^7.7.4",
+    "bootstrap": "^4.4.1",
+    "dotenv": "^8.2.0",
+    "jquery": "^3.4.1",
+    "markdown-it": "^9.1.0",
+    "moment": "^2.24.0",
+    "popper.js": "^1.16.0",
+    "react": "^16.12.0",
+    "react-autosuggest": "^10.1.0",
+    "react-bootstrap": "^1.0.0-beta.16",
+    "react-dom": "^16.12.0",
+    "react-draggable": "^4.1.0",
+    "react-html-parser": "^2.0.2",
+    "react-router-dom": "^5.1.2",
+    "reactstrap": "^8.1.1",
+    "simplemde": "^1.11.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.7.4",
+    "@babel/plugin-transform-runtime": "^7.7.4",
+    "@babel/preset-env": "^7.7.4",
+    "@babel/preset-react": "^7.7.4",
+    "babel-core": "^6.26.3",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-env": "^1.7.0",
+    "babel-runtime": "^6.26.0",
+    "cssnano": "^4.1.10",
+    "parcel-bundler": "^1.12.4"
+  }
+}

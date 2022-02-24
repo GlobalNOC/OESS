@@ -331,7 +331,12 @@ sub get_acls {
 
     my $acls;
     if($args->{'interface_id'}{'value'}){
-        my $request_workgroup = OESS::DB::Interface::fetch(db => $db, interface_id => $args->{'interface_id'}{'value'})->{workgroup_id};
+        my $request_interface = OESS::DB::Interface::fetch(db => $db, interface_id => $args->{'interface_id'}{'value'});
+        if (!defined $request_interface) {
+            $method->set_error('Error getting ACLs. ' . $db->get_error);
+            return;
+        }
+        my $request_workgroup = $request_interface->{workgroup_id};
         my ($permission, $err) = OESS::DB::User::has_workgroup_access(
                                     db => $db,
                                     username => $username,

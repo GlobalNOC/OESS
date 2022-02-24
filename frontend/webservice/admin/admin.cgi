@@ -96,7 +96,7 @@ sub authorization {
 
     my $username  = $ENV{'REMOTE_USER'};
 
-    my $auth = $db->get_user_admin_status( 'username' => $username);
+    my $auth = $db->get_user_admin_status(username => $username);
     if (!defined $auth) {
         return (undef, { error => "Invalid or decommissioned user specified." });
     }
@@ -191,7 +191,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name        => 'move_interface_configuration',
         description => "Moves an interface's entire configuration.",
-        callback    => sub { move_interface_configuration(@_) }
+        callback    => sub { move_interface_configuration(@_) },
+        method_deprecated => "This method has been deprecated in favor of interface.cgi?method=migrate_interface."
     );
     $method->add_input_parameter(
         name        => 'orig_interface_id',
@@ -740,6 +741,10 @@ sub register_webservice_methods {
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 0,
                                   description => '' );
+    $method->add_input_parameter( name        => 'type',
+                                  pattern     => $GRNOC::WebService::Regex::TEXT,
+                                  required    => 0,
+                                  description => '' );
     $method->add_input_parameter( name        => 'external_id',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 0,
@@ -835,7 +840,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name            => "get_diff_text",
         description     => "Returns diff text for the specified node.",
-        callback        => sub { get_diff_text(@_); }
+        callback        => sub { get_diff_text(@_); },
+        method_deprecated => "This method has been deprecated in favor of node.cgi?method=get_diff."
         );
 
     $method->add_input_parameter(
@@ -850,7 +856,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name            => "set_diff_approval",
         description     => "Approves or rejects a large diff.",
-        callback        => sub { set_diff_approval( @_ ) }
+        callback        => sub { set_diff_approval( @_ ) },
+        method_deprecated => "This method has been deprecated in favor of node.cgi?method=approve_diff."
         );
 
     $method->add_input_parameter(
@@ -1306,9 +1313,8 @@ sub add_workgroup {
         external_id => $args->{'external_id'}{'value'},
         type => $args->{'type'}{'value'}
     };
-    my ($new_wg_id, $createErr) =
-        OESS::DB::Workgroup::create(db => $db2, model => $model);
 
+    my ($new_wg_id, $createErr) = OESS::DB::Workgroup::create(db => $db2, model => $model);
     if ( !defined $new_wg_id ) {
         $results->{'error'} = $createErr;
         $results->{'results'} = [ { success => 0 } ];
@@ -1335,7 +1341,6 @@ sub get_users {
     my $results;
 
     my $users = $db->get_users();
-
     if ( !defined $users ) {
         $results->{'error'} = $db->get_error();
     }
@@ -2638,6 +2643,7 @@ sub edit_workgroup{
 
     my $workgroup_id            = $args->{'workgroup_id'}{'value'};
     my $workgroup_name          = $args->{'name'}{'value'};
+    my $workgroup_type          = $args->{'type'}{'value'};
     my $external_id             = $args->{'external_id'}{'value'};
     my $max_circuits            = $args->{'max_circuits'}{'value'};
     my $max_circuit_endpoints   = $args->{'max_circuit_endpoints'}{'value'};
@@ -2645,14 +2651,16 @@ sub edit_workgroup{
     my $model = {
         workgroup_id            => $workgroup_id,
         name                    => $workgroup_name,
+        type                    => $workgroup_type,
         external_id             => $external_id,
         max_mac_address_per_end => $max_mac_address_per_end,
         max_circuits            => $max_circuits,
         max_circuit_endpoints   => $max_circuit_endpoints,
     };
-    my ($res, $err2) = OESS::DB::Workgroup::update(db => $db2, 
-              model => $model
-        );
+    my ($res, $err2) = OESS::DB::Workgroup::update(
+        db => $db2,
+        model => $model
+    );
 
     my $results;
     if(defined($res)){

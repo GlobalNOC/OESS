@@ -1,0 +1,62 @@
+version: '3.2'
+
+networks:
+  default:
+    driver: overlay
+    attachable: true
+
+services:
+  mariadb:
+    image: mariadb:latest
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./perl-lib/OESS/share:/docker-entrypoint-initdb.d
+
+  adminer:
+    image: adminer:latest
+    restart: always
+    depends_on:
+      - mariadb
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    env_file:
+      - .env
+
+  oess-frontend:
+    image: oess-frontend:latest
+    restart: always
+    ports:
+      - 8000:8080
+    env_file:
+      - .env
+    volumes:
+      - ./frontend:/usr/share/oess-frontend
+      - ./perl-lib/OESS/lib/OESS:/usr/share/perl5/vendor_perl/OESS
+
+  oess-netconf-discovery:
+    image: oess-netconf-discovery:latest
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./perl-lib/OESS/lib/OESS:/usr/share/perl5/vendor_perl/OESS
+    depends_on:
+      - mariadb
+      - rabbitmq
+    entrypoint: "/bin/bash /bin/rerunner.sh \"/bin/mpls_discovery.pl\" \"/usr/share/perl5/vendor_perl/OESS\""
+
+  oess-netconf-fwdctl:
+    image: oess-netconf-fwdctl:latest
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./perl-lib/OESS/lib/OESS:/usr/share/perl5/vendor_perl/OESS
+    depends_on:
+      - mariadb
+      - rabbitmq
+    entrypoint: "/bin/bash /bin/rerunner.sh \"/bin/mpls_fwdctl.pl\" \"/usr/share/perl5/vendor_perl/OESS\""

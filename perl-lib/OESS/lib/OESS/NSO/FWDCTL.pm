@@ -144,7 +144,7 @@ sub addVrf {
         vrf_id => $args->{vrf_id}
     );
     return "Couldn't find l3connection $args->{vrf_id}." if !defined $conn;
-
+    $conn->load_workgroup;
     $conn->load_endpoints;
     foreach my $ep (@{$conn->endpoints}) {
         $ep->load_peers;
@@ -193,6 +193,7 @@ sub modifyVrf {
 
     my $pending_hash = decode_json($args->{pending});
     my $pending_conn = new OESS::VRF(db => $self->{db}, model => $pending_hash);
+    $pending_conn->load_workgroup;
     $pending_conn->{endpoints} = [];
     foreach my $pending_ep_hash (@{$pending_hash->{endpoints}}) {
         my $pending_ep = new OESS::Endpoint(db => $self->{db}, model => $pending_ep_hash);
@@ -733,6 +734,7 @@ sub update_cache {
 
     foreach my $conn (@$l3connection_ids) {
         my $obj = new OESS::VRF(db => $self->{db}, vrf_id => $conn->{vrf_id});
+        $obj->load_workgroup;
         $obj->load_endpoints;
 
         foreach my $ep (@{$obj->endpoints}) {

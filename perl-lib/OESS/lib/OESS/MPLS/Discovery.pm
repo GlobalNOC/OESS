@@ -71,6 +71,11 @@ use constant TSDS_RIB_TYPE => 'rib_table';
 use constant TSDS_PEER_TYPE => 'bgp_peer';
 use constant VRF_STATS_INTERVAL => 60;
 
+use constant FWDCTL_WAITING     => 2;
+use constant FWDCTL_SUCCESS     => 1;
+use constant FWDCTL_FAILURE     => 0;
+use constant FWDCTL_UNKNOWN     => 3;
+
 =head2 new
 
 instantiates a new OESS::MPLS::Discovery object, which intern creates
@@ -85,37 +90,28 @@ processing from the other modules.  This module also will handle new
 device additions and initial device population
 
 =cut
-sub new{
+sub new {
     my $class = shift;
-    my %args = (
+    my $args = {
+        config     => '/etc/oess/database.xml',
+        config_obj => undef,
+        logger     => Log::Log4perl->get_logger('OESS.MPLS.Discovery'),
+        test       => 0,
         @_
-    );
-
-    my $self = \%args;
-
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Discovery');
-
-    bless $self, $class;
-
-    # $self->{config} is assumed to be a str path
-    $self->{'config_filename'} = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
+    };
+    my $self = bless $args, $class;
 
     if (!defined $self->{config_obj}) {
-        $self->{'config'} = new OESS::Config(config_filename => $self->{'config_filename'});
-    } else {
-        $self->{'config'} = $self->{config_obj};
-        $self->{'config_filename'} = $self->{config_obj}->filename;
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
     }
 
-    if (!defined $self->{'test'}) {
-        $self->{'test'} = 0;
-    }
-
-    $self->{'db'} = OESS::Database->new(config => $self->{'config_filename'});
+    $self->{'db'} = new OESS::Database(config_obj => $self->{config_obj});
+    $self->{'db2'} = new OESS::DB(config_obj => $self->{config_obj});
     die if (!defined $self->{'db'});
+    die if (!defined $self->{'db2'});
 
     $self->{'interface'} = OESS::MPLS::Discovery::Interface->new(
-        db => new OESS::DB(config => $self->{'config_filename'}),
+        db => $self->{'db2'}
     );
     die "Unable to create Interface processor\n" if !defined $self->{'interface'}; 
 
@@ -124,19 +120,17 @@ sub new{
 
     $self->{'path'} = OESS::MPLS::Discovery::Paths->new(
         db => $self->{'db'},
-        config => $self->{config_filename}
+        config_obj => $self->{config_obj}
     );
     die "Unable to create Path Processor\n" if !defined $self->{'path'};
 
-
-    my $tsds_conf = $self->{'db'}->{'configuration'}->{'tsds'};
     $self->{'tsds_svc'} = GRNOC::WebService::Client->new(
-        url => $tsds_conf->{'url'} . "/push.cgi",
-        uid => $tsds_conf->{'username'},
-        passwd => $tsds_conf->{'password'},
-        realm => $tsds_conf->{'realm'},
+        url    => $self->{config_obj}->tsds_url . "/push.cgi",
+        uid    => $self->{config_obj}->tsds_username,
+        passwd => $self->{config_obj}->tsds_password,
+        realm  => $self->{config_obj}->tsds_realm,
         usePost => 1,
-        debug => 1
+        debug   => 1
     );
 
     # Create the client for talking to our Discovery switch objects!
@@ -146,7 +140,6 @@ sub new{
         topic => 'MPLS.Discovery'
     );
     die if (!defined $self->{'rmq_client'});
-
 
     # Create a child process for each switch
     $self->{'children'}  = {};
@@ -164,14 +157,15 @@ sub new{
     $self->{'vrf_stats_time'} = AnyEvent->timer( after => 20, interval => VRF_STATS_INTERVAL, cb => sub { $self->vrf_stats_handler(); });
 
     # Only lookup LSPs and Paths when network type is vpn-mpls.
-    if ($self->{'config'}->network_type eq 'vpn-mpls' || $self->{'config'}->network_type eq 'nso+vpn-mpls') {
+    if ($self->{config_obj}->network_type eq 'vpn-mpls' || $self->{config_obj}->network_type eq 'nso+vpn-mpls') {
         $self->{'path_timer'} = AnyEvent->timer( after => 40, interval => 300, cb => sub { $self->path_handler(); });
     }
 
     # Dispatcher for receiving events (eg. A new switch was created).
     $self->{'dispatcher'} = OESS::RabbitMQ::Dispatcher->new(
-        queue => 'MPLS-Discovery',
-        topic => "MPLS.Discovery.RPC"
+        config_obj => $self->{config_obj},
+        queue      => 'MPLS-Discovery',
+        topic      => 'MPLS.Discovery.RPC'
     );
     $self->register_rpc_methods($self->{'dispatcher'});
 
@@ -236,13 +230,17 @@ sub new_switch{
 
     my $node_id = $p_ref->{'node_id'}{'value'};
 
+    # Respond to request immediately. It's Discovery's responsibility to create
+    # any helper processes.
+    &$success({status => FWDCTL_SUCCESS});
+
     #sherpa will you make my babies!
     $self->make_baby($node_id);
     $self->{'logger'}->debug("Baby was created!");
     sleep(5);
     $self->int_handler();
 
-    &$success({status => 1});
+    return 1;
 }
 
 
@@ -255,38 +253,28 @@ really this creates a switch object that can handle our RabbitMQ
 requests and returns results from the device
 
 =cut
-sub make_baby{
+sub make_baby {
     my $self = shift;
     my $id = shift;
 
-    $self->{'logger'}->debug("Before the fork");
-    if (defined $self->{'children'}->{$id}) {
+    if (defined $self->{'children'}->{$id}->{'rpc'} && $self->{'children'}->{$id}->{'rpc'} == 1) {
         return 1;
     }
+    $self->{'logger'}->info("Forking into Switch process.");
 
     my $node = $self->{'db'}->get_node_by_id(node_id => $id);
 
     my %args;
     $args{'id'} = $id;
+    $args{'config'} = $self->{'config_obj'}->filename;
     $args{'share_file'} = '/var/run/oess/mpls_share.'. $id;
-    $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
-    $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
-    $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
-    $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
-    $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
-    $args{'vendor'} = $node->{'vendor'};
-    $args{'model'} = $node->{'model'};
-    $args{'sw_version'} = $node->{'sw_version'};
-    $args{'mgmt_addr'} = $node->{'mgmt_addr'};
-    $args{'tcp_port'} = $node->{'tcp_port'};
-    $args{'name'} = $node->{'name'};
-    $args{'use_cache'} = 0;
-    $args{'topic'} = "MPLS.Discovery.Switch";
     $args{'type'} = 'discovery';
+    $args{'topic'} = discovery_switch_topic_for_node(mgmt_addr => $node->{'mgmt_addr'}, tcp_port => $node->{'tcp_port'});
+
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
 use warnings;
-use Data::Dumper;
+
 my $switch;
 my $logger;
 
@@ -294,14 +282,14 @@ Log::Log4perl::init_and_watch("/etc/oess/logging.conf",10);
 sub run{
     my $fh = shift;
     my %args = @_;
-    $logger = Log::Log4perl->get_logger("MPLS.Discovery.MASTER");
+
+    $logger = Log::Log4perl->get_logger("OESS.MPLS.Discovery.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
-    $args{"node"} = {"vendor" => $args{"vendor"}, "model" => $args{"model"}, "sw_version" => $args{"sw_version"}, "name" => $args{"name"}, "mgmt_addr" => $args{"mgmt_addr"}, "tcp_port" => $args{"tcp_port"}};			  
     $switch = OESS::MPLS::Switch->new( %args );
 }')->fork->send_arg( %args )->run("run");
 
-    $self->{'children'}->{$id} = {};
     $self->{'children'}->{$id}->{'rpc'} = 1;
+    return 1;
 }
 
 =head2 int_handler
@@ -341,7 +329,7 @@ sub int_handler{
 sub path_handler {
     my $self = shift;
 
-    if ($self->{'config'}->network_type ne 'vpn-mpls') {
+    if ($self->{config_obj}->oess_netconf_overlay ne 'vpn-mpls') {
         # Only lookup Paths when network type is set to vpn-mpls.
         return 1;
     }

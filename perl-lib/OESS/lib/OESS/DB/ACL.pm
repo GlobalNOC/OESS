@@ -52,14 +52,14 @@ sub create {
     my $id = $args->{db}->execute_query(
         "insert into interface_acl (workgroup_id, interface_id, allow_deny, eval_position, vlan_start, vlan_end, notes, entity_id) VALUES (?,?,?,?,?,?,?,?)",
         [
-            $args->{model}->{workgroup_id},
+            ($args->{model}->{workgroup_id} == -1) ? undef : $args->{model}->{workgroup_id},
             $args->{model}->{interface_id},
             $args->{model}->{allow_deny},
             $args->{model}->{eval_position},
             $args->{model}->{start},
             $args->{model}->{end},
             $args->{model}->{notes},
-            $args->{model}->{entity_id}
+            ($args->{model}->{entity_id} == -1) ? undef : $args->{model}->{entity_id}
         ]
     );
     if (!defined $id) {
@@ -243,7 +243,7 @@ sub update {
 
     if (defined $args->{acl}->{workgroup_id}) {
         push @$params, 'workgroup_id=?';
-        if ($args->{acl}->{workgroup_id} != -1){
+        if ($args->{acl}->{workgroup_id} != -1) {
             push @$values, $args->{acl}->{workgroup_id};
         } else {
             push @$values, undef;
@@ -275,7 +275,11 @@ sub update {
     }
     if (defined $args->{acl}->{entity_id}) {
         push @$params, 'entity_id=?';
-        push @$values, $args->{acl}->{entity_id};
+        if ($args->{acl}->{entity_id} != -1) {
+            push @$values, $args->{acl}->{entity_id};
+        } else {
+            push @$values, undef;
+        }
     }
     my $fields = join(', ', @$params);
     
