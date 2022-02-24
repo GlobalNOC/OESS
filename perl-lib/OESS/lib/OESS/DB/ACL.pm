@@ -358,6 +358,9 @@ sub remove_all {
         @_
     };
 
+    my $query = "SELECT * FROM interface_acl WHERE interface_id = ?";
+    my $acls = $args->{db}->execute_query($query,[$args->{interface_id}]);
+
     return (0,"db is a required parameter") if !defined $args->{db};
     return (0,"interface_id is a required parameter") if !defined $args->{interface_id};
 
@@ -367,6 +370,17 @@ sub remove_all {
     if (!defined $count) {
         return (-1, "Error removing acls");
     }
+
+    my $ac = new OESS::AccessController::Default(db => $args->{db});
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    my $workgroup_id = $args->{workgroup_id} ? $args->{workgroup_id} : '-1';
+    my $interface_id = $args->{interface_id} ? $args->{interface_id} : '-1';
+    foreach my $acl (@$acls) {
+        my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
+                    values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Removed')";
+        my $acl_history = $args->{db}->execute_query($query,[$user->user_id, $acl->{workgroup_id}, $args->{interface_id}, $acl->{interface_acl_id}]);
+    }
+
     return ($count, undef);
 }
 
