@@ -116,14 +116,6 @@ sub register_webservice_methods {
 	description     => "the workgroup the ACL is applied to."
 	); 
 
-    #add the optional input parameter user_workgroup_id
-    $method->add_input_parameter(
-	name            => 'user_workgroup_id',
-	pattern         => $GRNOC::WebService::Regex::INTEGER,
-	required        => 0,
-	description     => "the workgroup the user is a part of."
-	); 
-
     $method->add_input_parameter(
         name            => 'entity_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
@@ -390,7 +382,6 @@ sub add_acl {
     $logger->debug("Initiating creation of ACL at <time> for ");    
     my $acl_model = { 
         workgroup_id  => $args->{"workgroup_id"}{'value'} || undef,
-        user_workgroup_id => $args->{"user_workgroup_id"}{'value'} || undef,
         interface_id  => $args->{"interface_id"}{'value'},
         allow_deny    => $args->{"allow_deny"}{'value'},
         eval_position => $args->{"eval_position"}{'value'} || undef,

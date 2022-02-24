@@ -66,11 +66,11 @@ sub create {
         $error = $args->{db}->get_error();
     }
     my $user_id = $args->{model}->{user_id} ? $args->{model}->{user_id} : '-1';
-    my $user_workgroup_id = $args->{model}->{user_workgroup_id} ? $args->{model}->{user_workgroup_id} : '-1';
+    my $workgroup_id = $args->{model}->{workgroup_id} ? $args->{model}->{workgroup_id} : '-1';
     my $interface_id = $args->{model}->{interface_id} ? $args->{model}->{interface_id} : '-1';
     my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
                  values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Created')";
-    my $acl_history = $args->{db}->execute_query($query,[$user_id, $user_workgroup_id, $interface_id, $id]);
+    my $acl_history = $args->{db}->execute_query($query,[$user_id, $workgroup_id, $interface_id, $id]);
 
     return ($id, $error);
 }

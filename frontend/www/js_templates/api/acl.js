@@ -115,7 +115,6 @@ async function addACL(acl) {
   url += `&interface_id=${acl.interfaceID}`;
   url += `&entity_id=${acl.entityID}`;
   url += (acl.selectedWorkgroupID === -1 ? '' : `&workgroup_id=${acl.selectedWorkgroupID}`);
-  url += `&user_workgroup_id=${acl.workgroupID}`;
   url += `&vlan_end=${acl.high}`;
   url += `&notes=${acl.notes}`;
 
