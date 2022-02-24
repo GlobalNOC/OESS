@@ -179,6 +179,31 @@ $get_acls->add_input_parameter(
 );
 $ws->register_method($get_acls);
 
+$method = GRNOC::Webservice::Method->new(
+    name        => 'get_acl_history',
+    description => 'Gets the creation and edit history of an ACL',
+    callback    => sub { get_acl_history( @_ ) }
+);
+$method->add_input_parameter(
+    name        => 'interface_acl_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'The interface ACL ID to get its history.'
+);
+$method->add_input_parameter(
+    name        => 'interface_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'The interface ID to get its history.'
+);
+$method->add_input_parameter(
+    name        => 'workgroup_id',
+    pattern     => $GRNOC::WebService::Regex::INTEGER,
+    required    => 1,
+    description => 'The workgroup ID of the interface to get its history.'
+);
+$svc->register_method($method);
+
 
 sub create_acl {
     my $method = shift;
@@ -465,6 +490,33 @@ sub delete_acl {
 
     $logger->info("Deleted ACL with id $interface_acl_id at ". localtime() . " Action was initiated by $username.");
     return { results => [{ success => 1 }] };
+}
+
+sub get_acl_history {
+
+    my ( $method, $args ) = @_ ;
+    my $results;
+    my $logger = Log::Log4perl->get_logger("OESS.ACL");
+    my $interface_acl_id = $args->{'interface_acl_id'}{'value'};
+    my $workgroup_id = $args->{'workgroup_id'}{'value'};
+    my $interface_id = $args->{'interface_id'}{'value'};
+
+    my $history = OESS::DB::ACL::get_acl_history(
+        db                  => $db,
+        interface_acl_id    => $interface_acl_id,
+        interface_id        => $interface_id,
+        workgroup_id        => $workgroup_id
+    );
+    if ( !defined $history ) {
+        $logger->info("Failed to get interface ACL history with id $inferace_acl_id at ". localtime() ." Action was initiated by $username.");
+        $method->set_error( $db->get_error() );
+        return;
+    }
+    else {
+        $results->{'results'} = $history;
+    }
+
+    return $results;
 }
 
 $ws->handle_request;
