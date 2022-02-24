@@ -329,6 +329,15 @@ sub remove {
     if( $count == 0){
         return(0, "Error interface_acl_id did not exist");
     }
+
+    my $ac = new OESS::AccessController::Default(db => $args->{db});
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    my $workgroup_id = $args->{workgroup_id} ? $args->{workgroup_id} : '-1';
+    my $interface_id = $args->{interface_id} ? $args->{interface_id} : '-1';
+    my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
+                 values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Removed')";
+    my $acl_history = $args->{db}->execute_query($query,[$user->user_id, $workgroup_id, $interface_id, $args->{interface_acl_id}]);
+
     return(1,undef);
 }
 
