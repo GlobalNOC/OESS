@@ -13,10 +13,11 @@ BEGIN {
 
 use lib "$path/..";
 use Data::Dumper;
-use Test::More tests => 3;
+use Test::More tests => 8;
 use OESSDatabaseTester;
 use OESS::DB;
 use OESS::DB::ACL;
+use OESS::ACL;
 use OESS::Config;
 
 OESSDatabaseTester::resetOESSDB(
@@ -44,9 +45,34 @@ my $model = {
 };
 
 my ($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
-ok(!defined $error, "OK - No errors creating ACl");
-my $test = $db->execute_query("select * from acl_history where interface_id = 1");
+ok(!defined $error, "No errors creating ACL");
+$ENV{REMOTE_USER} = 'admin';
 
 my ($history, $error) = OESS::DB::ACL::get_acl_history( db => $db, interface_acl_id => $id, interface_id => $model->{interface_id}, workgroup_id => $model->{workgroup_id});
-ok(defined $history, "OK - No errors getting ACL history");
-ok(@$history[0]->{'event'} eq "ACL Created", "ACL history event correctly set");
+ok(defined $history, "No errors getting ACL history");
+ok(@$history[0]->{'event'} eq "ACL Created", "ACL history create event correctly set");
+
+$model->{eval_position} += 10;
+$model->{interface_acl_id} = $id;
+my ($update, $error) = OESS::DB::ACL::update( db => $db, acl => $model);
+ok(defined $update, "No errors updating ACL");
+
+$history = $db->execute_query("select * from acl_history where event = 'ACL Updated'");
+ok(@$history[0]->{'event'} eq "ACL Updated", "ACL history update event correctly set");
+
+my ($delete, $err) = OESS::DB::ACL::remove(db => $db, interface_acl_id => $id);
+ok(!defined $err, "No error returned since both params were defined and ACL was deleted");
+
+$history = $db->execute_query("select * from acl_history where event = 'ACL Removed'");
+ok(@$history[0]->{'event'} eq "ACL Removed", "ACL history remove event correctly set");
+
+$model->{eval_position} += 10;
+($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
+$model->{eval_position} += 10;
+($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
+$model->{eval_position} += 10;
+($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
+
+($delete, $err) = OESS::DB::ACL::remove_all(db => $db, interface_id => 1);
+my $count = $db->execute_query("select * from acl_history where event = 'ACL Removed' and interface_id = 1");
+ok(scalar(@$count) == 3, "ACL history remove event correctly set");
