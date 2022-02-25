@@ -42,7 +42,6 @@ CREATE TABLE `acl_history` (
   KEY `user_acl_history_fk` (`user_id`),
   KEY `acl_history_id` (`acl_history_id`),
   KEY `interface_acl_history_fk` (`interface_acl_id`),
-  CONSTRAINT `interface_acl_history_fk` FOREIGN KEY (`interface_acl_id`) REFERENCES `interface_acl` (`interface_acl_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `user_acl_history_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
