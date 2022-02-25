@@ -291,11 +291,12 @@ sub update {
 
     my $ac = new OESS::AccessController::Default(db => $args->{db});
     my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    $user = $user ? $user->user_id : '-1';
     my $workgroup_id = $args->{acl}->{workgroup_id} ? $args->{acl}->{workgroup_id} : '-1';
     my $interface_id = $args->{acl}->{interface_id} ? $args->{acl}->{interface_id} : '-1';
     my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
                  values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Updated')";
-    my $acl_history = $args->{db}->execute_query($query,[$user->user_id, $workgroup_id, $interface_id, $args->{acl}->{interface_acl_id}]);
+    my $acl_history = $args->{db}->execute_query($query,[$user, $workgroup_id, $interface_id, $args->{acl}->{interface_acl_id}]);
 
     return $args->{db}->execute_query(
         "UPDATE interface_acl SET $fields WHERE interface_acl_id=?",
@@ -332,11 +333,12 @@ sub remove {
 
     my $ac = new OESS::AccessController::Default(db => $args->{db});
     my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    $user = $user ? $user->user_id : '-1';
     my $workgroup_id = $args->{workgroup_id} ? $args->{workgroup_id} : '-1';
     my $interface_id = $args->{interface_id} ? $args->{interface_id} : '-1';
     my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
                  values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Removed')";
-    my $acl_history = $args->{db}->execute_query($query,[$user->user_id, $workgroup_id, $interface_id, $args->{interface_acl_id}]);
+    my $acl_history = $args->{db}->execute_query($query,[$user, $workgroup_id, $interface_id, $args->{interface_acl_id}]);
 
     return(1,undef);
 }
@@ -373,12 +375,13 @@ sub remove_all {
 
     my $ac = new OESS::AccessController::Default(db => $args->{db});
     my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    $user = $user ? $user->user_id : '-1';
     my $workgroup_id = $args->{workgroup_id} ? $args->{workgroup_id} : '-1';
     my $interface_id = $args->{interface_id} ? $args->{interface_id} : '-1';
     foreach my $acl (@$acls) {
         my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
                     values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Removed')";
-        my $acl_history = $args->{db}->execute_query($query,[$user->user_id, $acl->{workgroup_id}, $args->{interface_id}, $acl->{interface_acl_id}]);
+        my $acl_history = $args->{db}->execute_query($query,[$user, $acl->{workgroup_id}, $args->{interface_id}, $acl->{interface_acl_id}]);
     }
 
     return ($count, undef);
