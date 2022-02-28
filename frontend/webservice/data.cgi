@@ -102,7 +102,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "get_workgroups",
 	description     => "returns a list of workgroups the logged in user has access to",
-	callback        => sub { get_workgroups( @_ ) }
+	callback        => sub { get_workgroups( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of user.cgi?method=get_current."
 	);
 
     #register get_workgroups() method
@@ -136,7 +137,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "get_nodes",
 	description     => "returns a list of nodes",
-	callback        => sub { get_nodes( @_ ) }
+	callback        => sub { get_nodes( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of node.cgi?method=get_nodes."
     );
     $method->add_input_parameter(
 	name            => 'type',
@@ -152,7 +154,8 @@ sub register_webservice_methods {
      $method = GRNOC::WebService::Method->new(
 	 name            => "get_node_interfaces",
 	 description     => "returns a list of interfaces on the given node",
-	 callback        => sub { get_node_interfaces( @_ ) }
+	 callback        => sub { get_node_interfaces( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of interface.cgi?method=get_interfaces."
 	 );
     
     #add the required input parameter node
@@ -202,7 +205,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "get_interface",
 	description     => "returns the interface details",
-	callback        => sub { get_interface( @_ ) }
+	callback        => sub { get_interface( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of interface.cgi?method=get_interface."
 	);
     
     #add the required parameter interface_id
@@ -220,7 +224,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "get_workgroup_interfaces",
 	description     => "returns a list of interfaces in a workgroup.",
-	callback        => sub { get_workgroup_interfaces( @_ ) }
+	callback        => sub { get_workgroup_interfaces( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of interface.cgi?method=get_interfaces."
 	);
     
     #add the required parameter workgroup_id
@@ -276,7 +281,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "get_existing_circuits",
 	description     => "returns a list of circuits for the given workgroup",
-	callback        => sub { get_existing_circuits( @_ ) }
+	callback        => sub { get_existing_circuits( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of circuit.cgi?method=get."
 	);
 
     #add the required input paramter workgroup_id
@@ -330,7 +336,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "get_circuit_details",
 	description     => "returns all of the details for a given circuit",
-	callback        => sub { get_circuit_details ( @_ ) }
+	callback        => sub { get_circuit_details ( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of circuit.cgi?method=get."
 	);
     
     #add the required input parameter circuit_id
@@ -455,7 +462,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "get_workgroup_members",
 	description     => "descr",
-	callback        => sub { get_users_in_workgroup( @_ ) }
+	callback        => sub { get_users_in_workgroup( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of workgroup.cgi?method=get_workgroup_users."
 	);
 
     #add the required input parameter workgroup_id
@@ -507,7 +515,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "get_all_node_status",
 	description     => "returns a list of all active nodes and their operational status.",
-	callback        => sub { get_all_node_status( @_ ) }
+	callback        => sub { get_all_node_status( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of node.cgi?method=get_nodes."    
     );
     $method->add_input_parameter(
 	name            => 'type',
@@ -721,7 +730,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name 		=> "get_users",
         description	=> "returns all the users in the database",
-        callback	=> sub { get_users( @_ ) }
+        callback	=> sub { get_users( @_ ) },
+        method_deprecated => "This method has been deprecated in favor of user.cgi?method=get_users."
     );
     $svc->register_method($method);
 }

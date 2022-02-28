@@ -30,7 +30,7 @@
               <div class="post-content">
                 {{ content }}
 
-                {% assign cgi_module = site.data.api[page.name] %}
+                {% assign cgi_module = site.data.api[page.name] | sort %}
 
                 {% for cgi_method in cgi_module %}
                   {% assign method = cgi_method[1] %}

@@ -233,7 +233,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'confirm_node',
                                               description => "Approves a node.",
-                                              callback    => sub { confirm_node(@_) } );
+                                              callback    => sub { confirm_node(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of node.cgi?method=edit_node." );
     $method->add_input_parameter( name        => 'node_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 1,
@@ -278,7 +279,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'update_node',
                                               description => "Updates a node.",
-                                              callback    => sub { update_node(@_) } );
+                                              callback    => sub { update_node(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of node.cgi?method=edit_node." );
     $method->add_input_parameter( name        => 'node_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 1,
@@ -361,7 +363,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'update_interface',
                                               description => "Updates an interface.",
-                                              callback    => sub { update_interface(@_) } );
+                                              callback    => sub { update_interface(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of interface.cgi?method=edit_interface." );
     $method->add_input_parameter( name        => 'interface_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 1,
@@ -382,7 +385,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'decom_node',
                                               description => 'Decommissions a node.',
-                                              callback    => sub { decom_node(@_) } );
+                                              callback    => sub { decom_node(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of node.cgi?method=delete_node." );
     $method->add_input_parameter( name        => 'node_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 1,
@@ -448,7 +452,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'deny_device',
                                               description => '',
-                                              callback    => sub { deny_device(@_) } );
+                                              callback    => sub { deny_device(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of node.cgi?method=edit_node." );
     $method->add_input_parameter( name        => 'node_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 0,
@@ -491,12 +496,14 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'get_users',
                                               description => '',
-                                              callback    => sub { get_users(@_) } );
+                                              callback    => sub { get_users(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of user.cgi?method=get_users." );
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new( name        => 'get_users_in_workgroup',
                                               description => '',
-                                              callback    => sub { get_users_in_workgroup(@_) } );
+                                              callback    => sub { get_users_in_workgroup(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of workgroup.cgi?method=get_workgroup_users." );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 0,
@@ -505,7 +512,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'add_user',
                                               description => '',
-                                              callback    => sub { add_user(@_) } );
+                                              callback    => sub { add_user(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of user.cgi?method=create_user." );
     $method->add_input_parameter( name        => 'first_name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
@@ -530,7 +538,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'delete_user',
                                               description => '',
-                                              callback    => sub { delete_user(@_) } );
+                                              callback    => sub { delete_user(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of user.cgi?method=delete_user." );
     $method->add_input_parameter( name        => 'user_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 1,
@@ -539,7 +548,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'add_user_to_workgroup',
                                               description => '',
-                                              callback    => sub { add_user_to_workgroup(@_) } );
+                                              callback    => sub { add_user_to_workgroup(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of workgroup.cgi?method=add_workgroup_user." );
     $method->add_input_parameter( name        => 'user_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 1,
@@ -569,7 +579,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'edit_user',
                                               description => '',
-                                              callback    => sub { edit_user(@_) } );
+                                              callback    => sub { edit_user(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of user.cgi?method=edit_user." );
     $method->add_input_parameter( name        => 'user_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 1,
@@ -602,7 +613,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'get_workgroups',
                                               description => '',
-                                              callback    => sub { get_workgroups(@_) } );
+                                              callback    => sub { get_workgroups(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of user.cgi?method=get_user." );
     $method->add_input_parameter( name        => 'user_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 0,
@@ -611,7 +623,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'update_interface_owner',
                                               description => '',
-                                              callback    => sub { update_interface_owner(@_) } );
+                                              callback    => sub { update_interface_owner(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of interface.cgi?method=edit_interface." );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 0,
@@ -624,7 +637,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'add_workgroup',
                                               description => '',
-                                              callback    => sub { add_workgroup(@_) } );
+                                              callback    => sub { add_workgroup(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of workgroup.cgi?method=create_workgroup." );
     $method->add_input_parameter( name        => 'name',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
@@ -732,7 +746,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'edit_workgroup',
                                               description => '',
-                                              callback    => sub { edit_workgroup(@_) } );
+                                              callback    => sub { edit_workgroup(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of workgroup.cgi?method=edit_workgroup." );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 1,
@@ -770,7 +785,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'decom_workgroup',
                                               description => '',
-                                              callback    => sub { decom_workgroup(@_) } );
+                                              callback    => sub { decom_workgroup(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of workgroup.cgi?method=delete_workgroup." );
     $method->add_input_parameter( name        => 'workgroup_id',
                                   pattern     => $GRNOC::WebService::Regex::INTEGER,
                                   required    => 1,
@@ -779,7 +795,8 @@ sub register_webservice_methods {
 
     $method = GRNOC::WebService::Method->new( name        => 'add_mpls_switch',
                                               description => '',
-                                              callback    => sub { add_mpls_switch(@_) } );
+                                              callback    => sub { add_mpls_switch(@_) },
+                                              method_deprecated => "This method has been deprecated in favor of node.cgi?method=create_node.");
     $method->add_input_parameter( name        => 'ip_address',
                                   pattern     => $GRNOC::WebService::Regex::TEXT,
                                   required    => 1,
