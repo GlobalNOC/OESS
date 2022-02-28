@@ -68,7 +68,8 @@ sub register_webservice_methods {
      $method = GRNOC::WebService::Method->new(
 	 name            => "get_all_workgroups",
 	 description     => "returns a list of workgroups the logged in user has access to",
-	 callback        => sub { get_all_workgroups( @_ ) }
+	 callback        => sub { get_all_workgroups( @_ ) },
+     method_deprecated => "This method has been deprecated in favor of user.cgi?method=get_current."
 	 );
 
     #register get_workgroups() method
@@ -78,7 +79,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "get_acls",
 	description     => "Returns a JSON formatted list of ACLs for a given interface.",
-	callback        => sub { get_acls( @_ ) }
+	callback        => sub { get_acls( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of acl.cgi?method=get_acls."
 	);
 
     #add the optional input parameter interface_id
@@ -104,7 +106,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "add_acl",
 	description     => "Adds an ACL for a specific interface/workgroup combination",
-	callback        => sub { add_acl( @_ ) }
+	callback        => sub { add_acl( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of acl.cgi?method=create_acl."
 	);
 
     #add the optional input parameter workgroup_id
@@ -178,7 +181,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
         name            => "update_acl",
         description     => "Updates an ACL for a specific interface/workgroup combination",
-        callback        => sub { update_acl( @_ ) }
+        callback        => sub { update_acl( @_ ) },
+        method_deprecated => "This method has been deprecated in favor of acl.cgi?method=edit_acl."
         );
 
     #add the optional input parameter workgroup_id
@@ -259,7 +263,8 @@ sub register_webservice_methods {
     $method = GRNOC::WebService::Method->new(
 	name            => "remove_acl",
 	description     => "removes an existing ACL",
-	callback        => sub { remove_acl( @_ ) }
+	callback        => sub { remove_acl( @_ ) },
+    method_deprecated => "This method has been deprecated in favor of acl.cgi?method=delete_acl."
 	);
 
     #add the required input parameter interface_acl_id
