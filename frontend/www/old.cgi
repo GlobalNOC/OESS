@@ -135,70 +135,10 @@ sub main{
 			       $breadcrumbs        = $HOME_BREADCRUMBS;
 			       $current_breadcrumb = "Home"; 
 	}
-	case "edit_details"  { $filename           = "html_templates/edit_details.html"; 
-			       $title              = "Details";
-			       $breadcrumbs        = $ADD_BREADCRUMBS;
-			       $current_breadcrumb = "Details"; 
-	}
-	
-	case "loop_circuit"  { $filename           = "html_templates/loop_circuit.html"; 
-			       $title              = "Loop Circuit";
-			       $breadcrumbs        = $DETAILS_BREADCRUMBS;
-			       $current_breadcrumb = "Loop Circuit"; 
-	}
-	case "view_details"  { $filename           = "html_templates/view_details.html"; 
-			       $title              = "Circuit Details";
-			       $breadcrumbs        = $DETAILS_BREADCRUMBS;
-			       $current_breadcrumb = "Circuit Details"; 
-	}
 	case "interdomain"   { $filename           = "html_templates/interdomain.html";
 			       $title              = "Interdomain Endpoints";
 			       $breadcrumbs        = $ADD_BREADCRUMBS;
 			       $current_breadcrumb = "Endpoints";
-	}
-	case "endpoints"     { $filename           = "html_templates/endpoints.html";
-			       $title              = "Endpoints";
-			       $breadcrumbs        = $ADD_BREADCRUMBS;
-			       $current_breadcrumb = "Endpoints";
-	}
-	case "options"       { $filename           = "html_templates/options.html";
-			       $title              = "Options";
-			       $breadcrumbs        = $ADD_BREADCRUMBS;
-			       $current_breadcrumb = "Options";
-	}
-	case "primary_path"  { $filename           = "html_templates/primary_path.html";
-			       $title              = "Primary Path";
-			       $breadcrumbs        = $ADD_BREADCRUMBS;
-			       $current_breadcrumb = "Primary Path";
-	}
-	case "backup_path"   { $filename           = "html_templates/backup_path.html";
-			       $title              = "Backup Path";
-			       $breadcrumbs        = $ADD_BREADCRUMBS;
-			       $current_breadcrumb = "Backup Path";	    
-	}
-	case "scheduling"    { $filename           = "html_templates/scheduling.html";
-			       $title              = "Scheduling";
-			       $breadcrumbs        = $ADD_BREADCRUMBS;
-			       $current_breadcrumb = "Scheduling";	    
-	}
-	
-	case "provisioning" {
-	    $filename           = "html_templates/provisioning.html";
-	    $title              = "Provisioning";
-	    $breadcrumbs        = $ADD_BREADCRUMBS;
-	    $current_breadcrumb = "Provisioning";
-	}
-	case "remove_scheduling" {
-	    $filename           = "html_templates/remove_scheduling.html";
-	    $title              = "Removal Scheduling";
-	    $breadcrumbs        = $REMOVE_BREADCRUMBS;
-	    $current_breadcrumb = "Scheduling";
-	}
-	case "remove_provisioning" {
-	    $filename           = "html_templates/remove_provisioning.html";
-	    $title              = "Removal Provisioning";
-	    $breadcrumbs        = $REMOVE_BREADCRUMBS;
-	    $current_breadcrumb = "Provisioning";
 	}
 	case "decom" {
 	    $filename = "html_templates/denied.html";
@@ -225,11 +165,26 @@ sub main{
     $vars->{'version'}            = OESS::Database::VERSION;
     $vars->{'network_type'}       = $config->network_type;
     
-	#print STDERR Dumper($vars);
+    my $redirect = {
+        view_details        => 'index.cgi',
+        remove_provisioning => 'index.cgi',
+        remove_scheduling   => 'index.cgi',
+        primary_path        => 'index.cgi?action=provision_l2vpn',
+        backup_path         => 'index.cgi?action=provision_l2vpn',
+        loop_circuit        => 'index.cgi?action=provision_l2vpn',
+        provisioning        => 'index.cgi?action=provision_l2vpn',
+        scheduling          => 'index.cgi?action=provision_l2vpn',
+        options             => 'index.cgi?action=provision_l2vpn',
+        endpoints           => 'index.cgi?action=provision_l2vpn',
+    };
+
     if ($action eq 'view_l3vpn' || $action eq 'provision_cloud' || $action eq 'modify_cloud' || $action eq 'phonebook' || $action eq 'welcome') {
-	$tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
+        $tt->process("html_templates/base.html", $vars, \$output) or warn $tt->error();
+    } elsif (defined $redirect->{$action}) {
+        $vars->{redirect} = $redirect->{$action};
+        $tt->process("html_templates/redirect.html", $vars, \$output) or warn $tt->error();
     } else {
-	$tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
+        $tt->process("html_templates/page_base.html", $vars, \$output) or warn $tt->error();
     }
     print "Content-type: text/html\n\n" . $output;
 }
