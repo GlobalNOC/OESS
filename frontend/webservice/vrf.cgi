@@ -889,7 +889,7 @@ sub remove_vrf {
     my $wg = $params->{'workgroup_id'}{'value'};
     my $vrf_id = $params->{'vrf_id'}{'value'} || undef;
 
-    my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
+    my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id, workgroup_id => $wg);
     if(!defined($vrf)){
         $method->set_error("Unable to find VRF: " . $vrf_id);
         return {success => 0};

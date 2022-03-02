@@ -402,10 +402,11 @@ sub decom{
     my $db = $params{'db'};
     my $vrf_id = $params{'vrf_id'};
     my $user = $params{'user_id'};
+    my $workgroup_id = $params{'workgroup_id'};
 
     my $res = $db->execute_query("update vrf set state = 'decom', last_modified_by = ?, last_modified = unix_timestamp(now()) where vrf_id = ?",[$user, $vrf_id]);
 
-    my $vrf_inst_id = $db->execute_query("insert into history (date, state, user_id, event, type, object) values (unix_timestamp(now()), 'decom', ?, 'Connection Deletion', 'VRF', '')", [$user]);
+    my $vrf_inst_id = $db->execute_query("insert into history (date, state, user_id, event, type, object, workgroup_id) values (unix_timestamp(now()), 'decom', ?, 'Connection Deletion', 'VRF', '', ?)", [$user, $workgroup_id]);
     if (!defined $vrf_inst_id) {
         return (undef, $db->get_error);
     }
