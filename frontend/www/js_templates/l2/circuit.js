@@ -60,6 +60,50 @@ class CircuitHistory extends Component {
   }
 }
 
+class ResourceHistoryTable extends Component {
+  constructor(state) {
+    super();
+    this.state = state;
+  }
+
+  async render(props) {
+    
+    let historyRows = '';
+    let href = {
+      l3connection: function(data) { return `index.cgi?action=modify_cloud&vrf_id=${data.vrf_id}`; }
+    };
+
+    for (let i = 0; i < props.history.length; i++) {
+      let h = props.history[i];
+      h.object = JSON.parse(h.object);
+
+      let date = new Date(h.date * 1000).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
+      let time = new Date(h.date * 1000).toLocaleTimeString("en-US", {hour: 'numeric', minute: 'numeric', timeZoneName: 'short'});
+
+      historyRows += `
+        <tr class="table-hover">
+          <td>${h.full_name}</td>
+          <td><a href="${href[h.type](h.object)}"><code>${h.resource_id}</code></a></td>
+          <td>${h.event}</td>
+          <td>l3connection</td>
+          <td>${date} ${time}</td>
+        </tr>
+      `;
+    }
+
+    return `
+      <table class="table table-hover" style="margin-top: 2em">
+        <thead style="font-weight: bold">
+          <tr><th>User</th><th>Resource ID</th><th>Event</th><th>Type</th><th>Date / Time</th></tr>
+        </thead>
+        <tbody>
+          ${historyRows}
+        </tbody>
+      </table>
+    `;
+  }
+}
+
 class CircuitDetails extends Component {
   constructor(state) {
     super();

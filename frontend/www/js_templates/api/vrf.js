@@ -116,7 +116,7 @@ async function getVRFHistory(id) {
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();
-    return data;
+    return data.results;
   } catch(error) {
     console.log('Failure occurred in getVRFHistory');
     console.log(error);

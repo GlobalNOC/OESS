@@ -183,23 +183,19 @@ sub register_rw_methods{
 }
 
 sub get_vrf_history{
-
     my ( $method, $args ) = @_;
     my $results;
 
     my $vrf_id = $args->{'vrf_id'}{'value'};
 
-    my $events = OESS::DB::VRF::get_vrf_history( db => $db, vrf_id => $vrf_id);
-     if ( !defined $events ) {
-         $method->set_error( $db->get_error() );
-         return;
-     }
-     else {
-         $results->{'results'} = $events;
-     }
+    my $events = OESS::DB::VRF::get_vrf_history(db => $db, vrf_id => $vrf_id);
+    if (!defined $events) {
+        $method->set_error( $db->get_error() );
+        return;
+    }
 
-     return $events;
-
+    $results->{'results'} = $events;
+     return $results;
 }
 
 sub get_vrf_details{

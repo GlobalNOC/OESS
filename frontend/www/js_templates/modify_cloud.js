@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   let url = new URL(window.location.href);
   let id = url.searchParams.get('vrf_id');
 
-  history = new CircuitHistory({workgroupID: session.data.workgroup_id});
+  history = new ResourceHistoryTable({workgroupID: session.data.workgroup_id});
 
   state.selectConnection(id).then(async () => {
     let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.connection.workgroup.workgroup_id && !session.data.isReadOnly);

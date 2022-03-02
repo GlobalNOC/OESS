@@ -89,7 +89,7 @@ sub update {
     );
 
     my $vrf_object = encode_json($vrf);
-    my $vrf_inst_query = "insert into history (date, user_id, workgroup_id, event, state, type, object) values (unix_timestamp(now()), ?, ?, 'User requested connection edit', ?, 'VRF', ?)";
+    my $vrf_inst_query = "insert into history (date, user_id, workgroup_id, event, state, type, object) values (unix_timestamp(now()), ?, ?, 'edit', ?, 'l3connection', ?)";
     my $history_id = $db->execute_query($vrf_inst_query, [$vrf->{last_modified_by_id}, $vrf->{workgroup_id}, $vrf->{state}, $vrf_object]);
     if (!defined $history_id) {
         return (undef, $db->get_error);
@@ -115,7 +115,7 @@ sub create{
 
     $model->{'vrf_id'} = $vrf_id;
     my $vrf_object = encode_json($model);
-    my $history_id = $db->execute_query("insert into history (date, state, user_id, workgroup_id, event, type, object) values (unix_timestamp(now()), 'active', ?, ?, 'Connection Creation', 'VRF', ?)", [$model->{'last_modified_by_id'}, $model->{'workgroup_id'}, $vrf_object]);
+    my $history_id = $db->execute_query("insert into history (date, state, user_id, workgroup_id, event, type, object) values (unix_timestamp(now()), 'active', ?, ?, 'create', 'l3connection', ?)", [$model->{'last_modified_by_id'}, $model->{'workgroup_id'}, $vrf_object]);
     if (!defined $history_id) {
         return (undef, $db->get_error);
     }
@@ -406,13 +406,12 @@ sub decom{
 
     my $res = $db->execute_query("update vrf set state = 'decom', last_modified_by = ?, last_modified = unix_timestamp(now()) where vrf_id = ?",[$user, $vrf_id]);
 
-    my $vrf_inst_id = $db->execute_query("insert into history (date, state, user_id, event, type, object, workgroup_id) values (unix_timestamp(now()), 'decom', ?, 'Connection Deletion', 'VRF', '', ?)", [$user, $workgroup_id]);
+    my $vrf_inst_id = $db->execute_query("insert into history (date, state, user_id, event, type, object, workgroup_id) values (unix_timestamp(now()), 'decom', ?, 'decom', 'l3connection', '', ?)", [$user, $workgroup_id]);
     if (!defined $vrf_inst_id) {
         return (undef, $db->get_error);
     }
 
     return $res;
-
 }
 
 =head2 decom_endpoint
@@ -498,25 +497,31 @@ sub get_vrf_history{
     my $db = $params{'db'};
 
     my $results = $db->execute_query(
-        "select remote_auth.auth_name, concat(user.given_names, ' ', user.family_name) as full_name, history.event,
-         from_unixtime(history.date) as last_updated
+        "select user.user_id, concat(user.given_names, ' ', user.family_name) as full_name,
+                vrf.vrf_id as resource_id,
+                workgroup.workgroup_id, workgroup.name as workgroup,
+                history.event, history.type, history.date, history.object
+
          from vrf
          join vrf_history on vrf.vrf_id = vrf_history.vrf_id
          join history on vrf_history.history_id = history.history_id
          join user on user.user_id = history.user_id
-         left join remote_auth on remote_auth.user_id = user.user_id
+         join workgroup on workgroup.workgroup_id = history.workgroup_id
          where vrf.vrf_id = ? order by history.date DESC",
     [$vrf_id]);
 
     foreach my $row (@$results){
-	push (@$events, {"username"  => $row->{'auth_name'},
-            "fullname"  => $row->{'full_name'},
-            "scheduled" => -1,
-            "activated" => $row->{'last_updated'},
-            "layout"    => "",
-            "reason"    => $row->{'event'}
-	      }
-	    );
+        push @$events, {
+            user_id      => $row->{user_id},
+            full_name    => $row->{full_name},
+            workgroup_id => $row->{workgroup_id},
+            workgroup    => $row->{workgroup},
+            event        => $row->{event},
+            type         => $row->{type},
+            date         => $row->{date},
+            object       => $row->{object},
+            resource_id  => $row->{resource_id}
+        };
     }
 
     return $events;
