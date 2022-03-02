@@ -157,7 +157,7 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `history`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CCREATE TABLE `history` (
+CREATE TABLE `history` (
   `history_id` int(10) NOT NULL AUTO_INCREMENT,
   `date` int(10) NOT NULL,
   `user_id` int(10) NOT NULL,
