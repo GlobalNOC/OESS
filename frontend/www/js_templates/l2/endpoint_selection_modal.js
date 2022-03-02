@@ -430,6 +430,25 @@ class EndpointSelectionModal2 {
         vlanSelector.removeAttribute('disabled');
       }
 
+      let addButton = this.parent.querySelector('.add-entity-submit');
+      let requestButton = this.parent.querySelector('.add-entity-request-access');
+      if (entity.interfaces.length === 0) {
+        addButton.setAttribute('disabled', '');
+        requestButton.style.display = 'none';
+      }
+      if (vlans.length === 0) {
+        addButton.setAttribute('disabled', '');
+
+        if (entity.entity_id == 1 ) {
+          requestButton.style.display = 'none';
+        } else {
+          requestButton.style.display = 'inline-block';
+        }
+      } else {
+        addButton.removeAttribute('disabled');
+        requestButton.style.display = 'none';
+      }
+
       return vlans;
     };
 
