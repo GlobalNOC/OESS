@@ -807,6 +807,18 @@ sub provision_vrf{
     }
     my $pending_vrf = $vrf->to_hash;
 
+    my $error = OESS::DB::VRF::add_vrf_history(
+        db => $db,
+        event => $type eq 'provisioned' ? 'create' : 'edit',
+        vrf => $vrf,
+        user_id => $user->user_id,
+        workgroup_id => $params->{workgroup_id}{value},
+        state => 'decom'
+    );
+    if (defined $error) {
+        warn $error;
+    }
+
     # Valid vrf_id was passed in model which implies that the
     # connection is being edited.
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
@@ -857,18 +869,6 @@ sub provision_vrf{
 
         $type = 'provisioned';
         $reason = "Created by $ENV{'REMOTE_USER'}";
-    }
-
-    my $error = OESS::DB::VRF::add_vrf_history(
-        db => $db,
-        event => $type eq 'provisioned' ? 'create' : 'edit',
-        vrf => $vrf,
-        user_id => $user->user_id,
-        workgroup_id => $params->{workgroup_id}{value},
-        state => 'decom'
-    );
-    if (defined $error) {
-        warn $error;
     }
 
     eval {
@@ -949,9 +949,6 @@ sub remove_vrf {
         $ok = 1;
     }
 
-    $vrf->decom(user_id => $user->user_id);
-    $db->commit;
-
     my $error = OESS::DB::VRF::add_vrf_history(
         db => $db,
         event => 'decom',
@@ -963,6 +960,9 @@ sub remove_vrf {
     if (defined $error) {
         warn $error;
     }
+
+    $vrf->decom(user_id => $user->user_id);
+    $db->commit;
 
     _update_cache($previous_vrf);
 

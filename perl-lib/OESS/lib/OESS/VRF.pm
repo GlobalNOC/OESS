@@ -433,7 +433,7 @@ sub decom{
         $ep->decom();
     }
 
-    my $res = OESS::DB::VRF::decom(db => $self->{'db'}, vrf_id => $self->{'vrf_id'}, user_id => $user_id, workgroup_id => $self->{'workgroup_id'});
+    my $res = OESS::DB::VRF::decom(db => $self->{'db'}, vrf_id => $self->{'vrf_id'}, user_id => $user_id);
     return $res;
 
 }

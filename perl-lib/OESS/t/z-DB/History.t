@@ -13,7 +13,7 @@ BEGIN {
 
 use lib "$path/..";
 use Data::Dumper;
-use Test::More tests => 12;
+use Test::More tests => 17;
 use OESSDatabaseTester;
 use OESS::DB;
 use OESS::VRF;
@@ -131,3 +131,10 @@ $error = OESS::DB::VRF::add_vrf_history(
     state => 'active'
 );
 ok(!defined $error, "Created history entry when decoming a conneciton");
+
+my $events = OESS::DB::VRF::get_vrf_history( db => $db, vrf_id => $vrf->{vrf_id});
+ok(defined $events, "No errors getting vrf history events");
+ok(scalar(@$events) == 3, "Three history events created and stored");
+ok(@$events[0]->{event} eq 'create', "First event is a create");
+ok(@$events[1]->{event} eq 'edit', "Second event is a edit");
+ok(@$events[2]->{event} eq 'decom', "Third event is a decom");
