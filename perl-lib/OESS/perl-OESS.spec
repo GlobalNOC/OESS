@@ -77,6 +77,7 @@ Requires: perl(Net::DBus::Object)
 Requires: perl(Net::DBus::Reactor)
 Requires: perl(Net::Netconf)                >= 1.4.1
 Requires: perl(Net::Netconf::Manager)
+Requires: perl(Net::IP)
 Requires: perl(NetAddr::IP)
 Requires: perl(POSIX)
 Requires: perl(Proc::Daemon)

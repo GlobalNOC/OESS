@@ -294,11 +294,13 @@ sub delete_interconnect_attachment {
 
     my $interconnect_id = $params{interconnect_id};
     my $attachment_name = $params{connection_id};
+    my $pairing_key = $params{pairing_key};
 
     my $conn    = $self->{connections}->{$interconnect_id};
     my $http    = $conn->{http};
     my $project = $conn->{project_id};
-    my $region  = $conn->{region};
+    my @parts = split(/\//, $pairing_key);
+    my $region  = $parts[1];
 
     my $api_response = $http->delete("https://www.googleapis.com/compute/v1/projects/$project/regions/$region/interconnectAttachments/$attachment_name");
     if (!$api_response->is_success && $api_response->code == 500) {
@@ -355,7 +357,8 @@ sub insert_interconnect_attachment {
     my $conn    = $self->{connections}->{$cloud_interconnect_id};
     my $http    = $conn->{http};
     my $project = $conn->{project_id};
-    my $region  = $conn->{region};
+    my @parts = split(/\//, $pairing_key);
+    my $region = $parts[1];
 
     my $payload = {
         name            => $connection_id,

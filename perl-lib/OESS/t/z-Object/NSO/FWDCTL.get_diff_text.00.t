@@ -52,6 +52,8 @@ my $expect1 = {
     'N11' => '+  e15/6.3126
 +    Bandwidth: 0
 +    Tag:       3126
+OESS-VRF-1:
+- Workgroup: Workgroup 21
 -  e15/6.300
 -    Bandwidth: 200
 -    Tag:       300

@@ -198,6 +198,10 @@ sub update {
     my $params = [];
     my $values = [];
 
+    if (defined $args->{peer}->{ip_version}) {
+        push @$params, 'ip_version=?';
+        push @$values, $args->{peer}->{ip_version};
+    }
     if (defined $args->{peer}->{peer_ip}) {
         push @$params, 'peer_ip=?';
         push @$values, $args->{peer}->{peer_ip};

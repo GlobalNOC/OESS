@@ -49,7 +49,8 @@ my $fwdctl = new OESS::NSO::FWDCTL(
 );
 
 my $expect1 = {
-    'N31' => '+  e15/4.200
+    'N31' => 'OESS-VRF-1:
++  e15/4.200
 +    Bandwidth: 100
 +    Tag:       2010
 +    Peer: 2
@@ -59,7 +60,8 @@ my $expect1 = {
 +      Peer IP:   192.168.2.3
 +      BFD:       0
 ',
-    'N11' => '   e15/6.300
+    'N11' => 'OESS-VRF-1:
+   e15/6.300
 -    Bandwidth: 200
 +    Bandwidth: 100
 -    Tag:       300
@@ -80,7 +82,8 @@ my $expect1 = {
 +      Peer IP:   192.168.5.3
 +      BFD:       0
 ',
-    'xr1' => '-  GigabitEthernet0/1.300
+    'xr1' => 'OESS-VRF-1:
+-  GigabitEthernet0/1.300
 -    Bandwidth: 100
 -    Tag:       300
 -    Peer: 2

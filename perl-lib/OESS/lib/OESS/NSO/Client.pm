@@ -90,7 +90,7 @@ sub create_l2connection {
 
     eval {
         my $res = $self->{www}->post(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/?unhide=oess",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
@@ -122,7 +122,7 @@ sub delete_l2connection {
 
     eval {
         my $res = $self->{www}->delete(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection=$conn_id?unhide=oess",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection=$conn_id",
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->code >= 400) {
@@ -178,7 +178,7 @@ sub edit_l2connection {
 
     eval {
         my $res = $self->{www}->put(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection=$conn_id?unhide=oess",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection=$conn_id",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
@@ -210,7 +210,7 @@ sub get_l2connections {
     my $connections;
     eval {
         my $res = $self->{www}->get(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection/?unhide=oess",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l2connection:oess-l2connection/",
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->code >= 400) {
@@ -344,14 +344,15 @@ sub create_l3connection {
         "oess-l3connection:oess-l3connection" => [
             {
                 "connection_id" => $conn->vrf_id,
-                "endpoint" => $eps
+                "endpoint" => $eps,
+                "workgroup" => (defined $conn->workgroup) ? $conn->workgroup->name : 'Unknown Workgroup'
             }
         ]
     };
 
     eval {
         my $res = $self->{www}->post(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/?unhide=oess",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
@@ -383,7 +384,7 @@ sub delete_l3connection {
 
     eval {
         my $res = $self->{www}->delete(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection=$conn_id?unhide=oess",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection=$conn_id",
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->code >= 400) {
@@ -454,14 +455,15 @@ sub edit_l3connection {
         "oess-l3connection:oess-l3connection" => [
             {
                 "connection_id" => $conn->vrf_id,
-                "endpoint" => $eps
+                "endpoint" => $eps,
+                "workgroup" => (defined $conn->workgroup) ? $conn->workgroup->name : 'Unknown Workgroup'
             }
         ]
     };
 
     eval {
         my $res = $self->{www}->put(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection=$conn_id?unhide=oess",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection=$conn_id",
             'Content-type' => 'application/yang-data+json',
             'Content'      => encode_json($payload)
         );
@@ -493,7 +495,7 @@ sub get_l3connections {
     my $connections;
     eval {
         my $res = $self->{www}->get(
-            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection/?unhide=oess",
+            $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:services/oess-l3connection:oess-l3connection/",
             'Content-type' => 'application/yang-data+json'
         );
         if ($res->code >= 400) {
@@ -846,7 +848,6 @@ sub get_platform {
     $userpass = Encode::encode("UTF-8", "$username:$password");
 
     my $credentials = MIME::Base64::encode($userpass, '');
-
     http_request(
         GET => $self->{config_obj}->nso_host . "/restconf/data/tailf-ncs:devices/device=$node/platform",
         headers => {
@@ -858,7 +859,6 @@ sub get_platform {
             my ($body, $hdr) = @_;
 
             my $response;
-
             if ($hdr->{Status} >= 400) {
                 &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
                 return;
