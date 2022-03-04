@@ -232,4 +232,17 @@ sub update_db {
     return OESS::DB::ACL::update(db => $self->{db}, acl => $acl);
 }
 
+=head2 interface_id
+
+=cut
+sub interface_id {
+    my $self = shift;
+    my $interface_id = shift;
+
+    if (defined $interface_id) {
+        $self->{interface_id} = $interface_id;
+    }
+    return $self->{interface_id};
+}
+
 return 1;

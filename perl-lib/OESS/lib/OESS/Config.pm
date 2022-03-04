@@ -5,6 +5,7 @@ use warnings;
 
 package OESS::Config;
 
+use Data::Dumper;
 use XML::Simple;
 
 =head1 NAME
@@ -41,9 +42,9 @@ sub new {
     my $logger = Log::Log4perl->get_logger("OESS.Config");
 
     my %args = (
-        config_filename => '/etc/oess/database.xml' ,
+        config_filename => '/etc/oess/database.xml',
         @_,
-        );
+    );
 
     my $self = \%args;
 
@@ -80,6 +81,94 @@ sub db_credentials {
     return {database => $database,
             username => $username,
             password => $password};
+}
+
+=head2 mysql_user
+
+=cut
+sub mysql_user {
+    my $self = shift;
+    return $ENV{MYSQL_USER} || $self->{config}->{credentials}->{username};
+}
+
+=head2 mysql_pass
+
+=cut
+sub mysql_pass {
+    my $self = shift;
+    return $ENV{MYSQL_PASS} || $self->{config}->{credentials}->{password};
+}
+
+=head2 mysql_host
+
+=cut
+sub mysql_host {
+    my $self = shift;
+    return $ENV{MYSQL_HOST} || 'localhost';
+}
+
+=head2 mysql_port
+
+=cut
+sub mysql_port {
+    my $self = shift;
+    return $ENV{MYSQL_PORT} || 3306;
+}
+
+=head2 mysql_database
+
+=cut
+sub mysql_database {
+    my $self = shift;
+    return $ENV{MYSQL_DATABASE} || $self->{config}->{credentials}->{database} || 'oess';
+}
+
+=head2 rabbitmq_user
+
+=cut
+sub rabbitmq_user {
+    my $self = shift;
+    return $ENV{RABBITMQ_USER} || $self->{config}->{rabbitMQ}->{user};
+}
+
+=head2 rabbitmq_pass
+
+=cut
+sub rabbitmq_pass {
+    my $self = shift;
+    return $ENV{RABBITMQ_PASS} || $self->{config}->{rabbitMQ}->{pass};
+}
+
+=head2 rabbitmq_host
+
+=cut
+sub rabbitmq_host {
+    my $self = shift;
+    return $ENV{RABBITMQ_HOST} || $self->{config}->{rabbitMQ}->{host} || 'localhost';
+}
+
+=head2 rabbitmq_port
+
+=cut
+sub rabbitmq_port {
+    my $self = shift;
+    return $ENV{RABBITMQ_PORT} || $self->{config}->{rabbitMQ}->{port} || 5672;
+}
+
+=head2 rabbitmq_vhost
+
+=cut
+sub rabbitmq_vhost {
+    my $self = shift;
+    return $ENV{RABBITMQ_VHOST} || $self->{config}->{rabbitMQ}->{vhost} || '/';
+}
+
+=head2 oess_netconf_overlay
+
+=cut
+sub oess_netconf_overlay {
+    my $self = shift;
+    return $ENV{OESS_NETCONF_OVERLAY} || $self->{config}->{network_type} || 'vpn-mpls';
 }
 
 =head2 filename
@@ -249,8 +338,7 @@ sub third_party_mgmt {
 =cut
 sub nso_host {
     my $self = shift;
-    return if (!defined $self->{config}->{nso});
-    return $self->{config}->{nso}->{host};
+    return $ENV{NSO_HOST} || $self->{config}->{nso}->{host};
 }
 
 =head2 nso_password
@@ -258,8 +346,7 @@ sub nso_host {
 =cut
 sub nso_password {
     my $self = shift;
-    return if (!defined $self->{config}->{nso});
-    return $self->{config}->{nso}->{password};
+    return $ENV{NSO_PASS} || $self->{config}->{nso}->{password};
 }
 
 =head2 nso_username
@@ -267,8 +354,7 @@ sub nso_password {
 =cut
 sub nso_username {
     my $self = shift;
-    return if (!defined $self->{config}->{nso});
-    return $self->{config}->{nso}->{username};
+    return $ENV{NSO_USER} || $self->{config}->{nso}->{username};
 }
 
 =head2 tsds_url
@@ -276,8 +362,7 @@ sub nso_username {
 =cut
 sub tsds_url {
     my $self = shift;
-    return if (!defined $self->{config}->{tsds});
-    return $self->{config}->{tsds}->{url};
+    return $ENV{TSDS_URL} || $self->{config}->{tsds}->{url};
 }
 
 =head2 tsds_password
@@ -285,8 +370,7 @@ sub tsds_url {
 =cut
 sub tsds_password {
     my $self = shift;
-    return if (!defined $self->{config}->{tsds});
-    return $self->{config}->{tsds}->{password};
+    return $ENV{TSDS_PASSWORD} || $self->{config}->{tsds}->{password};
 }
 
 =head2 tsds_username
@@ -294,8 +378,7 @@ sub tsds_password {
 =cut
 sub tsds_username {
     my $self = shift;
-    return if (!defined $self->{config}->{tsds});
-    return $self->{config}->{tsds}->{username};
+    return $ENV{TSDS_USERNAME} || $self->{config}->{tsds}->{username};
 }
 
 =head2 tsds_realm
@@ -303,8 +386,7 @@ sub tsds_username {
 =cut
 sub tsds_realm {
     my $self = shift;
-    return if (!defined $self->{config}->{tsds});
-    return $self->{config}->{tsds}->{realm};
+    return $ENV{TSDS_REALM} || $self->{config}->{tsds}->{realm};
 }
 
 1;

@@ -24,6 +24,7 @@ use OESS::DB;
 use OESS::Endpoint;
 use OESS::Peer;
 use OESS::VRF;
+use OESS::Workgroup;
 use OESS::NSO::ClientStub;
 
 OESSDatabaseTester::resetOESSDB(
@@ -41,6 +42,7 @@ my $nso_l3connection_tests = [];
 
 my $nso_conn1 = {
     "connection_id" => 456,
+    "workgroup" => "Unknown",
     "endpoint" => [
         {
             "endpoint_id" => 8,
@@ -89,7 +91,9 @@ my $nso_conn1 = {
     ]
 };
 my $diff1 = {
-    'N11' => '-  e15/6.300
+    'N11' => 'OESS-VRF-456:
+- Workgroup: Unknown
+-  e15/6.300
 -    Bandwidth: 200
 -    Tag:       300
 -    Peer: 1
@@ -116,10 +120,12 @@ my $oess_conn1 = new OESS::VRF(
         vrf_id => 456
     }
 );
+$oess_conn1->load_workgroup;
 
 
 my $nso_conn2 = {
     "connection_id" => 456,
+    "workgroup" => "Workgroup 21",
     "endpoint" => [
         {
             "endpoint_id" => 8,
@@ -168,7 +174,8 @@ my $nso_conn2 = {
     ]
 };
 my $diff2 = {
-    'N11' => '   e15/6.300
+    'N11' => 'OESS-VRF-456:
+   e15/6.300
 -    Peer: 1
 -      Local ASN: 64600
 -      Local IP:  192.168.3.2/31
@@ -191,6 +198,10 @@ my $oess_conn2 = new OESS::VRF(
         vrf_id => 456
     }
 );
+$oess_conn2->workgroup(new OESS::Workgroup(
+    db => $db,
+    workgroup_id => 21
+));
 $oess_conn2->add_endpoint(new OESS::Endpoint(
     db    => $db,
     model => {
@@ -226,6 +237,7 @@ $oess_conn2->add_endpoint(new OESS::Endpoint(
 # update each peers local and remote ips
 my $nso_conn3 = {
     "connection_id" => 456,
+    "workgroup" => "Workgroup 31",
     "endpoint" => [
         {
             "endpoint_id" => 8,
@@ -274,7 +286,10 @@ my $nso_conn3 = {
     ]
 };
 my $diff3 = {
-    'N11' => '   e15/6.300
+    'N11' => 'OESS-VRF-456:
+- Workgroup: Workgroup 31
++ Workgroup: Workgroup 21
+   e15/6.300
      Peer: 1
 -      Local IP:  192.168.3.2/31
 +      Local IP:  192.168.5.2/31
@@ -299,6 +314,10 @@ my $oess_conn3 = new OESS::VRF(
         vrf_id => 456
     }
 );
+$oess_conn3->workgroup(new OESS::Workgroup(
+    db => $db,
+    workgroup_id => 21
+));
 my $ep8 = new OESS::Endpoint(
     db    => $db,
     model => {
@@ -360,6 +379,7 @@ $oess_conn3->add_endpoint($ep9);
 # one comppletely new peer
 my $nso_conn4 = {
     "connection_id" => 456,
+    "workgroup" => "",
     "endpoint" => [
         {
             "endpoint_id" => 8,
@@ -408,7 +428,10 @@ my $nso_conn4 = {
     ]
 };
 my $diff4 = {
-    'N11' => '   e15/6.301
+    'N11' => 'OESS-VRF-456:
+- Workgroup: 
++ Workgroup: Workgroup 21
+   e15/6.301
 -    Peer: 2
 -      Local ASN: 64600
 -      Local IP:  192.168.2.2/31
@@ -430,6 +453,10 @@ my $oess_conn4 = new OESS::VRF(
         vrf_id => 456
     }
 );
+$oess_conn4->workgroup(new OESS::Workgroup(
+    db => $db,
+    workgroup_id => 21
+));
 my $ep82 = new OESS::Endpoint(
     db    => $db,
     model => {

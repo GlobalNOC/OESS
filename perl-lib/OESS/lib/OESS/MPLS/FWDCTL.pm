@@ -63,7 +63,10 @@ use GRNOC::WebService::Regex;
 
 create a new OESS Master process
 
-  FWDCTL->new();
+    new OESS::FWDCTL(
+        config     => '/etc/oess/database.xml',
+        config_obj => new OESS::Config,
+    );
 
 =cut
 sub new {
@@ -74,31 +77,32 @@ sub new {
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.FWDCTL.MASTER');
 
-    # $self->{config} is assumed to be a str path
+    # $self->{config} is first assumed to be a str path. After loading the
+    # config, this object expects that $self->{config} contains a config object
     my $config_filename = (defined $self->{'config'}) ? $self->{'config'} : '/etc/oess/database.xml';
 
     if (!defined $self->{config_obj}) {
-	$self->{'config'} = new OESS::Config(config_filename => $config_filename);
-    } else {
-	$self->{'config'} = $self->{config_obj};
-	$config_filename = $self->{config_obj}->filename;
+	    $self->{config_obj} = new OESS::Config(config_filename => $config_filename);
     }
+    $self->{config} = $self->{config_obj};
 
-    $self->{'db'} = OESS::Database->new(config_file => $config_filename);
-    $self->{'db2'} = OESS::DB->new(config => $config_filename);
+    $self->{'db'} = OESS::Database->new(config_obj => $self->{config_obj});
+    $self->{'db2'} = OESS::DB->new(config_obj => $self->{config_obj});
+    die if (!defined $self->{'db'});
+    die if (!defined $self->{'db2'});
 
     if (!$self->{object_only}) {
-        my $fwdctl_dispatcher = OESS::RabbitMQ::Dispatcher->new(
-            queue => 'MPLS-FWDCTL',
-            topic => "MPLS.FWDCTL.RPC"
+        $self->{fwdctl_dispatcher} = OESS::RabbitMQ::Dispatcher->new(
+            config_obj => $self->{config_obj},
+            queue      => 'MPLS-FWDCTL',
+            topic      => 'MPLS.FWDCTL.RPC'
         );
-
-        $self->_register_rpc_methods( $fwdctl_dispatcher );
-        $self->{'fwdctl_dispatcher'} = $fwdctl_dispatcher;
+        $self->_register_rpc_methods($self->{fwdctl_dispatcher});
 
         $self->{'fwdctl_events'} = OESS::RabbitMQ::Client->new(
-            timeout => 120,
-            topic => 'MPLS.FWDCTL.event'
+            config_obj => $self->{config_obj},
+            timeout    => 120,
+            topic      => 'MPLS.FWDCTL.event'
         );
         $self->{'logger'}->info("RabbitMQ ready to go!");
 
@@ -109,18 +113,15 @@ sub new {
         };
     }
 
-
-    my $topo = OESS::Topology->new( db => $self->{'db'}, MPLS => 1 );
-    if (! $topo) {
+    $self->{topo} = new OESS::Topology(db => $self->{'db'}, MPLS => 1);
+    if (!$self->{topo}) {
         $self->{'logger'}->fatal("Could not initialize topo library");
         exit(1);
     }
     
-    $self->{'topo'} = $topo;
-    
     $self->{'uuid'} = new Data::UUID;
-    
-    if(!defined($self->{'share_file'})){
+
+    if (!defined $self->{'share_file'}) {
         $self->{'share_file'} = '/var/run/oess/mpls_share';
     }
     
@@ -556,6 +557,10 @@ sub new_switch{
     
     my $success = $m_ref->{'success_callback'};
 
+    # Respond to request immediately. It's FWDCTL's responsibility to create any
+    # helper processes.
+    &$success({status => FWDCTL_SUCCESS});
+
     $self->make_baby($node_id);
     $self->{'logger'}->debug("Baby was created!");
     $self->update_cache(
@@ -563,7 +568,7 @@ sub new_switch{
         { circuit_id => { value => -1 } }
     );
 
-    &$success({status => FWDCTL_SUCCESS});
+    return 1;
 }
 
 =head2 create_nodes
@@ -586,22 +591,19 @@ sub make_baby {
     my $self = shift;
     my $id = shift;
     
-    return 1 if(defined($self->{'children'}->{$id}->{'rpc'}) && $self->{'children'}->{$id}->{'rpc'} == 1);
-
-    $self->{'logger'}->debug("Before the fork");
+    if (defined $self->{'children'}->{$id}->{'rpc'} && $self->{'children'}->{$id}->{'rpc'} == 1) {
+        return 1;
+    }
+    $self->{'logger'}->info("Forking into Switch process.");
     
     my $node = $self->{'node_by_id'}->{$id};
     my %args;
     $args{'id'} = $id;
-    $args{'config'} = $self->{'config'}->{'config_filename'};
+    $args{'config'} = $self->{'config_obj'}->filename;
     $args{'share_file'} = $self->{'share_file'}. "." . $id;
-    $args{'rabbitMQ_host'} = $self->{'db'}->{'rabbitMQ'}->{'host'};
-    $args{'rabbitMQ_port'} = $self->{'db'}->{'rabbitMQ'}->{'port'};
-    $args{'rabbitMQ_user'} = $self->{'db'}->{'rabbitMQ'}->{'user'};
-    $args{'rabbitMQ_pass'} = $self->{'db'}->{'rabbitMQ'}->{'pass'};
-    $args{'rabbitMQ_vhost'} = $self->{'db'}->{'rabbitMQ'}->{'vhost'};
-    $args{'topic'} = "MPLS.FWDCTL.Switch";
     $args{'type'} = 'fwdctl';
+    $args{'topic'} = fwdctl_switch_topic_for_node(mgmt_addr => $self->{'node_by_id'}->{$id}->{'mgmt_addr'}, tcp_port => $self->{'node_by_id'}->{$id}->{'tcp_port'});
+
     my $proc = AnyEvent::Fork->new->require("Log::Log4perl", "OESS::MPLS::Switch")->eval('
 use strict;
 use warnings;
@@ -616,11 +618,8 @@ sub run{
 
     $logger = Log::Log4perl->get_logger("OESS.MPLS.FWDCTL.MASTER");
     $logger->info("Creating child for id: " . $args{"id"});
-    $logger->info($args{"config"});
     $switch = OESS::MPLS::Switch->new( %args );
 }')->fork->send_arg( %args )->run("run");
-
-    my $topic = fwdctl_switch_topic_for_node(mgmt_addr => $self->{'node_by_id'}->{$id}->{'mgmt_addr'}, tcp_port => $self->{'node_by_id'}->{$id}->{'tcp_port'});
 
     $self->{'children'}->{$id}->{'rpc'} = 1;
     $self->{'children'}->{$id}->{'pending_diff'} = $node->{'pending_diff'};

@@ -14,6 +14,7 @@ use GRNOC::WebService::Dispatcher;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_connection);
 use OESS::Cloud;
+use OESS::Cloud::AzurePeeringConfig;
 use OESS::Config;
 use OESS::DB;
 use OESS::DB::User;
@@ -25,13 +26,20 @@ use OESS::VRF;
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $config = new OESS::Config();
-my $db = OESS::DB->new();
-my $svc = GRNOC::WebService::Dispatcher->new();
-my $mq = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.RPC',
-                                      timeout  => 120 );
+my $db     = new OESS::DB(config_obj => $config);
 
-my $log_client = OESS::RabbitMQ::Client->new( topic    => 'OF.FWDCTL.event',
-                                              timeout  => 15 );
+my $mq = OESS::RabbitMQ::Client->new(
+    topic      => 'OF.FWDCTL.RPC',
+    timeout    => 120,
+    config_obj => $config
+);
+my $log_client = OESS::RabbitMQ::Client->new(
+    topic      => 'OF.FWDCTL.event',
+    timeout    => 15,
+    config_obj => $config
+);
+
+my $svc = GRNOC::WebService::Dispatcher->new();
 
 sub register_ro_methods {
     my $method = GRNOC::WebService::Method->new(
@@ -379,6 +387,7 @@ sub provision_vrf{
 
     my $vrf = undef;
     my $previous_vrf = undef;
+    my $azure_peering_config = new OESS::Cloud::AzurePeeringConfig(db => $db);
 
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
         $vrf = OESS::VRF->new(db => $db, vrf_id => $model->{vrf_id});
@@ -397,6 +406,8 @@ sub provision_vrf{
 
         $vrf->last_modified_by($user);
         $vrf->update;
+
+        $azure_peering_config->load($vrf->vrf_id);
     } else {
         $model->{created_by_id} = $user->user_id;
         $model->{last_modified_by_id} = $user->user_id;
@@ -541,35 +552,24 @@ sub provision_vrf{
                 }
 
                 if ($interface->cloud_interconnect_type eq 'azure-express-route') {
-                    my $peer;
+                    my $prefix;
                     if ($endpoint->cloud_interconnect_id =~ /PRI/) {
-                        # pri_prefix: '192.168.100.248/30';
-                        $peer = new OESS::Peer(
-                            db => $db,
-                            model => {
-                                peer_asn    => 12076,
-                                md5_key     => '',
-                                local_ip    => '192.168.100.249/30',
-                                peer_ip     => '192.168.100.250/30',
-                                ip_version  => 'ipv4',
-                                bfd         => $peering->{bfd}
-                            }
-                        );
+                        $prefix = $azure_peering_config->primary_prefix($endpoint->{cloud_account_id}, $peering->{ip_version});
                     } else {
-                        # sec_prefix: '192.168.100.252/30';
-                        $peer = new OESS::Peer(
-                            db => $db,
-                            model => {
-                                peer_asn    => 12076,
-                                md5_key     => '',
-                                local_ip    => '192.168.100.253/30',
-                                peer_ip     => '192.168.100.254/30',
-                                ip_version  => 'ipv4',
-                                bfd         => $peering->{bfd}
-                            }
-                        );
+                        $prefix = $azure_peering_config->secondary_prefix($endpoint->{cloud_account_id}, $peering->{ip_version});
                     }
 
+                    my $peer = new OESS::Peer(
+                        db => $db,
+                        model => {
+                            peer_asn    => 12076,
+                            md5_key     => '',
+                            local_ip    => $azure_peering_config->nth_address($prefix, 1),
+                            peer_ip     => $azure_peering_config->nth_address($prefix, 2),
+                            ip_version  => $peering->{ip_version},
+                            bfd         => $peering->{bfd}
+                        }
+                    );
                     my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
                     if (defined $peer_err) {
                         $method->set_error($peer_err);
@@ -578,7 +578,7 @@ sub provision_vrf{
                     }
                     $endpoint->add_peer($peer);
 
-                    $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"} = 1;
+                    $peerings->{"$endpoint->{node} $endpoint->{interface} $peer->{local_ip}"} = 1;
                     next;
                 }
 
@@ -675,6 +675,41 @@ sub provision_vrf{
                         next;
                     }
 
+                    # Updating a Cloud Connect Endpoint is unsupported, however
+                    # we still try to provide a consistent experience to the
+                    # user. Updating an Azure Endpoint's peerings must be done
+                    # via the Azure Portal.
+                    if ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
+                        my $prefix;
+                        if ($endpoint->cloud_interconnect_id =~ /PRI/) {
+                            $prefix = $azure_peering_config->primary_prefix($endpoint->{cloud_account_id}, $peering->{ip_version});
+                        } else {
+                            $prefix = $azure_peering_config->secondary_prefix($endpoint->{cloud_account_id}, $peering->{ip_version});
+                        }
+
+                        my $peer = new OESS::Peer(
+                            db => $db,
+                            model => {
+                                peer_asn    => 12076,
+                                md5_key     => '',
+                                local_ip    => $azure_peering_config->nth_address($prefix, 1),
+                                peer_ip     => $azure_peering_config->nth_address($prefix, 2),
+                                ip_version  => $peering->{ip_version},
+                                bfd         => $peering->{bfd}
+                            }
+                        );
+                        my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
+                        if (defined $peer_err) {
+                            $method->set_error($peer_err);
+                            $db->rollback;
+                            return;
+                        }
+                        $endpoint->add_peer($peer);
+
+                        $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"} = 1;
+                        next;
+                    }
+    
                     # Peerings not auto-generated for non-cloud endpoints
                     if (defined $endpoint->{cloud_account_id} && $endpoint->{cloud_account_id} eq '') {
                         next;
@@ -760,7 +795,7 @@ sub provision_vrf{
     if (!$params->{skip_cloud_provisioning}{value}) {
         eval {
             OESS::Cloud::cleanup_endpoints($del_endpoints);
-            OESS::Cloud::setup_endpoints($vrf->name, $add_endpoints, $is_admin);
+            OESS::Cloud::setup_endpoints($db, $vrf->vrf_id, $vrf->name, $add_endpoints, $is_admin);
 
             foreach my $ep (@{$vrf->endpoints}) {
                 # It's expected that layer2 connections to azure pass

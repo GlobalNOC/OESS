@@ -97,8 +97,8 @@ $vrf->load_users;
 ok(defined $vrf->created_by, 'Correct created_by post-load.');
 ok(defined $vrf->last_modified_by, 'Correct last_modified_by post-load.');
 
-ok($vrf->created_by->{username} eq 'aragusa', 'Correct created_by username loaded.');
-ok($vrf->last_modified_by->{username} eq 'aragusa', 'Correct last_modified_by username loaded.');
+ok($vrf->created_by->{usernames}->[0] eq 'aragusa', 'Correct created_by username loaded.');
+ok($vrf->last_modified_by->{usernames}->[0] eq 'aragusa', 'Correct last_modified_by username loaded.');
 
 ok($vrf->name eq 'Test_4', 'Correct name loaded.');
 ok($vrf->description eq 'Test_4', 'Correct description loaded.');

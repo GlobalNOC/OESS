@@ -76,6 +76,7 @@ sub from_hash{
     $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
     $self->{'bandwidth'} = $hash->{'bandwidth'} || 0;
     $self->{'provisionable_bandwidth'} = $hash->{'provisionable_bandwidth'};
+    $self->{'role'} = $hash->{'role'} || 'unknown';
     $self->{'mtu'} = $hash->{'mtu'} || 0;
 
     return 1;
@@ -99,6 +100,7 @@ sub to_hash{
         workgroup_id => $self->workgroup_id(),
         utilized_bandwidth => $self->{'utilized_bandwidth'},
         bandwidth => $self->{'bandwidth'},
+        role => $self->{'role'},
         provisionable_bandwidth => $self->{'provisionable_bandwidth'},
         mtu => $self->{'mtu'}
     };
@@ -182,7 +184,7 @@ sub create {
 =head2 update_db
 
 =cut
-sub update_db{
+sub update_db {
     my $self = shift;
 
     if (!defined $self->{'db'}) {
@@ -288,23 +290,33 @@ sub name{
 =head2 cloud_interconnect_id
 
 =cut
-sub cloud_interconnect_id{
+sub cloud_interconnect_id {
     my $self = shift;
+    my $cloud_interconnect_id = shift;
+
+    if (defined $cloud_interconnect_id) {
+        $self->{cloud_interconnect_id} = $cloud_interconnect_id;
+    }
     return $self->{'cloud_interconnect_id'};
 }
 
 =head2 cloud_interconnect_type
 
 =cut
-sub cloud_interconnect_type{
+sub cloud_interconnect_type {
     my $self = shift;
+    my $cloud_interconnect_type = shift;
+
+    if (defined $cloud_interconnect_type) {
+        $self->{cloud_interconnect_type} = $cloud_interconnect_type;
+    }
     return $self->{'cloud_interconnect_type'};
 }
 
 =head2 description
 
 =cut
-sub description{
+sub description {
     my $self = shift;
     my $description = shift;
 
@@ -333,22 +345,36 @@ sub acls{
 
 =cut
 sub role{
-
+    my $self = shift;
+    return $self->{'role'};
 }
 
 =head2 node
 
 =cut
-sub node{
+sub node {
     my $self = shift;
     return $self->{'node'};
+}
+
+=head2 node_id
+
+=cut
+sub node_id {
+    my $self = shift;
+    return $self->{'node_id'};
 }
 
 =head2 workgroup_id
 
 =cut
-sub workgroup_id{
+sub workgroup_id {
     my $self = shift;
+    my $workgroup_id = shift;
+
+    if (defined $workgroup_id) {
+        $self->{workgroup_id} = $workgroup_id;
+    }
     return $self->{'workgroup_id'};
 }
 

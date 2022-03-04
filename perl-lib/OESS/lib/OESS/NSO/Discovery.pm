@@ -81,7 +81,6 @@ sub fetch_platform {
                 my $result = $results->{$node->{name}};
                 next if !defined $result;
 
-                $self->{db}->start_transaction;
                 my $device = new OESS::Node(db => $self->{db}, name => $node->{name});
                 if (!defined $device) {
                     warn "Couldn't find node $result->{name}.";
@@ -92,9 +91,8 @@ sub fetch_platform {
 
                 $device->model($result->{model});
                 $device->sw_version($result->{version});
-                $device->vendor('Cisco') if ($result->{name} eq 'ios-xr');
+                $device->make('Cisco') if ($result->{name} eq 'ios-xr');
                 $device->update;
-                $self->{db}->commit;
             }
             $cv->send;
         }
