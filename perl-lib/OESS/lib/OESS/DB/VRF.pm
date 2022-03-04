@@ -88,15 +88,6 @@ sub update {
         $args
     );
 
-    my $vrf_object = encode_json($vrf);
-    my $vrf_inst_query = "insert into history (date, user_id, workgroup_id, event, state, type, object) values (unix_timestamp(now()), ?, ?, 'edit', ?, 'l3connection', ?)";
-    my $history_id = $db->execute_query($vrf_inst_query, [$vrf->{last_modified_by_id}, $vrf->{workgroup_id}, $vrf->{state}, $vrf_object]);
-    if (!defined $history_id) {
-        return (undef, $db->get_error);
-    }
-
-    my $vrf_history = $db->execute_query("insert into vrf_history (vrf_id, history_id) values (?, ?)", [$vrf->{vrf_id}, $history_id]);
-
     return $result;
 }
 
@@ -113,19 +104,55 @@ sub create{
         return (undef, $db->get_error);
     }
 
-    $model->{'vrf_id'} = $vrf_id;
-    my $vrf_object = encode_json($model);
-    my $history_id = $db->execute_query("insert into history (date, state, user_id, workgroup_id, event, type, object) values (unix_timestamp(now()), 'active', ?, ?, 'create', 'l3connection', ?)", [$model->{'last_modified_by_id'}, $model->{'workgroup_id'}, $vrf_object]);
-    if (!defined $history_id) {
-        return (undef, $db->get_error);
-    }
-
-    my $vrf_history_id = $db->execute_query("insert into vrf_history (history_id, vrf_id) values (?, ?)", [$history_id, $vrf_id]);
-    if (!defined $vrf_history_id) {
-        return (undef, $db->get_error);
-    }
-
     return ($vrf_id, undef);
+}
+
+=head2 add_vrf_history
+
+    my $error = $vrf->add_vrf_history(
+        db => $db,
+        event => 'create',  # 'create' or 'edit' or 'decom'
+        vrf => $vrf_object, # OESS::VRF
+        user_id => $user_id, # who is making the edit
+        workgroup_id => $workgroup_id  # the workgroup the user is a part of
+        state => $state     # the current state of the connection
+    );
+
+    Returns an error if there is one, does not return the history entry
+
+=cut
+sub add_vrf_history {
+    my $args = {
+        db => undef,
+        event => undef,
+        vrf => undef,
+        user_id => undef,
+        workgroup_id => undef,
+        state => undef,
+        @_
+    };
+
+    return 'Required argument "db" is missing' if !defined $args->{db};
+    return 'Required argument "event" is missing' if !defined $args->{event};
+    return 'Required argument "event" must be "create", "edit", or "decom"' if $args->{event} !~ /create|edit|decom/;
+    return 'Required argument "vrf" is missing' if !defined $args->{vrf};
+    return 'Required argument "user_id" is missing' if !defined $args->{user_id};
+    return 'Required argument "workgroup_id" is missing' if !defined $args->{workgroup_id};
+    return 'Required argument "state" is missing' if !defined $args->{state};
+    return 'Required argument "state" must be "active", "decom", "scheduled", "deploying", "looped", "reserved" or "provisioned"' if $args->{state} !~ /active|decom|scheduled|deploying|looped|reserved|provisioned/;
+
+    my $query = "insert into history (date, state, user_id, workgroup_id, event, type, object) values (unix_timestamp(now()), ?, ?, ?, ?, 'l3connection', ?)";
+    my $history_id = $args->{db}->execute_query($query, [$args->{state}, $args->{user_id}, $args->{workgroup_id}, $args->{event}, $args->{vrf}->to_hash]);
+    if (!defined $history_id) {
+        return $args->{db}->get_error;
+    }
+
+    my $vrf_history_id = $args->{db}->execute_query("insert into vrf_history (history_id, vrf_id) values (?, ?)", [$history_id, $args->{vrf}->{vrf_id}]);
+    if (!defined $vrf_history_id) {
+        return $args->{db}->get_error;
+    }
+
+    return;
 }
 
 =head2 delete_endpoints
@@ -405,11 +432,6 @@ sub decom{
     my $workgroup_id = $params{'workgroup_id'};
 
     my $res = $db->execute_query("update vrf set state = 'decom', last_modified_by = ?, last_modified = unix_timestamp(now()) where vrf_id = ?",[$user, $vrf_id]);
-
-    my $vrf_inst_id = $db->execute_query("insert into history (date, state, user_id, event, type, object, workgroup_id) values (unix_timestamp(now()), 'decom', ?, 'decom', 'l3connection', '', ?)", [$user, $workgroup_id]);
-    if (!defined $vrf_inst_id) {
-        return (undef, $db->get_error);
-    }
 
     return $res;
 }

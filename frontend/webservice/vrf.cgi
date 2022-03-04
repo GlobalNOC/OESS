@@ -73,12 +73,17 @@ sub register_ro_methods {
         callback        => sub { get_vrf_history( @_ ) }
 	);
 
-    #add the required input parameter circuit_id
     $method->add_input_parameter(
         name            => 'vrf_id',
         pattern         => $GRNOC::WebService::Regex::INTEGER,
         required        => 1,
         description     => 'The id of the conneciton to fetch network events for.'
+    );
+    $method->add_input_parameter(
+        name            => 'workgroup_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => 'The workgroup the user is a part of.'
     );
 
     #register the get_vrf_history() method
@@ -187,6 +192,19 @@ sub get_vrf_history{
     my $results;
 
     my $vrf_id = $args->{'vrf_id'}{'value'};
+
+    my $user = new OESS::User(db => $db, username =>  $ENV{REMOTE_USER});
+    if (!defined $user) {
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+        return;
+    }
+    $user->load_workgroups;
+
+    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id});
+    if (!defined $workgroup && !$user->is_admin) {
+        $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
+        return;
+    }
 
     my $events = OESS::DB::VRF::get_vrf_history(db => $db, vrf_id => $vrf_id);
     if (!defined $events) {
@@ -841,6 +859,18 @@ sub provision_vrf{
         $reason = "Created by $ENV{'REMOTE_USER'}";
     }
 
+    my $error = OESS::DB::VRF::add_vrf_history(
+        db => $db,
+        event => $type eq 'provisioned' ? 'create' : 'edit',
+        vrf => $vrf,
+        user_id => $user->user_id,
+        workgroup_id => $params->{workgroup_id}{value},
+        state => 'decom'
+    );
+    if (defined $error) {
+        warn $error;
+    }
+
     eval {
         $log_client->vrf_notification(
             type     => $type,
@@ -885,7 +915,7 @@ sub remove_vrf {
     my $wg = $params->{'workgroup_id'}{'value'};
     my $vrf_id = $params->{'vrf_id'}{'value'} || undef;
 
-    my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id, workgroup_id => $wg);
+    my $vrf = OESS::VRF->new(db => $db, vrf_id => $vrf_id);
     if(!defined($vrf)){
         $method->set_error("Unable to find VRF: " . $vrf_id);
         return {success => 0};
@@ -921,6 +951,18 @@ sub remove_vrf {
 
     $vrf->decom(user_id => $user->user_id);
     $db->commit;
+
+    my $error = OESS::DB::VRF::add_vrf_history(
+        db => $db,
+        event => 'decom',
+        vrf => $vrf,
+        user_id => $user->user_id,
+        workgroup_id => $wg,
+        state => 'decom'
+    );
+    if (defined $error) {
+        warn $error;
+    }
 
     _update_cache($previous_vrf);
 

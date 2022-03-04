@@ -75,7 +75,7 @@ class ResourceHistoryTable extends Component {
 
     for (let i = 0; i < props.history.length; i++) {
       let h = props.history[i];
-      h.object = JSON.parse(h.object);
+      h.object = JSON.parse(JSON.stringify(h.object));
 
       let date = new Date(h.date * 1000).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
       let time = new Date(h.date * 1000).toLocaleTimeString("en-US", {hour: 'numeric', minute: 'numeric', timeZoneName: 'short'});

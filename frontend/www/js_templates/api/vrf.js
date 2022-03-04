@@ -111,8 +111,8 @@ async function getVRF(workgroupID, vrfID) {
   }
 }
 
-async function getVRFHistory(id) {
-  let url = `[% path %]services/vrf.cgi?method=get_vrf_history&vrf_id=${id}`;
+async function getVRFHistory(workgroupID, id) {
+  let url = `[% path %]services/vrf.cgi?method=get_vrf_history&vrf_id=${id}&workgroup_id=${workgroupID}`;
   try {
     const resp = await fetch(url, {method: 'get', credentials: 'include'});
     const data = await resp.json();

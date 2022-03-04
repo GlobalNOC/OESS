@@ -21,7 +21,7 @@ class GlobalState extends Component {
 
       loadCommands(this.connection);
 
-      this.history = await getVRFHistory(id);
+      this.history = await getVRFHistory(session.data.workgroup_id, id);
 
       document.getElementById('provision-time').innerHTML = '';
       document.getElementById('remove-time').innerHTML = '';
