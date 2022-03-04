@@ -178,6 +178,11 @@ document.addEventListener('DOMContentLoaded', async function() {
   let url = new URL(window.location.href);
   let id = url.searchParams.get('vrf_id');
 
+  if (id == null) {
+    document.getElementById("connection_error").style.display = "block";
+    document.getElementById("circuit").style.display = "none";
+  }
+
   state.selectConnection(id).then(async () => {
     let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.connection.workgroup.workgroup_id && !session.data.isReadOnly);
     let connActive = state.connection.state !== 'decom';

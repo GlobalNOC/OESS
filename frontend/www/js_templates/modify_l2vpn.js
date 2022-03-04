@@ -155,6 +155,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   let url = new URL(window.location.href);
   let id = url.searchParams.get('circuit_id');
+  if (id == null) {
+    document.getElementById("connection_error").style.display = "block";
+    document.getElementById("circuit2").style.display = "none";
+  }
 
   state = new GlobalState();
   state.selectCircuit(id);
