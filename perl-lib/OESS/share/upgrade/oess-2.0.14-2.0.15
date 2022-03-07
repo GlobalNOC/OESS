@@ -56,6 +56,34 @@ sub upgrade{
     my $str;
     my $sth;
 
+    $sth = $dbh->prepare("CREATE TABLE `history` (
+  `history_id` int(10) NOT NULL AUTO_INCREMENT,
+  `date` int(10) NOT NULL,
+  `user_id` int(10) NOT NULL,
+  `workgroup_id` int(10) NOT NULL,
+  `event` varchar(255) DEFAULT NULL,
+  `state` enum('scheduled','deploying','active','decom','looped','reserved','provisioned') NOT NULL DEFAULT 'scheduled',
+  `type` varchar(255) DEFAULT NULL,
+  `object` text NOT NULL,
+  PRIMARY KEY (`history_id`),
+  KEY `datex` (`date`),
+  KEY `user_history_fk` (`user_id`),
+  KEY `workgroup_history_fk` (`workgroup_id`),
+  CONSTRAINT `history_ibfk_2` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `history_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+    $sth->execute() or die "Unable to create history table";
+
+    $sth = $dbh->prepare("CREATE TABLE `vrf_history` (
+  `history_id` int(10) NOT NULL,
+  `vrf_id` int(10) NOT NULL,
+  KEY `history_vrf_history_fk` (`history_id`),
+  KEY `vrf_vrf_history_fk` (`vrf_id`),
+  CONSTRAINT `vrf_history_ibfk_2` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `vrf_history_ibfk_1` FOREIGN KEY (`history_id`) REFERENCES `history` (`history_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+    $sth->execute() or die "Unable to create vrf_history table";
+
     $sth = $dbh->prepare("ALTER TABLE workgroup MODIFY `name` varchar(20) NOT NULL");
     $sth->execute() or die "Unable to update workgroup 'name' length to 20";
 

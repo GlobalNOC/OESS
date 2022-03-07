@@ -73,6 +73,29 @@ sub register_ro_methods {
         description => 'Identifier of Workgroup used to fetch Layer3 Connections.'
     );
     $svc->register_method($method);
+
+    #get_vrf_history
+    $method = GRNOC::WebService::Method->new(
+        name            => 'get_vrf_history',
+        description     => 'returns a list of network events that have affected this vrf connection',
+        callback        => sub { get_vrf_history( @_ ) }
+	);
+
+    $method->add_input_parameter(
+        name            => 'vrf_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => 'The id of the conneciton to fetch network events for.'
+    );
+    $method->add_input_parameter(
+        name            => 'workgroup_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => 'The workgroup the user is a part of.'
+    );
+
+    #register the get_vrf_history() method
+    $svc->register_method($method);
 }
 
 sub register_rw_methods{
@@ -170,6 +193,35 @@ sub register_rw_methods{
 
     $svc->register_method($method);
 
+}
+
+sub get_vrf_history{
+    my ( $method, $args ) = @_;
+    my $results;
+
+    my $vrf_id = $args->{'vrf_id'}{'value'};
+
+    my $user = new OESS::User(db => $db, username =>  $ENV{REMOTE_USER});
+    if (!defined $user) {
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+        return;
+    }
+    $user->load_workgroups;
+
+    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id});
+    if (!defined $workgroup && !$user->is_admin) {
+        $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
+        return;
+    }
+
+    my $events = OESS::DB::VRF::get_vrf_history(db => $db, vrf_id => $vrf_id);
+    if (!defined $events) {
+        $method->set_error( $db->get_error() );
+        return;
+    }
+
+    $results->{'results'} = $events;
+     return $results;
 }
 
 sub get_vrf_details{
@@ -802,6 +854,18 @@ sub provision_vrf{
             return;
         }
 
+        my $error = OESS::DB::VRF::add_vrf_history(
+            db => $db,
+            event => 'modified',
+            vrf => $vrf,
+            user_id => $user->user_id,
+            workgroup_id => $params->{workgroup_id}{value},
+            state => 'decom'
+        );
+        if (defined $error) {
+            warn $error;
+        }
+
         # In the case where a connection is moved between controllers,
         # we want the cache for both controllers updated.
         if ($pending_topic ne $prev_topic) {
@@ -830,6 +894,18 @@ sub provision_vrf{
             $reason = "Updated by $ENV{'REMOTE_USER'}";
         }
     } else {
+        my $error = OESS::DB::VRF::add_vrf_history(
+            db => $db,
+            event => 'provisioned',
+            vrf => $vrf,
+            user_id => $user->user_id,
+            workgroup_id => $params->{workgroup_id}{value},
+            state => 'decom'
+        );
+        if (defined $error) {
+            warn $error;
+        }
+
         $db->commit;
         _update_cache($pending_vrf);
 
@@ -918,6 +994,18 @@ sub remove_vrf {
         warn $derr;
     } else {
         $ok = 1;
+    }
+
+    my $error = OESS::DB::VRF::add_vrf_history(
+        db => $db,
+        event => 'decom',
+        vrf => $vrf,
+        user_id => $user->user_id,
+        workgroup_id => $wg,
+        state => 'decom'
+    );
+    if (defined $error) {
+        warn $error;
     }
 
     $vrf->decom(user_id => $user->user_id);
