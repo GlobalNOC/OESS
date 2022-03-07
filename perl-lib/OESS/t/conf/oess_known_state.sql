@@ -31,18 +31,12 @@ DROP TABLE IF EXISTS `acl_history`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `acl_history` (
-  `acl_history_id` int(10) NOT NULL AUTO_INCREMENT,
-  `date` int(10) NOT NULL,
-  `user_id` int(10) NOT NULL,
-  `workgroup_id` int(10) NOT NULL,
-  `interface_id` int(10)  NOT NULL,
+  `history_id` int(10) NOT NULL,
   `interface_acl_id` int(10) NOT NULL,
-  `event` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`acl_history_id`),
-  KEY `user_acl_history_fk` (`user_id`),
-  KEY `acl_history_id` (`acl_history_id`),
-  KEY `interface_acl_history_fk` (`interface_acl_id`),
-  CONSTRAINT `user_acl_history_fk` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  KEY `history_acl_history_fk` (`history_id`),
+  KEY `acl_acl_history_fk` (`interface_acl_id`),
+  CONSTRAINT `acl_history_ibfk_2` FOREIGN KEY (`interface_acl_id`) REFERENCES `interface_acl` (`interface_acl_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `acl_history_ibfk_1` FOREIGN KEY (`history_id`) REFERENCES `history` (`history_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
