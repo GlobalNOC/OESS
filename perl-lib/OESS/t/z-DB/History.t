@@ -49,31 +49,31 @@ my ($id, $err) = $vrf->create;
 ok(defined $id, "Created vrf $vrf->{vrf_id}.");
 
 my $error = OESS::DB::VRF::add_vrf_history();
-ok($error eq 'Required argument "db" is missing', 'No database defined');
+ok($error eq 'Required argument "db" is missing', 'Got expected error: No database defined');
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db
 );
-ok($error eq 'Required argument "event" is missing', 'No event defined');
+ok($error eq 'Required argument "event" is missing', 'Got expected error: No event defined');
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db,
     event => 'fake'
 );
-ok($error eq 'Required argument "event" must be "create", "edit", or "decom"', 'Not a valid event');
+ok($error eq 'Required argument "event" must be "create", "edit", or "decom"', 'Got expected error: Not a valid event');
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db,
     event => 'create'
 );
-ok($error eq 'Required argument "vrf" is missing', 'No vrf object defined');
+ok($error eq 'Required argument "vrf" is missing', 'Got expected error: No vrf object defined');
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db,
     event => 'create',
     vrf => $vrf
 );
-ok($error eq 'Required argument "user_id" is missing', 'No user_id defined');
+ok($error eq 'Required argument "user_id" is missing', 'Got expected error: No user_id defined');
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db,
@@ -81,7 +81,7 @@ $error = OESS::DB::VRF::add_vrf_history(
     vrf => $vrf,
     user_id => 1
 );
-ok($error eq 'Required argument "workgroup_id" is missing', 'No workgroup_id defined');
+ok($error eq 'Required argument "workgroup_id" is missing', 'Got expected error: No workgroup_id defined');
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db,
@@ -90,7 +90,7 @@ $error = OESS::DB::VRF::add_vrf_history(
     user_id => 1,
     workgroup_id => $workgroup_id
 );
-ok($error eq 'Required argument "state" is missing', 'No state defined');
+ok($error eq 'Required argument "state" is missing', 'Got expected error: No state defined');
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db,
@@ -100,7 +100,7 @@ $error = OESS::DB::VRF::add_vrf_history(
     workgroup_id => $workgroup_id,
     state => 'fake'
 );
-ok($error eq 'Required argument "state" must be "active", "decom", "scheduled", "deploying", "looped", "reserved" or "provisioned"', 'Not a valid state');
+ok($error eq 'Required argument "state" must be "active", "decom", "scheduled", "deploying", "looped", "reserved" or "provisioned"', 'Got expected error: Not a valid state');
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db,
@@ -134,7 +134,11 @@ ok(!defined $error, "Created history entry when decoming a conneciton");
 
 my $events = OESS::DB::VRF::get_vrf_history( db => $db, vrf_id => $vrf->{vrf_id});
 ok(defined $events, "No errors getting vrf history events");
+warn Dumper($events) if !defined $events;
 ok(scalar(@$events) == 3, "Three history events created and stored");
-ok(@$events[0]->{event} eq 'create', "First event is a create");
-ok(@$events[1]->{event} eq 'edit', "Second event is a edit");
-ok(@$events[2]->{event} eq 'decom', "Third event is a decom");
+ok($events->[0]->{event} eq 'create', "First event is a create");
+warn Dumper($events->[0]) if $events->[0]->{event} ne 'create';
+ok($events->[1]->{event} eq 'edit', "Second event is a edit");
+warn Dumper($events->[1]) if $events->[1]->{event} ne 'edit';
+ok($events->[2]->{event} eq 'decom', "Third event is a decom");
+warn Dumper($events->[2]) if $events->[2]->{event} ne 'decom';
