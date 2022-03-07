@@ -428,7 +428,7 @@ sub decom{
     my $self = shift;
     my %params = @_;
     my $user_id = $params{'user_id'};
-    
+
     foreach my $ep (@{$self->endpoints()}){
         $ep->decom();
     }

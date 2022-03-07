@@ -1,1 +1,1 @@
-{"method_deprecated":0,"output_type":"application/json","input_params":{},"name":"get_users","description":"returns all the users in the database","default_input_validators":[],"expires":"-1d"}
+{"method_deprecated":"This method has been deprecated in favor of user.cgi?method=get_users.","output_type":"application/json","input_params":{},"name":"get_users","description":"returns all the users in the database","default_input_validators":[],"expires":"-1d"}
