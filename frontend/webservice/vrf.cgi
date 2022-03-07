@@ -842,18 +842,6 @@ sub provision_vrf{
     }
     my $pending_vrf = $vrf->to_hash;
 
-    my $error = OESS::DB::VRF::add_vrf_history(
-        db => $db,
-        event => $type eq 'provisioned' ? 'create' : 'edit',
-        vrf => $vrf,
-        user_id => $user->user_id,
-        workgroup_id => $params->{workgroup_id}{value},
-        state => 'decom'
-    );
-    if (defined $error) {
-        warn $error;
-    }
-
     # Valid vrf_id was passed in model which implies that the
     # connection is being edited.
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
@@ -864,6 +852,18 @@ sub provision_vrf{
         if (defined $t0_err || defined $t1_err) {
             $method->set_error("$t0_err $t1_err");
             return;
+        }
+
+        my $error = OESS::DB::VRF::add_vrf_history(
+            db => $db,
+            event => 'modified',
+            vrf => $vrf,
+            user_id => $user->user_id,
+            workgroup_id => $params->{workgroup_id}{value},
+            state => 'decom'
+        );
+        if (defined $error) {
+            warn $error;
         }
 
         # In the case where a connection is moved between controllers,
@@ -894,6 +894,18 @@ sub provision_vrf{
             $reason = "Updated by $ENV{'REMOTE_USER'}";
         }
     } else {
+        my $error = OESS::DB::VRF::add_vrf_history(
+            db => $db,
+            event => 'provisioned',
+            vrf => $vrf,
+            user_id => $user->user_id,
+            workgroup_id => $params->{workgroup_id}{value},
+            state => 'decom'
+        );
+        if (defined $error) {
+            warn $error;
+        }
+
         $db->commit;
         _update_cache($pending_vrf);
 
