@@ -110,7 +110,7 @@ $error = OESS::DB::VRF::add_vrf_history(
     workgroup_id => $workgroup_id,
     state => 'active'
 );
-ok(!defined $error, "Created history entry when creating a new conneciton");
+ok(!defined $error, "Created history entry when creating a new connection");
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db,
@@ -120,7 +120,7 @@ $error = OESS::DB::VRF::add_vrf_history(
     workgroup_id => $workgroup_id,
     state => 'active'
 );
-ok(!defined $error, "Created history entry when editing a conneciton");
+ok(!defined $error, "Created history entry when editing a connection");
 
 $error = OESS::DB::VRF::add_vrf_history(
     db => $db,
@@ -130,7 +130,7 @@ $error = OESS::DB::VRF::add_vrf_history(
     workgroup_id => $workgroup_id,
     state => 'active'
 );
-ok(!defined $error, "Created history entry when decoming a conneciton");
+ok(!defined $error, "Created history entry when decoming a connection");
 
 my $events = OESS::DB::VRF::get_vrf_history( db => $db, vrf_id => $vrf->{vrf_id});
 ok(defined $events, "No errors getting vrf history events");

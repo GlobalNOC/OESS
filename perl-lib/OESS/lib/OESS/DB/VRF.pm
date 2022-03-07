@@ -108,7 +108,7 @@ sub create{
 
 =head2 add_vrf_history
 
-    my $error = $vrf->add_vrf_history(
+    my $error = OESS::DB::VRF::add_vrf_history(
         db => $db,
         event => 'create',  # 'create' or 'edit' or 'decom'
         vrf => $vrf_object, # OESS::VRF

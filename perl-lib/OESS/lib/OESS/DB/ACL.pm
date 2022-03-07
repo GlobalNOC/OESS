@@ -66,12 +66,6 @@ sub create {
     if (!defined $id) {
         $error = $args->{db}->get_error();
     }
-    my $user_id = $args->{model}->{user_id} ? $args->{model}->{user_id} : '-1';
-    my $workgroup_id = $args->{model}->{workgroup_id} ? $args->{model}->{workgroup_id} : '-1';
-    my $interface_id = $args->{model}->{interface_id} ? $args->{model}->{interface_id} : '-1';
-    my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
-                 values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Created')";
-    my $acl_history = $args->{db}->execute_query($query,[$user_id, $workgroup_id, $interface_id, $id]);
 
     return ($id, $error);
 }
@@ -289,15 +283,6 @@ sub update {
     
     push @$values, $args->{acl}->{interface_acl_id};
 
-    my $ac = new OESS::AccessController::Default(db => $args->{db});
-    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
-    $user = $user ? $user->user_id : '-1';
-    my $workgroup_id = $args->{acl}->{workgroup_id} ? $args->{acl}->{workgroup_id} : '-1';
-    my $interface_id = $args->{acl}->{interface_id} ? $args->{acl}->{interface_id} : '-1';
-    my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
-                 values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Updated')";
-    my $acl_history = $args->{db}->execute_query($query,[$user, $workgroup_id, $interface_id, $args->{acl}->{interface_acl_id}]);
-
     return $args->{db}->execute_query(
         "UPDATE interface_acl SET $fields WHERE interface_acl_id=?",
         $values
@@ -331,15 +316,6 @@ sub remove {
         return(0, "Error interface_acl_id did not exist");
     }
 
-    my $ac = new OESS::AccessController::Default(db => $args->{db});
-    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
-    $user = $user ? $user->user_id : '-1';
-    my $workgroup_id = $args->{workgroup_id} ? $args->{workgroup_id} : '-1';
-    my $interface_id = $args->{interface_id} ? $args->{interface_id} : '-1';
-    my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
-                 values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Removed')";
-    my $acl_history = $args->{db}->execute_query($query,[$user, $workgroup_id, $interface_id, $args->{interface_acl_id}]);
-
     return(1,undef);
 }
 
@@ -360,9 +336,6 @@ sub remove_all {
         @_
     };
 
-    my $query = "SELECT * FROM interface_acl WHERE interface_id = ?";
-    my $acls = $args->{db}->execute_query($query,[$args->{interface_id}]);
-
     return (0,"db is a required parameter") if !defined $args->{db};
     return (0,"interface_id is a required parameter") if !defined $args->{interface_id};
 
@@ -373,17 +346,6 @@ sub remove_all {
         return (-1, "Error removing acls");
     }
 
-    my $ac = new OESS::AccessController::Default(db => $args->{db});
-    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
-    $user = $user ? $user->user_id : '-1';
-    my $workgroup_id = $args->{workgroup_id} ? $args->{workgroup_id} : '-1';
-    my $interface_id = $args->{interface_id} ? $args->{interface_id} : '-1';
-    foreach my $acl (@$acls) {
-        my $query = "insert into acl_history (acl_history_id, date, user_id, workgroup_id, interface_id, interface_acl_id, event)
-                    values (null, unix_timestamp(now()), ?, ?, ?, ?, 'ACL Removed')";
-        my $acl_history = $args->{db}->execute_query($query,[$user, $acl->{workgroup_id}, $args->{interface_id}, $acl->{interface_acl_id}]);
-    }
-
     return ($count, undef);
 }
 
@@ -392,15 +354,88 @@ sub remove_all {
 
 sub get_acl_history {
     my $args = {
-        db => undef,
         interface_acl_id => undef,
-        interface_id => undef,
+        db => undef,
+        @_
+    };
+    my $events;
+
+    my $results = $args->{db}->execute_query(
+        "select user.user_id, concat(user.given_names, ' ', user.family_name) as full_name,
+                interface_acl.interface_acl_id as resource_id,
+                workgroup.workgroup_id, workgroup.name as workgroup,
+                history.event, history.type, history.date, history.object
+
+         from interface_acl
+         join acl_history on interface_acl.interface_acl_id = acl_history.interface_acl_id
+         join history on acl_history.history_id = history.history_id
+         join user on user.user_id = history.user_id
+         join workgroup on workgroup.workgroup_id = history.workgroup_id
+         where interface_acl.interface_acl_id = ? order by history.date DESC",
+    [$args->{interface_acl_id}]);
+
+    foreach my $row (@$results){
+        push @$events, {
+            user_id      => $row->{user_id},
+            full_name    => $row->{full_name},
+            workgroup_id => $row->{workgroup_id},
+            workgroup    => $row->{workgroup},
+            event        => $row->{event},
+            type         => $row->{type},
+            date         => $row->{date},
+            object       => $row->{object},
+            resource_id  => $row->{resource_id}
+        };
+    }
+
+    return $events;
+}
+
+=head2 add_acl_history
+
+    Returns an error if there is one, does not return the history entry
+    my $error = add_acl_history(
+        db => $db,
+        event => 'create',  # 'create' or 'edit' or 'decom'
+        acl => $vrf_object, # OESS::ACL
+        user_id => $user_id, # who is making the edit
+        workgroup_id => $workgroup_id  # the workgroup the user is a part of
+        state => $state     # the current state of the connection
+    );
+
+=cut
+sub add_acl_history {
+    my $args = {
+        db => undef,
+        event => undef,
+        acl => undef,
+        user_id => undef,
         workgroup_id => undef,
+        state => undef,
         @_
     };
 
-    my $query = "select * from acl_history where interface_id = ? and interface_acl_id = ? and workgroup_id = ?";
-    return $args->{db}->execute_query($query, [$args->{interface_id}, $args->{interface_acl_id}, $args->{workgroup_id}]);
+    return 'Required argument "db" is missing' if !defined $args->{db};
+    return 'Required argument "event" is missing' if !defined $args->{event};
+    return 'Required argument "event" must be "create", "edit", or "decom"' if $args->{event} !~ /create|edit|decom/;
+    return 'Required argument "acl" is missing' if !defined $args->{acl};
+    return 'Required argument "user_id" is missing' if !defined $args->{user_id};
+    return 'Required argument "workgroup_id" is missing' if !defined $args->{workgroup_id};
+    return 'Required argument "state" is missing' if !defined $args->{state};
+    return 'Required argument "state" must be "active" or "decom"' if $args->{state} !~ /active|decom/;
+
+    my $query = "insert into history (date, state, user_id, workgroup_id, event, type, object) values (unix_timestamp(now()), ?, ?, ?, ?, 'acl', ?)";
+    my $history_id = $args->{db}->execute_query($query, [$args->{state}, $args->{user_id}, $args->{workgroup_id}, $args->{event}, $args->{acl}->to_hash]);
+    if (!defined $history_id) {
+        return $args->{db}->get_error;
+    }
+
+    my $acl_history_id = $args->{db}->execute_query("insert into acl_history (history_id, interface_acl_id) values (?, ?)", [$history_id, $args->{acl}->{interface_acl_id}]);
+    if (!defined $acl_history_id) {
+        return $args->{db}->get_error;
+    }
+
+    return;
 }
 
 return 1;

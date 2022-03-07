@@ -199,7 +199,7 @@ sub get_vrf_history{
     my ( $method, $args ) = @_;
     my $results;
 
-    my $vrf_id = $args->{'vrf_id'}{'value'};
+    my $vrf_id = $args->{vrf_d}{value};
 
     my $user = new OESS::User(db => $db, username =>  $ENV{REMOTE_USER});
     if (!defined $user) {
@@ -208,7 +208,7 @@ sub get_vrf_history{
     }
     $user->load_workgroups;
 
-    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id});
+    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id}{value});
     if (!defined $workgroup && !$user->is_admin) {
         $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
         return;
@@ -856,7 +856,7 @@ sub provision_vrf{
 
         my $error = OESS::DB::VRF::add_vrf_history(
             db => $db,
-            event => 'modified',
+            event => 'edit',
             vrf => $vrf,
             user_id => $user->user_id,
             workgroup_id => $params->{workgroup_id}{value},
@@ -896,7 +896,7 @@ sub provision_vrf{
     } else {
         my $error = OESS::DB::VRF::add_vrf_history(
             db => $db,
-            event => 'provisioned',
+            event => 'create',
             vrf => $vrf,
             user_id => $user->user_id,
             workgroup_id => $params->{workgroup_id}{value},

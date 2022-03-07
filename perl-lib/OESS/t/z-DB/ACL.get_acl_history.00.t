@@ -13,7 +13,7 @@ BEGIN {
 
 use lib "$path/..";
 use Data::Dumper;
-use Test::More tests => 3;
+use Test::More tests => 14;
 use OESSDatabaseTester;
 use OESS::DB;
 use OESS::DB::ACL;
@@ -32,46 +32,94 @@ my $db = new OESS::DB(
     config  => "$path/../conf/database.xml"
 );
 
-my $model = {
-    workgroup_id => 31,
-    interface_id => 1,
-    allow_deny => 'allow',
-    eval_position => '1111',
-    start => 1025,
-    end => 1027,
-    notes => undef,
-    entity_id => 1,
+my $acl = OESS::ACL->new(
+    db => $db,
+    model => {
+        workgroup_id => 31,
+        interface_id => 1,
+        allow_deny   => 'allow',
+        eval_position => '1111',
+        start       => 1025,
+        end         => 1027,
+        notes       => undef,
+        entity_id   => 1,
+        user_id     => 1
+    }
+);
+$acl->create;
+
+my $error = OESS::DB::ACL::add_acl_history();
+ok($error eq 'Required argument "db" is missing', 'Got expected error: No database defined');
+
+$error = OESS::DB::ACL::add_acl_history(
+    db => $db
+);
+ok($error eq 'Required argument "event" is missing', 'Got expected error: No event defined');
+
+$error = OESS::DB::ACL::add_acl_history(
+    db => $db,
+    event => 'fake'
+);
+ok($error eq 'Required argument "event" must be "create", "edit", or "decom"', 'Got expected error: Not a valid event');
+
+$error = OESS::DB::ACL::add_acl_history(
+    db => $db,
+    event => 'create'
+);
+ok($error eq 'Required argument "acl" is missing', 'Got expected error: No acl object defined');
+
+$error = OESS::DB::ACL::add_acl_history(
+    db => $db,
+    event => 'create',
+    acl => $acl
+);
+ok($error eq 'Required argument "user_id" is missing', 'Got expected error: No user_id defined');
+
+$error = OESS::DB::ACL::add_acl_history(
+    db => $db,
+    event => 'create',
+    acl => $acl,
     user_id => 1
-};
+);
+ok($error eq 'Required argument "workgroup_id" is missing', 'Got expected error: No workgroup_id defined');
 
-my ($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
-ok(!defined $error, "No errors creating ACL");
+$error = OESS::DB::ACL::add_acl_history(
+    db => $db,
+    event => 'create',
+    acl => $acl,
+    user_id => 1,
+    workgroup_id => $workgroup_id,
+    state => 'active'
+);
+ok(!defined $error, "Created history entry when creating a new acl");
 
-my ($history, $error) = OESS::DB::ACL::get_acl_history( db => $db, interface_acl_id => $id, interface_id => $model->{interface_id}, workgroup_id => $model->{workgroup_id});
-ok(defined $history, "No errors getting ACL history");
-ok(@$history[0]->{'event'} eq "ACL Created", "ACL history create event correctly set");
+$error = OESS::DB::ACL::add_acl_history(
+    db => $db,
+    event => 'edit',
+    acl => $acl,
+    user_id => 1,
+    workgroup_id => $workgroup_id,
+    state => 'active'
+);
+ok(!defined $error, "Created history entry when editing an acl");
 
-# $model->{eval_position} += 10;
-# $model->{interface_acl_id} = $id;
-# my ($update, $error) = OESS::DB::ACL::update( db => $db, acl => $model);
-# ok(defined $update, "No errors updating ACL");
+$error = OESS::DB::ACL::add_acl_history(
+    db => $db,
+    event => 'decom',
+    acl => $acl,
+    user_id => 1,
+    workgroup_id => $workgroup_id,
+    state => 'decom'
+);
+ok(!defined $error, "Created history entry when deleting an acl");
 
-# $history = $db->execute_query("select * from acl_history where event = 'ACL Updated'");
-# ok(@$history[0]->{'event'} eq "ACL Updated", "ACL history update event correctly set");
-
-# my ($delete, $err) = OESS::DB::ACL::remove(db => $db, interface_acl_id => $id);
-# ok(!defined $err, "No error returned since both params were defined and ACL was deleted");
-
-# $history = $db->execute_query("select * from acl_history where event = 'ACL Removed'");
-# ok(@$history[0]->{'event'} eq "ACL Removed", "ACL history remove event correctly set");
-
-# $model->{eval_position} += 10;
-# ($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
-# $model->{eval_position} += 10;
-# ($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
-# $model->{eval_position} += 10;
-# ($id, $error) = OESS::DB::ACL::create( db => $db, model => $model);
-
-# ($delete, $err) = OESS::DB::ACL::remove_all(db => $db, interface_id => 1);
-# my $count = $db->execute_query("select * from acl_history where event = 'ACL Removed' and interface_id = 1");
-# ok(scalar(@$count) == 3, "ACL history remove event correctly set");
+my $events = OESS::DB::ACL::get_acl_history( db => $db, interface_acl_id => $acl->{interface_acl_id});
+ok(defined $events, "No errors getting acl history events");
+warn Dumper($events) if !defined $events;
+ok(scalar(@$events) == 3, "Three history events created and stored");
+ok($events->[0]->{event} eq 'create', "First event is a create");
+warn Dumper($events->[0]) if $events->[0]->{event} ne 'create';
+ok($events->[1]->{event} eq 'edit', "Second event is a edit");
+warn Dumper($events->[1]) if $events->[1]->{event} ne 'edit';
+ok($events->[2]->{event} eq 'decom', "Third event is a decom");
+warn Dumper($events->[2]) if $events->[2]->{event} ne 'decom';
