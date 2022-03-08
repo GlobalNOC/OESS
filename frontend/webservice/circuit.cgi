@@ -351,7 +351,7 @@ sub provision {
             if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
                 $ep->{mtu} = 1500;
             } else {
-                $ep->{mtu} 1440;
+                $ep->{mtu} = 1440;
             }
         } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
             $ep->{mtu} = 1500;
@@ -586,7 +586,7 @@ sub update {
                 if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
                     $ep->{mtu} = 1500;
                 } else {
-                    $ep->{mtu} 1440;
+                    $ep->{mtu} = 1440;
                 }
             } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                 $ep->{mtu} = 1500;
