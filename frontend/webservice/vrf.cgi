@@ -508,7 +508,11 @@ sub provision_vrf{
             } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
                 $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
             } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
-                $ep->{mtu} = 1440;
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
+                    $endpoint->mtu(1500);
+                } else {
+                    $endpoint->mtu(1440);
+                }
             } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                 $ep->{mtu} = 1500;
             } else {
@@ -636,7 +640,11 @@ sub provision_vrf{
             } elsif ($endpoint->cloud_interconnect_type eq 'aws-hosted-vinterface') {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
             } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
-                $endpoint->mtu(1440);
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
+                    $endpoint->mtu(1500);
+                } else {
+                    $endpoint->mtu(1440);
+                }
             } elsif ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
                 $endpoint->mtu(1500);
             } else {

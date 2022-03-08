@@ -53,18 +53,21 @@
                     <label class="control-label">Jumbo Frames</label><br/>
                     <input class="entity-jumbo-frames" type="checkbox"> Enable</input>
                   </div>
+                  
                   <!-- entity-gateway-type should only be shown for interfaces of type aws-hosted-connection -->
                   <div class="form-group entity-cloud-gateway-type">
-                    <label class="control-label">Direct Connect Gateway</label>
+
+                    <label class="control-label"><!-- Populated in endpoint_selection_modal.js --></label>
                     <!-- Popover: See https://getbootstrap.com/docs/3.3/javascript/#popovers for more information -->
                     <div style="display: flex; align-items: center;">
-                      <select class="form-control entity-cloud-gateway-type">
-                        <option value="transit">Transit</option>
-                        <option value="private" selected>Virtual Private</option>
+                      <select class="form-control">
+                        <!-- Populated in endpoint_selection_modal.js -->
                       </select>
-                      <a tabindex="0" class="btn btn-link" role="button" style="padding: 6px; margin: 0 0 0 6px;" data-toggle="popover" data-trigger="focus" data-container="body" data-html="true" data-content="The <b>MTU</b> of AWS Hosted Connections varies depending on the Direct Connect Gateway type used with this Connection. Failure to select the appropriate gateway type may impact network performance.">
+                      <!-- data-content populated in endpoint_selection_modal.js -->
+                      <a tabindex="0" class="btn btn-link help" role="button" style="padding: 6px; margin: 0 0 0 6px;" data-toggle="popover" data-trigger="focus" data-container="body" data-html="true" data-content="">
                         <span class="glyphicon glyphicon-question-sign" aria-hidden="true"></span>
                       </a>
+
                     </div>
                   </div>
 
