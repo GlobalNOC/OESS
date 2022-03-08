@@ -155,13 +155,14 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   let url = new URL(window.location.href);
   let id = url.searchParams.get('circuit_id');
-  if (id == null || id == "") {
-    document.getElementById("connection_error").style.display = "block";
-    document.getElementById("circuit2").style.display = "none";
-  }
 
   state = new GlobalState();
   state.selectCircuit(id);
+
+  if (state.circuit == null){
+    document.getElementById("connection_error").style.display = "block";
+    document.getElementById("circuit2").style.display = "none";
+  }
 
   console.log('GlobalState:', state);
 
