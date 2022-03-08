@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   let url = new URL(window.location.href);
   let id = url.searchParams.get('vrf_id');
 
-  if (id == null) {
+  if (id == null || id == "") {
     document.getElementById("connection_error").style.display = "block";
     document.getElementById("circuit").style.display = "none";
   }
