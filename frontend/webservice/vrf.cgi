@@ -509,9 +509,9 @@ sub provision_vrf{
                 $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
             } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
                 if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
-                    $endpoint->mtu(1500);
+                    $ep->{mtu} = 1500;
                 } else {
-                    $endpoint->mtu(1440);
+                    $ep->{mtu} = 1440;
                 }
             } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                 $ep->{mtu} = 1500;
