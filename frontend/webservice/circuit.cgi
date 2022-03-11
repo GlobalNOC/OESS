@@ -12,6 +12,7 @@ use Log::Log4perl;
 use GRNOC::WebService::Dispatcher;
 use GRNOC::WebService::Method;
 
+use OESS::Config;
 use OESS::Cloud;
 use OESS::DB;
 use OESS::DB::User;
@@ -28,11 +29,13 @@ use OESS::VRF;
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
+my $config = new OESS::Config();
+my $db     = new OESS::DB(config_obj => $config);
 
-my $db = OESS::DB->new();
 my $mq = OESS::RabbitMQ::Client->new(
-    topic   => 'OF.FWDCTL.RPC',
-    timeout => 120
+    topic      => 'OF.FWDCTL.RPC',
+    timeout    => 120,
+    config_obj => $config
 );
 
 my $ws = GRNOC::WebService::Dispatcher->new();
@@ -345,7 +348,11 @@ sub provision {
         } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
             $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
         } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
-            $ep->{mtu} = 1440;
+            if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
+                $ep->{mtu} = 1500;
+            } else {
+                $ep->{mtu} = 1440;
+            }
         } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
             $ep->{mtu} = 1500;
         } else {
@@ -414,7 +421,7 @@ sub provision {
 
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
-            OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints, $is_admin);
+            OESS::Cloud::setup_endpoints($db, undef, $circuit->description, $circuit->endpoints, $is_admin);
 
             foreach my $ep (@{$circuit->endpoints}) {
                 # It's expected that layer2 connections to azure pass
@@ -463,6 +470,12 @@ sub update {
 
     $db->start_transaction;
 
+    my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
+    if (!defined $user) {
+	$method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+	return;
+    }
+
     my ($is_admin, $is_admin_err) = OESS::DB::User::has_system_access(
         db       => $db,
         role     => 'normal',
@@ -487,6 +500,7 @@ sub update {
     $circuit->remote_url($args->{remote_url}->{value});
     $circuit->remote_requester($args->{remote_requester}->{value});
     $circuit->external_identifier($args->{external_identifier}->{value});
+    $circuit->user_id($user->{user_id});
 
     my $err = $circuit->update;
     if (defined $err) {
@@ -569,7 +583,11 @@ sub update {
             } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
                 $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
             } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
-                $ep->{mtu} = 1440;
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
+                    $ep->{mtu} = 1500;
+                } else {
+                    $ep->{mtu} = 1440;
+                }
             } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                 $ep->{mtu} = 1500;
             } else {
@@ -602,14 +620,18 @@ sub update {
             } elsif ($endpoint->cloud_interconnect_type eq 'aws-hosted-vinterface') {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
             } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
-                $endpoint->mtu(1440);
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
+                    $endpoint->mtu(1500);
+                } else {
+                    $endpoint->mtu(1440);
+                }
             } elsif ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
                 $endpoint->mtu(1500);
             } else {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9000 : 1500);
             }
 
-            my $err = $endpoint->update_db;
+	    my $err = $endpoint->update_db;
             if (defined $err) {
                 $method->set_error("Couldn't update Endpoint: $err");
                 $db->rollback;
@@ -661,7 +683,7 @@ sub update {
     if (!$args->{skip_cloud_provisioning}{value}) {
         eval {
             OESS::Cloud::cleanup_endpoints($del_endpoints);
-            OESS::Cloud::setup_endpoints($circuit->description, $add_endpoints, $is_admin);
+            OESS::Cloud::setup_endpoints($db, undef, $circuit->description, $add_endpoints, $is_admin);
 
             foreach my $ep (@{$circuit->endpoints}) {
                 # It's expected that layer2 connections to azure pass

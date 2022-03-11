@@ -64,11 +64,15 @@ class GlobalState extends Component {
     ).then(function(result) {
       if (result !== null && result.success == 1) {
         window.location.href = `index.cgi?action=modify_l2vpn&circuit_id=${result.circuit_id}`;
-      }
-      else {
+      } else {
         provisionModal.modal('hide');
-        window.alert('There was an error modifying the connection.');
+        console.error('There was an unknown error encountered while modifying the connection.', result);
+        window.alert('There was an unknown error encountered while modifying the connection.');
       }
+    }).catch(error => {
+      provisionModal.modal('hide');
+      console.error(error);
+      window.alert(error);
     });
   }
 

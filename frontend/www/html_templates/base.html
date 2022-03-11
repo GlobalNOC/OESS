@@ -57,7 +57,7 @@
 
             <ul class="nav navbar-nav navbar-right">
               [% IF is_admin == 1 %]
-              <li><a href="[% path %]admin/">Admin</a></li>
+              <li><a href="[% path %]new/admin/">Admin</a></li>
               [% END %]
               <li class="dropdown">
                 <a id="active_workgroup_name" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false" href="#"></a>
@@ -77,8 +77,9 @@
 
     <div class="footer-links">
       <div class="footer-links-left">
-        <a
-            href="https://www.internet2.edu/products-services/advanced-networking/networking-for-cloud/">About</a>
+        <a href="https://www.internet2.edu/products-services/advanced-networking/networking-for-cloud/">About</a>
+	<a href="https://internet2.edu/community/about-us/policies/terms-of-use/">Terms of Use</a>
+	<a href="https://internet2.edu/community/about-us/policies/internet2-network-acceptable-use-policy-aup/">Acceptable Use Policy</a>
         <a href="https://globalnoc.github.io/OESS/">Documentation</a>
         <a href="mailto:[% admin_email %]?SUBJECT=System Support: NDDI/OS3E Feedback Ticket">Feedback</a>
       </div>

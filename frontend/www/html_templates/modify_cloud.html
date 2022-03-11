@@ -53,6 +53,9 @@
           <a href="#details" aria-controls="details" role="tab" data-toggle="tab" onclick="updateStatisticsIFrame()">Details</a>
         </li>
         <li role="presentation">
+          <a href="#history" aria-controls="history" role="tab" data-toggle="tab">History</a>
+        </li>
+        <li role="presentation">
           <a href="#statistics" aria-controls="statistics" role="tab" data-toggle="tab" onclick="updateStatisticsIFrame()">Statistics</a>
         </li>
         <li role="presentation">
@@ -75,6 +78,7 @@
             </div>
           </div>
         </div>
+        <div role="tabpanel" class="tab-pane" id="history"></div>
         <div role="tabpanel" class="tab-pane" id="statistics">
           <br/>
           [% INCLUDE html_templates/view_l3vpn/statistics.html %]

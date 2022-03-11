@@ -16,10 +16,13 @@ my $modules = [
     { name => "interface",         source => "./frontend/webservice/interface.cgi" },
     { name => "measurement",       source => "./frontend/webservice/measurement.cgi" },
     { name => "monitoring",        source => "./frontend/webservice/monitoring.cgi" },
-    { name => "provisioning",      source => "./frontend/webservice/provisioning.cgi" },
     { name => "traceroute",        source => "./frontend/webservice/traceroute.cgi" },
     { name => "user",              source => "./frontend/webservice/user.cgi" },
-    { name => "workgroup_manage",  source => "./frontend/webservice/workgroup_manage.cgi" }
+    { name => "workgroup_manage",  source => "./frontend/webservice/workgroup_manage.cgi" },
+    { name => "acl",               source => "./frontend/webservice/acl.cgi" },
+    { name => "node",              source => "./frontend/webservice/node.cgi" },
+    { name => "user",              source => "./frontend/webservice/user.cgi" },
+    { name => "workgroup",         source => "./frontend/webservice/workgroup.cgi" },
 ];
 
 $ENV{REMOTE_USER} = 'admin';

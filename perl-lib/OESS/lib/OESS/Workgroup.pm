@@ -5,8 +5,9 @@ use warnings;
 
 package OESS::Workgroup;
 
-use OESS::DB::Workgroup;
 use Data::Dumper;
+
+use OESS::DB::Workgroup;
 
 =head2 new
 
@@ -18,7 +19,7 @@ sub new {
     my $self = {
         workgroup_id => undef,
         db     => undef,
-        modal  => undef,
+        model  => undef,
         logger => Log::Log4perl->get_logger("OESS.Workgroup"),
         @_
     };
@@ -124,7 +125,8 @@ sub create {
             my ($ok, $user_wg_err) = OESS::DB::Workgroup::add_user(
                 db           => $self->{db},
                 workgroup_id => $workgroup_id,
-                user_id      => $user->user_id
+                user_id      => $user->user_id,
+                role         => $user->role
             );
             if (defined $user_wg_err) {
                 return (undef, $user_wg_err);
@@ -170,11 +172,12 @@ sub update {
         return $rm_err if (defined $rm_err);
     }
 
-    foreach my $user_id (@{$self->{users_to_add}}) {
+    foreach my $user (@{$self->{users_to_add}}) {
         my ($create_ok, $create_err) = OESS::DB::Workgroup::add_user(
-            db => $self->{db},
-            user_id => $user_id,
-            workgroup_id => $self->workgroup_id
+            db           => $self->{db},
+            user_id      => $user->user_id,
+            workgroup_id => $self->workgroup_id,
+            role         => $user->role
         );
         return $create_err if (defined $create_err);
     }
@@ -196,6 +199,26 @@ sub max_circuits{
     return $self->{'max_circuits'};
 }
 
+=head2 load_users
+
+    my $err = $workgroup->load_users;
+
+=cut
+sub load_users {
+    my $self = shift;
+
+    my ($users, $err) = OESS::DB::Workgroup::get_users_in_workgroup(
+        db => $self->{db},
+        workgroup_id => $self->{workgroup_id}
+    );
+    if (defined $err) {
+        $self->{users} = [];
+        return $err;
+    }
+    $self->{users} = $users;
+    return;
+}
+
 =head2 add_user
 
     $path->add_user($user);
@@ -209,8 +232,35 @@ sub add_user {
     my $self = shift;
     my $user = shift;
 
-    push @{$self->{users_to_add}}, $user->user_id;
+    push @{$self->{users_to_add}}, $user;
     push @{$self->{users}}, $user;
+
+    return;
+}
+
+=head2 modify_user
+
+    my $role = 'normal';
+    my $err  = $workgroup->modify_user($user_id, $role);
+
+modify_user updates the role of C<$user_id> in this workgroup.
+
+=cut
+sub modify_user {
+    my $self = shift;
+    my $user_id = shift;
+    my $role = shift;
+
+    return "Cannot modify workgroup user; No database connection." if !defined $self->{db};
+
+    my ($ok, $err) = OESS::DB::Workgroup::edit_user_role(
+        db           => $self->{db},
+        user_id      => $user_id,
+        workgroup_id => $self->{workgroup_id},
+        role         => $role
+    );
+    return $err if defined $err;
+    return;
 }
 
 =head2 remove_user
@@ -234,6 +284,8 @@ sub remove_user {
         }
     }
     $self->{users} = $new_users;
+
+    return;
 }
 
 =head2 workgroup_id
@@ -258,12 +310,10 @@ sub name{
     my $self = shift;
     my $name = shift;
 
-    if(!defined($name)){
-        return $self->{'name'};
-    }else{
-        $self->{'name'} = $name;
-        return $self->{'name'};
+    if (defined $name) {
+        $self->{name} = $name;
     }
+    return $self->{name};
 }
 
 =head2 users
@@ -282,6 +332,19 @@ sub interfaces{
     return $self->{interfaces};
 }
 
+=head2 status
+
+=cut
+sub status{
+    my $self = shift;
+    my $status = shift;
+
+    if (defined $status) {
+        $self->{status} = $status;
+    }
+    return $self->{status};
+}
+
 =head2 type
 
 =cut
@@ -289,12 +352,23 @@ sub type{
     my $self = shift;
     my $type = shift;
 
-    if(!defined($type)){
-        return $self->{'type'};
-    }else{
-        $self->{'type'} = $type;
-        return $self->{'type'};
+    if (defined $type) {
+        $self->{type} = $type;
     }
+    return $self->{type};
+}
+
+=head2 description
+
+=cut
+sub description{
+    my $self = shift;
+    my $description = shift;
+
+    if (defined $description) {
+        $self->{description} = $description;
+    }
+    return $self->{description};
 }
 
 =head2 external_id
@@ -302,7 +376,12 @@ sub type{
 =cut
 sub external_id{
     my $self = shift;
-    return $self->{'external_id'};
+    my $external_id = shift;
+
+    if (defined $external_id) {
+        $self->{external_id} = $external_id;
+    }
+    return $self->{external_id};
 }
 
 1;

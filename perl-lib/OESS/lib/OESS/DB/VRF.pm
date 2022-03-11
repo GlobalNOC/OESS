@@ -106,6 +106,54 @@ sub create{
     return ($vrf_id, undef);
 }
 
+=head2 add_vrf_history
+
+    my $error = $vrf->add_vrf_history(
+        db => $db,
+        event => 'create',  # 'create' or 'edit' or 'decom'
+        vrf => $vrf_object, # OESS::VRF
+        user_id => $user_id, # who is making the edit
+        workgroup_id => $workgroup_id  # the workgroup the user is a part of
+        state => $state     # the current state of the connection
+    );
+
+    Returns an error if there is one, does not return the history entry
+
+=cut
+sub add_vrf_history {
+    my $args = {
+        db => undef,
+        event => undef,
+        vrf => undef,
+        user_id => undef,
+        workgroup_id => undef,
+        state => undef,
+        @_
+    };
+
+    return 'Required argument "db" is missing' if !defined $args->{db};
+    return 'Required argument "event" is missing' if !defined $args->{event};
+    return 'Required argument "event" must be "create", "edit", or "decom"' if $args->{event} !~ /create|edit|decom/;
+    return 'Required argument "vrf" is missing' if !defined $args->{vrf};
+    return 'Required argument "user_id" is missing' if !defined $args->{user_id};
+    return 'Required argument "workgroup_id" is missing' if !defined $args->{workgroup_id};
+    return 'Required argument "state" is missing' if !defined $args->{state};
+    return 'Required argument "state" must be "active", "decom", "scheduled", "deploying", "looped", "reserved" or "provisioned"' if $args->{state} !~ /active|decom|scheduled|deploying|looped|reserved|provisioned/;
+
+    my $query = "insert into history (date, state, user_id, workgroup_id, event, type, object) values (unix_timestamp(now()), ?, ?, ?, ?, 'l3connection', ?)";
+    my $history_id = $args->{db}->execute_query($query, [$args->{state}, $args->{user_id}, $args->{workgroup_id}, $args->{event}, $args->{vrf}->to_hash]);
+    if (!defined $history_id) {
+        return $args->{db}->get_error;
+    }
+
+    my $vrf_history_id = $args->{db}->execute_query("insert into vrf_history (history_id, vrf_id) values (?, ?)", [$history_id, $args->{vrf}->{vrf_id}]);
+    if (!defined $vrf_history_id) {
+        return $args->{db}->get_error;
+    }
+
+    return;
+}
+
 =head2 delete_endpoints
 
 =cut
@@ -382,8 +430,8 @@ sub decom{
     my $user = $params{'user_id'};
 
     my $res = $db->execute_query("update vrf set state = 'decom', last_modified_by = ?, last_modified = unix_timestamp(now()) where vrf_id = ?",[$user, $vrf_id]);
-    return $res;
 
+    return $res;
 }
 
 =head2 decom_endpoint
@@ -457,6 +505,46 @@ sub get_vrfs{
     );
 
     return $vrfs;
+}
+
+=head2 get_vrf_history
+
+=cut
+sub get_vrf_history{
+    my %params = @_;
+    my $events;
+    my $vrf_id = $params{'vrf_id'};
+    my $db = $params{'db'};
+
+    my $results = $db->execute_query(
+        "select user.user_id, concat(user.given_names, ' ', user.family_name) as full_name,
+                vrf.vrf_id as resource_id,
+                workgroup.workgroup_id, workgroup.name as workgroup,
+                history.event, history.type, history.date, history.object
+
+         from vrf
+         join vrf_history on vrf.vrf_id = vrf_history.vrf_id
+         join history on vrf_history.history_id = history.history_id
+         join user on user.user_id = history.user_id
+         join workgroup on workgroup.workgroup_id = history.workgroup_id
+         where vrf.vrf_id = ? order by history.date DESC",
+    [$vrf_id]);
+
+    foreach my $row (@$results){
+        push @$events, {
+            user_id      => $row->{user_id},
+            full_name    => $row->{full_name},
+            workgroup_id => $row->{workgroup_id},
+            workgroup    => $row->{workgroup},
+            event        => $row->{event},
+            type         => $row->{type},
+            date         => $row->{date},
+            object       => $row->{object},
+            resource_id  => $row->{resource_id}
+        };
+    }
+
+    return $events;
 }
 
 1;

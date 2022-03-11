@@ -25,28 +25,25 @@ creates a new OESS::MPLS::Discovery::path object
 
 =cut
 
-sub new{
+sub new {
     my $class = shift;
-    my %args = (
+    my $args = {
+        config     => '/etc/oess/database.xml',
+        config_obj => undef,
+        logger     => Log::Log4perl->get_logger('OESS.MPLS.Discovery.Path'),
         @_
-        );
+    };
+    my $self = bless $args, $class;
 
-    my $self = \%args;
+    if ((!defined $self->{db} || !defined $self->{db2}) && !defined $self->{config_obj}) {
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
+    }
 
-    $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Discovery.Path');
-    bless $self, $class;
-
-    if(!defined($self->{'db'})){
-	
-	if(!defined($self->{'config'})){
-	    $self->{'config'} = "/etc/oess/database.xml";
-	}
-	
-	$self->{'db'} = OESS::Database->new( config_file => $self->{'config'} );
-	
+    if (!defined $self->{db}) {
+    	$self->{db} = new OESS::Database(config_obj => $self->{config_obj});
     }
     if (!defined $self->{db2}) {
-        $self->{db2} = new OESS::DB(config => $self->{config});
+        $self->{db2} = new OESS::DB(config_obj => $self->{config_obj});
     }
 
     return $self;

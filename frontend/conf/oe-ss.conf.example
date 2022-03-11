@@ -2,18 +2,9 @@ Alias /oess/tiles             /usr/share/nddi-tiles/
 Alias /oess/services          /usr/share/oess-frontend/webservice
 Alias /oess/yui/build         /usr/share/yui2
 Alias /oess/notification-img  /usr/share/oess-frontend/www/media/notification
+Alias /oess/new/admin         /usr/share/oess-frontend/www/new/admin_new/dist
 Alias /oess                   /usr/share/oess-frontend/www
 Alias /idc                    /usr/share/oess-frontend/webservice/idc
-
-
-<Location /idc>
-    AddHandler cgi-script .cgi
-    DirectoryIndex index.cgi
-    Options ExecCGI
-    Order allow,deny
-    Allow from all
-    Satisfy any
-</Location>
 
 
 <Location /oess>
@@ -29,12 +20,30 @@ Alias /idc                    /usr/share/oess-frontend/webservice/idc
     Require valid-user
 </Location>
 
+<Directory "/usr/share/oess-frontend/www/new/admin_new/dist/">
+  Options +Indexes +FollowSymLinks
+  AllowOverride All
+  Options -MultiViews
 
-<Location /oess/notification-img >
-    Satisfy Any
-    Allow from all
+  RewriteEngine On
+  RewriteBase "/oess/new/admin/"
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
+</Directory>
+
+<Location /oess/new/admin>
+	Options Indexes FollowSymLinks
+	DirectoryIndex index.html
+	Order allow,deny
+	Allow from all
+
+	AuthType Basic
+	AuthName "OESS"
+	AuthUserFile /usr/share/oess-frontend/www/.htpasswd
+	Require valid-user
 </Location>
-
 
 <Location /oess/services>
   AddHandler cgi-script .cgi
@@ -46,6 +55,20 @@ Alias /idc                    /usr/share/oess-frontend/webservice/idc
   AuthName "OESS"
   AuthUserFile /usr/share/oess-frontend/www/.htpasswd
   Require valid-user
+</Location>
+
+<Location /oess/notification-img >
+    Satisfy Any
+    Allow from all
+</Location>
+
+<Location /idc>
+    AddHandler cgi-script .cgi
+    DirectoryIndex index.cgi
+    Options ExecCGI
+    Order allow,deny
+    Allow from all
+    Satisfy any
 </Location>
 
 Redirect 301 /oess/admin/admin_index.cgi /oess/admin
