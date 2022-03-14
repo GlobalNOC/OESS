@@ -959,4 +959,151 @@ sub get_interfaces {
     );
 }
 
+
+=head2 get_interfaces_table
+
+    get_interfaces_table('agg2.bldc', sub {
+        my ($stats, $err) = @_;
+
+    });
+
+Example:
+
+    [
+          {
+            'bandwidth' => '10000',
+            'name' => 'TenGigE0/0/1/2/2',
+            'description' => 'unused',
+            'admin_state' => 'up',
+            'operational_state' => 'up',
+            'mtu' => '1514'
+          },
+          ...
+    ]
+
+=cut
+sub get_interfaces_table {
+    my $self = shift;
+    my $node = shift;
+    my $sub  = shift;
+
+    my $payload = {
+        "input" => {
+            "args" => "show operational Interfaces InterfaceTable Interface/InterfaceName=* xml"
+        }
+    };
+
+    my $username = $self->{config_obj}->nso_username;
+    my $password = $self->{config_obj}->nso_password;
+
+    my $userpass = "$username:$password";
+    $userpass = Encode::encode("UTF-8", "$username:$password");
+
+    my $credentials = MIME::Base64::encode($userpass, '');
+
+    http_request(
+        POST => $self->{config_obj}->nso_host . "/restconf/operations/tailf-ncs:devices/device=$node/live-status/exec/any",
+        headers => {
+            'content-type'     => 'application/yang-data+json',
+            'authorization'    => "Basic $credentials",
+            'www-authenticate' => 'Basic realm="restconf", charset="UTF-8"',
+        },
+        body => encode_json($payload),
+        sub {
+            my ($body, $hdr) = @_;
+
+            my $response;
+
+            if ($hdr->{Status} >= 400) {
+                &$sub($response, "HTTP Code: $hdr->{Status} HTTP Content: $body");
+                return;
+            }
+
+            my $result = eval {
+                my $res = decode_json($body);
+                my $err = $self->get_json_errors($res);
+                die $err if defined $err;
+                return $res;
+            };
+            if ($@) {
+                &$sub($response, "$@");
+                return;
+            }
+
+            # Extract CLI payload from JSON response and strip leading
+            # xml tag and ending cli prompt. This results in an XML
+            # encoded string wrapped in the Response tag.
+            my $raw_response = $result->{"tailf-ned-cisco-ios-xr-stats:output"}->{"result"};
+            $raw_response =~ s/^(.|\s)*?<Response/<Response/; # Remove date and time prefix
+            $raw_response =~ s/<\?xml\sversion="1.0"\?>//g; # Remove xml document declarations
+            $raw_response =~ s/RP.*\#\z//; # Strip CLI Prompt
+            $raw_response = "<T>" . $raw_response . "</T>"; # Wrap all <Reponse> tags in single tag
+
+            # Parse XMl string and extract statistics
+            my $dom;
+            eval {
+                $dom = XML::LibXML->load_xml(string => $raw_response);
+            };
+            if ($@) {
+                $self->{logger}->error("Failed to load XML in get_interfaces_brief: $body");
+                &$sub($response, "$@");
+                return;
+            }
+
+            my $interfaces = $dom->findnodes('//Response/Get/Operational/Interfaces/InterfaceTable/Interface');
+            $response = [];
+            foreach my $context ($interfaces->get_nodelist) {
+                my $interface = {
+                    admin_state       => undef,
+                    bandwidth         => undef,
+                    description       => undef,
+                    mtu               => undef,
+                    name              => undef,
+                    operational_state => undef,
+                };
+
+                $interface->{name} = $context->findvalue('./Naming/InterfaceName');
+                $interface->{name} =~ s/\s+//g;
+
+                # Skip sub-interfaces (if parent set)
+                my $parent_interface = $context->findvalue('./ParentInterfaceName');
+                $parent_interface =~ s/\s+//g;
+                if ($parent_interface ne 'None') {
+                    next;
+                }
+
+                # IM_STATE_UP | IM_STATE_ADMINDOWN | IM_STATE_DOWN
+                my $state = $context->findvalue('./LineState');
+                $state =~ s/\s+//g;
+                if ($state eq 'IM_STATE_DOWN') {
+                    $interface->{admin_state}       = 'up';
+                    $interface->{operational_state} = 'down';
+                }
+                elsif ($state eq 'IM_STATE_ADMINDOWN') {
+                    $interface->{admin_state}       = 'down';
+                    $interface->{operational_state} = 'down';
+                }
+                else {
+                    $interface->{admin_state}       = 'up';
+                    $interface->{operational_state} = 'up';
+                }
+
+                $interface->{bandwidth} = $context->findvalue('./Bandwidth');
+                $interface->{bandwidth} =~ s/\s+//g;
+                $interface->{bandwidth} = int($interface->{bandwidth}) / 1000;
+
+                $interface->{description} = $context->findvalue('./Description');
+                $interface->{description} =~ s/\s+//g;
+
+                $interface->{mtu} = $context->findvalue('./MTU');
+                $interface->{mtu} =~ s/\s+//g;
+
+                push @$response, $interface;
+            }
+
+            return &$sub($response, undef);
+        }
+    );
+}
+
 1;
