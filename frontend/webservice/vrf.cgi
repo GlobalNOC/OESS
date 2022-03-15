@@ -199,7 +199,7 @@ sub get_vrf_history{
     my ( $method, $args ) = @_;
     my $results;
 
-    my $vrf_id = $args->{vrf_d}{value};
+    my $vrf_id = $args->{vrf_id}{value};
 
     my $user = new OESS::User(db => $db, username =>  $ENV{REMOTE_USER});
     if (!defined $user) {

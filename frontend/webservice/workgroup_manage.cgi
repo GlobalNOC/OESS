@@ -556,13 +556,9 @@ sub remove_acl {
         return;
     }
 
-    my ($result,$error) = $db->execute_query("select interface_id, workgroup_id from interface_acl where interface_acl_id = $interface_acl_id");
-
     my ($result,$error) = OESS::DB::ACL::remove(
         db => $db,
-        interface_acl_id => $interface_acl_id,
-        interface_id => $request_interface,
-        workgroup_id => $result->[0]->{workgroup_id}
+        interface_acl_id => $interface_acl_id
     );
 
     if ( defined $error ) {

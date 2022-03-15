@@ -196,12 +196,6 @@ $get_acl_history->add_input_parameter(
     required    => 1,
     description => 'The interface ACL ID to get its history.'
 );
-$get_acl_history->add_input_parameter(
-    name        => 'workgroup_id',
-    pattern     => $GRNOC::WebService::Regex::INTEGER,
-    required    => 1,
-    description => 'The workgroup ID of the interface to get its history.'
-);
 $ws->register_method($get_acl_history);
 
 
@@ -257,7 +251,7 @@ sub create_acl {
         return;
     }
 
-    my $error = OESS::DB::VRF::add_vrf_history(
+    my $error = OESS::DB::ACL::add_acl_history(
         db => $db,
         event => 'create',
         acl => $acl_model,
@@ -418,7 +412,7 @@ sub edit_acl {
     $acl->{notes}         = $params->{notes}{value};
     my $success = $acl->update_db();
 
-    my $error = OESS::DB::VRF::add_vrf_history(
+    my $error = OESS::DB::ACL::add_acl_history(
         db => $db,
         event => 'edit',
         acl => $acl,
@@ -512,7 +506,7 @@ sub delete_acl {
         return;
     }
 
-    my $error = OESS::DB::VRF::add_vrf_history(
+    my $error = OESS::DB::ACL::add_acl_history(
         db => $db,
         event => 'decom',
         acl => $request_acl,
