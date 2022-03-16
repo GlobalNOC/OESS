@@ -9,7 +9,7 @@ export const Links = (props) => {
         <div>
             <div>
                 <p className="title"><b>Links</b></p>
-                <p className="subtitle">View and edit network Links.</p>
+                <p className="subtitle">View Links</p>
             </div>
             <br />
             <LinkProvider render={ props => <LinkTable {...props} /> } />

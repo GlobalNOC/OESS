@@ -1,66 +1,23 @@
-import React from "react";
-import { useEffect } from "react";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useContext, useEffect, useState } from "react";
 import { withRouter } from "react-router-dom";
-import { Table } from '../generic_components/Table.jsx';
-import { PageContext } from "../../contexts/PageContext.jsx";
-import "../../style.css";
-import { useContext } from "react";
-import { deleteLink } from "../../api/links.js";
+import { Link } from "react-router-dom";
 
-const LinkTable = (props) => {
+import { PageContext } from "../../contexts/PageContext.jsx";
+import { CustomTable } from "../generic_components/CustomTable.jsx";
+
+import "../../style.css";
+
+
+export const LinkTable = (props) => {
     const { history, match } = props;
     const page = useContext(PageContext);
 
-    const onDeleteLink = (linkID) => {
-        deleteLink(linkID).then(result => {
-           props.reloadLinks();
-           page.setStatus({type: 'success', message: 'Link entry was successfully deleted.'});
-        }).catch(error => {
-             console.error(error);
-             page.setStatus({type: 'error', message: error});
-        });
-    };
-
-    const editLink = (link) => {
-      console.log(link);
-    };
-
-    let rowButtons = (data) => {
-        return (
-            <>
-                <div className="btn-group">
-                    <Link to={`/${data.link_id}`} className="btn btn-default btn-xs">Edit Link</Link>
-                    <button type="button" className="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <span>▾</span>{/* className="caret" doesn't work idk why */}
-                        <span className="sr-only">Toggle Dropdown</span>
-                    </button>
-                    <ul className="dropdown-menu" style={{fontSize: '12px'}}>
-                        <li><a href="#" onClick={e => onDeleteLink(data.link_id)}>Delete Link</a></li>
-                    </ul>                    
-                </div>
-            </>
-        );
-    };
-
     let columns = [
+        {name: '', style: {verticalAlign: 'middle', fontSize: '.6em'}, render: (link) => <span title={link.status}>{(link.status === "up") ? "🟢" : "🔴"}</span>},
+        {name: 'ID', key: 'link_id'},
         {name: 'Name', key: 'name'},
-        {name: 'Status', key: 'status'},
-        {name: 'URN', key: 'remote_urn'},
-        { name: '', render: rowButtons, style: {textAlign: 'right' } }
+        {name: 'URN', key: 'remote_urn'}
     ];
 
-    return (
-        <div>
-            <form id="user_search_div" className="form-inline">
-
-            </form>
-            <br />
-
-            <Table columns={columns} rows={props.links} />
-        </div>
-    );
+    return <CustomTable columns={columns} rows={props.links} size={15} filter={['link_id', 'name', 'remote_urn']} />;
 }
-
-export { LinkTable };

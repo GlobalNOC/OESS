@@ -86,7 +86,7 @@ class Users extends React.Component {
         </div>
         <br />
 
-        <CustomTable columns={columns} rows={this.state.users} size={5} filter={['first_name', 'last_name', 'email']}>
+        <CustomTable columns={columns} rows={this.state.users} size={15} filter={['first_name', 'last_name', 'email']}>
           { config.third_party_mgmt == 1 ? null : <CustomTable.MenuItem><Link to="/users/new" className="btn btn-default">Create User</Link></CustomTable.MenuItem> }
         </CustomTable>
       </div>
