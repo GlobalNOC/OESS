@@ -1,26 +1,28 @@
-import React from "react";
-import { useEffect } from "react";
-import { useContext } from "react";
-import { useState } from "react";
-import { PageContext } from "../../contexts/PageContext.jsx";
+import React, { useContext, useEffect, useState } from "react";
+
 import { getLinks } from '../../api/links.js';
+import { PageContext } from "../../contexts/PageContext.jsx";
 
 export const LinkProvider = (props) => {
     const page = useContext(PageContext);
     const [linkEntries, setLinkEntries] = useState([]);
-    let links = [];
+
     useEffect(() => {
        getLinks().then(links => {
-           console.log(links);
            setLinkEntries(links);
        }).catch(error => {
            console.error(error);
            page.setStatus({type: 'error', message: error.toString()});
-       });        
-    }, [props.linkId]);
+       });
+    }, []);
 
     const reloadLinks = () => {    
-        //setLinkEntries(links);        
+        getLinks().then(links => {
+            setLinkEntries(links);
+        }).catch(error => {
+            console.error(error);
+            page.setStatus({type: 'error', message: error.toString()});
+        });
     };
 
     return props.render({ links: linkEntries, reloadLinks });
