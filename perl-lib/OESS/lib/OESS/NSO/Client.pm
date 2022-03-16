@@ -1,5 +1,8 @@
 package OESS::NSO::Client;
 
+use strict;
+use warnings;
+
 use AnyEvent::HTTP;
 use Data::Dumper;
 use Encode;
@@ -723,7 +726,7 @@ sub get_vrf_statistics {
                     next if $vrf_name !~ /^OESS-VRF/;
 
                     $vrf_name =~ /OESS-VRF-(\d+)/;
-                    $vrf_id = $1;
+                    my $vrf_id = $1;
 
                     my $peers = $context->findnodes('./NeighborTable/Neighbor');
                     foreach my $context ($peers->get_nodelist) {
@@ -814,7 +817,7 @@ sub get_vrf_statistics {
                 }
             }
 
-            &$sub($response, $err);
+            &$sub($response, undef);
         }
     );
 }
@@ -1088,9 +1091,24 @@ sub get_interfaces_table {
                     $interface->{operational_state} = 'up';
                 }
 
-                $interface->{bandwidth} = $context->findvalue('./Bandwidth');
-                $interface->{bandwidth} =~ s/\s+//g;
-                $interface->{bandwidth} = int($interface->{bandwidth}) / 1000;
+                my $type = $context->findvalue('./InterfaceType');
+                $type =~ s/\s+//g;
+
+                if ($type eq 'IFT_ETHERBUNDLE') {
+                    my $members  = $context->findnodes('./InterfaceTypeInformation/BundleInformation/MemberList/Entry');
+                    my $bandwidth = 0;
+                    foreach my $context ($members->get_nodelist) {
+                        my $bw = $context->findvalue('./Bandwidth');
+                        $bw =~ s/\s+//g;
+                        $bandwidth += int($bw);
+                    }
+                    $interface->{bandwidth} = $bandwidth / 1000;
+                }
+                else {
+                    $interface->{bandwidth} = $context->findvalue('./Bandwidth');
+                    $interface->{bandwidth} =~ s/\s+//g;
+                    $interface->{bandwidth} = int($interface->{bandwidth}) / 1000;
+                }
 
                 $interface->{description} = $context->findvalue('./Description');
                 $interface->{description} =~ s/\s+//g;
