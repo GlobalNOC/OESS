@@ -74,3 +74,10 @@ tr:hover td{
 #user_search_div > * {
     margin: 0 2px;
 }
+
+/* Align dropdown buttons to right edge of parent element within tables */
+table .btn-group .dropdown-menu {
+    left: unset;
+    right: 0;
+    float: right;
+}

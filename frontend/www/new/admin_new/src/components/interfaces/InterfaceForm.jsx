@@ -9,12 +9,12 @@ const validateForm = (e) => {
 };
 
 export const InterfaceForm = (props) => {
-  let tName = (props.interface && props.interface.name) ? props.interface.name : '';
-  let tDescription = (props.interface && props.interface.description) ? props.interface.description : '';
-  let tWorkgroupId = (props.interface && props.interface.workgroup_id) ? parseInt(props.interface.workgroup_id) : -1;
-  let tCloudInterconnectType = (props.interface && props.interface.cloud_interconnect_type) ? props.interface.cloud_interconnect_type : '';
-  let tCloudInterconnectId = (props.interface && props.interface.cloud_interconnect_id) ? props.interface.cloud_interconnect_id : '';
-  let tInterfaceId = (props.interface && props.interface.interface_id) ? props.interface.interface_id : -1;
+  let tName = (props.intf && props.intf.name) ? props.intf.name : '';
+  let tDescription = (props.intf && props.intf.description) ? props.intf.description : '';
+  let tWorkgroupId = (props.intf && props.intf.workgroup_id) ? parseInt(props.intf.workgroup_id) : -1;
+  let tCloudInterconnectType = (props.intf && props.intf.cloud_interconnect_type) ? props.intf.cloud_interconnect_type : '';
+  let tCloudInterconnectId = (props.intf && props.intf.cloud_interconnect_id) ? props.intf.cloud_interconnect_id : '';
+  let tInterfaceId = (props.intf && props.intf.interface_id) ? props.intf.interface_id : -1;
 
   const [name, setName] = useState(tName);
   const [description, setDescription] = useState(tDescription);
@@ -40,7 +40,7 @@ export const InterfaceForm = (props) => {
 
   let onSubmit = (e) => {
     e.preventDefault();
-    const interface = {
+    const intf = {
       name,
       description,
       workgroupId,
@@ -48,12 +48,12 @@ export const InterfaceForm = (props) => {
       cloudInterconnectId,
       interfaceId
     };
-    let ok = validateForm(interface);
+    let ok = validateForm(intf);
     if (!ok) return;
-    console.log('submit:', interface, 'validated:', ok);
+    console.log('submit:', intf, 'validated:', ok);
 
     if (props.onSubmit) {
-      props.onSubmit(interface);
+      props.onSubmit(intf);
     }
   };
 
