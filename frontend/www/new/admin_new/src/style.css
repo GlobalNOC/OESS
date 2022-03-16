@@ -81,3 +81,8 @@ table .btn-group .dropdown-menu {
     right: 0;
     float: right;
 }
+
+/* Keep dropdown buttons aligned horizontally */
+table .btn-group-vertical > .btn, .btn-group > .btn {
+    float: unset;
+}

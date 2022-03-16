@@ -120,7 +120,7 @@ class Nodes extends React.Component {
         </div>
         <br />
 
-        <CustomTable columns={columns} rows={this.state.nodes} size={5} filter={['node_id', 'name', 'ip_address']}>
+        <CustomTable columns={columns} rows={this.state.nodes} size={15} filter={['node_id', 'name', 'ip_address']}>
           <CustomTable.MenuItem><Link to="/nodes/new" className="btn btn-default">Create Node</Link></CustomTable.MenuItem>
         </CustomTable>
       </div>

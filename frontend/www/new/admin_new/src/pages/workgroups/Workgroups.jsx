@@ -87,11 +87,11 @@ class Workgroups extends React.Component {
       <div>
         <div>
           <p className="title"><b>Workgroups</b></p>
-          <p className="subtitle">Create, edit, or delete Workgroups.</p>
+          <p className="subtitle">Create, edit, or delete Workgroups</p>
         </div>
         <br />
 
-        <CustomTable columns={columns} rows={this.state.workgroups} size={5} filter={['workgroup_id', 'name', 'external_id']}>
+        <CustomTable columns={columns} rows={this.state.workgroups} size={15} filter={['workgroup_id', 'name', 'external_id']}>
           { config.third_party_mgmt == 1 ? null : <CustomTable.MenuItem><Link to="/workgroups/new" className="btn btn-default">Create Workgroup</Link></CustomTable.MenuItem> }
         </CustomTable>
       </div>

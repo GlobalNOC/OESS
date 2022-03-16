@@ -105,7 +105,7 @@ class Interfaces extends React.Component {
                 </div>
                 <br />
 
-                <CustomTable columns={columns} rows={this.state.interfaces} size={25} filter={['interface_id', 'name', 'description', 'cloud_interconnect_type']} />
+                <CustomTable columns={columns} rows={this.state.interfaces} size={15} filter={['interface_id', 'name', 'description', 'cloud_interconnect_type']} />
             </div>
         );
 

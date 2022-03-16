@@ -1,10 +1,6 @@
-import React from "react";
-import { useEffect } from "react";
-import { useContext } from "react";
-import { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import { getAcls } from '../../api/acls.js';
-
 import { PageContext } from "../../contexts/PageContext.jsx";
 
 export const AclProvider = (props) => {

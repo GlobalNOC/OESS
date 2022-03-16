@@ -104,7 +104,7 @@ const aclTableComponent = (props) => {
     ];
 
     return (
-        <CustomTable columns={columns} rows={props.acls} size={5}>
+        <CustomTable columns={columns} rows={props.acls} size={15}>
             <CustomTable.MenuItem>
                 <Link to={`/nodes/${match.params['id']}/interfaces/${match.params['interfaceId']}/acls/new`} className="btn btn-default">Create ACL</Link>
             </CustomTable.MenuItem>
