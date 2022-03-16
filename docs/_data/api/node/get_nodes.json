@@ -1,0 +1,1 @@
+{"method_deprecated":0,"output_type":"application/json","input_params":{},"name":"get_nodes","description":"get_nodes returns a list of all nodes","default_input_validators":[],"expires":"-1d"}

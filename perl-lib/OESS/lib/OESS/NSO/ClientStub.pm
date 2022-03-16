@@ -194,6 +194,7 @@ sub get_l3connections {
     my $connections = [
         {
             "connection_id" => 1,
+            "workgroup" => "Workgroup 21",
             "endpoint" => [
                 {
                     "endpoint_id" => 8,

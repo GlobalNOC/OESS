@@ -1636,14 +1636,17 @@ function setup_workgroup_tab(){
             submit_button.on("click", function(){
                     
                     var workgroup_name = YAHOO.util.Dom.get('new_workgroup_name').value;
-                        var external_id = YAHOO.util.Dom.get('new_workgroup_external_id').value;
-                        var workgroup_type= YAHOO.util.Dom.get('new_workgroup_type');
+                    var external_id = YAHOO.util.Dom.get('new_workgroup_external_id').value;
+                    var workgroup_type= YAHOO.util.Dom.get('new_workgroup_type');
                         workgroup_type= workgroup_type.options[workgroup_type.selectedIndex].value;
                     
-                        if (! workgroup_name){
+                    if (! workgroup_name){
                         alert("You must specify a workgroup name.");
                         return;
-                    }
+                    } else if (workgroup_name.length > 20){
+			alert("Workgroup name must be fewer than 20 characters.");
+			return;
+		    }
 
                     this.set("label", "Creating workgroup...");
                     this.set("disabled", true);

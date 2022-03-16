@@ -1880,7 +1880,6 @@ sub get_circuit_scheduled_events {
     return $events;
 }
 
-
 =head2 get_circuit_history
 
 Returns an array of hashes containing information about events for this circuit that have were network driven, such as links going down or

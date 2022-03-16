@@ -48,6 +48,7 @@ dev:
 	--mount type=bind,src=${PWD}/frontend,dst=/usr/share/oess-frontend \
 	--mount type=bind,src=${PWD}/perl-lib/OESS/share,dst=/usr/share/doc/perl-OESS-${OESS_VERSION}/share \
 	--mount type=bind,src=${PWD}/app,dst=/usr/bin/oess \
+	--mount type=bind,src=${PWD}/docs,dst=/docs \
 	oess:${OESS_VERSION} /bin/bash
 
 documentation:
@@ -55,4 +56,4 @@ documentation:
 
 test:
 	docker build . -f Dockerfile -t oess-test
-	docker run --rm -it -e OESS_TEST_FILES="$(TEST_FILES)" --volume ${PWD}/perl-lib/OESS:/OESS oess-test
+	docker run --rm -it -e OESS_TEST_FILES="$(TEST_FILES)" --volume ${PWD}/perl-lib/OESS:/perl-lib/OESS oess-test

@@ -111,6 +111,18 @@ async function getVRF(workgroupID, vrfID) {
   }
 }
 
+async function getVRFHistory(workgroupID, id) {
+  let url = `[% path %]services/vrf.cgi?method=get_vrf_history&vrf_id=${id}&workgroup_id=${workgroupID}`;
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    return data.results;
+  } catch(error) {
+    console.log('Failure occurred in getVRFHistory');
+    console.log(error);
+  }
+}
+
 async function deleteVRF(workgroupID, vrfID) {
   let url = `[% path %]services/vrf.cgi?method=remove&vrf_id=${vrfID}&workgroup_id=${workgroupID}`;
 

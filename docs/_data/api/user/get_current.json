@@ -1,1 +1,1 @@
-{"method_deprecated":0,"output_type":"application/json","input_params":{},"name":"get_current","description":"returns details of the current user","default_input_validators":[],"expires":"-1d"}
+{"method_deprecated":0,"output_type":"application/json","input_params":{},"name":"get_current","description":"get_current returns the currently logged in user","default_input_validators":[],"expires":"-1d"}

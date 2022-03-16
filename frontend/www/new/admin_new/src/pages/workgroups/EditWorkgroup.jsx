@@ -24,10 +24,10 @@ const editWorkgroupComponent = (props) => {
     try {
       await editWorkgroup(e);
       setStatus({type:'success', message:`Workgroup '${e.name}' was successfully edited.`});
+      history.push('/workgroups');
     } catch (error) {
       setStatus({type:'error', message:error.toString()});
     }
-    history.push('/workgroups');
   };
 
   let cancelHandler = async () => {

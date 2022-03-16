@@ -6,7 +6,7 @@ use warnings;
 use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 use OESS::DB;
-use OESS::VRF;
+use OESS::Node;
 use OESS::DB::Command;
 
 use GRNOC::Config;
@@ -101,7 +101,7 @@ sub run_command {
     }
 
     my $user = OESS::DB::User::find_user_by_remote_auth(db => $db, remote_user => $ENV{'REMOTE_USER'});
-    $user = OESS::User->new(db => $db, user_id =>  $user->{'user_id'});
+    $user = OESS::User->new(db => $db, user_id =>  $user->{user_id});
     if (!defined $user) {
         $method->set_error("User $ENV{REMOTE_USER} is not in OESS.");
         return;
@@ -142,6 +142,17 @@ sub run_command {
     }
 
     my $config = GRNOC::Config->new(config_file => '/etc/oess/.passwd.xml');
+    my $node_obj = new OESS::Node(db => $db, name => $node);
+    if (!defined $node_obj) {
+        $method->set_error("Could not load $node from database.");
+        return;
+    }
+    my $vendor = $node_obj->vendor;
+
+    my $cli_type = "junos";
+    if ($vendor eq "Cisco"){
+        $cli_type = "ios";
+    }
 
     my $proxy = GRNOC::RouterProxy->new(
         hostname    => $node,
@@ -149,7 +160,7 @@ sub run_command {
         username    => $config->get('/config/@default_user')->[0],
         password    => $config->get('/config/@default_pw')->[0],
         method      => 'ssh',
-        type        => 'junos',
+        type        => $cli_type,
         maxlines    => 1000,
         timeout     => 15
     );
@@ -158,7 +169,20 @@ sub run_command {
     my $tt = Template->new();
     $tt->process(\$cmd->{template}, { node => $node, interface => $intf, unit => $unit, peer => $peer }, \$cmd_string);
 
-    my $result = $proxy->junosSSH($cmd_string);
+    my $result;
+
+    if ($vendor eq 'Juniper') {
+        $result = $proxy->junosSSH($cmd_string);
+    } elsif ($vendor eq 'Cisco') {
+        $result = $proxy->ios2SSH($cmd_string);
+    } else {
+        $method->set_error("Unsupported device vendor $vendor encountered.");
+        return;
+    }
+    if (!defined $result) {
+        $method->set_error("Unknown error occurred while getting response from $node.");
+        return;
+    }
     return { results => [ $result ] };
 }
 
