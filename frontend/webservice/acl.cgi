@@ -527,16 +527,25 @@ sub get_acl_history {
     my ( $method, $args ) = @_ ;
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
 
-    my $user = new OESS::User(db => $db, username =>  $ENV{REMOTE_USER});
+    my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    $user->load_workgroups;
 
-    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id}{value});
-    if (!defined $workgroup && !$user->is_admin) {
-        $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
+    my $acl = new OESS::ACL(db => $db, interface_acl_id => $args->{interface_acl_id}{value});
+    if (!defined $acl) {
+        $method->set_error("Failed to get acl for acl history");
+        return;
+    }
+
+    my $interface = new OESS::Interface(db => $db, interface_id => $acl->{interface_id});
+    if (!defined $interface) {
+        $method->set_error("Failed to get interface ")
+    }
+
+    if ($user->has_workgroup_access(role => 'read-only', workgroup_id => $interface->{workgroup_id}) && $user->has_system_access(role => 'read-only')) {
+        $method->set_error("User $ENV{REMOTE_USER} does not have access to view this acl's history");
         return;
     }
 

@@ -206,11 +206,15 @@ sub get_vrf_history{
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    $user->load_workgroups;
+    
+    my $vrf = new OESS::VRF(db => $db, vrf_id => $vrf_id);
+    if (!defined $vrf) {
+        $method->set_error("Failed to get vrf for vrf history");
+        return;
+    }
 
-    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id}{value});
-    if (!defined $workgroup && !$user->is_admin) {
-        $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
+    if ($user->has_workgroup_access(role => 'read-only', workgroup_id => $vrf->{workgroup_id}) && $user->has_system_access(role => 'read-only')) {
+        $method->set_error("User $ENV{REMOTE_USER} does not have access to view this vrf's history");
         return;
     }
 
