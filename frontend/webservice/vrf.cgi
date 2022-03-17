@@ -213,7 +213,7 @@ sub get_vrf_history{
         return;
     }
 
-    if ($user->has_workgroup_access(role => 'read-only', workgroup_id => $vrf->{workgroup_id}) && $user->has_system_access(role => 'read-only')) {
+    if (!$user->has_workgroup_access(role => 'read-only', workgroup_id => $vrf->{workgroup_id}) && !$user->has_system_access(role => 'read-only')) {
         $method->set_error("User $ENV{REMOTE_USER} does not have access to view this vrf's history");
         return;
     }

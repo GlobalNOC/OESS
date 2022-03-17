@@ -544,7 +544,7 @@ sub get_acl_history {
         $method->set_error("Failed to get interface ")
     }
 
-    if ($user->has_workgroup_access(role => 'read-only', workgroup_id => $interface->{workgroup_id}) && $user->has_system_access(role => 'read-only')) {
+    if (!$user->has_workgroup_access(role => 'read-only', workgroup_id => $interface->{workgroup_id}) && !$user->has_system_access(role => 'read-only')) {
         $method->set_error("User $ENV{REMOTE_USER} does not have access to view this acl's history");
         return;
     }
