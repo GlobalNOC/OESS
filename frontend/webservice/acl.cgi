@@ -541,7 +541,8 @@ sub get_acl_history {
 
     my $interface = new OESS::Interface(db => $db, interface_id => $acl->{interface_id});
     if (!defined $interface) {
-        $method->set_error("Failed to get interface ")
+        $method->set_error("Failed to get interface for acl history with interface id $acl->{interface_id}");
+        return;
     }
 
     if (!$user->has_workgroup_access(role => 'read-only', workgroup_id => $interface->{workgroup_id}) && !$user->has_system_access(role => 'read-only')) {
