@@ -35,6 +35,7 @@ use OESS::DB::User;
 
 use GRNOC::WebService;
 use OESS::Webservice;
+use OESS::AccessController::Default;
 
 use OESS::ACL;
 
@@ -277,7 +278,6 @@ sub register_webservice_methods {
 
     #register the remove_acl() method
     $svc->register_method($method);
-
 }
 
 sub get_all_workgroups {
@@ -378,8 +378,8 @@ sub add_acl {
         $method-> set_error($err);
         return;
     }
-
-   
+    my $ac = new OESS::AccessController::Default(db => $db);
+    my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
     my $interface_name = $interface->{name};
     my $vlan_start = $args->{"vlan_start"}{'value'};
     my $vlan_end = $args->{"vlan_end"}{'value'};
@@ -394,7 +394,7 @@ sub add_acl {
         end      => $args->{"vlan_end"}{'value'} || undef,
         notes         => $args->{"notes"}{'value'} || undef,
         entity_id     => $args->{"entity_id"}{'value'} || undef,
-        user_id       => $user_id
+        user_id       => $user->user_id
     };
     my ($acl_id, $acl_error) = OESS::DB::ACL::create(db => $db, model => $acl_model);
     if ( defined $acl_error ) {

@@ -199,18 +199,22 @@ sub get_vrf_history{
     my ( $method, $args ) = @_;
     my $results;
 
-    my $vrf_id = $args->{'vrf_id'}{'value'};
+    my $vrf_id = $args->{vrf_id}{value};
 
     my $user = new OESS::User(db => $db, username =>  $ENV{REMOTE_USER});
     if (!defined $user) {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    $user->load_workgroups;
+    
+    my $vrf = new OESS::VRF(db => $db, vrf_id => $vrf_id);
+    if (!defined $vrf) {
+        $method->set_error("Failed to get vrf for vrf history");
+        return;
+    }
 
-    my $workgroup = $user->get_workgroup(workgroup_id => $args->{workgroup_id});
-    if (!defined $workgroup && !$user->is_admin) {
-        $method->set_error("User '$user->{username}' isn't a member of the specified workgroup.");
+    if (!$user->has_workgroup_access(role => 'read-only', workgroup_id => $vrf->{workgroup_id}) && !$user->has_system_access(role => 'read-only')) {
+        $method->set_error("User $ENV{REMOTE_USER} does not have access to view this vrf's history");
         return;
     }
 
@@ -864,7 +868,7 @@ sub provision_vrf{
 
         my $error = OESS::DB::VRF::add_vrf_history(
             db => $db,
-            event => 'modified',
+            event => 'edit',
             vrf => $vrf,
             user_id => $user->user_id,
             workgroup_id => $params->{workgroup_id}{value},
@@ -904,7 +908,7 @@ sub provision_vrf{
     } else {
         my $error = OESS::DB::VRF::add_vrf_history(
             db => $db,
-            event => 'provisioned',
+            event => 'create',
             vrf => $vrf,
             user_id => $user->user_id,
             workgroup_id => $params->{workgroup_id}{value},

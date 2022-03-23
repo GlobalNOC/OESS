@@ -6,6 +6,7 @@ use warnings;
 package OESS::DB::ACL;
 
 use Log::Log4perl;
+use OESS::AccessController::Default;
 
 my $logger = Log::Log4perl->get_logger("OESS.ACL");
 
@@ -314,6 +315,7 @@ sub remove {
     if( $count == 0){
         return(0, "Error interface_acl_id did not exist");
     }
+
     return(1,undef);
 }
 
@@ -343,7 +345,97 @@ sub remove_all {
     if (!defined $count) {
         return (-1, "Error removing acls");
     }
+
     return ($count, undef);
+}
+
+=head2 get_acl_history
+=cut
+
+sub get_acl_history {
+    my $args = {
+        interface_acl_id => undef,
+        db => undef,
+        @_
+    };
+    my $events;
+
+    my $results = $args->{db}->execute_query(
+        "select user.user_id, concat(user.given_names, ' ', user.family_name) as full_name,
+                interface_acl.interface_acl_id as resource_id,
+                workgroup.workgroup_id, workgroup.name as workgroup,
+                history.event, history.type, history.date, history.object
+
+         from interface_acl
+         join acl_history on interface_acl.interface_acl_id = acl_history.interface_acl_id
+         join history on acl_history.history_id = history.history_id
+         join user on user.user_id = history.user_id
+         join workgroup on workgroup.workgroup_id = history.workgroup_id
+         where interface_acl.interface_acl_id = ? order by history.date DESC",
+    [$args->{interface_acl_id}]);
+
+    foreach my $row (@$results){
+        push @$events, {
+            user_id      => $row->{user_id},
+            full_name    => $row->{full_name},
+            workgroup_id => $row->{workgroup_id},
+            workgroup    => $row->{workgroup},
+            event        => $row->{event},
+            type         => $row->{type},
+            date         => $row->{date},
+            object       => $row->{object},
+            resource_id  => $row->{resource_id}
+        };
+    }
+
+    return $events;
+}
+
+=head2 add_acl_history
+
+    Returns an error if there is one, does not return the history entry
+    my $error = add_acl_history(
+        db => $db,
+        event => 'create',  # 'create' or 'edit' or 'decom'
+        acl => $vrf_object, # OESS::ACL
+        user_id => $user_id, # who is making the edit
+        workgroup_id => $workgroup_id  # the workgroup the user is a part of
+        state => $state     # the current state of the connection
+    );
+
+=cut
+sub add_acl_history {
+    my $args = {
+        db => undef,
+        event => undef,
+        acl => undef,
+        user_id => undef,
+        workgroup_id => undef,
+        state => undef,
+        @_
+    };
+
+    return 'Required argument "db" is missing' if !defined $args->{db};
+    return 'Required argument "event" is missing' if !defined $args->{event};
+    return 'Required argument "event" must be "create", "edit", or "decom"' if $args->{event} !~ /create|edit|decom/;
+    return 'Required argument "acl" is missing' if !defined $args->{acl};
+    return 'Required argument "user_id" is missing' if !defined $args->{user_id};
+    return 'Required argument "workgroup_id" is missing' if !defined $args->{workgroup_id};
+    return 'Required argument "state" is missing' if !defined $args->{state};
+    return 'Required argument "state" must be "active" or "decom"' if $args->{state} !~ /active|decom/;
+
+    my $query = "insert into history (date, state, user_id, workgroup_id, event, type, object) values (unix_timestamp(now()), ?, ?, ?, ?, 'acl', ?)";
+    my $history_id = $args->{db}->execute_query($query, [$args->{state}, $args->{user_id}, $args->{workgroup_id}, $args->{event}, $args->{acl}->to_hash]);
+    if (!defined $history_id) {
+        return $args->{db}->get_error;
+    }
+
+    my $acl_history_id = $args->{db}->execute_query("insert into acl_history (history_id, interface_acl_id) values (?, ?)", [$history_id, $args->{acl}->{interface_acl_id}]);
+    if (!defined $acl_history_id) {
+        return $args->{db}->get_error;
+    }
+
+    return;
 }
 
 return 1;

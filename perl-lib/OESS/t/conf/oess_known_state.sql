@@ -24,6 +24,32 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess_test` /*!40100 DEFAULT CHARACTER 
 USE `oess_test`;
 
 --
+-- Table structure for table `acl_history`
+--
+
+DROP TABLE IF EXISTS `acl_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `acl_history` (
+  `history_id` int(10) NOT NULL,
+  `interface_acl_id` int(10) NOT NULL,
+  KEY `history_acl_history_fk` (`history_id`),
+  KEY `acl_acl_history_fk` (`interface_acl_id`),
+  CONSTRAINT `acl_history_ibfk_2` FOREIGN KEY (`interface_acl_id`) REFERENCES `interface_acl` (`interface_acl_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `acl_history_ibfk_1` FOREIGN KEY (`history_id`) REFERENCES `history` (`history_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `acl_history`
+--
+
+LOCK TABLES `acl_history` WRITE;
+/*!40000 ALTER TABLE `acl_history` DISABLE KEYS */;
+/*!40000 ALTER TABLE `acl_history` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `circuit`
 --
 
