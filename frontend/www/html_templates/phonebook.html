@@ -88,6 +88,27 @@
     </div>
   </div>
 
+  <div class="modal fade" role="dialog" tabindex="-1" id="remove-entity-user-modal" user_id="" entityID="">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 id="remove-entity-user-header" class="modal-title">Remove user from entity</h4>
+          <p id="remove-entity-user-text">Are you sure you want to remove this user from the entity?</p>
+        </div>
+        <div class="modal-body">
+
+          <div style="max-height: 450px; overflow-y: scroll;">
+            <div id="add-to-connection-list">
+            </div>
+          </div>
+
+	  <button id="remove-entity-user-confirm" class="btn btn-primary" type="button" onclick="removeUser()">Confirm</button>
+          <button id="remove-entity-user-cancel" class="btn btn-secondary" type="button" onclick="hideRemoveUserModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <ol id="entity-crumbs" class="breadcrumb" style="margin-top: 15px; margin-bottom: 0px;">
   </ol>
 

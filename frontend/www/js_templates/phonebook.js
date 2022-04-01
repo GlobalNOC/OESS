@@ -208,7 +208,7 @@ async function loadEntityList(parentEntity=null) {
       p.appendChild(name);
 
       if ((user.is_admin == 1 && user.type != 'read-only') || valid_users.includes( user.user_id)){
-        p.innerHTML += `<sup class ='entity-contact' style='cursor:pointer' onclick='x_onclick(${user_id}, ${entity.entity_id})'>  &#10006</sup>`;
+        p.innerHTML += `<sup class ='entity-contact' style='cursor:pointer' onclick='showRemoveUserModal(${user_id}, ${entity.entity_id}, "${entity.name}", "${contact.first_name}", "${contact.last_name}")'>  &#10006</sup>`;
       }
       p.innerHTML += '<br/>' + contact.email + '<br/>';
       entityContacts.appendChild(p);
@@ -281,7 +281,23 @@ function filterFunction() {
   }
 }
 
-async function x_onclick(user_id, entityID){
+function showRemoveUserModal(user_id, entityID, entity_name, first_name, last_name) {
+  let removeUserModal = document.getElementById("remove-entity-user-modal");
+  $('#remove-entity-user-modal').modal('show');
+  document.getElementById("remove-entity-user-text").innerHTML = `Are you sure you want to remove ${first_name} ${last_name} from ${entity_name}?`;
+  removeUserModal.setAttribute("user_id", user_id);
+  removeUserModal.setAttribute("entityID", entityID);
+}
+
+async function removeUser(){
+  let removeUserModal = document.getElementById("remove-entity-user-modal");
+  let user_id = removeUserModal.getAttribute("user_id");
+  let entityID = removeUserModal.getAttribute("entityID");
+  $('#remove-entity-user-modal').modal('hide');
   await remove_user(user_id, entityID);
   await loadEntityList(entityID);
+}
+
+function hideRemoveUserModal(){
+  $('#remove-entity-user-modal').modal('hide');
 }
