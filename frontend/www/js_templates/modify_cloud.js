@@ -190,6 +190,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.querySelector('#circuit-header').innerHTML = await header.render({
       connectionId: state.connection.vrf_id,
       description: state.connection.description,
+      name: state.connection.name,
       editable: editable
     });
     addEditNameEvents(state.connection.description);
