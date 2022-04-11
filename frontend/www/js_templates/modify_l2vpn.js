@@ -15,6 +15,12 @@ class GlobalState extends Component {
       getRawCircuit(id)
     ]);
 
+    if (this.circuit == null){
+      document.getElementById("connection_error").style.display = "block";
+      document.getElementById("circuit2").style.display = "none";
+    }
+
+
     update();
   }
 
@@ -64,15 +70,11 @@ class GlobalState extends Component {
     ).then(function(result) {
       if (result !== null && result.success == 1) {
         window.location.href = `index.cgi?action=modify_l2vpn&circuit_id=${result.circuit_id}`;
-      } else {
-        provisionModal.modal('hide');
-        console.error('There was an unknown error encountered while modifying the connection.', result);
-        window.alert('There was an unknown error encountered while modifying the connection.');
       }
-    }).catch(error => {
-      provisionModal.modal('hide');
-      console.error(error);
-      window.alert(error);
+      else {
+        provisionModal.modal('hide');
+        window.alert('There was an error modifying the connection.');
+      }
     });
   }
 
@@ -163,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   state = new GlobalState();
   state.selectCircuit(id);
 
-  if (state.circuit == null){
+  if (id == ""){
     document.getElementById("connection_error").style.display = "block";
     document.getElementById("circuit2").style.display = "none";
   }
