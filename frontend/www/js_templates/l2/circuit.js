@@ -44,8 +44,10 @@ class CircuitHistory extends Component {
 
   async render(props) {
     let historyRows = '';
-    for (let i = 0; i < props.history.length; i++) {
-      let h = props.history[i];
+    let history = (props.history == null) ? [] : props.history;
+
+    for (let i = 0; i < history.length; i++) {
+      let h = history[i];
       historyRows += `<tr><td>${h.fullname}</td><td>${h.reason}</td><td>${h.activated}</td></tr>`;
     }
 
@@ -72,9 +74,10 @@ class ResourceHistoryTable extends Component {
     let href = {
       l3connection: function(data) { return `index.cgi?action=modify_cloud&vrf_id=${data.vrf_id}`; }
     };
+    let history = (props.history == null) ? [] : props.history;
 
-    for (let i = 0; i < props.history.length; i++) {
-      let h = props.history[i];
+    for (let i = 0; i < history.length; i++) {
+      let h = history[i];
       h.object = JSON.parse(JSON.stringify(h.object));
 
       let date = new Date(h.date * 1000).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
@@ -83,7 +86,7 @@ class ResourceHistoryTable extends Component {
       historyRows += `
         <tr class="table-hover">
           <td>${h.full_name}</td>
-          <td><a href="${href[h.type](h.object)}"><code>${h.resource_id}</code></a></td>
+          <td><a href="${href[h.type](JSON.parse(h.object))}"><code>${h.resource_id}</code></a></td>
           <td>${h.event}</td>
           <td>l3connection</td>
           <td>${date} ${time}</td>

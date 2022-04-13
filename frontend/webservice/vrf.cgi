@@ -864,7 +864,7 @@ sub provision_vrf{
 
         my $error = OESS::DB::VRF::add_vrf_history(
             db => $db,
-            event => 'modified',
+            event => 'edit',
             vrf => $vrf,
             user_id => $user->user_id,
             workgroup_id => $params->{workgroup_id}{value},
@@ -904,7 +904,7 @@ sub provision_vrf{
     } else {
         my $error = OESS::DB::VRF::add_vrf_history(
             db => $db,
-            event => 'provisioned',
+            event => 'create',
             vrf => $vrf,
             user_id => $user->user_id,
             workgroup_id => $params->{workgroup_id}{value},

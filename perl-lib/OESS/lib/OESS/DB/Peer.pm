@@ -215,8 +215,9 @@ sub update {
         push @$values, $args->{peer}->{local_ip};
     }
     if (defined $args->{peer}->{operational_state}) {
+        my $operational_state = ($args->{peer}->{operational_state} == 'up') ? 1 : 0;
         push @$params, 'operational_state=?';
-        push @$values, $args->{peer}->{operational_state};
+        push @$values, $operational_state;
     }
     if (defined $args->{peer}->{bfd}) {
         push @$params, 'bfd=?';
