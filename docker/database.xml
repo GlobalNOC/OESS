@@ -1,11 +1,13 @@
-<config host="MYSQL_HOST" port="MYSQL_PORT" base_url="OESS_BASE_URL" openflow="disabled" mpls="enabled" network_type="OESS_NETCONF_OVERLAY">
-  <tsds url="TSDS_URL" username="TSDS_USER" password="TSDS_PASS" realm="TSDS_REALM"/>
+<config host="MYSQL_HOST" port="MYSQL_PORT" base_url="OESS_BASE_URL" openflow="disabled" mpls="enabled" local_as="OESS_LOCAL_ASN" network_type="OESS_NETCONF_OVERLAY">
+  <nso username="NSO_USERNAME" password="NSO_PASSWORD" host="NSO_HOST" />
+  <tsds url="TSDS_URL" username="TSDS_USERNAME" password="TSDS_PASSWORD" realm="TSDS_REALM"/>
   <grafana host="GRAFANA_URL">
     <graph panelName="oess-interface" uid="GRAFANA_GRAPH_INTERFACE_UID" orgId="GRAFANA_GRAPH_INTERFACE_ORG_ID" panelId="GRAFANA_GRAPH_INTERFACE_PANEL_ID"/>
     <graph panelName="oess-bgp-peer" uid="GRAFANA_GRAPH_PEER_UID" orgId="GRAFANA_GRAPH_PEER_ORG_ID" panelId="GRAFANA_GRAPH_PEER_PANEL_ID"/>
     <graph panelName="oess-routing-table" uid="GRAFANA_GRAPH_ROUTING_UID" orgId="GRAFANA_GRAPH_ROUTING_ORG_ID" panelId="GRAFANA_GRAPH_ROUTING_PANEL_ID"/>
   </grafana>
 
+  <cloud user="admin" password="OESS_PASSWORD" realm="OESS"></cloud>
   <credentials username="MYSQL_USER" password="MYSQL_PASS" host="MYSQL_HOST" port="MYSQL_PORT" database="MYSQL_DATABASE" />
   <rabbitMQ user="RABBITMQ_USER" pass="RABBITMQ_PASS" host="RABBITMQ_HOST" port="RABBITMQ_PORT" vhost="RABBITMQ_VHOST" />
 
