@@ -14,12 +14,11 @@ const createNodeComponent = (props) => {
   let submitHandler = async (e) => {
     try {
       await createNode(e);
-      console.log(e);
       setStatus({type:'success', message:`Node '${e.name}' was successfully created.`});
+      history.push('/nodes');
     } catch (error) {
       setStatus({type:'error', message:error});
     }
-    history.push('/nodes');
   };
 
   let cancelHandler = async () => {
