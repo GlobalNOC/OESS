@@ -46,7 +46,7 @@ sub create {
 
     $args->{model}->{circuit_ep_id} = (exists $args->{model}->{circuit_ep_id}) ? $args->{model}->{circuit_ep_id} : undef;
     $args->{model}->{vrf_ep_id} = (exists $args->{model}->{vrf_ep_id}) ? $args->{model}->{vrf_ep_id} : undef;
-    $args->{model}->{operational_state} = (defined $args->{model}->{operational_state} && $args->{model}->{operational_state} eq 'up') ? 1 : 0;
+    my $operational_state = (defined $args->{model}->{operational_state} && $args->{model}->{operational_state} eq 'up') ? 1 : 0;
     $args->{model}->{bfd} = (defined $args->{model}->{bfd}) ? $args->{model}->{bfd} : 0;
 
     # Attempt to auto-detect ip version if not provided
@@ -82,7 +82,7 @@ sub create {
         $args->{model}->{peer_asn},
         $args->{model}->{peer_ip},
         $args->{model}->{md5_key},
-        $args->{model}->{operational_state},
+        $operational_state,
         'active',
         $args->{model}->{bfd},
         $args->{model}->{ip_version}
@@ -215,7 +215,7 @@ sub update {
         push @$values, $args->{peer}->{local_ip};
     }
     if (defined $args->{peer}->{operational_state}) {
-        my $operational_state = ($args->{peer}->{operational_state} == 'up') ? 1 : 0;
+        my $operational_state = ($args->{peer}->{operational_state} eq 'up') ? 1 : 0;
         push @$params, 'operational_state=?';
         push @$values, $operational_state;
     }
