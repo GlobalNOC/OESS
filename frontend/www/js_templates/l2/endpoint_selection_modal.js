@@ -228,6 +228,16 @@ class EndpointSelectionModal2 {
         list.innerHTML = '';
         list.style.display = 'none';
         return null;
+      } else {
+        if (!document.querySelector('.list-group-item.loading')){
+          list.innerHTML = '';
+          list.style.display = 'block';
+          let l = document.createElement('p');
+          l.setAttribute('class', 'list-group-item');
+          l.classList.add("loading");
+          l.innerText = "Loading...";
+          list.appendChild(l);
+        }
       }
 
       // If entity search hasn't yet executed restart the countdown; The
@@ -239,21 +249,31 @@ class EndpointSelectionModal2 {
           list.innerHTML = '';
           list.style.display = 'block';
 
-          for (let i = 0; i < entities.length; i++) {
-            let l = document.createElement('a');
-            l.setAttribute('href', '#');
-            l.setAttribute('class', 'list-group-item');
-            l.innerText = entities[i].name;
-            l.onclick = (e) => {
-              search.target.value = '';
-              list.innerHTML = '';
-              list.style.display = 'none';
+          if (search.target.value.length >= 2){
+            for (let i = 0; i < entities.length; i++) {
+              let l = document.createElement('a');
+              l.setAttribute('href', '#');
+              l.setAttribute('class', 'list-group-item');
+              l.innerText = entities[i].name;
+              l.onclick = (e) => {
+                search.target.value = '';
+                list.innerHTML = '';
+                list.style.display = 'none';
 
-              entities[i].index = index;
-              this.populateEntityForm(entities[i]);
-            };
-            list.appendChild(l);
+                entities[i].index = index;
+                this.populateEntityForm(entities[i]);
+              };
+              list.appendChild(l);
+            }
+
+            if (entities.length == 0){
+              let l = document.createElement('p');
+              l.setAttribute('class', 'list-group-item');
+              l.innerText = "No results found";
+              list.appendChild(l);
+            }
           }
+
         }.bind(this));
       }.bind(this), 800);
 
