@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I /home/aragusa/OESS/perl-lib/OESS/lib
+#!/usr/bin/perl
 
 use strict;
 use warnings;

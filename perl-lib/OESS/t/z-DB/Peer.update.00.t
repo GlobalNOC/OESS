@@ -67,8 +67,5 @@ ok(!defined $err2, "no error on standard fetch_all");
 warn $err2 if defined $err2;
 
 foreach my $key (keys %$model) {
-    if ($key eq 'operational_state') {
-        $peers->[0]->{$key} = ($peers->[0]->{$key} eq 'up') ? 1 : 0;
-    }
     ok($peers->[0]->{$key} eq $model->{$key}, "got expected $key from db");
 }

@@ -10,6 +10,7 @@ use OESS::Peer;
 use OESS::Interface;
 use OESS::User;
 use OESS::Workgroup;
+use JSON::XS;
 
 use OESS::DB::Endpoint;
 
@@ -141,7 +142,8 @@ sub add_vrf_history {
     return 'Required argument "state" must be "active", "decom", "scheduled", "deploying", "looped", "reserved" or "provisioned"' if $args->{state} !~ /active|decom|scheduled|deploying|looped|reserved|provisioned/;
 
     my $query = "insert into history (date, state, user_id, workgroup_id, event, type, object) values (unix_timestamp(now()), ?, ?, ?, ?, 'l3connection', ?)";
-    my $history_id = $args->{db}->execute_query($query, [$args->{state}, $args->{user_id}, $args->{workgroup_id}, $args->{event}, $args->{vrf}->to_hash]);
+    my $json = encode_json($args->{vrf}->to_hash);
+    my $history_id = $args->{db}->execute_query($query, [$args->{state}, $args->{user_id}, $args->{workgroup_id}, $args->{event}, $json]);
     if (!defined $history_id) {
         return $args->{db}->get_error;
     }

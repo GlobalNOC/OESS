@@ -10,6 +10,8 @@ sigint_handler()
 
 trap sigint_handler SIGINT
 
+sleep 60
+
 while true; do
   $1 &
   PID=$!

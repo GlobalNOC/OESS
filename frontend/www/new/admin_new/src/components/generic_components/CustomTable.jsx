@@ -91,7 +91,7 @@ export const CustomTable = (props) => {
 
     let menuItems = [];
     React.Children.forEach(props.children, (child) => {
-        if (child.type.name == "TableMenuItem") {
+        if (child.type == TableMenuItem) {
             menuItems.push(child);
         }
     });
