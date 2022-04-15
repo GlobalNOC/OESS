@@ -2,26 +2,40 @@
   <div class="panel panel-default" style="padding: 0 15 0 15;">
 
     <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
-      <div>
-        <h3>Entity:&nbsp;</h3>
-        <h4>Node:&nbsp;</h3>
-        <h4>Port:&nbsp;</h4>
-        <h5 class="d1q">VLAN:&nbsp;</h5>
-        <h5 class="qnq">STag:</h5>
-        <h5 class="qnq">CTag:</h5>
-        <h6><b>Bandwidth:</b></h6>
-        <h6><b>MTU:</b></h6>
-      </div>
-
-      <div>
-        <h3 class="entity">NA</h3>
-        <h4 class="node"></h4>
-        <h4><span class="interface"></span> <small class="interface-description"></small></h4>
-        <h5 class="tag"></h5>
-        <h5 class="inner-tag"></h5>
-        <h6 class="bandwidth"></h6>
-        <h6 class="mtu"></h6>
-      </div>
+      <table style="margin-top:20px;">
+        <tr style="vertical-align:top;">
+          <td><h3 style="margin-top:0px;">Entity:&nbsp;</h3></td>
+          <td><h3 style="margin-top:0px;" class="entity">NA</h3></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h4 style="margin-top:0px;">Node:&nbsp;</h3></td>
+          <td><h4 style="margin-top:0px;" class="node"></h4></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h4 style="margin-top:0px;">Port:&nbsp;</h4></td>
+          <td><h4 style="margin-top:0px;"><span class="interface"></span> <small class="interface-description"></small></h4></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h5 style="margin-top:0px;" class="d1q">VLAN:&nbsp;</h5></td>
+          <td><h5 style="margin-top:0px;" class="tag"></h5></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h5 style="margin-top:0px;" class="qnq">STag:</h5></td>
+          <td><h5 style="margin-top:0px;" class="inner-tag"></h5></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h5 style="margin-top:0px;" class="qnq">CTag:</h5></td>
+          <td></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h6 style="margin-top:0px;"><b>Bandwidth:</b></h6></td>
+          <td><h6 style="margin-top:0px;" class="bandwidth"></h6></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h6 style="margin-top:0px;"><b>MTU:</b></h6></td>
+          <td><h6 style="margin-top:0px;" class="mtu"></h6></td>
+        </tr>
+      </table>
 
       <div style="flex: 1; padding: 46px 16px 8px;">
         <button class="btn btn-sm btn-primary add-peering-button" type="button" onclick="" style="margin: 0 0 6px">
@@ -48,7 +62,7 @@
         </div>
       </div>
 
-      <div class="endpoint-buttons" style="display: none;">
+      <div class="endpoint-buttons" style="display:none;flex-basis:92px;flex-shrink:0;flex-grow:0;">
         <button class="btn btn-link view-endpoint-configuration-button" type="button" style="padding: 12 6 12 6;" title="Download router configuration">
           <span class="glyphicon glyphicon-save"></span>
         </button>
