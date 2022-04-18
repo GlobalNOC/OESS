@@ -138,7 +138,7 @@ async function update(props) {
     history.render(state),
     events.render(state),
     raw.render(state),
-    circuitHeader.render({connectionId: state.circuit.circuit_id, description: state.circuit.description, editable: editable})
+    circuitHeader.render({connectionId: state.circuit.circuit_id, description: state.circuit.description, editable: editable, name: state.circuit.name})
   ]);
 
   let list = document.getElementById('endpoints');

@@ -129,6 +129,7 @@ async function loadEntityList() {
     </div>
     <div style="flex: 1;">
       <h4>${entity.description}</h4>
+      <h6>${entity.name}</h6>
       <div style="display: flex;">
         <p style="padding-right: 15px; margin-bottom: 0px;"><b>Owner:</b> ${entity.workgroup.name}</p>
         <p style="padding-right: 15px; margin-bottom: 0px;"><b>Created on:</b> ${createdOn.toDateString()}</p>
@@ -146,11 +147,13 @@ async function loadEntityList() {
   <div id="entity-body-${index}" class="panel-body" style="padding-left: 45px; display: none;">
     <div style="display: flex;">
       <div style="padding-right: 15px;">
+        <p><b>Name</b></p>
         <p><b>Description</b></p>
         <p><b>ID</b></p>
         <p><b>Prefix limit</b></p>
       </div>
       <div style="padding-right: 18px;">
+        <p>${entity.name}</p>
         <p>${entity.description}</p>
         <p>${entity.vrf_id}</p>
         <p>${entity.prefix_limit}</p>
@@ -238,6 +241,7 @@ async function loadL2VPNs() {
     </div>
     <div style="flex: 1;">
       <h4>${circuit.description}</h4>
+      <h6>${circuit.name}</h6>
       <div style="display: flex;">
         <p style="padding-right: 15px; margin-bottom: 0px;"><b>Owner:</b> ${circuit.workgroup.name}</p>
         <p style="padding-right: 15px; margin-bottom: 0px;"><b>Created on:</b> ${createdOn.toDateString()}</p>
@@ -254,10 +258,12 @@ async function loadL2VPNs() {
   <div id="entity-body-${index+100000}" class="panel-body" style="padding-left: 45px; display: none;">
     <div style="display: flex;">
       <div style="padding-right: 15px;">
+        <p><b>Name</b></p>
         <p><b>Description</b></p>
         <p><b>ID</b></p>
       </div>
       <div style="padding-right: 18px;">
+        <p>${circuit.name}</p>
         <p>${circuit.description}</p>
         <p>${circuit.circuit_id}</p>
       </div>
