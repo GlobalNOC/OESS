@@ -182,23 +182,29 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   history = new ResourceHistoryTable({workgroupID: session.data.workgroup_id});
 
-  state.selectConnection(id).then(async () => {
-    let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.connection.workgroup.workgroup_id && !session.data.isReadOnly);
-    let connActive = state.connection.state !== 'decom';
-    let editable = connActive && userMayEdit;
+  state.selectConnection(id)
+    .then(async () => {
+      let userMayEdit = session.data.isAdmin || (session.data.workgroup_id == state.connection.workgroup.workgroup_id && !session.data.isReadOnly);
+      let connActive = state.connection.state !== 'decom';
+      let editable = connActive && userMayEdit;
 
-    let newEndpointButton = document.querySelector('#new-endpoint-button');
-    newEndpointButton.style.display = (editable) ? 'block' : 'none';
+      let newEndpointButton = document.querySelector('#new-endpoint-button');
+      newEndpointButton.style.display = (editable) ? 'block' : 'none';
 
-    let header = new CircuitHeader();
-    document.querySelector('#circuit-header').innerHTML = await header.render({
-      connectionId: state.connection.vrf_id,
-      description: state.connection.description,
-      name: state.connection.name,
-      editable: editable
+      let header = new CircuitHeader();
+      document.querySelector('#circuit-header').innerHTML = await header.render({
+        connectionId: state.connection.vrf_id,
+        description: state.connection.description,
+        editable: editable
+      });
+      addEditNameEvents(state.connection.description);
+    })
+    .catch( error => {
+      if (state.connection == null) {
+        document.getElementById("connection_error").style.display = "block";
+        document.getElementById("circuit").style.display = "none";
+      }
     });
-    addEditNameEvents(state.connection.description);
-  });
 
   let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
   addNetworkEndpoint.addEventListener('click', function(event) {
