@@ -7,7 +7,7 @@
     "dev": "NODE_ENV=development parcel serve --port 1234 --hmr-port 1235 src/index.html",
     "dev2": "NODE_ENV=development parcel watch --public-url /oess/new/admin --hmr-port 1235 src/index.html",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "parcel build --public-url /oess/new/admin src/index.html"
+    "build": "parcel build  --public-url /oess/new/admin src/index.html --no-cache"
   },
   "author": "",
   "license": "ISC",

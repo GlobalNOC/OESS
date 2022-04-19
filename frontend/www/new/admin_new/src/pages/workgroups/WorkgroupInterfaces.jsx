@@ -1,16 +1,26 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { withRouter } from "react-router-dom";
 
 import { createWorkgroup } from '../../api/workgroup.js';
 import { WorkgroupForm } from '../../components/workgroups/WorkgroupForm.jsx';
 import { PageContext } from "../../contexts/PageContext.jsx";
-
+import { CustomTable } from "../../components/generic_components/CustomTable.jsx";
+import { getInterfacesByWorkgroupId } from '../../api/interfaces.js';
 import "../../style.css";
 
 export const WorkgroupInterfaces = (props) => {
   const { history } = props;
   const { setStatus } = useContext(PageContext);
+  const [ interfaces, setInterfaces]  = useState([]);
 
+  let workgroup_id = window.location.href.split('/')[(window.location.href.split('/').length) - 2];
+  useEffect(() => {
+    async function getData() {
+      setInterfaces( await getInterfacesByWorkgroupId(workgroup_id));
+    }
+    getData();
+  },[]);
+  
   let submitHandler = async (e) => {
     try {
       await createWorkgroup(e);
@@ -25,6 +35,13 @@ export const WorkgroupInterfaces = (props) => {
     history.push('/workgroups');
   };
 
+  let columns = [
+    { name: 'ID', key: 'interface_id' },
+    { name: 'Endpoint', key: 'node' },
+    { name: 'Interface', key: 'name' },
+    { name: 'Description', key: 'description' }
+   ];
+  
   return (
     <div>
       <div>
@@ -32,8 +49,8 @@ export const WorkgroupInterfaces = (props) => {
         <p className="subtitle">Add or remove Workgroup Interfaces.</p>
       </div>
       <br />
-
-      {/* <WorkgroupForm workgroup={null} onSubmit={submitHandler} onCancel={cancelHandler} /> */}
+        <CustomTable columns={columns} rows={interfaces} size={15} filter={['interface_id', 'interface_name', 'description']}>
+        </CustomTable>
     </div>
   );
 }

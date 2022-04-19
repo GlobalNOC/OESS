@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { withRouter } from "react-router-dom";
 
-import { AclProvider } from "../../../components/acls/ACLProvider.jsx";
+import { AclProvider } from "../../../components/acls/AclProvider.jsx";
 import { AclTable } from "../../../components/acls/AclTable.jsx";
 
 import "../../../style.css";

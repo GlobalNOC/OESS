@@ -10,6 +10,17 @@ export const getInterfaces = async (nodeId) => {
   if (data.error_text) throw data.error_text;
   return data.results;
 }
+//Maybe combine these two functions in the future? Using JSON seems to break from the pattern.
+export const getInterfacesByWorkgroupId = async (workgroupId) => {
+  let url = `${config.base_url}/services/interface.cgi?method=get_workgroup_interfaces&workgroup_id=${workgroupId}`;
+
+  const resp = await fetch(url, {method: 'get', credentials: 'include'});
+  const data = await resp.json();
+
+  if (data.error_text) throw data.error_text;
+  console.log(data.results);  
+  return data.results;
+}
 
 export const getInterface = async (interfaceId) => {
   let url = `${config.base_url}/services/interface.cgi?method=get_interface&interface_id=${interfaceId}`;

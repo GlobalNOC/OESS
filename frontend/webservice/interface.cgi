@@ -83,7 +83,7 @@ sub register_ro_methods {
         description => 'Node ID to fetch details'
      );
     $method->add_input_parameter(
-        name => 'workgroupd_id',
+        name => 'workgroup_id',
         pattern => $GRNOC::WebService::Regex::INTEGER,
         required => 0,
         description => 'Workgroup ID to filter results'
