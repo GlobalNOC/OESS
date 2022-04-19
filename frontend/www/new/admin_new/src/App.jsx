@@ -7,6 +7,7 @@ import { PageContextProvider } from './contexts/PageContext.jsx';
 
 import { Users } from "./pages/users/Users.jsx";
 import { Nodes } from "./pages/nodes/Nodes.jsx";
+import { Links } from "./pages/links/Links.jsx";
 import { Workgroups } from "./pages/workgroups/Workgroups.jsx";
 import { Toast } from "./components/generic_components/Toast.jsx";
 
@@ -61,6 +62,8 @@ const App = () => {
               <Route path="/nodes/:id/interfaces" component={Interfaces} />
               <Route path="/nodes/:id" component={EditNode} />
               <Route path="/nodes" component={Nodes} />
+
+              <Route path="/links" component={Links} />
 
               <Route path="/workgroups/new">
                 <CreateWorkgroup />

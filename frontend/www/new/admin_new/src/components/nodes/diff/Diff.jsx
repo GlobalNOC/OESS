@@ -10,7 +10,7 @@ export const Diff = (props) => {
     // getting the highlighting to span lines longer than the
     // initial width
     return (
-        <pre className="container-fluid" style={{marginBottom: '20px', wordBreak: 'break-word', whiteSpace: 'pre-wrap'}}>
+        <pre className="container-fluid" style={{marginBottom: '20px', wordBreak: 'break-word', whiteSpace: 'pre-wrap', maxHeight: '50vh'}}>
             {diffTextLines.map((line) => {
                 let firstChar = line.substring(0, 1);
                 if (firstChar === '+') {

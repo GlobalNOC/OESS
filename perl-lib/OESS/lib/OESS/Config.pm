@@ -64,7 +64,7 @@ returns the configured local_as number
 sub local_as {
     my $self = shift;
 
-    return $self->{'config'}->{'local_as'};
+    return $ENV{OESS_LOCAL_ASN} || $self->{'config'}->{'local_as'};
 }
 
 =head2 db_credentials
@@ -230,11 +230,9 @@ Returns one of C<openflow>, C<vpn-mpls>, or C<evpn-vxlan>.
 =cut
 sub network_type {
     my $self = shift;
-    if (!defined $self->{'config'}->{'network_type'}) {
-        return 'vpn-mpls';
-    }
 
-    my $type = $self->{'config'}->{'network_type'};
+    my $type = $ENV{OESS_NETWORK_TYPE} || $self->{config}->{network_type} || 'vpn-mpls';
+
     my $valid_types = ['openflow', 'vpn-mpls', 'evpn-vxlan', 'nso', 'nso+vpn-mpls'];
     foreach my $valid_type (@$valid_types) {
         if ($type eq $valid_type) {
@@ -346,7 +344,7 @@ sub nso_host {
 =cut
 sub nso_password {
     my $self = shift;
-    return $ENV{NSO_PASS} || $self->{config}->{nso}->{password};
+    return $ENV{NSO_PASSWORD} || $self->{config}->{nso}->{password};
 }
 
 =head2 nso_username
@@ -354,7 +352,7 @@ sub nso_password {
 =cut
 sub nso_username {
     my $self = shift;
-    return $ENV{NSO_USER} || $self->{config}->{nso}->{username};
+    return $ENV{NSO_USERNAME} || $self->{config}->{nso}->{username};
 }
 
 =head2 tsds_url

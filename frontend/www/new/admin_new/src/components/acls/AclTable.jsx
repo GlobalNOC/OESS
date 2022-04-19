@@ -7,7 +7,7 @@ import { withRouter } from "react-router-dom";
 
 import { deleteAcl, decreaseAclPriority, increaseAclPriority } from '../../api/acls.js';
 
-import { Table } from '../generic_components/Table.jsx';
+import { CustomTable } from "../generic_components/CustomTable.jsx";
 import { PageContext } from "../../contexts/PageContext.jsx";
 
 import "../../style.css";
@@ -103,16 +103,12 @@ const aclTableComponent = (props) => {
         { name: '', render: rowButtons, style: {textAlign: 'right' } }
     ];
 
-
     return (
-        <div>
-            <form id="user_search_div" className="form-inline">
+        <CustomTable columns={columns} rows={props.acls} size={15}>
+            <CustomTable.MenuItem>
                 <Link to={`/nodes/${match.params['id']}/interfaces/${match.params['interfaceId']}/acls/new`} className="btn btn-default">Create ACL</Link>
-            </form>
-            <br />
-            
-            <Table columns={columns} rows={props.acls} />
-        </div>
+            </CustomTable.MenuItem>
+        </CustomTable>
     );
 };
 

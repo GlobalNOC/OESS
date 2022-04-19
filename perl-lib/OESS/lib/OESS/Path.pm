@@ -5,7 +5,7 @@ package OESS::Path;
 
 use Data::Dumper;
 use Graph::Directed;
-
+use Graph::Undirected;
 use OESS::DB::Link;
 use OESS::DB::Path;
 use OESS::Link;

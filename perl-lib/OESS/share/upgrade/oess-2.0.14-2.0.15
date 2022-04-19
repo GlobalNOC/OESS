@@ -84,6 +84,16 @@ sub upgrade{
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
     $sth->execute() or die "Unable to create vrf_history table";
 
+    $sth = $dbh->prepare("CREATE TABLE `acl_history` (
+  `history_id` int(10) NOT NULL,
+  `interface_acl_id` int(10) NOT NULL,
+  KEY `history_acl_history_fk` (`history_id`),
+  KEY `acl_acl_history_fk` (`interface_acl_id`),
+  CONSTRAINT `acl_history_ibfk_2` FOREIGN KEY (`interface_acl_id`) REFERENCES `interface_acl` (`interface_acl_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `acl_history_ibfk_1` FOREIGN KEY (`history_id`) REFERENCES `history` (`history_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+    $sth->execute() or die "Unable to create vrf_history table";
+
     $sth = $dbh->prepare("ALTER TABLE workgroup MODIFY `name` varchar(20) NOT NULL");
     $sth->execute() or die "Unable to update workgroup 'name' length to 20";
 

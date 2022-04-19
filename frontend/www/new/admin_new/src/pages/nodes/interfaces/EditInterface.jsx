@@ -12,12 +12,12 @@ const editInterfaceComponent = (props) => {
   const { history, match } = props;
   const { setStatus } = useContext(PageContext);
 
-  const [interface, setInterface] = useState(null);
+  const [intf, setIntf] = useState(null);
 
   useEffect(() => {
     getInterface(match.params["interfaceId"]).then(intf => {
       console.log('intf', intf);
-      setInterface(intf);
+      setIntf(intf);
     }).catch(error => {
       console.error(error);
       setStatus({type: 'error', message: error.toString()});
@@ -38,19 +38,19 @@ const editInterfaceComponent = (props) => {
     history.goBack();
   };
 
-  if (interface == null) {
+  if (intf == null) {
     return <p>Loading</p>;
   };
 
   return (
     <div>
       <div>
-        <p className="title"><b>Edit Interface:</b> {interface.name}</p>
+        <p className="title"><b>Edit Interface:</b> {intf.name}</p>
         <p className="subtitle">Edit Interface.</p>
       </div>
       <br />
 
-      <InterfaceForm interface={interface} onSubmit={submitHandler} onCancel={cancelHandler} />
+      <InterfaceForm intf={intf} onSubmit={submitHandler} onCancel={cancelHandler} />
     </div>
   );
 };

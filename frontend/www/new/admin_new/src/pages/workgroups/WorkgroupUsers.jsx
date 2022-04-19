@@ -51,7 +51,7 @@ class WorkgroupUsers extends React.Component {
   };
 
   async removeWorkgroupUserHandler(user) {
-    let ok = confirm(`Remove '${user.username}' from workgroup?`);
+    let ok = confirm(`Remove '${user.usernames[0]}' from workgroup?`);
     if (!ok) return;
 
     try {
