@@ -368,12 +368,18 @@ sub has_workgroup_access {
         @_
     };
 
-    return OESS::DB::User::has_workgroup_access(
-        db           => $self->{db},
-        role         => $args->{role},
-        username     => $self->{username},
-        workgroup_id => $args->{workgroup_id}
-    );
+    my $ok;
+    my $err;
+    foreach my $username (@{$self->{usernames}}) {
+        ($ok, $err) = OESS::DB::User::has_workgroup_access(
+            db           => $self->{db},
+            role         => $args->{role},
+            username     => $username,
+            workgroup_id => $args->{workgroup_id}
+        );
+        if ($ok) { return (1, undef); }
+    }
+    return (0, $err);
 }
 
 =head2 has_system_access
@@ -386,11 +392,17 @@ sub has_system_access {
         @_
     };
 
-    return OESS::DB::User::has_system_access(
-        db       => $self->{db},
-        role     => $args->{role},
-        username => $self->{username}
-    );
+    my $ok;
+    my $err;
+    foreach my $username (@{$self->{usernames}}) {
+        ($ok, $err) = OESS::DB::User::has_system_access(
+            db       => $self->{db},
+            role     => $args->{role},
+            username => $username
+        );
+        if ($ok) { return (1, undef); }
+    }
+    return (0, $err);
 }
 
 1;

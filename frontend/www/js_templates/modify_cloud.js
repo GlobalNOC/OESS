@@ -10,6 +10,7 @@ class GlobalState extends Component {
       id:        -1,
       endpoints: []
     };
+    this.history = [];
   }
 
   async selectConnection(id) {
@@ -172,15 +173,13 @@ $(function () {
 
 let state = new GlobalState();
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
-let history = null;
+let history = new ResourceHistoryTable();
 
 document.addEventListener('DOMContentLoaded', async function() {
   await loadUserMenu();
 
   let url = new URL(window.location.href);
   let id = url.searchParams.get('vrf_id');
-
-  history = new ResourceHistoryTable({workgroupID: session.data.workgroup_id});
 
   state.selectConnection(id)
     .then(async () => {
@@ -198,6 +197,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         editable: editable
       });
       addEditNameEvents(state.connection.description);
+
+      let historyElem = document.querySelector('#history');
+      historyElem.innerHTML = await history.render(state);
     })
     .catch( error => {
       if (state.connection == null) {
@@ -224,9 +226,6 @@ async function update() {
 
   let list = document.getElementById('endpoints2-list');
   list.innerHTML = '';
-
-  let historyElem = document.querySelector('#history');
-  historyElem.innerHTML = await history.render(state);
 
   state.connection.endpoints.map(function(e, i) {
     e.index = i;

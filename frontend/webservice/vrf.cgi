@@ -195,9 +195,8 @@ sub register_rw_methods{
 
 }
 
-sub get_vrf_history{
+sub get_vrf_history {
     my ( $method, $args ) = @_;
-    my $results;
 
     my $vrf_id = $args->{vrf_id}{value};
 
@@ -213,8 +212,10 @@ sub get_vrf_history{
         return;
     }
 
-    if (!$user->has_workgroup_access(role => 'read-only', workgroup_id => $vrf->{workgroup_id}) && !$user->has_system_access(role => 'read-only')) {
-        $method->set_error("User $ENV{REMOTE_USER} does not have access to view this vrf's history");
+    my ($in_workgroup, $wg_err) = $user->has_workgroup_access(role => 'read-only', workgroup_id => $vrf->{workgroup_id});
+    my ($in_sysadmins, $sys_err) = $user->has_system_access(role => 'read-only');
+    if (!$in_workgroup && !$in_sysadmins) {
+        $method->set_error($wg_err);
         return;
     }
 
@@ -223,9 +224,7 @@ sub get_vrf_history{
         $method->set_error( $db->get_error() );
         return;
     }
-
-    $results->{'results'} = $events;
-     return $results;
+    return { results => $events };
 }
 
 sub get_vrf_details{
