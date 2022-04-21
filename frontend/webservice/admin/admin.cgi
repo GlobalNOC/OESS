@@ -43,6 +43,8 @@ use OESS::DB::Interface;
 use OESS::DB::Link;
 use OESS::DB::User;
 use OESS::DB::Workgroup;
+use OESS::RabbitMQ::Client;
+use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_node);
 
 use OESS::ACL;
 use OESS::Endpoint;
@@ -1792,7 +1794,24 @@ sub move_interface_configuration {
 
     $db2->commit();
 
-    use OESS::RabbitMQ::Client;
+    my $src_node = new OESS::Node(
+        db => $db2,
+        node_id => $orig_interface->node_id
+    );
+    my $dst_node = new OESS::Node(
+        db => $db2,
+        node_id => $new_interface->node_id
+    );
+    if ($src_node->controller ne $dst_node->controller) {
+        $method->set_error("Interfaces cannot be migrated between controllers, as this would result in Connections with Endpoints on multiple controllers.");
+        return;
+    }
+
+    my ($topic, $topic_err) = fwdctl_topic_for_node($src_node);
+    if (defined $topic_err) {
+        $method->set_error($topic_err);
+        return;
+    }
 
     my $mq = OESS::RabbitMQ::Client->new(
         topic    => 'MPLS.FWDCTL.RPC',
