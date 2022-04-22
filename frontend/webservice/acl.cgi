@@ -90,12 +90,6 @@ $delete_acl->add_input_parameter(
     required    => 1,
     description => "The interface acl ID the ACL to be removed."
 );
-$delete_acl->add_input_parameter(
-    name        => 'workgroup_id',
-    pattern     => $GRNOC::WebService::Regex::INTEGER,
-    required    => 1,
-    description => "Workgroup to which ACL is applied."
-);
 $ws->register_method($delete_acl);
 
 my $edit_acl = GRNOC::WebService::Method->new(
@@ -185,7 +179,7 @@ $get_acls->add_input_parameter(
 );
 $ws->register_method($get_acls);
 
-my $get_acl_history = GRNOC::Webservice::Method->new(
+my $get_acl_history = GRNOC::WebService::Method->new(
     name        => 'get_acl_history',
     description => 'Gets the creation and edit history of an ACL',
     callback    => sub { get_acl_history( @_ ) }
@@ -216,14 +210,14 @@ sub create_acl {
         $method->set_error($err);
         return;
     }
-    my ($access_ok, $access_err) = $user->has_workgroup_access(
-        role => 'normal',
-        workgroup_id => $interface->{workgroup_id}
-    );
-    if (defined $access_err) {
-        $method->set_error($access_err);
+
+    my ($in_workgroup, $wg_err) = $user->has_workgroup_access(role => 'normal', workgroup_id => $interface->{workgroup_id});
+    my ($in_sysadmins, $sy_err) = $user->has_system_access(role => 'normal');
+    if (!$in_workgroup && !$in_sysadmins) {
+        $method->set_error($wg_err);
         return;
     }
+
     my $username = $user->usernames()->[0];
 
     my $interface_name = $interface->{name};
@@ -233,34 +227,23 @@ sub create_acl {
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
     $logger->debug("Initiating creation of ACL at <time> for $workgroup_name.");    
     
-    my $acl_model = { 
-        workgroup_id  => $params->{"workgroup_id"}{'value'} || -1,
-        interface_id  => $params->{"interface_id"}{'value'},
-        allow_deny    => $params->{"allow_deny"}{'value'},
-        eval_position => $params->{"eval_position"}{'value'} || undef,
-        start         => $vlan_start,
-        end           => $vlan_end || undef,
-        notes         => $params->{"notes"}{'value'} || undef,
-        entity_id     => $params->{"entity_id"}{'value'} || -1,
-        user_id       => $user->user_id
-    };
-    my ($acl_id, $acl_error) = OESS::DB::ACL::create(db => $db, model => $acl_model);
-    if (defined $acl_error) {
-        $logger->error("Error creating ACL at ". localtime(). " for $workgroup_name, on $interface_name from vlans $vlan_start to $vlan_end. Action was initiated by $username");
-        $method->set_error( $acl_error );
-        return;
-    }
-
-    my $error = OESS::DB::ACL::add_acl_history(
+    my $acl = OESS::ACL->new(
         db => $db,
-        event => 'create',
-        acl => $acl_model,
-        user_id => $user->user_id,
-        workgroup_id => $workgroup_id,
-        state => 'active'
+        model => {
+            workgroup_id  => $params->{"workgroup_id"}{'value'} || -1,
+            interface_id  => $params->{"interface_id"}{'value'},
+            allow_deny    => $params->{"allow_deny"}{'value'},
+            eval_position => $params->{"eval_position"}{'value'} || undef,
+            start         => $vlan_start,
+            end           => $vlan_end || undef,
+            notes         => $params->{"notes"}{'value'} || undef,
+            entity_id     => $params->{"entity_id"}{'value'} || -1,
+        }
     );
-    if (defined $error) {
-        warn $error;
+    my $acl_id = $acl->create($user->user_id, $interface->{workgroup_id});
+    if (!$acl_id) {
+        $method->set_error("Couldn't create ACL.");
+        return;
     }
 
     $logger->info("Created ACL with id $acl_id at " .localtime(). " for $workgroup_name on $interface_name from vlans $vlan_start to $vlan_end, Action was initiated by $username");
@@ -347,77 +330,69 @@ sub edit_acl {
     my $logger       = Log::Log4perl->get_logger("OESS.ACL");
 
 
-    # my $request_interface = OESS::DB::ACL::fetch(db => $db, interface_acl_id => $acl_id)->{interface_id};
-    my $rinterface = OESS::DB::ACL::fetch(db => $db, interface_acl_id => $acl_id);
-    warn Dumper($rinterface);
-    my $request_interface = $rinterface->{interface_id};
+    my $original_acl = new OESS::ACL(db => $db, interface_acl_id => $acl_id);
+    my $acl = new OESS::ACL(db => $db, interface_acl_id => $acl_id);
 
-    my $request_workgroup = OESS::DB::Interface::fetch(db => $db, interface_id => $request_interface)->{workgroup_id};
+    my $interface = new OESS::Interface( db => $db, interface_id => $original_acl->interface_id);
 
     my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
     if (defined $err) {
         $method->set_error($err);
         return;
     }
-    my ($access_ok, $access_err) = $user->has_workgroup_access(
-        role => 'normal',
-        workgroup_id => $request_workgroup
-    );
-    if (defined $access_err) {
-        $method->set_error($access_err);
+    my ($in_workgroup, $wg_err) = $user->has_workgroup_access(role => 'normal', workgroup_id => $interface->workgroup_id);
+    my ($in_sysadmins, $sy_err) = $user->has_system_access(role => 'normal');
+    if (!$in_workgroup && !$in_sysadmins) {
+        $method->set_error($wg_err);
         return;
     }
 
-    my $original_acl = OESS::ACL->new(db => $db, interface_acl_id => $acl_id);
-    my $acl = OESS::ACL->new(db => $db, interface_acl_id => $acl_id);
     $db->start_transaction();
-    if($acl->{'eval_position'} != $params->{eval_position}{value}){
-        #doing an interface move... grab all the acls for this interface
-        my $interface = OESS::Interface->new( db => $db, interface_id => $acl->{interface_id});
+    if ($acl->{'eval_position'} != $params->{eval_position}{value}) {
 
-        foreach my $a (@{$interface->acls()}){
-	    next if $a->{acl_id} == $acl_id;
-	    
-	    if($params->{eval_position}{value} < $acl->{eval_position}){
-		
-		if($a->{eval_position} >= $params->{eval_position}{value} && $a->{eval_position} < $acl->{eval_position}){
-		    $a->{eval_position} += 10;
-		    if(!$a->update_db()){
-			$method->set_error( $db->get_error() );
-			$db->rollback();
-			return;
-		    }
-		}
+        foreach my $a (@{$interface->acls}) {
+            next if $a->{interface_acl_id} == $acl_id;
 
-	    }elsif( $params->{eval_position}{value} > $acl->{eval_position}){
-		if($a->{eval_position} <= $params->{eval_position}{value} && $a->{eval_position} > $acl->{eval_position}){
-		    $a->{eval_position} -= 10;
-		    if(!$a->update_db()){
-			$method->set_error( $db->get_error() );
+            if ($params->{eval_position}{value} < $acl->{eval_position}) {
+
+                if ($a->{eval_position} >= $params->{eval_position}{value} && $a->{eval_position} < $acl->{eval_position}) {
+                    $a->{eval_position} += 10;
+                    if (!$a->update_db) {
+                        $method->set_error( $db->get_error() );
                         $db->rollback();
                         return;
-		    }
-		}
-	    }
-	}
+                    }
+                }
+
+            } elsif( $params->{eval_position}{value} > $acl->{eval_position}){
+                if ($a->{eval_position} <= $params->{eval_position}{value} && $a->{eval_position} > $acl->{eval_position}) {
+                    $a->{eval_position} -= 10;
+                    if(!$a->update_db) {
+                        $method->set_error( $db->get_error() );
+                        $db->rollback();
+                        return;
+                    }
+                }
+            }
+        }
     }
 
-    $acl->{workgroup_id} = $params->{workgroup_id}{value};
-    $acl->{entity_id} = $params->{entity_id}{value};
-    $acl->{interface_id} = $params->{interface_id}{value};
+    $acl->{workgroup_id}  = $params->{workgroup_id}{value};
+    $acl->{entity_id}     = $params->{entity_id}{value};
+    $acl->{interface_id}  = $params->{interface_id}{value};
     $acl->{allow_deny}    = $params->{allow_deny}{value};
     $acl->{eval_position} = $params->{eval_position}{value};
     $acl->{start}         = $params->{start}{value};
     $acl->{end}           = $params->{end}{value};
     $acl->{notes}         = $params->{notes}{value};
-    my $success = $acl->update_db();
+    my $success = $acl->update_db;
 
     my $error = OESS::DB::ACL::add_acl_history(
         db => $db,
         event => 'edit',
         acl => $acl,
         user_id => $user->user_id,
-        workgroup_id => $workgroup_id,
+        workgroup_id => $interface->workgroup_id,
         state => 'active'
     );
     if (defined $error) {
@@ -478,23 +453,38 @@ sub delete_acl {
 
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
     my $interface_acl_id   = $params->{'interface_acl_id'}{'value'};
-    my $request_acl = OESS::DB::ACL::fetch(db => $db, interface_acl_id => $interface_acl_id);
-    my $request_workgroup = OESS::DB::Interface::fetch(db => $db, interface_id => $request_acl->{interface_id})->{workgroup_id};
+
+    my $acl = new OESS::ACL(db => $db, interface_acl_id => $interface_acl_id);
+
+    my $request_workgroup = OESS::DB::Interface::fetch(db => $db, interface_id => $acl->interface_id)->{workgroup_id};
 
     my ($user, $err) = $ac->get_user(username => $ENV{REMOTE_USER});
     if (defined $err) {
         $method->set_error($err);
         return;
     }
-    my ($access_ok, $access_err) = $user->has_workgroup_access(
-        role => 'normal',
-        workgroup_id => $request_workgroup
-    );
-    if (defined $access_err) {
-        $method->set_error($access_err);
+    my ($in_workgroup, $wg_err) = $user->has_workgroup_access(role => 'normal', workgroup_id => $request_workgroup);
+    my ($in_sysadmins, $sy_err) = $user->has_system_access(role => 'normal');
+    if (!$in_workgroup && !$in_sysadmins) {
+        $method->set_error($wg_err);
         return;
     }
     my $username = $user->usernames()->[0];
+
+    $db->start_transaction;
+    my $history_error = OESS::DB::ACL::add_acl_history(
+        db => $db,
+        event => 'decom',
+        acl => $acl,
+        user_id => $user->user_id,
+        workgroup_id => $request_workgroup,
+        state => 'decom'
+    );
+    if (defined $history_error) {
+        $db->rollback;
+	    $method->set_error($history_error);
+        return;
+    }
 
     my ($result, $error) = OESS::DB::ACL::remove(
         db => $db,
@@ -502,28 +492,17 @@ sub delete_acl {
     );
     if (defined $error) {
         $logger->info("Failed to delete ACL with id $interface_acl_id at ". localtime() ." Action was initiated by $username.");
+        $db->rollback;
 	    $method->set_error($error);
         return;
     }
-
-    my $error = OESS::DB::ACL::add_acl_history(
-        db => $db,
-        event => 'decom',
-        acl => $request_acl,
-        user_id => $user->user_id,
-        workgroup_id => $params->{workgroup_id}{value},
-        state => 'decom'
-    );
-    if (defined $error) {
-        warn $error;
-    }
+    $db->commit;
 
     $logger->info("Deleted ACL with id $interface_acl_id at ". localtime() . " Action was initiated by $username.");
     return { results => [{ success => 1 }] };
 }
 
 sub get_acl_history {
-
     my ( $method, $args ) = @_ ;
     my $logger = Log::Log4perl->get_logger("OESS.ACL");
 
@@ -545,8 +524,10 @@ sub get_acl_history {
         return;
     }
 
-    if (!$user->has_workgroup_access(role => 'read-only', workgroup_id => $interface->{workgroup_id}) && !$user->has_system_access(role => 'read-only')) {
-        $method->set_error("User $ENV{REMOTE_USER} does not have access to view this acl's history");
+    my ($in_workgroup, $wg_err) = $user->has_workgroup_access(role => 'read-only', workgroup_id => $interface->{workgroup_id});
+    my ($in_sysadmins, $sy_err) = $user->has_system_access(role => 'read-only');
+    if (!$in_workgroup && !$in_sysadmins) {
+        $method->set_error($wg_err);
         return;
     }
 
@@ -556,7 +537,7 @@ sub get_acl_history {
         workgroup_id        => $args->{workgroup_id}{value}
     );
     if ( !defined $events ) {
-        $logger->info("Failed to get interface ACL history with id $args->{interface_acl_id}{value} at ". localtime() ." Action was initiated by $username.");
+        $logger->info("Failed to get interface ACL history with id $args->{interface_acl_id}{value} at ". localtime() ." Action was initiated by $ENV{REMOTE_USER}.");
         $method->set_error( $db->get_error() );
         return;
     }

@@ -11006,10 +11006,8 @@ sub get_active_link_id_by_connectors{
 
     #find current link if any
     my $link = $self->get_link_by_a_or_z_end( interface_a_id => $interface_a_id, interface_z_id => $interface_z_id);
-    print STDERR "Found LInk: " . Dumper($link);
     if(defined($link)){
         $link = @{$link}[0];
-        print STDERR "Returning LinkID: " . $link->{'link_id'} . "\n";
         return ($link->{'link_id'},$link->{''});
     }
 

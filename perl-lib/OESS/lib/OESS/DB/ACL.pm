@@ -5,6 +5,8 @@ use warnings;
 
 package OESS::DB::ACL;
 
+use Data::Dumper;
+use JSON::XS;
 use Log::Log4perl;
 use OESS::AccessController::Default;
 
@@ -122,6 +124,8 @@ sub _get_next_eval_position {
     }
 
     if (@$result <= 0) {
+        return 10;
+    } elsif (!defined $result->[0]{'max_eval_position'}) {
         return 10;
     } else {
         return ($result->[0]{'max_eval_position'} + 10);
@@ -307,16 +311,43 @@ sub remove {
     return (0, "db is a required parameter") if !defined $args->{db};
     return (0, "interface_acl_id is a required parameter") if !defined $args->{interface_acl_id};
 
-    my $query = "DELETE FROM interface_acl WHERE interface_acl_id = ?";
-    my $count = $args->{db}->execute_query($query,[$args->{interface_acl_id}]);
+    my $acls = $args->{db}->execute_query(
+        "SELECT * FROM interface_acl WHERE interface_acl_id=?",
+        [$args->{interface_acl_id}]
+    );
+    if (!defined $acls) {
+        return (0, $args->{db}->get_error);
+    }
+    if (!defined $acls->[0]) {
+        return (0, "Couldn't find ACL $args->{interface_acl_id}.");
+    }
+    my $acl = $acls->[0];
+
+    my $position_update = $args->{db}->execute_query(
+        "UPDATE interface_acl SET eval_position=eval_position-10 WHERE eval_position > ? AND interface_id=?",
+        [$acl->{eval_position}, $acl->{interface_id}]
+    );
+    if (!defined $position_update) {
+        return (0, $args->{db}->get_error);
+    }
+
+    my $history_update = $args->{db}->execute_query(
+        "DELETE FROM acl_history WHERE interface_acl_id=?",
+        [$acl->{interface_acl_id}]
+    );
+    if (!defined $history_update) {
+        return (0, $args->{db}->get_error);
+    }
+
+    my $count = $args->{db}->execute_query(
+        "DELETE FROM interface_acl WHERE interface_acl_id=?",
+        [$args->{interface_acl_id}]
+    );
     if (!defined $count) {
         return(0, "Error removing acl");
     }
-    if( $count == 0){
-        return(0, "Error interface_acl_id did not exist");
-    }
 
-    return(1,undef);
+    return(1, undef);
 }
 
 =head2 remove_all
@@ -425,7 +456,7 @@ sub add_acl_history {
     return 'Required argument "state" must be "active" or "decom"' if $args->{state} !~ /active|decom/;
 
     my $query = "insert into history (date, state, user_id, workgroup_id, event, type, object) values (unix_timestamp(now()), ?, ?, ?, ?, 'acl', ?)";
-    my $history_id = $args->{db}->execute_query($query, [$args->{state}, $args->{user_id}, $args->{workgroup_id}, $args->{event}, $args->{acl}->to_hash]);
+    my $history_id = $args->{db}->execute_query($query, [$args->{state}, $args->{user_id}, $args->{workgroup_id}, $args->{event}, encode_json($args->{acl}->to_hash)]);
     if (!defined $history_id) {
         return $args->{db}->get_error;
     }

@@ -43,7 +43,8 @@ my $acl = OESS::ACL->new(
         end         => 1027,
         notes       => undef,
         entity_id   => 1,
-        user_id     => 1
+        user_id     => 1,
+        interface_acl_id => 12
     }
 );
 $acl->create;
