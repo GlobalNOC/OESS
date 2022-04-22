@@ -108,20 +108,49 @@ defined. Returns the new primary key on success.
 
 =cut
 sub create {
-    my $self = shift;
+    my $self           = shift;
+    my $user_id        = shift;
+    my $workgroup_id   = shift;
+    my $in_transaction = shift || 0;
+
+    if (!defined $user_id) {
+        $self->{logger}->error("Can't create ACL without specifying user_id.");
+        return 0;
+    }
+    if (!defined $workgroup_id) {
+        $self->{logger}->error("Can't create ACL without specifying workgroup_id.");
+        return 0;
+    }
 
     if (defined $self->{interface_acl_id}) {
         $self->{logger}->error('Cannot create an ACL database entry. Primary key already defined.');
         return 0;
     }
 
-    my ($id, $err) = OESS::DB::ACL::create(db => $self->{db}, model => $self->to_hash());
+    $self->{db}->start_transaction if !$in_transaction;
+
+    my ($id, $err) = OESS::DB::ACL::create(db => $self->{db}, model => $self->to_hash);
     if (defined $err) {
         $self->{logger}->error($err);
         return 0;
     }
-
     $self->{interface_acl_id} = $id;
+
+    my $error = OESS::DB::ACL::add_acl_history(
+        db           => $self->{db},
+        event        => 'create',
+        acl          => $self,
+        user_id      => $user_id,
+        workgroup_id => $workgroup_id,
+        state        => 'active'
+    );
+    if (defined $error) {
+        $self->{logger}->error($error);
+        return 0;
+    }
+
+    $self->{db}->commit if !$in_transaction;
+
     return $id;
 }
 
