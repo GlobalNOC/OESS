@@ -65,7 +65,7 @@ class Workgroups extends React.Component {
                 <span className="sr-only">Toggle Dropdown</span>
               </button>
               <ul className="dropdown-menu" style={{fontSize: '12px'}}>
-                {/* <li><Link to={`/workgroups/${data.workgroup_id}/interfaces`}>Manage Interfaces</Link></li> */}
+                <li><Link to={`/workgroups/${data.workgroup_id}/interfaces`}>Manage Interfaces</Link></li>
                 <li><Link to={`/workgroups/${data.workgroup_id}/users`}>Manage Users</Link></li>
                 <li role="separator" className="divider" style={{margin: '4px 0'}}></li>
                 <li><a href="#" onClick={() => this.deleteWorkgroup(data)}>Delete Workgroup</a></li>

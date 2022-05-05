@@ -28,10 +28,10 @@ const editInterfaceComponent = (props) => {
     try {
       await editInterface(e);
       setStatus({type:'success', message:`Interface '${e.name}' was successfully edited.`});
+      history.goBack();
     } catch (error) {
       setStatus({type:'error', message:error.toString()});
     }
-    history.goBack();
   };
     
   let cancelHandler = async () => {

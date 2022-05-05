@@ -83,7 +83,7 @@ sub register_ro_methods {
         description => 'Node ID to fetch details'
      );
     $method->add_input_parameter(
-        name => 'workgroupd_id',
+        name => 'workgroup_id',
         pattern => $GRNOC::WebService::Regex::INTEGER,
         required => 0,
         description => 'Workgroup ID to filter results'
@@ -328,6 +328,8 @@ sub edit_interface {
         return;
     }
 
+    $db->start_transaction;
+
     my $interface = new OESS::Interface(
         db => $db,
         interface_id => $params->{interface_id}{value}
@@ -337,10 +339,29 @@ sub edit_interface {
         return;
     }
 
-    if (defined $params->{workgroup_id}{value}) {
-        # If we're enabling for a workgroup we want to
-        # generate a default allow all rule.
-        if (!defined $interface->workgroup_id) {
+    if ($params->{workgroup_id}{is_set}) {
+        if ($params->{workgroup_id}{value} == -1) {
+            # Remove interface from workgroup
+            $interface->{workgroup_id} = undef;
+            
+            my ($ok, $err) = OESS::DB::ACL::remove_all(
+                db => $db,
+                interface_id => $interface->interface_id
+            );
+            if (defined $err) {
+                $method->set_error($err);
+                $db->rollback;
+                return;
+            }
+        }
+        elsif (defined $interface->workgroup_id) {
+            # Interface is already owned by a workgroup
+            $method->set_error("Interface already owned by a workgroup.");
+            $db->rollback;
+            return;
+        }
+        else {
+            # Add interface to workgroup
             my $acl = new OESS::ACL(
                 db => $db,
                 model => {
@@ -354,8 +375,8 @@ sub edit_interface {
                 }
             );
             $acl->create;
+            $interface->workgroup_id($params->{workgroup_id}{value});
         }
-        $interface->workgroup_id($params->{workgroup_id}{value});
     }
 
     # We use $obj->{attr} syntax to support setting attribute to undef
@@ -366,6 +387,8 @@ sub edit_interface {
         $interface->{cloud_interconnect_type} = $params->{cloud_interconnect_type}{value};
     }
     $interface->update_db;
+
+    $db->commit;
 
     return { results => [ $interface->to_hash ] };
 }
