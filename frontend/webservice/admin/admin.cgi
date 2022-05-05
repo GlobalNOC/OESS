@@ -1814,7 +1814,7 @@ sub move_interface_configuration {
     }
 
     my $mq = OESS::RabbitMQ::Client->new(
-        topic    => 'MPLS.FWDCTL.RPC',
+        topic    => $topic,
         timeout  => 60
     );
     if (!defined $mq) {
