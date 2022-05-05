@@ -35,9 +35,8 @@ export const getInterface = async (interfaceId) => {
 export const editInterface = async (intf) => {
   let url = `${config.base_url}/services/interface.cgi?method=edit_interface`;
   url += `&interface_id=${intf.interfaceId}`;
-  url += `&description=${intf.description}`;
-  url += `&cloud_interconnect_type=${intf.cloudInterconnectType}`;
-  url += `&cloud_interconnect_id=${intf.cloudInterconnectId}`;
+  if ('cloudInterconnectType' in intf) url += `&cloud_interconnect_type=${intf.cloudInterconnectType}`;
+  if ('cloudInterconnectId' in intf) url += `&cloud_interconnect_id=${intf.cloudInterconnectId}`;
   url += `&workgroup_id=${intf.workgroupId}`;
 
   const resp = await fetch(url, { method: 'get', credentials: 'include' });
