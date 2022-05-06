@@ -339,7 +339,7 @@ sub edit_interface {
         return;
     }
 
-    if ($params->{workgroup_id}{is_set}) {
+    if ($params->{workgroup_id}{is_set} && $params->{workgroup_id}{value} != $interface->workgroup_id) {
         if ($params->{workgroup_id}{value} == -1) {
             # Remove interface from workgroup
             $interface->{workgroup_id} = undef;

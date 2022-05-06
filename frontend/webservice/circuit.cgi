@@ -780,6 +780,7 @@ sub remove {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
+    $user->load_workgroups;
 
     my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
                       username     => $ENV{REMOTE_USER},
