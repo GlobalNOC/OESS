@@ -110,6 +110,7 @@ export const InterfaceForm = (props) => {
           <option value="azure-express-route">Azure Express Route</option>
           <option value="aws-hosted-connection">AWS Hosted Connection</option>
           <option value="gcp-partner-interconnect">GCP Partner Interconnect</option>
+          <option value="oracle-fast-connect">Oracle FastConnect</option>
         </select>
       </div>
       {cloudInterconnectInputs}

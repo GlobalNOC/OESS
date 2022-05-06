@@ -156,7 +156,7 @@ sub register_rw_methods {
     );
     $edit_interface->add_input_parameter(
         name        => 'cloud_interconnect_type',
-        pattern     => '^(aws-hosted-connection|azure-express-route|gcp-partner-interconnect|)$',
+        pattern     => '^(aws-hosted-connection|azure-express-route|gcp-partner-interconnect|oracle-fast-connect|)$',
         required    => 0,
         description => 'Physical interconnect type of connector'
     );
