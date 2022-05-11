@@ -30,15 +30,20 @@ use OESS::Config;
 sub new {
     my $class = shift;
     my $args  = {
-        config => "/etc/oess/database.xml",
-        logger => Log::Log4perl->get_logger("OESS.Cloud.Oracle"),
+        config          => "/etc/oess/database.xml",
+        config_obj      => undef,
+        logger          => Log::Log4perl->get_logger("OESS.Cloud.Oracle"),
+        interconnect_id => undef,
         @_
     };
     my $self = bless $args, $class;
 
+    die "Argument 'interconnect_id' was not passed to Oracle" if !defined $self->{interconnect_id};
+
     if (!defined $self->{config_obj}) {
         $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
     }
+    $self->{compartment_id} = $self->{config_obj}->oracle()->{$self->{interconnect_id}}->{compartment_id};
 
     # We intercept and sign every request sent using $self->{conn} via the
     # request_send handler. https://metacpan.org/pod/LWP::UserAgent#add_handler
@@ -53,14 +58,13 @@ sub new {
         my $signing_headers = join(" ", @{$self->_get_signing_headers($request)});
         my $signature = $self->_compute_signature($request);
 
-        my $config = $self->{config_obj}->oracle()->{CrossConnect1};
+        my $config = $self->{config_obj}->oracle()->{$self->{interconnect_id}};
         my $key_id = "$config->{tenancy}/$config->{user}/$config->{fingerprint}";
 
         my $header = "Signature version=\"1\",headers=\"$signing_headers\",keyId=\"$key_id\",algorithm=\"rsa-sha256\",signature=\"$signature\"";
 
-        $request->header('Content-Type' => 'application/json; charset=UTF-8');
+        $request->header('content-type' => 'application/json; charset=UTF-8');
         $request->header(Authorization => $header);
-
         return;
     });
 
@@ -115,7 +119,7 @@ sub _get_signing_string {
             $req->header(date => $value); # Must be in request headers
         }
         elsif ($part eq 'content-type') {
-            $value = 'application/json';
+            $value = 'application/json; charset=UTF-8';
             $req->header('content-type' => $value);
         }
         elsif ($part eq 'content-length') {
@@ -243,7 +247,110 @@ Returns:
 sub get_virtual_circuits {
     my $self = shift;
 
-    my $req = new HTTP::Request(GET => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/virtualCircuits?compartmentId=ocid1.compartment.oc1..aaaaaaaamw3ulplxrs5rb6uwzx33grbvf7kitprgyclrfejpepm43k2zuiaa");
+    my $req = new HTTP::Request(GET => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/virtualCircuits?compartmentId=$self->{compartment_id}");
+    my $res = $self->{conn}->request($req);
+    if ($res->code < 200 || $res->code > 299) {
+        my $code  = $res->code;
+        my $error = decode_json($res->content);
+        return (undef, "[$code] $error->{code}: $error->{message}");
+    }
+
+    my $results = decode_json($res->content);
+    return ($results, undef);
+}
+
+=head2 get_virtual_circuit_bandwidth_shapes
+
+Returns:
+
+    [
+        {
+            'name' => '10 Gbps',
+            'bandwidthInMbps' => 10000
+        },
+        {
+            'name' => '2 Gbps',
+            'bandwidthInMbps' => 2000
+        },
+        {
+            'name' => '5 Gbps',
+            'bandwidthInMbps' => 5000
+        },
+        {
+            'name' => '1 Gbps',
+            'bandwidthInMbps' => 1000
+        },
+        {
+            'name' => '100 Gbps',
+            'bandwidthInMbps' => 100000
+        }
+    ];
+
+=cut
+sub get_virtual_circuit_bandwidth_shapes {
+    my $self = shift;
+    my $provider_service_id = shift;
+
+    my $req = new HTTP::Request(GET => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/fastConnectProviderServices/$provider_service_id/virtualCircuitBandwidthShapes");
+    my $res = $self->{conn}->request($req);
+    if ($res->code < 200 || $res->code > 299) {
+        my $code  = $res->code;
+        my $error = decode_json($res->content);
+        return (undef, "[$code] $error->{code}: $error->{message}");
+    }
+
+    my $results = decode_json($res->content);
+    return ($results, undef);
+}
+
+=head2 get_fast_connect_provider_services
+
+Lists the service offerings from supported providers. You need this information
+so you can specify your desired provider and service offering when you create a
+virtual circuit.
+
+The key piece of info returned for providers, is the service provider ids,
+which can be used to lookup supported bandwidth speeds for the interconnect.
+
+Returns:
+
+    [
+        {
+            'requiredTotalCrossConnects' => 1,
+            'description' => 'https://example.edu/',
+            'privatePeeringBgpManagement' => 'PROVIDER_MANAGED',
+            'providerName' => 'Example',
+            'supportedVirtualCircuitTypes' => [
+                'PRIVATE',
+                'PUBLIC'
+            ],
+            'publicPeeringBgpManagement' => 'ORACLE_MANAGED',
+            'bandwithShapeManagement' => 'CUSTOMER_MANAGED',
+            'providerServiceKeyManagement' => 'PROVIDER_MANAGED',
+            'customerAsnManagement' => 'PROVIDER_MANAGED',
+            'type' => 'LAYER3',
+            'id' => 'ocid1.providerservice.oc1.iad.0000',
+            'providerServiceName' => 'Example L3'
+        },
+        ...
+    ];
+
+Example:
+
+    my ($providers, $providers_err) = $oracle->get_fast_connect_provider_services();
+    die $providers_err if defined $providers_err;
+    
+    foreach my $provider (@$providers) {
+        my ($shapes, $shapes_err) = $oracle->get_virtual_circuit_bandwidth_shapes($provider->{id});
+        die $shapes_err if defined $shapes_err;
+        warn Dumper($shapes);
+    }
+
+=cut
+sub get_fast_connect_provider_services {
+    my $self = shift;
+
+    my $req = new HTTP::Request(GET => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/fastConnectProviderServices?compartmentId=$self->{compartment_id}");
     my $res = $self->{conn}->request($req);
     if ($res->code < 200 || $res->code > 299) {
         my $code  = $res->code;
@@ -257,19 +364,25 @@ sub get_virtual_circuits {
 
 =head2 update_virtual_circuit
 
-    my ($virtual_circuit, $err) = $oracle->get_virtual_circuit(
-        ocid      => undef, # Oracle Cloud Identifier
-        name      => '',    # User-friendly name. Not unique. Changeable. No confidential info.
-        type      => 'l2',  # l2 or l3
-        bandwidth => 50,    # Converted from int to something like 2Gbps
-        auth_key  => '',    # Empty or Null disables BGP Auth
-        mtu       => 1500,  # Coverted from int to MTU_1500 or MTU_9000
-        oess_asn  => undef,
-        oess_ip   => undef, # /31
-        peer_ip   => undef, # /31
-        oess_ipv6 => undef, # /127
-        peer_ipv6 => undef, # /127
-        vlan      => undef,
+    my ($virtual_circuit, $err) = $oracle->update_virtual_circuit(
+        virtual_circuit_id     => undef, # Oracle virtualCircuitId
+        bandwidth              => 1000,  # Converted from int to something like '1 Gbps'
+        bfd                    => 0,     # 0 or 1
+        mtu                    => 1500,  # Coverted from int to MTU_1500 or MTU_9000
+        oess_asn               => undef,
+        name                   => '',    # providerServiceKeyName or alternatively referenceComment. User-friendly name. Not unique. Changeable. No confidential info.
+        type                   => 'l2',  # 'l2' or 'l3'
+        cross_connect_mappings => [
+            {
+                auth_key  => undef, # Not passed if empty string or undef
+                ocid      => undef, # OCID of physical cross-connect or cross-connect-group. An OESS cloud_interconnect_id
+                oess_ip   => undef, # /31
+                peer_ip   => undef, # /31
+                oess_ipv6 => undef, # /127
+                peer_ipv6 => undef, # /127
+                vlan      => 1000,
+            }
+        ]
     );
     die $err if defined $err;
 
@@ -300,62 +413,70 @@ Returns:
 sub update_virtual_circuit {
     my $self = shift;
     my $args = {
-        ocid      => undef, # Oracle Cloud Identifier
-        name      => '',    # User-friendly name. Not unique. Changeable. No confidential info.
-        type      => 'l2',  # l2 or l3
-        bandwidth => 50,    # Converted from int to something like 2Gbps
-        auth_key  => '',    # Empty or Null disables BGP Auth
-        mtu       => 1500,  # Coverted from int to MTU_1500 or MTU_9000
-        oess_asn  => undef,
-        oess_ip   => undef, # /31
-        peer_ip   => undef, # /31
-        oess_ipv6 => undef, # /127
-        peer_ipv6 => undef, # /127
-        vlan      => undef,
+        virtual_circuit_id     => undef,
+        bandwidth              => 1000,
+        bfd                    => 0,
+        mtu                    => 1500,
+        oess_asn               => undef,
+        name                   => '',    # providerServiceKeyName or alternatively referenceComment
+        type                   => 'l2',
+        cross_connect_mappings => [],
         @_
     };
 
-    my $bandwidth;
-    my $mtu;
-
-    # TODO bandwidth and mtu must be converted to the proper ENUMs
-    $bandwidth = $args->{bandwidth};
-    $mtu = ($args->{mtu} == 1500) ? 'MTU_1500' : 'MTU_9000';
-
-    my $l2_payload = {
-        crossConnectMappings => [
-            {
-                crossConnectOrCrossConnectGroupId => $args->{ocid},
-                vlan => $args->{vlan},
-            }
-        ],
-        providerState => 'ACTIVE',
-        bandwidthShapeName => $bandwidth,
-        displayName => $args->{name} 
+    my $bandwidth_index = {
+        1000   => '1 Gbps',
+        2000   => '2 Gbps',
+        5000   => '5 Gbps',
+        10000  => '10 Gbps',
+        100000 => '100 Gbps',
     };
+    my $bandwidth = $bandwidth_index->{$args->{bandwidth}};
+    my $mtu = ($args->{mtu} == 1500) ? 'MTU_1500' : 'MTU_9000';
 
-    my $l3_payload = {
-        crossConnectMappings => [
-            {
-                bgpMd5AuthKey => $args->{auth_key},
-                crossConnectOrCrossConnectGroupId => $args->{ocid},
-                customerBgpPeeringIp => $args->{oess_ip},
-                oracleBgpPeeringIp => $args->{peer_ip},
-                customerBgpPeeringIpv6 => $args->{oess_ipv6},
-                oracleBgpPeeringIpv6 => $args->{peer_ipv6},
-                vlan => $args->{vlan},
-            }
-        ],
-        providerState => 'ACTIVE',
-        bandwidthShapeName => $bandwidth,
-        customerBgpAsn => $args->{oess_asn},
-        displayName => $args->{name}, # A user-friendly name. Not unique and changeable. Avoid confidential information.
-        ipMtu => $mtu
-    };
+    my $payload;
+    if ($args->{type} eq 'l2') {
+        my $cross_connect_mappings = [];
+        foreach my $ccm (@{$args->{cross_connect_mappings}}) {
+            push @$cross_connect_mappings, {
+                crossConnectOrCrossConnectGroupId => $ccm->{ocid},
+                vlan => $ccm->{vlan}
+            };
+        }
 
+        $payload = {
+            crossConnectMappings => $cross_connect_mappings,
+            providerState => 'ACTIVE',
+            bandwidthShapeName => $bandwidth,
+            providerServiceKeyName => $args->{name},
+        };
+    }
+    else {
+        my $cross_connect_mappings = [];
+        foreach my $ccm (@{$args->{cross_connect_mappings}}) {
+            push @$cross_connect_mappings, {
+                crossConnectOrCrossConnectGroupId => $ccm->{ocid},
+                bgpMd5AuthKey => $ccm->{auth_key},
+                customerBgpPeeringIp => $ccm->{oess_ip},
+                oracleBgpPeeringIp => $ccm->{peer_ip},
+                customerBgpPeeringIpv6 => $ccm->{oess_ipv6},
+                oracleBgpPeeringIpv6 => $ccm->{peer_ipv6},
+                vlan => $ccm->{vlan}
+            };
+        }
 
-    my $req = new HTTP::Request(PUT => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/virtualCircuits/$args->{ocid}");
-    my $payload = ($args->{type} eq 'l2') ? $l2_payload : $l3_payload;
+        $payload = {
+            crossConnectMappings => $cross_connect_mappings,
+            providerState => 'ACTIVE',
+            bandwidthShapeName => $bandwidth,
+            customerBgpAsn => $args->{oess_asn},
+            ipMtu => $mtu,
+            isBfdEnabled => $args->{bfd},
+            providerServiceKeyName => $args->{name},
+        };
+    }
+
+    my $req = new HTTP::Request(PUT => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/virtualCircuits/$args->{virtual_circuit_id}");
     $req->content(encode_json($payload));
 
     my $res = $self->{conn}->request($req);
@@ -421,6 +542,7 @@ sub delete_virtual_circuit {
         my $error = decode_json($res->content);
         return (undef, "[$code] $error->{code}: $error->{message}");
     }
+    # $res->content is empty if $res->code is 200-299
 
     return ($results, undef);
 }
