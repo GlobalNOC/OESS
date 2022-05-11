@@ -34,5 +34,28 @@
       tenant_id="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
       workgroup="admin"
       base_url="https://management.azure.com" />
+
+    <connection
+      user="ocid1.user.oc1..0000"
+      fingerprint="20:20:20:20:20:20:20:20:20:20:20:20:20:20:20:20"
+      tenancy="ocid1.tenancy.oc1..0000"
+      region="us-ashburn-1"
+      key_file="oapi.pub"
+      interconnect_type="oracle-fast-connect"
+      interconnect_id="ocid1.crossconnectgroup.oc1.iad.0000"
+      compartment_id="ocid1.compartment.oc1..0000"
+      workgroup="admin"
+      base_url="https://iaas.us-ashburn-1.oraclecloud.com" />
+    <connection
+      user="ocid1.user.oc1..0000"
+      fingerprint="20:20:20:20:20:20:20:20:20:20:20:20:20:20:20:20"
+      tenancy="ocid1.tenancy.oc1..0000"
+      region="us-ashburn-1"
+      key_file="oapi.pub"
+      interconnect_type="oracle-fast-connect"
+      interconnect_id="ocid1.crossconnectgroup.oc1.iad.0001"
+      compartment_id="ocid1.compartment.oc1..0000"
+      workgroup="admin"
+      base_url="https://iaas.us-ashburn-1.oraclecloud.com" />
   </cloud>
 </config>

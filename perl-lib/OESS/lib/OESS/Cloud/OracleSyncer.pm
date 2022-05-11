@@ -32,7 +32,7 @@ sub new {
         oracle      => undef,
         config      => undef,
         config_file => "/etc/oess/database.xml",
-        logger      => Log::Log4perl->get_logger("OESS.Cloud.AzureSyncer"),
+        logger      => Log::Log4perl->get_logger("OESS.Cloud.OracleSyncer"),
         @_
     };
     my $self = bless $args, $class;

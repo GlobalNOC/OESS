@@ -23,11 +23,20 @@ use Log::Log4perl;
 sub new {
     my $class = shift;
     my $args  = {
-        config => "/etc/oess/database.xml",
-        logger => Log::Log4perl->get_logger("OESS.Cloud.OracleStub"),
+        config          => "/etc/oess/database.xml",
+        config_obj      => undef,
+        logger          => Log::Log4perl->get_logger("OESS.Cloud.OracleStub"),
+        interconnect_id => undef,
         @_
     };
     my $self = bless $args, $class;
+
+    die "Argument 'interconnect_id' was not passed to Oracle" if !defined $self->{interconnect_id};
+
+    if (!defined $self->{config_obj}) {
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
+    }
+    $self->{compartment_id} = $self->{config_obj}->oracle()->{$self->{interconnect_id}}->{compartment_id};
 
     return $self;
 }
@@ -39,8 +48,9 @@ sub get_virtual_circuit {
     my $self = shift;
     my $id = shift;
 
+    my $result;
     if ($id eq "UniqueVirtualCircuitId123") {
-        return {
+        $result = {
             "id" =>  "UniqueVirtualCircuitId123",
             "displayName" => "ProviderTestVirtualCircuit",
             "providerName" => "AlexanderGrahamBell",
@@ -73,7 +83,7 @@ sub get_virtual_circuit {
     }
 
     if ($id eq "UniqueVirtualCircuitId456") {
-        return {
+        $result = {
             "id" =>  "UniqueVirtualCircuitId456",
             "displayName" => "ProviderTestVirtualCircuit",
             "providerName" => "AlexanderGrahamBell",
@@ -99,7 +109,7 @@ sub get_virtual_circuit {
     }
 
     if ($id eq "UniqueVirtualCircuitId789") {
-        return {
+        $result = {
             "id" =>  "UniqueVirtualCircuitId789",
             "displayName" => "ProviderTestVirtualCircuit",
             "providerName" => "AlexanderGrahamBell",
@@ -124,7 +134,7 @@ sub get_virtual_circuit {
         };
     }
 
-    return;
+    return ($result, undef);
 }
 
 =head2 get_virtual_circuits
@@ -217,44 +227,110 @@ sub get_virtual_circuits {
     return ($results, undef);
 }
 
+=head2 get_virtual_circuit_bandwidth_shapes
+
+=cut
+sub get_virtual_circuit_bandwidth_shapes {
+    my $self = shift;
+    my $provider_service_id = shift;
+
+    return (
+        [
+            {
+                'name' => '10 Gbps',
+                'bandwidthInMbps' => 10000
+            },
+            {
+                'name' => '2 Gbps',
+                'bandwidthInMbps' => 2000
+            },
+            {
+                'name' => '5 Gbps',
+                'bandwidthInMbps' => 5000
+            },
+            {
+                'name' => '1 Gbps',
+                'bandwidthInMbps' => 1000
+            },
+            {
+                'name' => '100 Gbps',
+                'bandwidthInMbps' => 100000
+            }
+        ],
+        undef
+    );
+}
+
+=head2 get_fast_connect_provider_services
+
+=cut
+sub get_fast_connect_provider_services {
+    my $self = shift;
+
+    return (
+        [
+            {
+                'requiredTotalCrossConnects' => 1,
+                'description' => 'https://example.edu/',
+                'privatePeeringBgpManagement' => 'PROVIDER_MANAGED',
+                'providerName' => 'Example',
+                'supportedVirtualCircuitTypes' => [
+                    'PRIVATE',
+                    'PUBLIC'
+                ],
+                'publicPeeringBgpManagement' => 'ORACLE_MANAGED',
+                'bandwithShapeManagement' => 'CUSTOMER_MANAGED',
+                'providerServiceKeyManagement' => 'PROVIDER_MANAGED',
+                'customerAsnManagement' => 'PROVIDER_MANAGED',
+                'type' => 'LAYER3',
+                'id' => 'ocid1.providerservice.oc1.iad.0000',
+                'providerServiceName' => 'Example L3'
+            }
+        ],
+        undef
+    );
+}
+
 =head2 update_virtual_circuit
 
 =cut
 sub update_virtual_circuit {
     my $self = shift;
     my $args = {
-        type      => 'l2',  # l2 or l3
-        bandwidth => 50,
-        bgp_auth  => '',    # Empty or Null disables BGP Auth
-        mtu       => 1500,  # MTU_1500 or MTU_9000
-        oess_ip   => undef,
-        peer_ip   => undef,
-        oess_ipv6 => undef,
-        peer_ipv6 => undef,
-        vlan      => undef,
+        virtual_circuit_id     => undef,
+        bandwidth              => 1000,
+        bfd                    => 0,
+        mtu                    => 1500,
+        oess_asn               => undef,
+        name                   => '',    # providerServiceKeyName or alternatively referenceComment
+        type                   => 'l2',
+        cross_connect_mappings => [],
         @_
     };
 
-    return {
-        "id" =>  "UniqueVirtualCircuitId123",
-        "displayName" => "ProviderTestVirtualCircuit",
-        "providerName" => "AlexanderGrahamBell",
-        "providerServiceName" => "Layer2 Service",
-        "providerServiceId" => "ocid1.providerservice.oc1.eu-frankfurt-1.abcd",
-        "serviceType" => "LAYER2",
-        "bgpManagement" => "CUSTOMER_MANAGED",
-        "bandwidthShapeName" => "5Gbps",
-        "oracleBgpAsn" => "561",
-        "customerBgpAsn" => "1234",
-        "crossConnectMappings" => [{
-            "oracleBgpPeeringIp" => "10.0.0.19/31",
-            "customerBgpPeeringIp" => "10.0.0.18/31",
-        }],
-        "lifecycleState" => "PENDING_PROVIDER",
-        "providerState" => "INACTIVE",
-        "bgpSessionState" => "DOWN",
-        "region" => "IAD"
-    };
+    return (
+        {
+            "id" =>  "UniqueVirtualCircuitId123",
+            "displayName" => "ProviderTestVirtualCircuit",
+            "providerName" => "AlexanderGrahamBell",
+            "providerServiceName" => "Layer2 Service",
+            "providerServiceId" => "ocid1.providerservice.oc1.eu-frankfurt-1.abcd",
+            "serviceType" => "LAYER2",
+            "bgpManagement" => "CUSTOMER_MANAGED",
+            "bandwidthShapeName" => "5Gbps",
+            "oracleBgpAsn" => "561",
+            "customerBgpAsn" => "1234",
+            "crossConnectMappings" => [{
+                "oracleBgpPeeringIp" => "10.0.0.19/31",
+                "customerBgpPeeringIp" => "10.0.0.18/31",
+            }],
+            "lifecycleState" => "PENDING_PROVIDER",
+            "providerState" => "INACTIVE",
+            "bgpSessionState" => "DOWN",
+            "region" => "IAD"
+        },
+        undef
+    );
 }
 
 =head2 delete_virtual_circuit
@@ -264,8 +340,9 @@ sub delete_virtual_circuit {
     my $self = shift;
     my $id = shift;
 
+    my $result;
     if ($id eq "UniqueVirtualCircuitId123") {
-        return {
+        $result = {
             "id" =>  "UniqueVirtualCircuitId123",
             "displayName" => "ProviderTestVirtualCircuit",
             "providerName" => "AlexanderGrahamBell",
@@ -298,7 +375,7 @@ sub delete_virtual_circuit {
     }
 
     if ($id eq "UniqueVirtualCircuitId456") {
-        return {
+        $result = {
             "id" =>  "UniqueVirtualCircuitId456",
             "displayName" => "ProviderTestVirtualCircuit",
             "providerName" => "AlexanderGrahamBell",
@@ -324,7 +401,7 @@ sub delete_virtual_circuit {
     }
 
     if ($id eq "UniqueVirtualCircuitId789") {
-        return {
+        $result = {
             "id" =>  "UniqueVirtualCircuitId789",
             "displayName" => "ProviderTestVirtualCircuit",
             "providerName" => "AlexanderGrahamBell",
@@ -348,6 +425,8 @@ sub delete_virtual_circuit {
             "type" => "PUBLIC"
         };
     }
+
+    return ($result, undef);
 }
 
 return 1;

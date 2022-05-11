@@ -81,7 +81,7 @@ my $pr2_id = $db->execute_query(
 
 my $oracle = new OESS::Cloud::OracleSyncer(
     config => new OESS::Config(config_filename => "$path/../../conf/database.xml"),
-    oracle => new OESS::Cloud::OracleStub(config => "$path/../../conf/database.xml"),
+    oracle => new OESS::Cloud::OracleStub(config => "$path/../../conf/database.xml", interconnect_id => 'ocid1.crossconnectgroup.oc1.iad.0000'),
 );
 
 my ($endpoints, $err) = $oracle->fetch_oracle_endpoints_from_oess();
