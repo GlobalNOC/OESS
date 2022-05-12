@@ -752,7 +752,7 @@ sub provision_vrf{
                         $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"} = 1;
                         next;
                     }
-                    if ($interface->cloud_interconnect_type eq 'oracle-fast-connect') {
+                    if ($endpoint->cloud_interconnect_type eq 'oracle-fast-connect') {
                         my $prefix = $peering_config->prefix(
                             $endpoint->cloud_account_id,
                             $endpoint->interface_id,

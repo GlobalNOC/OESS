@@ -80,6 +80,7 @@ sub get_peering_addresses_from_oracle {
             local_ip   => $cc->{customerBgpPeeringIp},
             remote_asn => $conn->{oracleBgpAsn},
             remote_ip  => $cc->{oracleBgpPeeringIp},
+            md5_key    => $cc->{bgpMd5AuthKey} || '',
         };
 
         if (defined $cc->{oracleBgpPeeringIpv6}) {
@@ -88,6 +89,7 @@ sub get_peering_addresses_from_oracle {
                 local_ip   => $cc->{customerBgpPeeringIpv6},
                 remote_asn => $conn->{oracleBgpAsn},
                 remote_ip  => $cc->{oracleBgpPeeringIpv6},
+                md5_key    => $cc->{bgpMd5AuthKey} || '',
             };
         }
     }
@@ -124,6 +126,7 @@ sub update_local_peers {
                     local_ip   => $remote_peers->[$i]->{local_ip},
                     peer_asn   => $remote_peers->[$i]->{remote_asn},
                     peer_ip    => $remote_peers->[$i]->{remote_ip},
+                    md5_key    => $remote_peers->[$i]->{md5_key},
                     status     => 'up',
                     ip_version => $remote_peers->[$i]->{ip_version}
                 }
@@ -135,6 +138,7 @@ sub update_local_peers {
             $local_peers->[$i]->peer_asn($remote_peers->[$i]->{remote_asn});
             $local_peers->[$i]->peer_ip($remote_peers->[$i]->{remote_ip});
             $local_peers->[$i]->ip_version($remote_peers->[$i]->{ip_version});
+            $local_peers->[$i]->md5_key($remote_peers->[$i]->{md5_key});
             $local_peers->[$i]->update;
         }
 
@@ -153,63 +157,90 @@ sub update_local_peers {
 =head2 update_remote_peers
 
 update_remote_peers sets the peers of an Oracle VirtualCircuit to the values
-saved within the OESS database.
+stored in the provided endpoints. An update will only be preformed if a diff is
+detected between peering addresses due to the following:
+
+> If the virtual circuit is working and in the PROVISIONED state, updating
+> any of the network-related properties (such as the DRG being used, the BGP
+> ASN, and so on) will cause the virtual circuit's state to switch to
+> PROVISIONING and the related BGP session to go down.
 
 =cut
 sub update_remote_peers {
     my $self = shift;
     my $args = {
-        vrf_id    => undef,
-        vrf_ep_id => undef,
+        virtual_circuit => undef,
+        endpoints => undef,
         @_
     };
+
+    my $change_required = 0;
+    my $cross_connect_mappings = [];
     
-    my $vrf = new OESS::VRF(db => $self->{db}, vrf_id => $args->{vrf_id});
-    $vrf->load_endpoints;
+    foreach my $ccm (@{$args->{virtual_circuit}->{crossConnectMappings}}) {
+        # If we don't have peering info for the specified endpoint move on
+        next if !defined $args->{endpoints}->{$ccm->{crossConnectOrCrossConnectGroupId}};
 
-    my $endpoint;
-    foreach my $ep (@{$vrf->endpoints}) {
-        if ($ep->vrf_ep_id == $args->{vrf_ep_id}) {
-            $endpoint = $ep;
-            last;
+        my $ep = $args->{endpoints}->{$ccm->{crossConnectOrCrossConnectGroupId}};
+        $ep->load_peers;
+
+        my $staged_change = {
+            oracleBgpPeeringIpv6 => undef,
+            customerBgpPeeringIpv6 => undef,
+            customerBgpPeeringIp => undef,
+            vlan => int($ep->tag),
+            crossConnectOrCrossConnectGroupId => $ep->cloud_interconnect_id,
+            bgpMd5AuthKey => undef,
+            oracleBgpPeeringIp => undef
+        };
+        foreach my $peer (@{$ep->peers}) {
+            $staged_change->{bgpMd5AuthKey} = (defined $peer->md5_key && $peer->md5_key ne '') ? $peer->md5_key : undef;
+
+            if ($peer->ip_version eq 'ipv4') {
+                $staged_change->{customerBgpPeeringIp} = $peer->local_ip;
+                $staged_change->{oracleBgpPeeringIp} = $peer->peer_ip;
+            } else {
+                $staged_change->{customerBgpPeeringIpv6} = $peer->local_ip;
+                $staged_change->{oracleBgpPeeringIpv6} = $peer->peer_ip;
+            }
         }
-    }
-    $endpoint->load_peers;
 
-    my $auth_key  = '';
-    my $oess_ip   = undef;
-    my $peer_ip   = undef;
-    my $oess_ipv6 = undef;
-    my $peer_ipv6 = undef;
-
-    foreach my $peer (@{$endpoint->peers}) {
-        # Auth key is assumed to be the same for all peers on a
-        # given endpoint.
-        $auth_key = (defined $peer->md5_key) ? $peer->md5_key : '';
-
-        if ($peer->ip_version eq 'ipv4') {
-            $oess_ip = $peer->local_ip;
-            $peer_ip = $peer->peer_ip;
-        } else {
-            $oess_ipv6 = $peer->local_ip;
-            $peer_ipv6 = $peer->peer_ip;
+        foreach my $key (keys $staged_change) {
+            if ($staged_change->{$key} != $ccm->{$key}) {
+                $change_required = 1;
+                last;
+            }
         }
+
+        push @$cross_connect_mappings, {
+            auth_key  => $staged_change->{bgpMd5AuthKey},
+            ocid      => $staged_change->{crossConnectOrCrossConnectGroupId},
+            oess_ip   => $staged_change->{customerBgpPeeringIp},
+            peer_ip   => $staged_change->{oracleBgpPeeringIp},
+            oess_ipv6 => $staged_change->{customerBgpPeeringIpv6},
+            peer_ipv6 => $staged_change->{oracleBgpPeeringIpv6},
+            vlan      => $staged_change->{vlan},
+        };
     }
 
-    return $self->{oracle}->update_virtual_circuit(
-        ocid      => $endpoint->cloud_account_id,
-        name      => $vrf->name,
-        type      => 'l3',
-        bandwidth => $endpoint->bandwidth,
-        auth_key  => $auth_key,
-        mtu       => $endpoint->mtu,
-        oess_asn  => $self->{config}->local_as,
-        oess_ip   => $oess_ip,
-        peer_ip   => $peer_ip,
-        oess_ipv6 => $oess_ipv6,
-        peer_ipv6 => $oess_ipv6,
-        vlan      => $endpoint->tag
+    if (!$change_required) {
+        return;
+    }
+
+    print "Updating VirtualCircuit $args->{virtual_circuit}->{id}\n";
+    $self->{logger}->info("Updating VirtualCircuit $args->{virtual_circuit}->{id}");
+
+    my ($virtual_circuit, $err) = $self->{oracle}->update_virtual_circuit(
+        virtual_circuit_id     => $args->{virtual_circuit}->{id},
+        bandwidth              => $args->{virtual_circuit}->{bandwidthShapeName},
+        bfd                    => 0,
+        mtu                    => $args->{virtual_circuit}->{ipMtu},
+        oess_asn               => $self->{config}->local_as,
+        name                   => $args->{virtual_circuit}->{displayName},
+        type                   => 'l3',
+        cross_connect_mappings => $cross_connect_mappings
     );
+    return $err;
 }
 
 =head2 fetch_oracle_endpoints_from_oess
