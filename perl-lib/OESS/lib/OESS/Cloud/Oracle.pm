@@ -43,6 +43,7 @@ sub new {
     if (!defined $self->{config_obj}) {
         $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
     }
+    $self->{base_url} = $self->{config_obj}->oracle()->{$self->{interconnect_id}}->{base_url};
     $self->{compartment_id} = $self->{config_obj}->oracle()->{$self->{interconnect_id}}->{compartment_id};
 
     # We intercept and sign every request sent using $self->{conn} via the
@@ -201,7 +202,7 @@ sub get_virtual_circuit {
     my $self = shift;
     my $virtual_circuit_id = shift;
 
-    my $req = new HTTP::Request(GET => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/virtualCircuits/$virtual_circuit_id");
+    my $req = new HTTP::Request(GET => "$self->{base_url}/20160918/virtualCircuits/$virtual_circuit_id");
     my $res = $self->{conn}->request($req);
     if ($res->code < 200 || $res->code > 299) {
         my $code  = $res->code;
@@ -247,7 +248,7 @@ Returns:
 sub get_virtual_circuits {
     my $self = shift;
 
-    my $req = new HTTP::Request(GET => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/virtualCircuits?compartmentId=$self->{compartment_id}");
+    my $req = new HTTP::Request(GET => "$self->{base_url}/20160918/virtualCircuits?compartmentId=$self->{compartment_id}");
     my $res = $self->{conn}->request($req);
     if ($res->code < 200 || $res->code > 299) {
         my $code  = $res->code;
@@ -291,7 +292,7 @@ sub get_virtual_circuit_bandwidth_shapes {
     my $self = shift;
     my $provider_service_id = shift;
 
-    my $req = new HTTP::Request(GET => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/fastConnectProviderServices/$provider_service_id/virtualCircuitBandwidthShapes");
+    my $req = new HTTP::Request(GET => "$self->{base_url}/20160918/fastConnectProviderServices/$provider_service_id/virtualCircuitBandwidthShapes");
     my $res = $self->{conn}->request($req);
     if ($res->code < 200 || $res->code > 299) {
         my $code  = $res->code;
@@ -350,7 +351,7 @@ Example:
 sub get_fast_connect_provider_services {
     my $self = shift;
 
-    my $req = new HTTP::Request(GET => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/fastConnectProviderServices?compartmentId=$self->{compartment_id}");
+    my $req = new HTTP::Request(GET => "$self->{base_url}/20160918/fastConnectProviderServices?compartmentId=$self->{compartment_id}");
     my $res = $self->{conn}->request($req);
     if ($res->code < 200 || $res->code > 299) {
         my $code  = $res->code;
@@ -476,7 +477,7 @@ sub update_virtual_circuit {
         };
     }
 
-    my $req = new HTTP::Request(PUT => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/virtualCircuits/$args->{virtual_circuit_id}");
+    my $req = new HTTP::Request(PUT => "$self->{base_url}/20160918/virtualCircuits/$args->{virtual_circuit_id}");
     $req->content(encode_json($payload));
 
     my $res = $self->{conn}->request($req);
@@ -526,7 +527,7 @@ sub delete_virtual_circuit {
     my $self = shift;
     my $virtual_circuit_id = shift;
 
-    my $req = new HTTP::Request(GET => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/virtualCircuits/$virtual_circuit_id");
+    my $req = new HTTP::Request(GET => "$self->{base_url}/20160918/virtualCircuits/$virtual_circuit_id");
     my $res = $self->{conn}->request($req);
     if ($res->code < 200 || $res->code > 299) {
         my $code  = $res->code;
@@ -535,7 +536,7 @@ sub delete_virtual_circuit {
     }
     my $results = decode_json($res->content);
 
-    $req = new HTTP::Request(DELETE => "https://iaas.us-ashburn-1.oraclecloud.com/20160918/virtualCircuits/$virtual_circuit_id");
+    $req = new HTTP::Request(DELETE => "$self->{base_url}/20160918/virtualCircuits/$virtual_circuit_id");
     $res = $self->{conn}->request($req);
     if ($res->code < 200 || $res->code > 299) {
         my $code  = $res->code;
