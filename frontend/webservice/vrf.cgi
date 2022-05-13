@@ -29,6 +29,9 @@ Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 my $config = new OESS::Config();
 my $db     = new OESS::DB(config_obj => $config);
 
+my $azure_asn  = 12076;
+my $oracle_asn = 31898;
+
 my $mq = OESS::RabbitMQ::Client->new(
     topic      => 'OF.FWDCTL.RPC',
     timeout    => 120,
@@ -572,7 +575,7 @@ sub provision_vrf{
                     my $peer = new OESS::Peer(
                         db => $db,
                         model => {
-                            peer_asn    => 12076,
+                            peer_asn    => $azure_asn,
                             md5_key     => '',
                             local_ip    => $azure_peering_config->nth_address($prefix, 1),
                             peer_ip     => $azure_peering_config->nth_address($prefix, 2),
@@ -601,7 +604,7 @@ sub provision_vrf{
                     my $peer = new OESS::Peer(
                         db => $db,
                         model => {
-                            peer_asn    => 12076,
+                            peer_asn    => $oracle_asn,
                             md5_key     => '',
                             local_ip    => $peering_config->nth_address($prefix, 1),
                             peer_ip     => $peering_config->nth_address($prefix, 2),
@@ -733,7 +736,7 @@ sub provision_vrf{
                         my $peer = new OESS::Peer(
                             db => $db,
                             model => {
-                                peer_asn    => 12076,
+                                peer_asn    => $azure_asn,
                                 md5_key     => '',
                                 local_ip    => $azure_peering_config->nth_address($prefix, 1),
                                 peer_ip     => $azure_peering_config->nth_address($prefix, 2),
@@ -762,7 +765,7 @@ sub provision_vrf{
                         my $peer = new OESS::Peer(
                             db => $db,
                             model => {
-                                peer_asn    => 12076,
+                                peer_asn    => $oracle_asn,
                                 md5_key     => '',
                                 local_ip    => $peering_config->nth_address($prefix, 1),
                                 peer_ip     => $peering_config->nth_address($prefix, 2),
