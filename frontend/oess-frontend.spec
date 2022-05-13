@@ -12,6 +12,7 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRequires: perl
 BuildRequires: python >= 2.6, python-libs >= 2.6
 BuildRequires: python-simplejson
+BuildRequires: rh-nodejs8-nodejs == 8.11.4
 
 Requires: oess-core >= 2.0.15
 Requires: yui
@@ -56,7 +57,7 @@ BuildArch:	noarch
 
 
 %define destdir %{_datadir}/%{name}/
-%define subdirs webservice conf docs www/admin www/css www/html_templates www/js www/js_templates www/js_utilities www/media www/openlayers www/vendor
+%define subdirs webservice conf docs www/admin www/css www/html_templates www/js_templates www/js_utilities www/media www/openlayers www/vendor
 
 %prep
 rm -rf %{_builddir}
@@ -85,7 +86,6 @@ rm -rf $RPM_BUILD_ROOT
 chmod 755 %{subdirs}
 cp -ar %{subdirs} %{buildroot}%{destdir}/
 
-cp www/new/index.cgi %{buildroot}%{destdir}/new
 cp -ar %{_builddir}%{_datadir}/%{name}/new/admin/dist/* %{buildroot}/%{_datadir}/%{name}/new/admin
 
 %{__install} conf/oe-ss.conf.example %{buildroot}/etc/httpd/conf.d/oe-ss.conf
