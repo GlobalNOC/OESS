@@ -83,7 +83,7 @@ lib/OESS/Webservice.pm
 lib/OESS/Workgroup.pm
 Makefile.PL
 MANIFEST			This list of files
-perl-OESS-2.0.14.tar.gz
+perl-OESS-2.0.15.tar.gz
 perl-OESS.spec
 share/customer-templates/cisco/2900/ios124/template.txt
 share/customer-templates/cisco/3700/ios124/template.txt
@@ -148,6 +148,7 @@ share/upgrade/oess-2.0.10-2.0.11
 share/upgrade/oess-2.0.11-2.0.12
 share/upgrade/oess-2.0.12-2.0.13
 share/upgrade/oess-2.0.13-2.0.14
+share/upgrade/oess-2.0.14-2.0.15
 share/upgrade/oess-2.0.2-2.0.3
 share/upgrade/oess-2.0.3-2.0.4
 share/upgrade/oess-2.0.4-2.0.5
