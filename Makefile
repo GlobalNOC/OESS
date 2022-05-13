@@ -39,9 +39,10 @@ clean-container:
 #
 dev:
 	docker run -it \
+	--name oess-dev \
 	--rm \
 	--env-file .env \
-	--publish 8000:80 \
+	--publish 8080:80 \
 	--publish 5672:5672 \
 	--add-host=host.docker.internal:host-gateway \
 	--mount type=bind,src=${PWD}/perl-lib/OESS/lib/OESS,dst=/usr/share/perl5/vendor_perl/OESS \

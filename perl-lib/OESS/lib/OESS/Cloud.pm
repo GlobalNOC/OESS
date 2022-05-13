@@ -10,6 +10,7 @@ use OESS::Cloud::AWS;
 use OESS::Cloud::Azure;
 use OESS::Cloud::AzurePeeringConfig;
 use OESS::Cloud::GCP;
+use OESS::Cloud::Oracle;
 use OESS::Config;
 use OESS::DB::Endpoint;
 
@@ -207,9 +208,107 @@ sub setup_endpoints {
 
             push @$result, $ep;
 
+        } elsif ($ep->cloud_interconnect_type eq 'oracle-fast-connect') {
+            $logger->info("Adding cloud interconnect of type oracle-fast-connect.");
+
+            my $oracle = new OESS::Cloud::Oracle(
+                config_obj => $config,
+                interconnect_id => $ep->cloud_interconnect_id
+            );
+
+            my ($circuit, $err) = $oracle->get_virtual_circuit($ep->cloud_account_id);
+            die $err if defined $err;
+            warn 'vCircuit: ' . Dumper($circuit);
+
+            if (@{$circuit->{crossConnectMappings}} > 1) {
+                die "An Oracle virtual circuit supports a maximum of two endpoints.";
+            }
+
+            my $bfd = 0;
+            my $cross_connect_mappings = [];
+            foreach my $ccm (@{$circuit->{crossConnectMappings}}) {
+                if (!defined $ccm->{crossConnectOrCrossConnectGroupId}) {
+                    # This should only happen for layer2 connections. Customers
+                    # define their BGP addresses on the oracle side at the same
+                    # time that they create their virtualCircuit, so those
+                    # values are stored in a crossConnectMapping.
+                    # 
+                    # There doesn't appear to be support for multiple
+                    # crossConnectMappings on a single l2 virtualCircut (this
+                    # makes sense), so if we completely ignore this
+                    # crossConnectMapping the info in the l2
+                    # crossConnectMapping that we create will be merged with
+                    # with the existing crossConnectMapping automatically; As
+                    # such we completely ignore this crossConnectMapping.
+                    next;
+                }
+                if ($ep->cloud_interconnect_id eq $ccm->{crossConnectOrCrossConnectGroupId}) {
+                    # TODO Check if I should include the interconnect-id in this error message
+                    die "This Oracle virtual circuit already terminates on the specified cross connect.";
+                }
+
+                push @$cross_connect_mappings, {
+                    auth_key  => $ccm->{bgpMd5AuthKey}, # Not passed if empty string or undef
+                    bfd       => $circuit->{isBfdEnabled},
+                    ocid      => $ccm->{crossConnectOrCrossConnectGroupId}, # OCID of physical cross-connect or cross-connect-group. An OESS cloud_interconnect_id
+                    oess_ip   => $ccm->{customerBgpPeeringIp}, # /31
+                    peer_ip   => $ccm->{oracleBgpPeeringIp}, # /31
+                    oess_ipv6 => $ccm->{customerBgpPeeringIpv6}, # /127
+                    peer_ipv6 => $ccm->{oracleBgpPeeringIpv6}, # /127
+                    vlan      => $ccm->{vlan},
+                };
+            }
+            warn 'vCircuit - currentMappings: ' . Dumper($cross_connect_mappings);
+
+            my $conn_type = ($circuit->{serviceType} eq 'LAYER2') ? 'l2' : 'l3';
+            my $ccm = {
+                auth_key  => undef,
+                ocid      => $ep->cloud_interconnect_id,
+                oess_ip   => undef,
+                peer_ip   => undef,
+                oess_ipv6 => undef,
+                peer_ipv6 => undef,
+                vlan      => $ep->tag,
+            };
+
+            # Populate peering info if this is an l3connection
+            if ($conn_type eq 'l3') {
+                foreach my $peer (@{$ep->peers}) {
+                    # Assume auth key is the same for all peers on an endpoint
+                    $ccm->{auth_key} = (defined $peer->md5_key && $peer->md5_key ne '') ? $peer->md5_key : undef;
+                    # Assume bfd is the same for all peers on an endpoint
+                    $bfd = (defined $peer->bfd) ? $peer->bfd : 0;
+
+                    if ($peer->ip_version eq 'ipv4') {
+                        $ccm->{oess_ip} = $peer->local_ip;
+                        $ccm->{peer_ip} = $peer->peer_ip;
+                    } else {
+                        $ccm->{oess_ipv6} = $peer->local_ip;
+                        $ccm->{peer_ipv6} = $peer->peer_ip;
+                    }
+                }
+            }
+            push @$cross_connect_mappings, $ccm;
+            warn 'vCircuit - updatedMappings: ' . Dumper($cross_connect_mappings);
+
+            my ($update_res, $update_err) = $oracle->update_virtual_circuit(
+                virtual_circuit_id     => $ep->cloud_account_id,
+                bandwidth              => $ep->bandwidth,
+                bfd                    => $bfd,
+                mtu                    => $ep->mtu,
+                oess_asn               => $config->local_as,
+                name                   => $vrf_name,
+                type                   => $conn_type,
+                cross_connect_mappings => $cross_connect_mappings
+            );
+            die $update_err if defined $update_err;
+            warn 'vCircuit - updateResponse: ' . Dumper($update_res);
+
+            $ep->cloud_connection_id($update_res->{id});
+
+            push @$result, $ep;
         } else {
             $logger->warn("Cloud interconnect type is not supported.");
-            push @$result, $ep;
         }
     }
 
@@ -230,17 +329,24 @@ sub cleanup_endpoints {
     my $config = OESS::Config->new();
     my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
+    # Get number of Endpoints using the provided service key.
+    # If cloud_account_id is in use on another endpoint we'll
+    # want to wait before deprovisioning the connection.
     my $conn_azure_endpoint_count = {};
+    my $conn_oracle_endpoint_count = {};
+
     foreach my $ep (@$endpoints) {
         if ($ep->cloud_interconnect_type eq 'azure-express-route') {
-            # Get number of Endpoints using the provided azure service
-            # key. If cloud_account_id is in use on another endpoint
-            # we'll want to wait before deprovisioning the
-            # ExpressRoute.
             if (!defined $conn_azure_endpoint_count->{$ep->cloud_account_id}) {
                 $conn_azure_endpoint_count->{$ep->cloud_account_id} = 0;
             }
             $conn_azure_endpoint_count->{$ep->cloud_account_id} += 1;
+        }
+        if ($ep->cloud_interconnect_type eq 'oracle-fast-connect') {
+            if (!defined $conn_oracle_endpoint_count->{$ep->cloud_account_id}) {
+                $conn_oracle_endpoint_count->{$ep->cloud_account_id} = 0;
+            }
+            $conn_oracle_endpoint_count->{$ep->cloud_account_id} += 1;
         }
     }
 
@@ -305,7 +411,7 @@ sub cleanup_endpoints {
             my $diff_azure_endpoint_count = $full_azure_endpoint_count - $conn_azure_endpoint_count->{$ep->cloud_account_id};
 
             if ($diff_azure_endpoint_count > 0) {
-                $logger->info("Not removing azure-express-route: $service_key is in use by another Connection.");
+                $logger->info("Not removing azure-express-route: $service_key is in use by another endpoint.");
                 next;
             }
 
@@ -320,6 +426,32 @@ sub cleanup_endpoints {
                 bandwidth        => $conn->{properties}->{bandwidthInMbps},
                 vlan             => $ep->tag
             );
+
+        } elsif ($ep->cloud_interconnect_type eq 'oracle-fast-connect') {
+            my $oracle = new OESS::Cloud::Oracle(
+                config_obj => $config,
+                interconnect_id => $ep->cloud_interconnect_id
+            );
+
+            my $interconnect_id = $ep->cloud_interconnect_id;
+            my $connection_id = $ep->cloud_account_id;
+
+            my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $ep->{db}, cloud_account_id => $ep->cloud_account_id);
+            if (defined $eps_err) {
+                $logger->error($eps_err);
+                next;
+            }
+            my $full_oracle_endpoint_count = (defined $eps) ? scalar @$eps : 0;
+            my $diff_oracle_endpoint_count = $full_oracle_endpoint_count - $conn_oracle_endpoint_count->{$ep->cloud_account_id};
+
+            if ($diff_oracle_endpoint_count > 0) {
+                $logger->info("Not removing oracle-fast-connect: $connection_id is in use by another endpoint.");
+                next;
+            }
+
+            $logger->info("Removing oracle-fast-connect $connection_id from $interconnect_id.");
+            my ($res, $err) = $oracle->delete_virtual_circuit($connection_id);
+            die $err if defined $err;
 
         } else {
             $logger->warn("Cloud interconnect type is not supported.");

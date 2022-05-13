@@ -156,7 +156,7 @@ sub register_rw_methods {
     );
     $edit_interface->add_input_parameter(
         name        => 'cloud_interconnect_type',
-        pattern     => '^(aws-hosted-connection|azure-express-route|gcp-partner-interconnect|)$',
+        pattern     => '^(aws-hosted-connection|azure-express-route|gcp-partner-interconnect|oracle-fast-connect|)$',
         required    => 0,
         description => 'Physical interconnect type of connector'
     );
@@ -339,7 +339,7 @@ sub edit_interface {
         return;
     }
 
-    if ($params->{workgroup_id}{is_set}) {
+    if ($params->{workgroup_id}{is_set} && $params->{workgroup_id}{value} != $interface->workgroup_id) {
         if ($params->{workgroup_id}{value} == -1) {
             # Remove interface from workgroup
             $interface->{workgroup_id} = undef;

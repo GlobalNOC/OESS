@@ -387,4 +387,19 @@ sub tsds_realm {
     return $ENV{TSDS_REALM} || $self->{config}->{tsds}->{realm};
 }
 
+=head2 oracle
+
+=cut
+sub oracle {
+    my $self = shift;
+
+    my $result = {};
+    foreach my $conn (@{$self->{config}->{cloud}->{connection}}) {
+        if ($conn->{interconnect_type} eq 'oracle-fast-connect') {
+            $result->{$conn->{interconnect_id}} = $conn;
+        }
+    }
+    return $result;
+}
+
 1;

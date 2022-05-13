@@ -15,6 +15,7 @@ use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_connection);
 use OESS::Cloud;
 use OESS::Cloud::AzurePeeringConfig;
+use OESS::Cloud::PeeringConfig;
 use OESS::Config;
 use OESS::DB;
 use OESS::DB::User;
@@ -27,6 +28,9 @@ Log::Log4perl::init_and_watch('/etc/oess/logging.conf',10);
 
 my $config = new OESS::Config();
 my $db     = new OESS::DB(config_obj => $config);
+
+my $azure_asn  = 12076;
+my $oracle_asn = 31898;
 
 my $mq = OESS::RabbitMQ::Client->new(
     topic      => 'OF.FWDCTL.RPC',
@@ -391,6 +395,7 @@ sub provision_vrf{
     my $vrf = undef;
     my $previous_vrf = undef;
     my $azure_peering_config = new OESS::Cloud::AzurePeeringConfig(db => $db);
+    my $peering_config = new OESS::Cloud::PeeringConfig(db => $db);
 
     if (defined $model->{'vrf_id'} && $model->{'vrf_id'} != -1) {
         $vrf = OESS::VRF->new(db => $db, vrf_id => $model->{vrf_id});
@@ -411,6 +416,7 @@ sub provision_vrf{
         $vrf->update;
 
         $azure_peering_config->load($vrf->vrf_id);
+        $peering_config->load($vrf->vrf_id);
     } else {
         $model->{created_by_id} = $user->user_id;
         $model->{last_modified_by_id} = $user->user_id;
@@ -569,10 +575,39 @@ sub provision_vrf{
                     my $peer = new OESS::Peer(
                         db => $db,
                         model => {
-                            peer_asn    => 12076,
+                            peer_asn    => $azure_asn,
                             md5_key     => '',
                             local_ip    => $azure_peering_config->nth_address($prefix, 1),
                             peer_ip     => $azure_peering_config->nth_address($prefix, 2),
+                            ip_version  => $peering->{ip_version},
+                            bfd         => $peering->{bfd}
+                        }
+                    );
+                    my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
+                    if (defined $peer_err) {
+                        $method->set_error($peer_err);
+                        $db->rollback;
+                        return;
+                    }
+                    $endpoint->add_peer($peer);
+
+                    $peerings->{"$endpoint->{node} $endpoint->{interface} $peer->{local_ip}"} = 1;
+                    next;
+                }
+                if ($interface->cloud_interconnect_type eq 'oracle-fast-connect') {
+                    my $prefix = $peering_config->prefix(
+                        $endpoint->cloud_account_id,
+                        $endpoint->interface_id,
+                        $peering->{ip_version}
+                    );
+
+                    my $peer = new OESS::Peer(
+                        db => $db,
+                        model => {
+                            peer_asn    => $oracle_asn,
+                            md5_key     => '',
+                            local_ip    => $peering_config->nth_address($prefix, 1),
+                            peer_ip     => $peering_config->nth_address($prefix, 2),
                             ip_version  => $peering->{ip_version},
                             bfd         => $peering->{bfd}
                         }
@@ -599,7 +634,7 @@ sub provision_vrf{
 
                 $peering->{peer_asn} = (!defined $peering->{peer_asn} || $peering->{peer_asn} eq '') ? 64512 : $peering->{peering_asn};
                 $peering->{md5_key} = (!defined $peering->{md5_key} || $peering->{md5_key} eq '') ? md5_hex(rand) : $peering->{md5_key};
-                if ($peering->{ip_version} == 'ipv4') {
+                if ($peering->{ip_version} eq 'ipv4') {
                     $peering->{local_ip} = '172.31.254.' . $last_octet . '/31';
                     $peering->{peer_ip}  = '172.31.254.' . ($last_octet + 1) . '/31';
                 } else {
@@ -701,7 +736,7 @@ sub provision_vrf{
                         my $peer = new OESS::Peer(
                             db => $db,
                             model => {
-                                peer_asn    => 12076,
+                                peer_asn    => $azure_asn,
                                 md5_key     => '',
                                 local_ip    => $azure_peering_config->nth_address($prefix, 1),
                                 peer_ip     => $azure_peering_config->nth_address($prefix, 2),
@@ -718,6 +753,35 @@ sub provision_vrf{
                         $endpoint->add_peer($peer);
 
                         $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"} = 1;
+                        next;
+                    }
+                    if ($endpoint->cloud_interconnect_type eq 'oracle-fast-connect') {
+                        my $prefix = $peering_config->prefix(
+                            $endpoint->cloud_account_id,
+                            $endpoint->interface_id,
+                            $peering->{ip_version}
+                        );
+
+                        my $peer = new OESS::Peer(
+                            db => $db,
+                            model => {
+                                peer_asn    => $oracle_asn,
+                                md5_key     => '',
+                                local_ip    => $peering_config->nth_address($prefix, 1),
+                                peer_ip     => $peering_config->nth_address($prefix, 2),
+                                ip_version  => $peering->{ip_version},
+                                bfd         => $peering->{bfd}
+                            }
+                        );
+                        my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
+                        if (defined $peer_err) {
+                            $method->set_error($peer_err);
+                            $db->rollback;
+                            return;
+                        }
+                        $endpoint->add_peer($peer);
+
+                        $peerings->{"$endpoint->{node} $endpoint->{interface} $peer->{local_ip}"} = 1;
                         next;
                     }
     
