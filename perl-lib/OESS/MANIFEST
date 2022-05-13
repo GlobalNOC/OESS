@@ -10,9 +10,16 @@ lib/OESS/Circuit.pm
 lib/OESS/Cloud.pm
 lib/OESS/Cloud/AWS.pm
 lib/OESS/Cloud/Azure.pm
+lib/OESS/Cloud/AzurePeeringConfig.pm
+lib/OESS/Cloud/AzureStub.pm
+lib/OESS/Cloud/AzureSyncer.pm
 lib/OESS/Cloud/AzureInterfaceSelector.pm
 lib/OESS/Cloud/BandwidthValidator.pm
 lib/OESS/Cloud/GCP.pm
+lib/OESS/Cloud/Oracle.pm
+lib/OESS/Cloud/OracleStub.pm
+lib/OESS/Cloud/OracleSyncer.pm
+lib/OESS/Cloud/PeeringConfig.pm
 lib/OESS/Config.pm
 lib/OESS/Database.pm
 lib/OESS/DB.pm

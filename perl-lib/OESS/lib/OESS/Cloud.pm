@@ -19,6 +19,8 @@ use Data::UUID;
 
 =head1 OESS::Cloud
 
+    use OESS::Cloud
+
 =cut
 
 =head2 setup_endpoints
