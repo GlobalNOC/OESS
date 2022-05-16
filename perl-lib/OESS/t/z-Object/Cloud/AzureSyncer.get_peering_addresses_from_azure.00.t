@@ -50,6 +50,7 @@ my $ni_id = $db->execute_query(
     [5071]
 );
 warn $db->get_error if !$ni_id;
+warn "ni_id $ni_id";
 
 my $vrf_id = $db->execute_query(
     "insert into vrf (name,description,workgroup_id,state,local_asn,created_by,last_modified_by) values (?,?,?,?,?,?,?)",
@@ -100,9 +101,9 @@ my ($endpoints, $err) = $azure->fetch_azure_endpoints_from_oess();
 ok(@$endpoints == 2, "Fetched expected number of endpoints.");
 warn $err if defined $err;
 
-my ($conns, $err) = $azure->fetch_cross_connections_from_azure();
+my ($conns, $err2) = $azure->fetch_cross_connections_from_azure();
 ok(keys %$conns == 1, "Fetched expected number of connections.");
-warn $err if defined $err;
+warn $err2 if defined $err2;
 
 my $ep1 = $endpoints->[0];
 my $conn1 = $conns->{$ep1->cloud_connection_id};
