@@ -112,8 +112,6 @@ cmp_deeply(
     'Entity 2: parents() returns info on correct parent entities'
 );
 
-warn Dumper($ent2->interfaces());
-
 my $ent3 = OESS::Entity->new( entity_id => 12, db => $db );
 
 ok($ent3->entity_id() == 12,      'Entity 3 returns correct entity_id');

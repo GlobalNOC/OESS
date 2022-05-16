@@ -101,7 +101,7 @@ ok($ent1a->description() eq 'Those that are included in this classification', 'E
 
 
 my $ent2 = OESS::Entity->new( entity_id => 14, db => $db );
-warn Dumper($ent2->to_hash());
+
 cmp_deeply(
     $ent2->to_hash(),
     {
@@ -164,8 +164,6 @@ $ent2->add_child({ entity_id => 15 }); # Try adding it twice!
 ok(!defined($ent2->update_db()), 'Entity 2: no DB errors when running update_db()');
 
 my $ent2a = OESS::Entity->new( entity_id => 14, db => $db );
-
-warn Dumper($ent2a);
 
 cmp_deeply(
     $ent2a->to_hash(),
