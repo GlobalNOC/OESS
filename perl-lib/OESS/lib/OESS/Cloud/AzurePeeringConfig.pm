@@ -76,7 +76,6 @@ sub load {
 
     foreach my $model (@$models) {
         next if !defined $model->{cloud_interconnect_type} || $model->{cloud_interconnect_type} ne 'azure-express-route';
-        warn "ok";
 
         my $ep = new OESS::Endpoint(db => $self->{db}, vrf_endpoint_id => $model->{vrf_ep_id});
         $ep->load_peers;
