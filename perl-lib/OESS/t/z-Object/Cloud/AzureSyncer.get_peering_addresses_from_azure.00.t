@@ -46,11 +46,10 @@ $ok = $db->execute_query(
 );
 warn $db->get_error if !$ok;
 my $ni_id = $db->execute_query(
-    "insert into node_instantiation (node_id,start_epoch,end_epoch,admin_state,dpid,openflow,mpls,controller) values (?,UNIX_TIMESTAMP(NOW()),-1,'active',987654567,0,1,'nso')",
+    "insert into node_instantiation (node_id,start_epoch,end_epoch,admin_state,dpid,openflow,mpls,controller) values (?,UNIX_TIMESTAMP(NOW()),-1,'active','987654567',0,1,'nso')",
     [5071]
 );
-warn $db->get_error if !$ni_id;
-warn "ni_id $ni_id";
+warn $db->get_error if !defined $ni_id;
 
 my $vrf_id = $db->execute_query(
     "insert into vrf (name,description,workgroup_id,state,local_asn,created_by,last_modified_by) values (?,?,?,?,?,?,?)",
@@ -102,6 +101,9 @@ ok(@$endpoints == 2, "Fetched expected number of endpoints.");
 warn $err if defined $err;
 
 my ($conns, $err2) = $azure->fetch_cross_connections_from_azure();
+warn Dumper($conns);
+warn Dumper($err2);
+warn Dumper($azure);
 ok(keys %$conns == 1, "Fetched expected number of connections.");
 warn $err2 if defined $err2;
 
