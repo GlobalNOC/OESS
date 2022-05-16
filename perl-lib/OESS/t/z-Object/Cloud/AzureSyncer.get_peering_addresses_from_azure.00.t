@@ -101,9 +101,6 @@ ok(@$endpoints == 2, "Fetched expected number of endpoints.");
 warn $err if defined $err;
 
 my ($conns, $err2) = $azure->fetch_cross_connections_from_azure();
-warn Dumper($conns);
-warn Dumper($err2);
-warn Dumper($azure);
 ok(keys %$conns == 1, "Fetched expected number of connections.");
 warn $err2 if defined $err2;
 
