@@ -38,6 +38,7 @@ database. Assumes at most one ipv4 and one ipv6 address.
     );
 
 =cut
+
 sub new {
     my $class = shift;
     my $args  = {
@@ -62,6 +63,7 @@ sub new {
     my $err = $config->load(123);
 
 =cut
+
 sub load {
     my $self   = shift;
     my $vrf_id = shift;
@@ -108,6 +110,7 @@ Example:
     192.168.100.248/30
 
 =cut
+
 sub prefix {
     my $self = shift;
     my $cloud_account_id = shift;
@@ -149,6 +152,7 @@ Examples:
     # $ipv4 will equal "192.168.100.249/30"
 
 =cut
+
 sub nth_address {
     my $self = shift;
     my $prefix = shift;
@@ -169,6 +173,7 @@ _next_prefix finds the next available /30 or /126 based on which prefixes are
 currently recorded in this object.
 
 =cut
+
 sub _next_prefix {
     my $self = shift;
     my $prefix = shift;
@@ -192,6 +197,7 @@ _prefix_from_address determines the network for the given address. For
 example, the network for 192.168.1.100/24 is 192.168.1.0/24.
 
 =cut
+
 sub _prefix_from_address {
     my $self = shift;
     my $addr = shift;
@@ -212,6 +218,7 @@ sub _prefix_from_address {
 =head2 _prefix_from_ip
 
 =cut
+
 sub _prefix_from_ip {
     my $self = shift;
     my $ip   = shift;
@@ -223,6 +230,7 @@ sub _prefix_from_ip {
 Performs a binary and of the two binary string addresses.
 
 =cut
+
 sub _ip_binand {
     my $self = shift;
     my $a = shift;
