@@ -152,6 +152,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
+%doc %{_mandir}/man3/OESS::AccessController::Default.3pm.gz
 %doc %{_mandir}/man3/OESS::ACL.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::AWS.3pm.gz
@@ -239,6 +240,7 @@ rm -rf $RPM_BUILD_ROOT
 %{template_dir}/notification.tt.html
 %{template_dir}/notification_vrf.tt.html
 %{template_dir}/notification_templates_vrf.tmpl
+%{perl_vendorlib}/OESS/AccessController/Default.pm
 %{perl_vendorlib}/OESS/ACL.pm
 %{perl_vendorlib}/OESS/Circuit.pm
 %{perl_vendorlib}/OESS/Database.pm

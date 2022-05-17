@@ -4,6 +4,7 @@ etc/notification.tt.html
 etc/notification_templates.tmpl
 etc/notification_templates_vrf.tmpl
 etc/notification_vrf.tt.html
+lib/OESS/AccessController/Default.pm
 lib/OESS/ACL.pm
 lib/OESS/Circuit.pm
 lib/OESS/Cloud.pm
