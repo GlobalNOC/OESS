@@ -101,6 +101,9 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) /etc/httpd/conf.d/oe-ss.conf
 %doc /%{destdir}/docs
 
+%pre
+rm -f %{_datadir}/%{name}/new/admin/*
+
 %post
 mkdir -p %{_sysconfdir}/oess/
 mkdir -p /var/run/oess/
