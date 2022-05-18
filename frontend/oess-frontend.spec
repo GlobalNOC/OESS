@@ -57,35 +57,38 @@ BuildArch:	noarch
 
 
 %define destdir %{_datadir}/%{name}/
-%define subdirs webservice conf docs www/admin www/css www/html_templates www/js_templates www/js_utilities www/media www/openlayers www/vendor
+%define subdirs webservice conf docs www
+%define stddirs webservice conf docs
+%define wwwdirs www/*
 
 %prep
 rm -rf %{_builddir}
 
 %{__mkdir} -p -m 0755 %{_builddir}%{_datadir}/%{name}/new/admin
-cp -ar %{_sourcedir}/%{name}-%{version}/www/new/admin_new/* %{_builddir}%{_datadir}/%{name}/new/admin
-
+cp -ar %{_sourcedir}/%{name}-%{version}/www/new/admin_new/. %{_builddir}%{_datadir}/%{name}/new/admin
 
 %setup -q
 
 
 %build
 cd %{_builddir}%{_datadir}/%{name}/new/admin
-npm install
+npm install --include=dev
 npm run build
 
 
 %install
 rm -rf $RPM_BUILD_ROOT
 
-%{__mkdir} -p -m 0755 %{buildroot}/%{_datadir}/%{name}/
-%{__mkdir} -p -m 0755 %{buildroot}/%{_datadir}/%{name}/new
+%{__mkdir} -p -m 0755 %{buildroot}/%{_datadir}/%{name}
+%{__mkdir} -p -m 0755 %{buildroot}/%{_datadir}/%{name}/www
 %{__mkdir} -p -m 0755 %{buildroot}/%{_datadir}/%{name}/new/admin
+
 %{__mkdir} -p -m 0755 %{buildroot}/etc/httpd/conf.d/
 
 chmod 755 %{subdirs}
-cp -ar %{subdirs} %{buildroot}%{destdir}/
 
+cp -ar %{stddirs} %{buildroot}/%{_datadir}/%{name}
+cp -ar %{wwwdirs} %{buildroot}/%{_datadir}/%{name}/www
 cp -ar %{_builddir}%{_datadir}/%{name}/new/admin/dist/* %{buildroot}/%{_datadir}/%{name}/new/admin
 
 %{__install} conf/oe-ss.conf.example %{buildroot}/etc/httpd/conf.d/oe-ss.conf
@@ -110,4 +113,3 @@ mkdir -p /var/run/oess/
 chmod a+rw /var/run/oess/
 
 %changelog
-
