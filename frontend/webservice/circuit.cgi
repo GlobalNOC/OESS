@@ -58,6 +58,12 @@ $get_circuits->add_input_parameter(
     description => 'Identifier of Circuit to filter results by.'
 );
 $get_circuits->add_input_parameter(
+    name => 'name',
+    pattern => $GRNOC::WebService::Regex::TEXT,
+    required => 0,
+    description => 'Name of Circuit to filter results by.'
+);
+$get_circuits->add_input_parameter(
     name => 'state',
     pattern => $GRNOC::WebService::Regex::TEXT,
     default => 'active',
@@ -93,6 +99,7 @@ sub get {
     my $circuits = [];
     my $circuit_datas = OESS::DB::Circuit::fetch_circuits(
         db => $db,
+        name => $args->{name}->{value},
         state => $args->{state}->{value},
         circuit_id => $args->{circuit_id}->{value},
         workgroup_id => $args->{workgroup_id}->{value}

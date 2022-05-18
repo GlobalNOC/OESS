@@ -483,6 +483,10 @@ sub get_vrfs{
         push @where_val, $params{'interface_id'};
         push @where_str, "interface.interface_id=?";
     }
+    if (defined $params{'name'}) {
+        push @where_val, $params{'name'};
+        push @where_str, "vrf.name=?";
+    }
     if (defined $params{'node_id'}) {
         push @where_val, $params{'node_id'};
         push @where_str, "interface.node_id=?";

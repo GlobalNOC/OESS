@@ -71,10 +71,16 @@ sub register_ro_methods {
         callback => sub { get_vrfs(@_) }
     );
     $method->add_input_parameter(
+        name => 'name',
+        pattern => $GRNOC::WebService::Regex::TEXT,
+        required => 0,
+        description => 'Name of VRF to filter results by.'
+    );
+    $method->add_input_parameter(
         name => 'workgroup_id',
         pattern => $GRNOC::WebService::Regex::INTEGER,
         required => 1,
-        description => 'Identifier of Workgroup used to fetch Layer3 Connections.'
+        description => 'Identifier of Workgroup to filter results by.'
     );
     $svc->register_method($method);
 
@@ -324,6 +330,7 @@ sub get_vrfs{
     my $vrfs = OESS::DB::VRF::get_vrfs(
         db => $db,
         workgroup_id => $params->{workgroup_id}->{value},
+        name => $params->{name}->{value},
         state => 'active'
     );
 
