@@ -15,7 +15,7 @@ use OESS::DB::User;
 use OESS::ACL;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Topic qw(discovery_topic_for_node fwdctl_topic_for_node);
-use OESS::WebService;
+use OESS::Webservice;
 
 
 my $config = new OESS::Config(config_filename => '/etc/oess/database.xml');
