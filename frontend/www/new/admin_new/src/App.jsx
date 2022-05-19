@@ -28,6 +28,7 @@ import { Acls } from "./pages/nodes/interfaces/Acls.jsx";
 import { CreateAcl } from "./pages/nodes/interfaces/acls/CreateAcl.jsx";
 import { EditAcl } from "./pages/nodes/interfaces/acls/EditAcl.jsx";
 import { EditInterface } from "./pages/nodes/interfaces/EditInterface.jsx";
+import { AdminRoute } from "./pages/AdminRoute.jsx";
 
 const App = () => {
   return (
@@ -46,35 +47,36 @@ const App = () => {
             <Toast />
 
             <Switch>
-              <Route exact path="/">
+              <AdminRoute exact path="/">
                 <Redirect to="/users" />
-              </Route>
+              </AdminRoute>
 
-              <Route path="/users/new"><CreateUser /></Route>
-              <Route path="/users/:id" component={EditUser} />
-              <Route path="/users" component={Users}></Route>
+              <AdminRoute path="/users/new"><CreateUser /></AdminRoute>
+              <AdminRoute path="/users/:id" component={EditUser} />
+              <AdminRoute path="/users" component={Users}></AdminRoute>
+              <AdminRoute path="/users" component={Users}></AdminRoute>
               
-              <Route path="/nodes/new"><CreateNode /></Route>
-              <Route path="/nodes/:id/interfaces/:interfaceId/acls/new" component={CreateAcl} />
-              <Route path="/nodes/:id/interfaces/:interfaceId/acls/:interfaceAclId" component={EditAcl} />
-              <Route path="/nodes/:id/interfaces/:interfaceId/acls" component={Acls} />
-              <Route path="/nodes/:id/interfaces/:interfaceId" component={EditInterface} />
-              <Route path="/nodes/:id/interfaces" component={Interfaces} />
-              <Route path="/nodes/:id" component={EditNode} />
-              <Route path="/nodes" component={Nodes} />
+              <AdminRoute path="/nodes/new"><CreateNode /></AdminRoute>
+              <AdminRoute path="/nodes/:id/interfaces/:interfaceId/acls/new" component={CreateAcl} />
+              <AdminRoute path="/nodes/:id/interfaces/:interfaceId/acls/:interfaceAclId" component={EditAcl} />
+              <AdminRoute path="/nodes/:id/interfaces/:interfaceId/acls" component={Acls} />
+              <AdminRoute path="/nodes/:id/interfaces/:interfaceId" component={EditInterface} />
+              <AdminRoute path="/nodes/:id/interfaces" component={Interfaces} />
+              <AdminRoute path="/nodes/:id" component={EditNode} />
+              <AdminRoute path="/nodes" component={Nodes} />
 
-              <Route path="/links" component={Links} />
+              <AdminRoute path="/links" component={Links} />
 
-              <Route path="/workgroups/new">
+              <AdminRoute path="/workgroups/new">
                 <CreateWorkgroup />
-              </Route>
-              <Route path="/workgroups/:id/interfaces" component={WorkgroupInterfaces} />
-              <Route path="/workgroups/:id/users/add" component={AddWorkgroupUser} />
-              <Route path="/workgroups/:id/users" component={WorkgroupUsers} />
-              <Route path="/workgroups/:id" component={EditWorkgroup} />
-              <Route path="/workgroups">
+              </AdminRoute>
+              <AdminRoute path="/workgroups/:id/interfaces" component={WorkgroupInterfaces} />
+              <AdminRoute path="/workgroups/:id/users/add" component={AddWorkgroupUser} />
+              <AdminRoute path="/workgroups/:id/users" component={WorkgroupUsers} />
+              <AdminRoute path="/workgroups/:id" component={EditWorkgroup} />
+              <AdminRoute path="/workgroups">
                 <Workgroups />
-              </Route>
+              </AdminRoute>
             </Switch>
           </div>
         </div>

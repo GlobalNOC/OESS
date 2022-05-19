@@ -48,7 +48,7 @@ export const WorkgroupForm = (props) => {
     <form onSubmit={onSubmit}>
       <div className="form-group">
         <label htmlFor="name">Name</label>
-        <input className="form-control" type="text" id="name" name="name" value={name} maxlength="20" onChange={(e) => setName(e.target.value)} />
+        <input className="form-control" type="text" id="name" name="name" value={name} maxLength="20" onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="form-group">
         <label htmlFor="description">Description</label>
