@@ -154,7 +154,10 @@ sub create_user {
         return;
     }
     my ($ok, $access_err) = $user->has_system_access(role => 'normal');
-    return (undef, $access_err) if defined $access_err;
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
 
     my ($user_id, $user_err) = $ac->create_user(
         email      => $params->{email}{value},
@@ -256,7 +259,10 @@ sub get_user {
 
     # Logged in requested info for another user
     my ($ok, $access_err) = $user->has_system_access(role => 'read-only');
-    return (undef, $access_err) if defined $access_err;
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
 
     my ($user2, $user2_err) = $ac->get_user(
         user_id  => $params->{user_id}{value},
