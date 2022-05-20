@@ -205,7 +205,10 @@ sub create_workgroup {
         return;
     }
     my ($ok, $access_err) = $user->has_system_access(role => 'normal');
-    return (undef, $access_err) if defined $access_err;
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
 
     if (length($params->{name}{value}) > 20) {
         $method->set_error("Workgroup name cannot exceed 20 characters in length.");
@@ -310,7 +313,10 @@ sub get_workgroup {
         role         => 'read-only',
         workgroup_id => $params->{workgroup_id}{value},
     );
-    return (undef, $access_err) if defined $access_err;
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
 
     my ($wg, $workgroup_err) = $ac->get_workgroup(
         workgroup_id => $params->{workgroup_id}{value}
@@ -335,7 +341,10 @@ sub get_workgroup_users {
         role         => 'read-only',
         workgroup_id => $params->{workgroup_id}{value},
     );
-    return (undef, $access_err) if defined $access_err;
+    if (defined $access_err) {
+        $method->set_error($access_err);
+        return;
+    }
 
     my ($users, $users_err) = $ac->get_workgroup_users(
         workgroup_id => $params->{workgroup_id}{value}
