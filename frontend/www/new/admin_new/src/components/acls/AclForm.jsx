@@ -9,8 +9,8 @@ export const AclForm = (props) => {
 
   const [interfaceAclId, setInterfaceAclId] = useState(acl.interface_acl_id || -1);
   const [interfaceId, setInterfaceId] = useState(acl.interface_id || -1);
-  const [start, setStart] = useState(acl.start || 2);
-  const [end, setEnd] = useState(acl.end || 4094);
+  const [start, setStart] = useState(acl.start || 1);
+  const [end, setEnd] = useState(acl.end || 4095);
   const [notes, setNotes] = useState(acl.notes || '');
   const [allowDeny, setAllowDeny] = useState(acl.allow_deny || 'allow');
   const [evalPosition, setEvalPosition] = useState(acl.eval_position || -1);
@@ -72,11 +72,11 @@ export const AclForm = (props) => {
       </div>
       <div className="form-group">
         <label htmlFor="start">Start</label>
-        <input type="number" className="form-control" id="start" placeholder="2" min="2" max="4094" value={start} onChange={e => setStart(e.target.value)} />
+        <input type="number" className="form-control" id="start" placeholder="1" min="1" max="4095" value={start} onChange={e => setStart(e.target.value)} />
       </div>
       <div className="form-group">
         <label htmlFor="end">End</label>
-        <input type="number" className="form-control" id="end" placeholder="4094" min="2" max="4094" value={end} onChange={e => setEnd(e.target.value)} />
+        <input type="number" className="form-control" id="end" placeholder="4095" min="1" max="4095" value={end} onChange={e => setEnd(e.target.value)} />
       </div>
       <div className="form-group">
         <label htmlFor="notes">Notes</label>
