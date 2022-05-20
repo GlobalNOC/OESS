@@ -82,6 +82,11 @@ export const CustomTable = (props) => {
         // show.
         items += 1;
 
+        // Table pages disabled if size not specified
+        if (size === undefined) {
+            return true;
+        }
+
         if (i >= start && i < end) {
             return true;
         } else {
@@ -101,6 +106,11 @@ export const CustomTable = (props) => {
         tableFilter = <TableFilter />
     }
 
+    let tablePageSelector = null;
+    if (size !== undefined) {
+        tablePageSelector = <TablePageSelector pageNumber={page} pageSize={size} />;
+    }
+
     return (
         <TableContext.Provider value={{page, setPage, items, setFilter}}>
             <div style={{display: "flex", flexDirection: "row", columnGap: ".75em"}}>
@@ -109,7 +119,7 @@ export const CustomTable = (props) => {
             </div>
             <Table columns={columns} rows={filteredRows} />
             <center>
-                <TablePageSelector pageNumber={page} pageSize={size} />
+                {tablePageSelector}
             </center>
         </TableContext.Provider>
     );

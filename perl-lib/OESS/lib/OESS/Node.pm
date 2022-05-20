@@ -101,7 +101,7 @@ sub create {
     my $self = shift;
 
     if (!defined $self->{db}) {
-        return (undef, "Couldn't create Node. Database handle is missing.");
+        return "Couldn't create Node. Database handle is missing.";
     }
 
     my ($id, $err) = OESS::DB::Node::create(

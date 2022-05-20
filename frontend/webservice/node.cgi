@@ -236,8 +236,8 @@ sub create_node {
         
     my ($ok, $access_err) = $user->has_system_access(role => 'normal');
     if (defined $access_err){
-        $db->rollback;
         $method->set_error($access_err);
+        $db->rollback;
         return;
     }
 
@@ -258,7 +258,6 @@ sub create_node {
     );
     
     my $create_err = $node->create;
-
     if (defined $create_err) {
         $method->set_error($create_err);
         $db->rollback;

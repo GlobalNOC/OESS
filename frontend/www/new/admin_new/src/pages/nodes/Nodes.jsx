@@ -62,7 +62,6 @@ class Nodes extends React.Component {
 
   render() {
     const rowButtons = (data) => {
-      console.log(data);
       let diffButton = (
         <button type="button" className="btn btn-default btn-xs" onClick={() => this.setState({visible: true, diffNodeId: data.node_id, diffNodeName: data.name})}>
           <span className="glyphicon glyphicon-ok-sign" aria-hidden="true"></span>&nbsp;
@@ -120,7 +119,7 @@ class Nodes extends React.Component {
         </div>
         <br />
 
-        <CustomTable columns={columns} rows={this.state.nodes} size={15} filter={['node_id', 'name', 'ip_address']}>
+        <CustomTable columns={columns} rows={this.state.nodes} filter={['node_id', 'name', 'ip_address']}>
           <CustomTable.MenuItem><Link to="/nodes/new" className="btn btn-default">Create Node</Link></CustomTable.MenuItem>
         </CustomTable>
       </div>
