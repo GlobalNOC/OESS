@@ -69,6 +69,7 @@ export const AutoComplete = (props) => {
         placeholder: props.placeholder,
         value:       input, // the text displayed in the input box
         style:       props.style,
+        disabled:    props.disabled || false,
         // onBlur:      (e) => {
         //     // called when the input loses focus, e.g. when user presses Tab
         // },

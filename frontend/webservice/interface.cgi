@@ -346,6 +346,11 @@ sub edit_interface {
         return;
     }
 
+    if ($interface->role eq 'trunk') {
+        $method->set_error("Trunk interfaces cannot be modified.");
+        return;
+    }
+
     if ($params->{workgroup_id}{is_set} && $params->{workgroup_id}{value} != $interface->workgroup_id) {
         if ($params->{workgroup_id}{value} == -1) {
             # Remove interface from workgroup

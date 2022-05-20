@@ -14,6 +14,8 @@ export const InterfaceForm = (props) => {
   let tCloudInterconnectId = (props.intf && props.intf.cloud_interconnect_id) ? props.intf.cloud_interconnect_id : '';
   let tInterfaceId = (props.intf && props.intf.interface_id) ? props.intf.interface_id : -1;
 
+  let isDisabled = (props.intf && props.intf.role == 'trunk') ? true : false;
+
   const [name, setName] = useState(tName);
   const [description, setDescription] = useState(tDescription);
   const [mplsVlanTagRange, setMplsVlanTagRange] = useState(tMplsVlanTagRange);
@@ -127,11 +129,11 @@ export const InterfaceForm = (props) => {
       </div>
       <div className="form-group">
         <label htmlFor="workgroup">Connector</label>
-        <AutoComplete id="workgroup" name="workgroup" placeholder="Search by workgroup" value={workgroupId} onChange={(e) => setWorkgroupId(e)} suggestions={suggestions} />
+        <AutoComplete id="workgroup" name="workgroup" placeholder="Search by workgroup" value={workgroupId} onChange={(e) => setWorkgroupId(e)} suggestions={suggestions} disabled={isDisabled} />
       </div>
       <div className="form-group">
         <label className="control-label" htmlFor="mpls-vlan-tag-range">VLAN Ranges</label>
-        <input className="form-control" type="text" id="mpls-vlan-tag-range" name="mpls-vlan-tag-range" value={mplsVlanTagRange} onChange={(e) => setMplsVlanTagRange(e.target.value)} onBlur={validateVlanRange} />
+        <input className="form-control" type="text" id="mpls-vlan-tag-range" name="mpls-vlan-tag-range" value={mplsVlanTagRange} onChange={(e) => setMplsVlanTagRange(e.target.value)} onBlur={validateVlanRange} disabled={isDisabled} />
       </div>
 
       <br/>
@@ -139,7 +141,7 @@ export const InterfaceForm = (props) => {
       <hr/>
       <div className="form-group">
         <label htmlFor="cloud-interconnect-type">Cloud Interconnect Type</label>
-        <select className="form-control" id="model" value={cloudInterconnectType} onChange={e => setCloudInterconnectType(e.target.value)}>
+        <select className="form-control" id="model" value={cloudInterconnectType} onChange={e => setCloudInterconnectType(e.target.value)} disabled={isDisabled}>
           <option value="">Disabled</option>
           <option value="azure-express-route">Azure Express Route</option>
           <option value="aws-hosted-connection">AWS Hosted Connection</option>
