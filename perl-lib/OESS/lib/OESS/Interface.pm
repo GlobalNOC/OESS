@@ -96,6 +96,7 @@ sub to_hash{
         interface_id => $self->interface_id(),
         node_id => $self->{node_id},
         admin_state => $self->{'admin_state'},
+        mpls_vlan_tag_range => $self->{'mpls_vlan_tag_range'},
         operational_state => $self->{'operational_state'},
         workgroup_id => $self->workgroup_id(),
         utilized_bandwidth => $self->{'utilized_bandwidth'},

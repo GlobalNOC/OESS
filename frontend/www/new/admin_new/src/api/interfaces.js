@@ -35,6 +35,7 @@ export const getInterface = async (interfaceId) => {
 export const editInterface = async (intf) => {
   let url = `${config.base_url}/services/interface.cgi?method=edit_interface`;
   url += `&interface_id=${intf.interfaceId}`;
+  if ('mplsVlanTagRange' in intf) url += `&mpls_vlan_tag_range=${intf.mplsVlanTagRange}`;
   if ('cloudInterconnectType' in intf) url += `&cloud_interconnect_type=${intf.cloudInterconnectType}`;
   if ('cloudInterconnectId' in intf) url += `&cloud_interconnect_id=${intf.cloudInterconnectId}`;
   url += `&workgroup_id=${intf.workgroupId}`;

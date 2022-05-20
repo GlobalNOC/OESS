@@ -17,6 +17,7 @@ use OESS::Interface;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_node);
 use OESS::VRF;
+use OESS::Webservice;
 use OESS::Workgroup;
 
 
@@ -147,6 +148,12 @@ sub register_rw_methods {
         pattern     => $GRNOC::WebService::Regex::INTEGER,
         required    => 0,
         description => 'Identifier of workgroup used to grant ownership of interface'
+    );
+    $edit_interface->add_input_parameter(
+        name        => 'mpls_vlan_tag_range',
+        pattern     => $GRNOC::WebService::Regex::TEXT,
+        required    => 0,
+        description => 'Comma separated list of VLAN ranges allowed on this interface'
     );
     $edit_interface->add_input_parameter(
         name        => 'cloud_interconnect_id',
@@ -380,6 +387,15 @@ sub edit_interface {
     }
 
     # We use $obj->{attr} syntax to support setting attribute to undef
+    if ($params->{mpls_vlan_tag_range}{is_set}) {
+        my ($vlan_tag_range, $err) = OESS::Webservice::validate_vlan_tag_range($params->{mpls_vlan_tag_range}{value});
+        if ($err) {
+            $method->set_error("mpls_vlan_tag_range: $err");
+            $db->rollback;
+            return;
+        } 
+        $interface->{mpls_vlan_tag_range} = $vlan_tag_range;
+    }
     if ($params->{cloud_interconnect_id}{is_set}) {
         $interface->{cloud_interconnect_id} = $params->{cloud_interconnect_id}{value};
     }
