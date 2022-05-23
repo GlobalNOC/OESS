@@ -747,7 +747,7 @@ sub register_webservice_methods {
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new( name        => 'edit_workgroup',
-                                              description => '',
+                                              description => 'Update the workgroup identified by workgroup_id. At least one other argument must be provided.',
                                               callback    => sub { edit_workgroup(@_) },
                                               method_deprecated => "This method has been deprecated in favor of workgroup.cgi?method=edit_workgroup." );
     $method->add_input_parameter( name        => 'workgroup_id',
