@@ -227,19 +227,17 @@ sub provision {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
-                      username     => $ENV{REMOTE_USER},
-                      workgroup_id => $args->{workgroup_id}->{value},
-                      role         => 'normal');
-    if (defined $err) {
-        $method->set_error($err);
+    my ($in_workgroup, $in_workgroup_err) = $user->has_workgroup_access(
+        role         => 'normal',
+        workgroup_id => $args->{workgroup_id}{value}
+    );
+    my ($is_admin, undef) = $user->has_system_access(
+        role => 'normal'
+    );
+    if (!$in_workgroup && !$is_admin) {
+        $method->set_error($in_workgroup_err);
         return;
     }
-    my ($is_admin, $is_admin_err) = OESS::DB::User::has_system_access(
-        db       => $db,
-        role     => 'normal',
-        username => $ENV{REMOTE_USER}
-    );
 
     if (defined $args->{circuit_id}->{value} && $args->{circuit_id}->{value} != -1) {
         my $circuit = new OESS::L2Circuit(
@@ -250,12 +248,6 @@ sub provision {
             $method->set_error("Couldn't load Circuit from database.");
             return;
         }
-
-        if (!$user->is_admin && !$user->in_workgroup($circuit->workgroup_id)) {
-            $method->set_error("User '$user->{username}' isn't a member of this Circuit's workgroup.");
-            return;
-        }
-
         return update($method, $args);
     }
 
@@ -479,14 +471,11 @@ sub update {
 
     my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
-	$method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
-	return;
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+        return;
     }
-
-    my ($is_admin, $is_admin_err) = OESS::DB::User::has_system_access(
-        db       => $db,
-        role     => 'normal',
-        username => $ENV{REMOTE_USER}
+    my ($is_admin, undef) = $user->has_system_access(
+        role => 'normal'
     );
 
     my $circuit = new OESS::L2Circuit(
@@ -782,23 +771,13 @@ $ws->register_method($remove);
 sub remove {
     my ($method, $args) = @_;
 
+    $db->start_transaction;
+
     my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    $user->load_workgroups;
-
-    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
-                      username     => $ENV{REMOTE_USER},
-                      workgroup_id => $args->{workgroup_id}->{value},
-                      role         => 'normal');
-    if (defined $err) {
-        $method->set_error($err);
-        return;
-    }
-
-    $db->start_transaction;
 
     my $circuit = new OESS::L2Circuit(
         db => $db,
@@ -809,8 +788,16 @@ sub remove {
         $db->rollback;
         return;
     }
-    if (!$user->is_admin && !$user->in_workgroup($circuit->workgroup_id)) {
-        $method->set_error("User '$user->{username}' isn't a member of this Circuit's workgroup.");
+
+    my ($in_workgroup, $in_workgroup_err) = $user->has_workgroup_access(
+        role         => 'normal',
+        workgroup_id => $circuit->workgroup_id
+    );
+    my ($is_admin, undef) = $user->has_system_access(
+        role => 'normal'
+    );
+    if (!$in_workgroup && !$is_admin) {
+        $method->set_error($in_workgroup_err);
         return;
     }
 
