@@ -326,6 +326,10 @@ sub role{
 =cut
 sub email{
     my $self = shift;
+    my $email = shift;
+    if (defined $email) {
+        $self->{'email'} = $email;
+    }
     return $self->{'email'};
 }
 
