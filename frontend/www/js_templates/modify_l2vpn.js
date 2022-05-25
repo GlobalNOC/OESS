@@ -55,11 +55,12 @@ class GlobalState extends Component {
   }
 
   saveCircuit() {
-    console.log('saveCircuit:', this.circuit);
+    console.log('provisionCircuit:', this.circuit);
 
     let provisionModal = $('#modify-loading');
-    provisionModal.find('p').text("Give us a few seconds. We're modifying your connection now.");
+    provisionModal.find('p').text("Give us a few seconds. We're provisioning your connection now.");
     provisionModal.modal('show');
+
     provisionCircuit(
       session.data.workgroup_id,
       document.querySelector('#header-description').textContent,
@@ -70,11 +71,15 @@ class GlobalState extends Component {
     ).then(function(result) {
       if (result !== null && result.success == 1) {
         window.location.href = `index.cgi?action=modify_l2vpn&circuit_id=${result.circuit_id}`;
-      }
-      else {
+      } else {
         provisionModal.modal('hide');
-        window.alert('There was an error modifying the connection.');
+        console.error('There was an unexpected error provisioning the connection:', result);
+        window.alert('There was an unexpected error provisioning the connection.');
       }
+    }).catch(error => {
+      provisionModal.modal('hide');
+      console.error(`There was an error provisioning the connection: ${error}`);
+      window.alert(`There was an error provisioning the connection: ${error}`);
     });
   }
 

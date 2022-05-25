@@ -33,6 +33,7 @@ class GlobalState extends Component {
     console.log('provisionCircuit:', this.circuit);
 
     let addL2VpnModal = $('#add-l2vpn-loading');
+    addL2VpnModal.find('p').text("Give us a few seconds. We're provisioning your connection now.");
     addL2VpnModal.modal('show');
 
     provisionCircuit(
@@ -48,13 +49,13 @@ class GlobalState extends Component {
         window.location.href = `index.cgi?action=modify_l2vpn&circuit_id=${result.circuit_id}`;
       } else {
         addL2VpnModal.modal('hide');
-        console.error('There was an unknown error encountered while provisioning the connection.', result);
-        window.alert('There was an unknown error encountered while provisioning the connection.');
+        console.error('There was an unexpected error provisioning the connection:', result);
+        window.alert('There was an unexpected error provisioning the connection.');
       }
     }).catch(error => {
       addL2VpnModal.modal('hide');
-      console.error(error);
-      window.alert(error);
+      console.error(`There was an error provisioning the connection: ${error}`);
+      window.alert(`There was an error provisioning the connection: ${error}`);
     });
   }
 
