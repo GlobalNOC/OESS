@@ -584,7 +584,7 @@ sub get_workgroups {
     my $values;
     my $datas;
     if (defined $is_admin && defined $is_admin->[0]) {
-        $query = "SELECT *, ? as role from workgroup ORDER BY workgroup.name ASC";
+        $query = "SELECT *, ? as role from workgroup WHERE workgroup.status='active' ORDER BY workgroup.name ASC";
         $values = [];
         $datas = $args->{db}->execute_query($query,[$is_admin->[0]->{role}]);
     } else {
