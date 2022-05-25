@@ -6,22 +6,19 @@ import { config } from '../../config.jsx';
 
 import { getWorkgroupUsers, modifyWorkgroupUser, removeWorkgroupUser } from '../../api/workgroup.js';
 import { PageContext } from "../../contexts/PageContext.jsx";
-import { Table } from '../../components/generic_components/Table.jsx';
+import { CustomTable } from '../../components/generic_components/CustomTable.jsx';
 
 import "../../style.css";
 
 class WorkgroupUsers extends React.Component {
-  constructor(props){
+  constructor(props) {
     super(props);
     this.state = {
-        pageNumber: 0,
-        pageSize:   4,
-        filter:     '',
         users: []
     };
 
-    this.filterUsers = this.filterUsers.bind(this);
     this.modifyWorkgroupUserHandler = this.modifyWorkgroupUserHandler.bind(this);
+    this.removeWorkgroupUserHandler = this.removeWorkgroupUserHandler.bind(this);
   }
 
   async componentDidMount() {
@@ -31,14 +28,6 @@ class WorkgroupUsers extends React.Component {
     } catch (error) {
       console.error(error);
     }
-  }
-
-  filterUsers(e) {
-    // Reset back the first table page when the filter is changed
-    this.setState({
-      filter:     e.target.value,
-      pageNumber: 0
-    });
   }
 
   async modifyWorkgroupUserHandler(user, role) {
@@ -66,39 +55,6 @@ class WorkgroupUsers extends React.Component {
   }
 
   render() {
-    let pageStart = this.state.pageSize * this.state.pageNumber;
-    let pageEnd = pageStart + this.state.pageSize;
-    let filteredItemCount = 0;
-
-    let users = this.state.users.filter((d) => {
-      if (!this.state.filter) {
-        return true;
-      }
-
-      if ( (new RegExp(this.state.filter, 'i').test(d.first_name)) ) {
-        return true;
-      } else if ( (new RegExp(this.state.filter, 'i').test(d.last_name)) ) {
-        return true;
-      } else if ( (new RegExp(this.state.filter, 'i').test(d.email)) ) {
-        return true;
-      } else if ( this.state.filter == d.user_id ) {
-        return true;
-      } else {
-        return false;
-      }
-    }).filter((d, i) => {
-      // Any items not filtered by search are displayed and the count
-      // of these are used to determine the number of table pages to
-      // show.
-      filteredItemCount += 1;
-
-      if (i >= pageStart && i < pageEnd) {
-        return true;
-      } else {
-        return false;
-      }
-    });
-
     const roleSelect = (data) => {
       return (
         <select className="form-control input-sm" style={{height: '22px', padding: '1px 5px'}} defaultValue={data.role} disabled={config.third_party_mgmt == 1} onChange={(e) => this.modifyWorkgroupUserHandler(data, e.target.value)}>
@@ -113,7 +69,6 @@ class WorkgroupUsers extends React.Component {
       if (config.third_party_mgmt == 1) {
         return <div></div>;
       }
-
       return <button type="button" className="btn btn-default btn-xs" onClick={(e) => this.removeWorkgroupUserHandler(data)}>Remove User</button>;
     }
 
@@ -126,6 +81,15 @@ class WorkgroupUsers extends React.Component {
       { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];
 
+    let addUserButton = (
+      <CustomTable.MenuItem>
+        <Link to={`/workgroups/${this.props.match.params["id"]}/users/add`} className="btn btn-default">Add User</Link>
+      </CustomTable.MenuItem>
+    );
+    if (config.third_party_mgmt == 1) {
+      addUserButton = null;
+    }
+
     return (
       <div>
         <div>
@@ -134,18 +98,9 @@ class WorkgroupUsers extends React.Component {
         </div>
         <br />
 
-        <form id="user_search_div" className="form-inline">
-          <div className="form-group">
-            <div className="input-group">
-              <span className="input-group-addon" id="icon"><span className="glyphicon glyphicon-search" aria-hidden="true"></span></span>
-              <input type="text" className="form-control" id="user_search" placeholder="Filter Users" aria-describedby="icon" onChange={(e) => this.filterUsers(e)}/>
-            </div>
-          </div>
-          { config.third_party_mgmt == 1 ? null : <Link to={`/workgroups/${this.props.match.params["id"]}/users/add`} className="btn btn-default">Add User</Link> }
-        </form>
-        <br />
-
-        <Table columns={columns} rows={users} />
+        <CustomTable columns={columns} rows={this.state.users} filter={['first_name', 'last_name', 'email']}>
+          {addUserButton}
+        </CustomTable>
       </div>
     );
   }
