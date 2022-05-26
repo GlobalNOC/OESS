@@ -328,26 +328,10 @@ sub cleanup_endpoints {
     my $config = OESS::Config->new();
     my $logger = Log::Log4perl->get_logger('OESS.Cloud');
 
-    # Get number of Endpoints using the provided service key.
-    # If cloud_account_id is in use on another endpoint we'll
-    # want to wait before deprovisioning the connection.
-    my $conn_azure_endpoint_count = {};
-    my $conn_oracle_endpoint_count = {};
-
-    foreach my $ep (@$endpoints) {
-        if ($ep->cloud_interconnect_type eq 'azure-express-route') {
-            if (!defined $conn_azure_endpoint_count->{$ep->cloud_account_id}) {
-                $conn_azure_endpoint_count->{$ep->cloud_account_id} = 0;
-            }
-            $conn_azure_endpoint_count->{$ep->cloud_account_id} += 1;
-        }
-        if ($ep->cloud_interconnect_type eq 'oracle-fast-connect') {
-            if (!defined $conn_oracle_endpoint_count->{$ep->cloud_account_id}) {
-                $conn_oracle_endpoint_count->{$ep->cloud_account_id} = 0;
-            }
-            $conn_oracle_endpoint_count->{$ep->cloud_account_id} += 1;
-        }
-    }
+    # A request to delete Azure CrossConnections and Oracle
+    # VirtualCircuits should only be made once per connection. Track
+    # requests made with $removed_cloud_account_ids.
+    my $removed_cloud_account_ids = {};
 
     foreach my $ep (@$endpoints) {
         if (!$ep->cloud_interconnect_id) {
@@ -401,6 +385,8 @@ sub cleanup_endpoints {
             my $interconnect_id = $ep->cloud_interconnect_id;
             my $service_key = $ep->cloud_account_id;
 
+            next if defined $removed_cloud_account_ids->{$service_key};
+
             my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $ep->{db}, cloud_account_id => $service_key);
             if (defined $eps_err) {
                 $logger->error($eps_err);
@@ -423,6 +409,7 @@ sub cleanup_endpoints {
                 vlan             => $ep->tag
             );
 
+            $removed_cloud_account_ids->{$service_key} = 1;
         } elsif ($ep->cloud_interconnect_type eq 'oracle-fast-connect') {
             my $oracle = new OESS::Cloud::Oracle(
                 config_obj => $config,
@@ -431,6 +418,8 @@ sub cleanup_endpoints {
 
             my $interconnect_id = $ep->cloud_interconnect_id;
             my $connection_id = $ep->cloud_account_id;
+
+            next if defined $removed_cloud_account_ids->{$connection_id};
 
             my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $ep->{db}, cloud_account_id => $connection_id);
             if (defined $eps_err) {
@@ -446,6 +435,7 @@ sub cleanup_endpoints {
             my ($res, $err) = $oracle->delete_virtual_circuit($connection_id);
             die $err if defined $err;
 
+            $removed_cloud_account_ids->{$connection_id} = 1;
         } else {
             $logger->warn("Cloud interconnect type is not supported.");
         }

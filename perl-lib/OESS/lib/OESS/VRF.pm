@@ -424,7 +424,7 @@ sub update_vrf_details{
     my $ok = $vrf->decom;
 
 =cut
-sub decom{
+sub decom {
     my $self = shift;
     my %params = @_;
     my $user_id = $params{'user_id'};
@@ -435,7 +435,6 @@ sub decom{
 
     my $res = OESS::DB::VRF::decom(db => $self->{'db'}, vrf_id => $self->{'vrf_id'}, user_id => $user_id);
     return $res;
-
 }
 
 =head2 error
