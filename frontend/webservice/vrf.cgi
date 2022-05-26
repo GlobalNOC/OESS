@@ -1054,10 +1054,11 @@ sub remove_vrf {
     $vrf->load_users;
 
     my $previous_vrf = $vrf->to_hash;
+    $vrf->decom(user_id => $user->user_id);
 
     if(!$user->in_workgroup( $wg) && !$user->is_admin()){
         $method->set_error("User " . $ENV{'REMOTE_USER'} . " is not in workgroup");
-        return {success => 0};
+        return;
     }
 
     if (!$params->{skip_cloud_provisioning}->{value}) {
@@ -1090,7 +1091,6 @@ sub remove_vrf {
         warn $error;
     }
 
-    $vrf->decom(user_id => $user->user_id);
     $db->commit;
 
     _update_cache($previous_vrf);

@@ -220,7 +220,6 @@ sub setup_endpoints {
 
             my ($circuit, $err) = $oracle->get_virtual_circuit($ep->cloud_account_id);
             die $err if defined $err;
-            warn 'vCircuit: ' . Dumper($circuit);
 
             if (@{$circuit->{crossConnectMappings}} > 1) {
                 die "An Oracle virtual circuit supports a maximum of two endpoints.";
@@ -260,7 +259,6 @@ sub setup_endpoints {
                     vlan      => $ccm->{vlan},
                 };
             }
-            warn 'vCircuit - currentMappings: ' . Dumper($cross_connect_mappings);
 
             my $conn_type = ($circuit->{serviceType} eq 'LAYER2') ? 'l2' : 'l3';
             my $ccm = {
@@ -291,7 +289,6 @@ sub setup_endpoints {
                 }
             }
             push @$cross_connect_mappings, $ccm;
-            warn 'vCircuit - updatedMappings: ' . Dumper($cross_connect_mappings);
 
             my ($update_res, $update_err) = $oracle->update_virtual_circuit(
                 virtual_circuit_id     => $ep->cloud_account_id,
@@ -404,16 +401,13 @@ sub cleanup_endpoints {
             my $interconnect_id = $ep->cloud_interconnect_id;
             my $service_key = $ep->cloud_account_id;
 
-            my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $ep->{db}, cloud_account_id => $ep->cloud_account_id);
+            my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $ep->{db}, cloud_account_id => $service_key);
             if (defined $eps_err) {
                 $logger->error($eps_err);
                 next;
             }
-            my $full_azure_endpoint_count = (defined $eps) ? scalar @$eps : 0;
-            my $diff_azure_endpoint_count = $full_azure_endpoint_count - $conn_azure_endpoint_count->{$ep->cloud_account_id};
-
-            if ($diff_azure_endpoint_count > 0) {
-                $logger->info("Not removing azure-express-route: $service_key is in use by another endpoint.");
+            if (@$eps > 0) {
+                $logger->info("Not removing azure-express-route $service_key from $interconnect_id. It's being used by another endpoint.");
                 next;
             }
 
@@ -438,16 +432,13 @@ sub cleanup_endpoints {
             my $interconnect_id = $ep->cloud_interconnect_id;
             my $connection_id = $ep->cloud_account_id;
 
-            my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $ep->{db}, cloud_account_id => $ep->cloud_account_id);
+            my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $ep->{db}, cloud_account_id => $connection_id);
             if (defined $eps_err) {
                 $logger->error($eps_err);
                 next;
             }
-            my $full_oracle_endpoint_count = (defined $eps) ? scalar @$eps : 0;
-            my $diff_oracle_endpoint_count = $full_oracle_endpoint_count - $conn_oracle_endpoint_count->{$ep->cloud_account_id};
-
-            if ($diff_oracle_endpoint_count > 0) {
-                $logger->info("Not removing oracle-fast-connect: $connection_id is in use by another endpoint.");
+            if (@$eps > 0) {
+                $logger->info("Not removing oracle-fast-connect $connection_id from $interconnect_id. It's being used by another endpoint.");
                 next;
             }
 

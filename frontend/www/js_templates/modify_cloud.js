@@ -116,18 +116,17 @@ class GlobalState extends Component {
 
     let ok = confirm(`Are you sure you want to delete "${this.connection.description}"?`);
     if (ok) {
-        let deleteModal = $('#delete-connection-loading');
-        deleteModal.modal('show');
+      let deleteModal = $('#delete-connection-loading');
+      deleteModal.modal('show');
 
+      try {
         let result = await deleteVRF(session.data.workgroup_id, vrfID);
-
-        if (result != null) {
-            window.location = '?action=welcome';
-        }
-        else {
-            deleteModal.modal('hide');
-            alert('There was an error deleting this connection.');
-        }
+        if (result == null) throw('Unknown');
+        window.location = '?action=welcome';
+      } catch (error) {
+        deleteModal.modal('hide');
+        alert(`Failed to delete connection: ${error}`);
+      }
     }
   }
 
