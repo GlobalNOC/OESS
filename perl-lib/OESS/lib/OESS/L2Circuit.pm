@@ -1192,7 +1192,7 @@ sub decom {
 
     # There's no state field on circuit endpoints so we just remove
     # from the db. We might consider changing this in the future.
-    foreach my $ep (@{$circuit->endpoints}) {
+    foreach my $ep (@{$self->endpoints}) {
         my $err = $ep->remove;
         return $err if defined $err;
     }
