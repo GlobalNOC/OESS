@@ -798,13 +798,21 @@ sub remove {
     );
     if (!$in_workgroup && !$is_admin) {
         $method->set_error($in_workgroup_err);
+        $db->rollback;
         return;
     }
 
     $circuit->load_endpoints;
     $circuit->load_paths;
+    $circuit->load_workgroup;
 
     my $previous = $circuit->to_hash;
+    my $err = $circuit->decom;
+    if (defined $err) {
+        $method->set_error($err);
+        $db->rollback;
+        return;
+    }
 
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
@@ -813,31 +821,6 @@ sub remove {
         if ($@) {
             warn "Couldn't cleanup Circuit's Cloud Endpoints: $@";
         }
-    }
-
-    foreach my $ep (@{$circuit->endpoints}) {
-        my $err = $ep->remove;
-        if (defined $err) {
-            $method->set_error("Couldn't remove Circuit: $err");
-            $db->rollback;
-            return;
-        }
-    }
-
-    foreach my $path (@{$circuit->paths}) {
-        my $err = $path->remove;
-        if (defined $err) {
-            $method->set_error("Couldn't remove Circuit: $err");
-            $db->rollback;
-            return;
-        }
-    }
-
-    my $err_rm = $circuit->remove(user_id => $user->{user_id});
-    if (defined $err_rm) {
-        $method->set_error("Couldn't remove Circuit: $err_rm");
-        $db->rollback;
-        return;
     }
 
     _send_remove_command($previous);

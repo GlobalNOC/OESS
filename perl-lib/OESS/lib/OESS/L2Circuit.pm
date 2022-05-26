@@ -1177,6 +1177,39 @@ sub update {
     return OESS::DB::Circuit::update(db => $self->{db}, circuit => $self->to_hash);
 }
 
+
+=head2 decom
+
+    my $err = $circuit->decom;
+
+=cut
+sub decom {
+    my $self = shift;
+    my $args = {
+        user_id    => undef,
+        @_
+    };
+
+    # There's no state field on circuit endpoints so we just remove
+    # from the db. We might consider changing this in the future.
+    foreach my $ep (@{$circuit->endpoints}) {
+        my $err = $ep->remove;
+        return $err if defined $err;
+    }
+
+    foreach my $path (@{$self->paths}) {
+        my $err = $path->remove;
+        return $err if defined $err;
+    }
+
+    return OESS::DB::Circuit::remove(
+        db         => $self->{db},
+        circuit_id => $self->circuit_id,
+        reason     => $args->{reason},
+        user_id    => $args->{user_id}
+    );
+}
+
 =head2 remove
 
     my $err = $l2conn->remove(
