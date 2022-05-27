@@ -337,17 +337,22 @@ class EndpointSelectionModal2 {
       let child = entity.interfaces[i];
 
       let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
+      let hasAvailableBandwidth = true; // Only place bandwidth restrictions on cloud provider ports
+      if (entity.interfaces[i].cloud_interconnect_type && child.utilized_bandwidth >= parseInt(child.provisionable_bandwidth)) {
+          hasAvailableBandwidth = false;
+      }
 
       let checked = 'checked';
       let disabled = '';
       let notAllow = '';
 
 
-      if (autoSelectedInterface) {
+      if (autoSelectedInterface || !hasAvailableBandwidth) {
         checked = '';
         disabled = 'disabled';
         notAllow = 'cursor: not-allowed;';
       }
+
       let elem = document.createElement('li');
       elem.setAttribute('class', `list-group-item ${disabled}`);
       if (child.cloud_interconnect_type != null){
@@ -387,7 +392,7 @@ class EndpointSelectionModal2 {
         populateVLANs('.entity-vlans');
       });
 
-      if (!autoSelectedInterface) {
+      if (!autoSelectedInterface && hasAvailableBandwidth) {
         selectedInterface = child.name;
         selectedNode = child.node;
       }
