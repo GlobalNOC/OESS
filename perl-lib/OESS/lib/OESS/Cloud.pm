@@ -54,6 +54,13 @@ sub setup_endpoints {
         $azure_peering_config->load($vrf_id);
     }
 
+    # If an Oracle connection is in the 'provisioning' state modifications to
+    # the connection are not possilbe and will result in an error. This means
+    # that when adding For this
+    # We can only call the provisioning method once when adding multiple
+    # endpoints at the same time.
+    my $oracle_connections = {};
+
     foreach my $ep (@$endpoints) {
         if (!$ep->cloud_interconnect_id) {
             push @$result, $ep;
@@ -211,56 +218,82 @@ sub setup_endpoints {
             push @$result, $ep;
 
         } elsif ($ep->cloud_interconnect_type eq 'oracle-fast-connect') {
-            $logger->info("Adding cloud interconnect of type oracle-fast-connect.");
+            if (!defined $oracle_connections->{$ep->cloud_account_id}) {
+                $oracle_connections->{$ep->cloud_account_id} = [];
+            }
+            push @{$oracle_connections->{$ep->cloud_account_id}}, $ep;
 
-            my $oracle = new OESS::Cloud::Oracle(
-                config_obj => $config,
-                interconnect_id => $ep->cloud_interconnect_id
-            );
+        } else {
+            $logger->warn("Cloud interconnect type is not supported.");
+        }
+    }
 
-            my ($circuit, $err) = $oracle->get_virtual_circuit($ep->cloud_account_id);
-            die $err if defined $err;
+    # BEGIN Oracle specific logic
+    foreach my $ocid (keys %$oracle_connections) {
+        $logger->info("Adding cloud interconnect of type oracle-fast-connect.");
+        my $cloud_interconnect_id;
+        foreach my $ep (@{$oracle_connections->{$ocid}}) {
+            $cloud_interconnect_id = $ep->cloud_interconnect_id;
+        }
 
-            if (@{$circuit->{crossConnectMappings}} > 1) {
-                die "An Oracle virtual circuit supports a maximum of two endpoints.";
+        my $oracle = new OESS::Cloud::Oracle(
+            config_obj => $config,
+            interconnect_id => $cloud_interconnect_id
+        );
+
+        my ($circuit, $err) = $oracle->get_virtual_circuit($ocid);
+        die $err if defined $err;
+
+        if (@{$circuit->{crossConnectMappings}} > 1) {
+            die "An Oracle virtual circuit supports a maximum of two endpoints.";
+        }
+
+        my $bandwidth = 0;
+        my $bfd = 0;
+        my $conn_type = 'l3';
+        my $cross_connect_mappings = [];
+        my $mtu = 1500;
+
+        foreach my $ccm (@{$circuit->{crossConnectMappings}}) {
+            if (!defined $ccm->{crossConnectOrCrossConnectGroupId}) {
+                # This should only happen for layer2 connections. Customers
+                # define their BGP addresses on the oracle side at the same
+                # time that they create their virtualCircuit, so those
+                # values are stored in a crossConnectMapping.
+                # 
+                # There doesn't appear to be support for multiple
+                # crossConnectMappings on a single l2 virtualCircut (this
+                # makes sense), so if we completely ignore this
+                # crossConnectMapping the info in the l2
+                # crossConnectMapping that we create will be merged with
+                # with the existing crossConnectMapping automatically; As
+                # such we completely ignore this crossConnectMapping.
+                next;
             }
 
-            my $bfd = 0;
-            my $cross_connect_mappings = [];
+            push @$cross_connect_mappings, {
+                auth_key  => $ccm->{bgpMd5AuthKey}, # Not passed if empty string or undef
+                bfd       => $circuit->{isBfdEnabled},
+                ocid      => $ccm->{crossConnectOrCrossConnectGroupId}, # OCID of physical cross-connect or cross-connect-group. An OESS cloud_interconnect_id
+                oess_ip   => $ccm->{customerBgpPeeringIp}, # /31
+                peer_ip   => $ccm->{oracleBgpPeeringIp}, # /31
+                oess_ipv6 => $ccm->{customerBgpPeeringIpv6}, # /127
+                peer_ipv6 => $ccm->{oracleBgpPeeringIpv6}, # /127
+                vlan      => $ccm->{vlan},
+            };
+        }
+
+        foreach my $ep (@{$oracle_connections->{$ocid}}) {
             foreach my $ccm (@{$circuit->{crossConnectMappings}}) {
-                if (!defined $ccm->{crossConnectOrCrossConnectGroupId}) {
-                    # This should only happen for layer2 connections. Customers
-                    # define their BGP addresses on the oracle side at the same
-                    # time that they create their virtualCircuit, so those
-                    # values are stored in a crossConnectMapping.
-                    # 
-                    # There doesn't appear to be support for multiple
-                    # crossConnectMappings on a single l2 virtualCircut (this
-                    # makes sense), so if we completely ignore this
-                    # crossConnectMapping the info in the l2
-                    # crossConnectMapping that we create will be merged with
-                    # with the existing crossConnectMapping automatically; As
-                    # such we completely ignore this crossConnectMapping.
-                    next;
-                }
                 if ($ep->cloud_interconnect_id eq $ccm->{crossConnectOrCrossConnectGroupId}) {
-                    # TODO Check if I should include the interconnect-id in this error message
-                    die "This Oracle virtual circuit already terminates on the specified cross connect.";
+                    die "This Oracle virtual circuit already terminates on the specified port.";
                 }
-
-                push @$cross_connect_mappings, {
-                    auth_key  => $ccm->{bgpMd5AuthKey}, # Not passed if empty string or undef
-                    bfd       => $circuit->{isBfdEnabled},
-                    ocid      => $ccm->{crossConnectOrCrossConnectGroupId}, # OCID of physical cross-connect or cross-connect-group. An OESS cloud_interconnect_id
-                    oess_ip   => $ccm->{customerBgpPeeringIp}, # /31
-                    peer_ip   => $ccm->{oracleBgpPeeringIp}, # /31
-                    oess_ipv6 => $ccm->{customerBgpPeeringIpv6}, # /127
-                    peer_ipv6 => $ccm->{oracleBgpPeeringIpv6}, # /127
-                    vlan      => $ccm->{vlan},
-                };
             }
 
-            my $conn_type = ($circuit->{serviceType} eq 'LAYER2') ? 'l2' : 'l3';
+            $bandwidth = $ep->bandwidth;
+            $conn_type = ($circuit->{serviceType} eq 'LAYER2') ? 'l2' : 'l3';
+            $mtu = $ep->mtu;
+
             my $ccm = {
                 auth_key  => undef,
                 ocid      => $ep->cloud_interconnect_id,
@@ -289,25 +322,23 @@ sub setup_endpoints {
                 }
             }
             push @$cross_connect_mappings, $ccm;
+        }
 
-            my ($update_res, $update_err) = $oracle->update_virtual_circuit(
-                virtual_circuit_id     => $ep->cloud_account_id,
-                bandwidth              => $ep->bandwidth,
-                bfd                    => $bfd,
-                mtu                    => $ep->mtu,
-                oess_asn               => $config->local_as,
-                name                   => $vrf_name,
-                type                   => $conn_type,
-                cross_connect_mappings => $cross_connect_mappings
-            );
-            die $update_err if defined $update_err;
-            warn 'vCircuit - updateResponse: ' . Dumper($update_res);
+        my ($update_res, $update_err) = $oracle->update_virtual_circuit(
+            virtual_circuit_id     => $ocid,
+            bandwidth              => $bandwidth,
+            bfd                    => $bfd,
+            mtu                    => $mtu,
+            oess_asn               => $config->local_as,
+            name                   => $vrf_name,
+            type                   => $conn_type,
+            cross_connect_mappings => $cross_connect_mappings
+        );
+        die $update_err if defined $update_err;
 
+        foreach my $ep (@{$oracle_connections->{$ocid}}) {
             $ep->cloud_connection_id($update_res->{id});
-
             push @$result, $ep;
-        } else {
-            $logger->warn("Cloud interconnect type is not supported.");
         }
     }
 

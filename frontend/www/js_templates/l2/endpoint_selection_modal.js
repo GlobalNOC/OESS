@@ -562,7 +562,7 @@ class EndpointSelectionModal2 {
         cloudGatewayFormGroup.style.display = 'block';
       } else if (entity.cloud_interconnect_type === 'oracle-fast-connect') {        
         cloudAccountLabel.innerText = 'Oracle OCID';
-        cloudAccountInput.setAttribute('placeholder', '012301230123');
+        cloudAccountInput.setAttribute('placeholder', 'ocid1.virtualcircuit...');
       } else {
         cloudAccountLabel.innerText = 'AWS Account Owner';
         cloudAccountInput.setAttribute('placeholder', '012301230123');
@@ -603,11 +603,8 @@ class EndpointSelectionModal2 {
       ];
     } else if (entity.cloud_interconnect_type === 'oracle-fast-connect') {
       bandwidthOptions = [
-        [50, '50 Mb/s'],
-        [100, '100 Mb/s'],
-        [200, '200 Mb/s'],
-        [500, '500 Mb/s'],
         [1000, '1 Gb/s'],
+        [2000, '2 Gb/s'],
         [5000, '5 Gb/s'],
         [10000, '10 Gb/s']
       ];

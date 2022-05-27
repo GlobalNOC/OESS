@@ -807,7 +807,7 @@ sub remove {
     $circuit->load_workgroup;
 
     my $previous = $circuit->to_hash;
-    my $err = $circuit->decom;
+    my $err = $circuit->decom(user_id => $user->user_id);
     if (defined $err) {
         $method->set_error($err);
         $db->rollback;

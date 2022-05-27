@@ -1187,6 +1187,7 @@ sub decom {
     my $self = shift;
     my $args = {
         user_id    => undef,
+        reason     => 'User requested removal of connection',
         @_
     };
 
