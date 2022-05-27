@@ -531,6 +531,9 @@ sub delete_virtual_circuit {
     my $res = $self->{conn}->request($req);
     if ($res->code < 200 || $res->code > 299) {
         my $code  = $res->code;
+        if ($code == 404) {
+            return ({}, undef);
+        }
         my $error = decode_json($res->content);
         return (undef, "[$code] $error->{code}: $error->{message}");
     }
