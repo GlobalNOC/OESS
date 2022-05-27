@@ -1,8 +1,7 @@
 import React, { setState, useEffect, useState } from 'react';
 
-import { AutoComplete } from '../generic_components/AutoComplete';
-
 import { getAllWorkgroups } from '../../api/workgroup';
+import { WorkgroupAutoComplte } from '../workgroups/WorkgroupAutoComplete';
 
 
 export const InterfaceForm = (props) => {
@@ -129,7 +128,7 @@ export const InterfaceForm = (props) => {
       </div>
       <div className="form-group">
         <label htmlFor="workgroup">Connector</label>
-        <AutoComplete id="workgroup" name="workgroup" placeholder="Search by workgroup" value={workgroupId} onChange={(e) => setWorkgroupId(e)} suggestions={suggestions} disabled={isDisabled} />
+        <WorkgroupAutoComplte id="workgroup" name="workgroup" nullOption={{name: 'None', value: -1}} value={workgroupId} onChange={e => setWorkgroupId(e)} />
       </div>
       <div className="form-group">
         <label className="control-label" htmlFor="mpls-vlan-tag-range">VLAN Ranges</label>

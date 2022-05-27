@@ -367,10 +367,8 @@ sub edit_interface {
             }
         }
         elsif (defined $interface->workgroup_id) {
-            # Interface is already owned by a workgroup
-            $method->set_error("Interface already owned by a workgroup.");
-            $db->rollback;
-            return;
+            # Interface is already owned by a workgroup. Preserve all ACLs by default.
+            $interface->workgroup_id($params->{workgroup_id}{value});
         }
         else {
             # Add interface to workgroup
