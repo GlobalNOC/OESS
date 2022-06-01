@@ -93,6 +93,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess_pull_gcp_interfaces.pl %{buildroot}/%{_bindir}
 %{__install} grouper_syncer.pl %{buildroot}/%{_bindir}
 %{__install} oess_pull_azure_interfaces.pl %{buildroot}/%{_bindir}
+%{__install} oess_pull_oracle_interfaces.pl %{buildroot}/%{_bindir}
 
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
@@ -145,6 +146,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/oess_pull_aws_interfaces.pl
 %{_bindir}/oess_pull_gcp_interfaces.pl
 %{_bindir}/oess_pull_azure_interfaces.pl
+%{_bindir}/oess_pull_oracle_interfaces.pl
 
 %{_sysconfdir}/dbus-1/system.d/nddi-dbus.conf
 %{_sysconfdir}/init.d/oess-fwdctl

@@ -176,6 +176,7 @@ sub update_remote_peers {
 
     my $change_required = 0;
     my $cross_connect_mappings = [];
+    my $mtu = 1500;
     
     foreach my $ccm (@{$args->{virtual_circuit}->{crossConnectMappings}}) {
         # If we don't have peering info for the specified endpoint move on
@@ -205,12 +206,15 @@ sub update_remote_peers {
             }
         }
 
-        foreach my $key (keys $staged_change) {
-            if ($staged_change->{$key} != $ccm->{$key}) {
-                $change_required = 1;
-                last;
-            }
-        }
+        $change_required = 1 if $staged_change->{bgpMd5AuthKey} ne $ccm->{bgpMd5AuthKey};
+        $change_required = 1 if $staged_change->{crossConnectOrCrossConnectGroupId} ne $ccm->{crossConnectOrCrossConnectGroupId};
+        $change_required = 1 if !$self->_ip_eq($staged_change->{customerBgpPeeringIp}, $ccm->{customerBgpPeeringIp});
+        $change_required = 1 if !$self->_ip_eq($staged_change->{customerBgpPeeringIpv6}, $ccm->{customerBgpPeeringIpv6});
+        $change_required = 1 if !$self->_ip_eq($staged_change->{oracleBgpPeeringIp}, $ccm->{oracleBgpPeeringIp});
+        $change_required = 1 if !$self->_ip_eq($staged_change->{oracleBgpPeeringIpv6}, $ccm->{oracleBgpPeeringIpv6});
+        $change_required = 1 if $staged_change->{vlan} != $ccm->{vlan};
+
+        $mtu = $ep->mtu;
 
         push @$cross_connect_mappings, {
             auth_key  => $staged_change->{bgpMd5AuthKey},
@@ -224,6 +228,9 @@ sub update_remote_peers {
     }
 
     if (!$change_required) {
+        # Updating a connection will reprovision on the Oracle side
+        # causing a network disruption. Therefore if no change is
+        # required we do nothing.
         return;
     }
 
@@ -234,7 +241,7 @@ sub update_remote_peers {
         virtual_circuit_id     => $args->{virtual_circuit}->{id},
         bandwidth              => $args->{virtual_circuit}->{bandwidthShapeName},
         bfd                    => 0,
-        mtu                    => $args->{virtual_circuit}->{ipMtu},
+        mtu                    => $mtu,
         oess_asn               => $self->{config}->local_as,
         name                   => $args->{virtual_circuit}->{displayName},
         type                   => 'l3',
@@ -289,6 +296,37 @@ sub fetch_virtual_circuits_from_oracle {
         $result->{$conn->{id}} = $conn;
     }
     return ($result, undef);
+}
+
+=head2 _ip_eq
+
+_ip_eq converts the CIDR IPs into Net::IP objects so they may be
+compared regardless of formatting. This is helpful for IPv6 addresses
+specifically as they may be presented in either expanded or compressed
+form.
+
+=cut
+sub _ip_eq {
+    my $self = shift;
+    my $ip_a = shift;
+    my $ip_b = shift;
+
+    my @parts_a = split('/', $ip_a);
+    my $ipstr_a = $parts_a[0];
+    my $maskbits_a = $parts_a[1];
+
+    my @parts_b = split('/', $ip_b);
+    my $ipstr_b = $parts_b[0];
+    my $maskbits_b = $parts_b[1];
+
+    my $nip_a = new Net::IP($ipstr_a);
+    my $nip_b = new Net::IP($ipstr_b);
+
+    if ($nip_a->ip eq $nip_b->ip && $maskbits_a eq $maskbits_b) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 return 1;

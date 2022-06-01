@@ -15,13 +15,13 @@ COPY app/mpls/mpls_fwdctl.pl /usr/bin/mpls_fwdctl.pl
 COPY app/oess_pull_aws_interfaces.pl /usr/bin/oess_pull_aws_interfaces.pl
 COPY app/oess_pull_azure_interfaces.pl /usr/bin/oess_pull_azure_interfaces.pl
 COPY app/oess_pull_gcp_interfaces.pl /usr/bin/oess_pull_gcp_interfaces.pl
+COPY app/oess_pull_oracle_interfaces.pl /usr/bin/oess_pull_oracle_interfaces.pl
 
 COPY frontend/conf/oe-ss.conf.example /etc/httpd/conf.d/oe-ss.conf
 COPY app/etc/firmware.xml /etc/oess/firmware.xml
 COPY perl-lib/OESS/t/conf/database.xml /etc/oess/database.xml
 COPY perl-lib/OESS/t/conf/interface-speed-config.xml /etc/oess/interface-speed-config.xml
 COPY perl-lib/OESS/t/conf/logging.conf /etc/oess/logging.conf
-COPY perl-lib/OESS/t/conf/interface-speed-config.xml /etc/oess/interface-speed-config.xml
 COPY perl-lib/OESS/t/conf/passwd.xml /etc/oess/.passwd.xml
 COPY perl-lib/OESS/t/conf/integration.sql /etc/oess/integration.sql
 
