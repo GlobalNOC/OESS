@@ -4,6 +4,7 @@ use warnings;
 package OESS::DB::Peer;
 
 use Data::Dumper;
+use Net::IP;
 
 =head1 OESS::DB::Peer
 
@@ -73,6 +74,11 @@ sub create {
         if ($args->{model}->{peer_ip} !~ /^((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?(\/([0-9]|[0-9][0-9]|1[0-1][0-9]|12[0-8]))$/) {
             return (undef, "IPv6 address validation failed for '$args->{model}->{peer_ip}'.");
         }
+    }
+
+    if ($args->{model}->{ip_version} eq 'ipv6') {
+        $args->{model}->{local_ip} = _short_ip($args->{model}->{local_ip});
+        $args->{model}->{peer_ip} = _short_ip($args->{model}->{peer_ip});
     }
 
     my $peer_id = $args->{db}->execute_query($q1, [
@@ -201,6 +207,11 @@ sub update {
     if (defined $args->{peer}->{ip_version}) {
         push @$params, 'ip_version=?';
         push @$values, $args->{peer}->{ip_version};
+
+        if ($args->{peer}->{ip_version} eq 'ipv6') {
+            $args->{peer}->{local_ip} = _short_ip($args->{peer}->{local_ip}) if defined $args->{peer}->{local_ip};
+            $args->{peer}->{peer_ip} = _short_ip($args->{peer}->{peer_ip}) if defined $args->{peer}->{peer_ip};
+        }
     }
     if (defined $args->{peer}->{peer_ip}) {
         push @$params, 'peer_ip=?';
@@ -242,5 +253,23 @@ sub update {
     return;
 }
 
+=head2 _short_ip
+
+    my $addr = _short_ip('fd28:221e:28fa:61d3:0000:0000:0000:0002/126');
+    # => 'fd28:221e:28fa:61d3::2/126'                                                                                                                                                                                                                                   
+
+Return the IP in short format: IPv4 addresses: 194.5/16 IPv6 addresses: ab32:f000::
+
+=cut
+sub _short_ip {
+    my $addr = shift;
+
+    my @parts_a = split('/', $addr);
+    my $ipstr_a = $parts_a[0];
+    my $maskbits_a = $parts_a[1];
+
+    my $nip_a = new Net::IP($ipstr_a);
+    return $nip_a->short . '/' . $maskbits_a;
+}
 
 1;
