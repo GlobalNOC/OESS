@@ -83,15 +83,24 @@ sub load {
         foreach my $peer (@{$ep->peers}) {
             my $v = ($peer->ip_version eq 'ipv4') ? 4 : 6;
 
-            $self->{prefixes}->{$ep->cloud_account_id}->{$v}->{$ep->interface_id} = $self->_prefix_from_address($peer->local_ip);
+            my $prefix = $self->_prefix_from_address($peer->local_ip);
+            $self->{prefixes}->{$ep->cloud_account_id}->{$v}->{$ep->interface_id} = $prefix;
 
-            # Prefixes are selected starting from a pre-defined subnet. So long as we
-            # increment the subnet once for every subnet already in use, out next
-            # subnet will have a unique prefix.
+            # Prefixes are selected starting from a pre-defined subnet; If we find a
+            # prefix larger than this subnet, set the next prefix to the subnet
+            # directly after the larger one.
             if ($v == 4) {
-                $self->{next_v4_prefix} = $self->_next_prefix($self->{next_v4_prefix});
+                if ($prefix->bincomp('ge', $self->{next_v4_prefix})) {
+                    $self->{next_v4_prefix} = $self->_next_prefix($prefix);
+                } else {
+                    $self->{next_v4_prefix} = $self->_next_prefix($self->{next_v4_prefix});
+                }
             } else {
-                $self->{next_v6_prefix} = $self->_next_prefix($self->{next_v6_prefix});
+                if ($prefix->bincomp('ge', $self->{next_v6_prefix})) {
+                    $self->{next_v6_prefix} = $self->_next_prefix($prefix);
+                } else {
+                    $self->{next_v6_prefix} = $self->_next_prefix($self->{next_v6_prefix});
+                }
             }
         }
     }
