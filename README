@@ -21,7 +21,7 @@ limitations under the License.
 
 OESS is an application to configure and control OpenFlow Enabled switches
 through a very simple and user friendly User Interface.  OESS provides 
-sub-second circuit provisioning, automatic failover, per-interface permissions, 
+layer2 and layer3 circuit provisioning, automatic failover, per-interface permissions, 
 and automatic per-Vlan statistics.
 
 2. Requirements
