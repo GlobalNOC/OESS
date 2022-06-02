@@ -311,6 +311,16 @@ sub _ip_eq {
     my $ip_a = shift;
     my $ip_b = shift;
 
+    if (!defined $ip_a && !defined $ip_b) {
+        return 1;
+    }
+    if (!defined $ip_a && defined $ip_b) {
+        return 0;
+    }
+    if (!defined $ip_b && defined $ip_a) {
+        return 0;
+    }
+
     my @parts_a = split('/', $ip_a);
     my $ipstr_a = $parts_a[0];
     my $maskbits_a = $parts_a[1];
