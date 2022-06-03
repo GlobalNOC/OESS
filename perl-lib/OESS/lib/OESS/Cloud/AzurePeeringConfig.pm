@@ -231,18 +231,34 @@ sub cross_connection_peering {
         $result->{peeringType} = 'AzurePrivatePeering';
     }
 
-    # NOTE: I thought IPv6 support was added, but it doesn't seem to apply to
-    # newly provisioned connections. Instead the user must add their IPv6
-    # prefixes via the Azure Portal. The syncer script will pull the Ipv6
-    # prefix in. If support for IPv6 is ever added uncomment the below section.
+    # I thought IPv6 support was added but it's not fully implemented.
+    # If a user wishes to use IPv6, they must configure it via the
+    # Azure portal and wait for the syncer to pickup the new prefixes.
+    # The user will be fully responsible for peering addresses via
+    # Azure after enabling v6.
     #
-    # if (defined $v6->{primary} || defined $v6->{secondary}) {
-    #     $result->{ipv6PeeringConfig} = {
-    #         primaryPeerAddressPrefix => $self->primary_prefix($service, 'ipv6'),
-    #         secondaryPeerAddressPrefix => $self->secondary_prefix($service, 'ipv6'),
-    #         state => 'Enabled'
-    #     };
-    # }
+    # After v6 prefixes have been picked up by the syncer, it's
+    # important that OESS includes the v6 prefixes in any peering
+    # config sent to Azure (consider case where one v6 endpoint is
+    # already in use and the user is adding a second). If only the v4
+    # config is sent to Azure the v6 config will be removed, thus
+    # disrupting the exsiting peering.
+    #
+    # As a result we only send v6 peering info to Azure if we have a
+    # record of v6 having been configured via the Azure portal (through
+    # the syncer).
+    #
+    # Basically:
+    # If v4 is sent, v4 is configured
+    # If v4+v6 is sent, nothing is configured
+    #
+    if (defined $v6->{primary} || defined $v6->{secondary}) {
+        $result->{ipv6PeeringConfig} = {
+            primaryPeerAddressPrefix => $self->primary_prefix($service, 'ipv6'),
+            secondaryPeerAddressPrefix => $self->secondary_prefix($service, 'ipv6'),
+            state => 'Enabled'
+        };
+    }
 
     return $result;
 }
