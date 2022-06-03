@@ -227,6 +227,12 @@ sub update_remote_peers {
         };
     }
 
+    my $prod_length = scalar @{$args->{virtual_circuit}->{crossConnectMappings}};
+    my $stage_length = scalar @$cross_connect_mappings;
+    if ($prod_length != $stage_length) {
+        $change_required = 1;
+    }
+
     if (!$change_required) {
         # Updating a connection will reprovision on the Oracle side
         # causing a network disruption. Therefore if no change is
