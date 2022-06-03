@@ -72,13 +72,27 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
     let ipv4PeerCount = 0;
     let ipv6PeerCount = 0;
 
-    for (let i = 0; i < endpoint.peers.length; i++) {
-      if (endpoint.peers[i].ip_version === 'ipv4') {
+    endpoint.peers.forEach(function(p) {
+      if (p.ip_version === 'ipv4') {
         ipv4PeerCount += 1;
       } else {
         ipv6PeerCount += 1;
       }
-    }
+
+      if (endpoint.cloud_interconnect_type === 'azure-express-route' && p.ip_version === 'ipv6' && !p.vrf_ep_peer_id) {
+        throw('IPv6 peerings must be configured via the Azure Portal. Changes made via the Azure Portal may take up to 30 minutes to be reflected within OESS.');
+      }
+
+      e.peers.push({
+        vrf_ep_peer_id: p.vrf_ep_peer_id,
+        peer_asn:       p.peer_asn,
+        md5_key:        p.md5_key,
+        local_ip:       p.local_ip,
+        peer_ip:        p.peer_ip,
+        ip_version:     p.ip_version,
+        bfd:            (p.bfd) ? 1 : 0
+      });
+    });
 
     let hasOneIpv4Peering       = (ipv4PeerCount == 1);
     let hasOneIpv6Peering       = (ipv6PeerCount == 1);
@@ -94,26 +108,7 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       if (!(hasOneIpv4Peering && hasAtMostOneIpv6Peering)) {
         throw('Azure ExpressRoute endpoints must have a single IPv4 peering, and may have up to one IPv6 peering.');
       }
-
-      if (hasOneIpv6Peering) {
-        ok = confirm('IPv6 peerings must be configured via the Azure Portal. Allow up to 15 minutes for changes to be reflected within OESS.');
-        if (!ok) {
-          throw('Provisioning canceled.');
-        }
-      }
     }
-
-    endpoint.peers.forEach(function(p) {
-      e.peers.push({
-        vrf_ep_peer_id: p.vrf_ep_peer_id,
-        peer_asn:       p.peer_asn,
-        md5_key:        p.md5_key,
-        local_ip:       p.local_ip,
-        peer_ip:        p.peer_ip,
-        ip_version:     p.ip_version,
-        bfd:            (p.bfd) ? 1 : 0
-      });
-    });
 
     form.append('endpoint', JSON.stringify(e));
   });
