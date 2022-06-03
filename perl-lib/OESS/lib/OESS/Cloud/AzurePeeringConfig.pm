@@ -83,24 +83,32 @@ sub load {
         foreach my $peer (@{$ep->peers}) {
             my $v = ($peer->ip_version eq 'ipv4') ? 4 : 6;
 
+            my $prefix = $self->_prefix_from_address($peer->local_ip);
             if ($ep->cloud_interconnect_id =~ /PRI/) {
-                $self->{prefixes}->{$ep->cloud_account_id}->{$v}->{primary} = $self->_prefix_from_address($peer->local_ip);
-
+                $self->{prefixes}->{$ep->cloud_account_id}->{$v}->{primary} = $prefix;
             } else {
-                $self->{prefixes}->{$ep->cloud_account_id}->{$v}->{secondary} = $self->_prefix_from_address($peer->local_ip);
+                $self->{prefixes}->{$ep->cloud_account_id}->{$v}->{secondary} = $prefix;
             }
 
             # TODO Validate next_v*_prefixes not already in use. Handles case where subnet
             # set from azure side. As prefixes set on Azure side override those stored in
             # OESS db, conflicts should only last a short period of time.
 
-            # Prefixes are selected starting from a pre-defined subnet. So long as we
-            # increment the subnet once for every subnet in use, we should have a unique
-            # prefix.
+            # Prefixes are selected starting from a pre-defined subnet; If we find a
+            # prefix larger than this subnet, set the next prefix to the subnet
+            # directly after the larger one.
             if ($v == 4) {
-                $self->{next_v4_prefix} = $self->_next_prefix($self->{next_v4_prefix});
+                if ($prefix->bincomp('ge', $self->{next_v4_prefix})) {
+                    $self->{next_v4_prefix} = $self->_next_prefix($prefix);
+                } else {
+                    $self->{next_v4_prefix} = $self->_next_prefix($self->{next_v4_prefix});
+                }
             } else {
-                $self->{next_v6_prefix} = $self->_next_prefix($self->{next_v6_prefix});
+                if ($prefix->bincomp('ge', $self->{next_v6_prefix})) {
+                    $self->{next_v6_prefix} = $self->_next_prefix($prefix);
+                } else {
+                    $self->{next_v6_prefix} = $self->_next_prefix($self->{next_v6_prefix});
+                }
             }
         }
     }
