@@ -8,7 +8,7 @@ export const NodeForm = (props) => {
   let node = (props.node === null) ? {} : props.node;
 
   const [name, setName] = useState(node.name || '');
-  const [shortName, setShortName] = useState(node.short_name || 'demo');
+  const [shortName, setShortName] = useState(node.short_name || '');
   const [longitude, setLongitude] = useState(node.longitude || 0.0);
   const [latitude, setLatitude] = useState(node.latitude || 0.0);
   const [vlanRange, setVlanRange] = useState(node.vlan_range || '1-4095');
