@@ -1,0 +1,129 @@
+#!/usr/bin/perl
+#-------------------------------------------------------------------
+#----- OESS 2.0.14 - 2.0.15 upgrade module                         
+#-----                                                               
+#----- Copyright(C) 2010 The Trustees of Indiana University          
+#--------------------------------------------------------------------
+#----- $HeadURL: $                                                   
+#----- $Id: $                                                        
+#-----                                                               
+#----- This is run when upgrading the database from     
+#----- version 2.0.14 to version 2.0.15                               
+#-------------------------------------------------------------------- 
+
+use strict;
+use warnings;
+use OESS::Database;
+
+my $prev_version = "2.0.14";
+my $version = "2.0.15";
+
+sub main{
+    print "*******************************************************************\n";
+    print "*********             OESS DB UPGRADE           ************\n";
+    print "*******************************************************************\n";
+    print "********* This will upgrade from $prev_version to $version **********\n";
+    print "********* of the OESS DB any other version will not work ************\n";
+
+    continue_parameter("Do you wish to continue");
+
+    my $dbq = new OESS::Database();
+    my $current_version = $dbq->get_oess_schema_version();
+    if($current_version eq $prev_version){
+        eval {
+            $dbq->{'dbh'}->begin_work();
+            upgrade($dbq);
+            $dbq->{'dbh'}->commit();
+        };
+        if ($@) {
+            $dbq->{'dbh'}->rollback();
+            print "$@\n";
+            exit;
+        }
+    } else{
+        print "Wrong version of OESS DB\n";
+        print "This script only upgrades from version $prev_version to $version\n";
+        exit;
+    }
+
+    print STDERR "Upgrade Successful!!\n";
+}
+
+sub upgrade{
+    my $dbq = shift;
+    my $term = shift;
+    my $dbh = $dbq->{'dbh'};
+    my $str;
+    my $sth;
+
+    $sth = $dbh->prepare("CREATE TABLE `history` (
+  `history_id` int(10) NOT NULL AUTO_INCREMENT,
+  `date` int(10) NOT NULL,
+  `user_id` int(10) NOT NULL,
+  `workgroup_id` int(10) NOT NULL,
+  `event` varchar(255) DEFAULT NULL,
+  `state` enum('scheduled','deploying','active','decom','looped','reserved','provisioned') NOT NULL DEFAULT 'scheduled',
+  `type` varchar(255) DEFAULT NULL,
+  `object` text NOT NULL,
+  PRIMARY KEY (`history_id`),
+  KEY `datex` (`date`),
+  KEY `user_history_fk` (`user_id`),
+  KEY `workgroup_history_fk` (`workgroup_id`),
+  CONSTRAINT `history_ibfk_2` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `history_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+    $sth->execute() or die "Unable to create history table";
+
+    $sth = $dbh->prepare("CREATE TABLE `vrf_history` (
+  `history_id` int(10) NOT NULL,
+  `vrf_id` int(10) NOT NULL,
+  KEY `history_vrf_history_fk` (`history_id`),
+  KEY `vrf_vrf_history_fk` (`vrf_id`),
+  CONSTRAINT `vrf_history_ibfk_2` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `vrf_history_ibfk_1` FOREIGN KEY (`history_id`) REFERENCES `history` (`history_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+    $sth->execute() or die "Unable to create vrf_history table";
+
+    $sth = $dbh->prepare("CREATE TABLE `acl_history` (
+  `history_id` int(10) NOT NULL,
+  `interface_acl_id` int(10) NOT NULL,
+  KEY `history_acl_history_fk` (`history_id`),
+  KEY `acl_acl_history_fk` (`interface_acl_id`),
+  CONSTRAINT `acl_history_ibfk_2` FOREIGN KEY (`interface_acl_id`) REFERENCES `interface_acl` (`interface_acl_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `acl_history_ibfk_1` FOREIGN KEY (`history_id`) REFERENCES `history` (`history_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+    $sth->execute() or die "Unable to create vrf_history table";
+
+    $sth = $dbh->prepare("ALTER TABLE workgroup MODIFY `name` varchar(20) NOT NULL");
+    $sth->execute() or die "Unable to update workgroup 'name' length to 20";
+
+    $str = "update oess_version set version = '$version'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+}
+
+main();
+
+sub continue_parameter {
+    my $name = shift;
+
+    print "$name [y/n]: ";
+    my $yes_or_no = <>;
+    chomp($yes_or_no);
+
+    exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
+}
+
+sub required_parameter {
+    my $name = shift;
+
+    while (1) {
+	print "$name (required): ";
+        my $response = <>;
+	chomp($response);
+
+        return $response if ($response);
+
+	print "\nThis option is required!\n\n";
+    }
+}

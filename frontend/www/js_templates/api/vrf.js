@@ -69,17 +69,46 @@ async function provisionVRF(workgroupID, name, description, endpoints, provision
       throw('At least one peering on each endpoint must be specified.');
     }
 
+    let ipv4PeerCount = 0;
+    let ipv6PeerCount = 0;
+
     endpoint.peers.forEach(function(p) {
+      if (p.ip_version === 'ipv4') {
+        ipv4PeerCount += 1;
+      } else {
+        ipv6PeerCount += 1;
+      }
+
+      if (endpoint.cloud_interconnect_type === 'azure-express-route' && p.ip_version === 'ipv6' && !p.vrf_ep_peer_id) {
+        throw('IPv6 peerings must be configured via the Azure Portal. Changes made via the Azure Portal may take up to 30 minutes to be reflected within OESS.');
+      }
+
       e.peers.push({
         vrf_ep_peer_id: p.vrf_ep_peer_id,
-        peer_asn: p.peer_asn,
-        md5_key:  p.md5_key,
-        local_ip: p.local_ip,
-        peer_ip:  p.peer_ip,
-        version:  p.ip_version,
-        bfd:      (p.bfd) ? 1 : 0
+        peer_asn:       p.peer_asn,
+        md5_key:        p.md5_key,
+        local_ip:       p.local_ip,
+        peer_ip:        p.peer_ip,
+        ip_version:     p.ip_version,
+        bfd:            (p.bfd) ? 1 : 0
       });
     });
+
+    let hasOneIpv4Peering       = (ipv4PeerCount == 1);
+    let hasOneIpv6Peering       = (ipv6PeerCount == 1);
+    let hasAtMostOneIpv6Peering = (ipv6PeerCount <= 1);
+
+    if (endpoint.cloud_interconnect_type === 'oracle-fast-connect') {
+      if (!(hasOneIpv4Peering && hasAtMostOneIpv6Peering)) {
+        throw('Oracle FastConnect endpoints must have a single IPv4 peering, and may have up to one IPv6 peering.');
+      }
+    }
+
+    if (endpoint.cloud_interconnect_type === 'azure-express-route') {
+      if (!(hasOneIpv4Peering && hasAtMostOneIpv6Peering)) {
+        throw('Azure ExpressRoute endpoints must have a single IPv4 peering, and may have up to one IPv6 peering.');
+      }
+    }
 
     form.append('endpoint', JSON.stringify(e));
   });
@@ -108,6 +137,18 @@ async function getVRF(workgroupID, vrfID) {
     console.log('Failure occurred in getVRF.');
     console.log(error);
     return null;
+  }
+}
+
+async function getVRFHistory(workgroupID, id) {
+  let url = `[% path %]services/vrf.cgi?method=get_vrf_history&vrf_id=${id}&workgroup_id=${workgroupID}`;
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    return data.results;
+  } catch(error) {
+    console.log('Failure occurred in getVRFHistory');
+    console.log(error);
   }
 }
 

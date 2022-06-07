@@ -10,4 +10,52 @@
   <rabbitMQ host="localhost" port="5672" user="guest" pass="guest"/>
   <credentials username="root" password="test" database="oess_test"/>
   <oscars host="https://nddi-dev.bldc.net.internet2.edu" cert="mycert.crt" key="mykey.key" topo="http://ndb7.net.internet2.edu:8012/perfSONAR_PS/services/topology"/>
+
+  <cloud user="admin" password="OESS_PASSWORD" realm="OESS">
+    <connection
+      region="us-east"
+      interconnect_type="azure-express-route"
+      resource_group="CrossConnection-SiliconValleyTest"
+      interconnect_id="OessTest-SJC-TEST-00GMR-CIS-1-PRI-A"
+      subscription_id="00000000-0000-0000-0000-000000000000"
+      client_id="ffffffff-ffff-ffff-ffff-ffffffffffff"
+      client_secret=""
+      tenant_id="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+      workgroup="admin"
+      base_url="https://management.azure.com" />
+    <connection
+      region="us-east"
+      interconnect_type="azure-express-route"
+      resource_group="CrossConnection-SiliconValleyTest"
+      interconnect_id="OessTest-SJC-TEST-00GMR-CIS-2-SEC-A"
+      subscription_id="00000000-0000-0000-0000-000000000000"
+      client_id="ffffffff-ffff-ffff-ffff-ffffffffffff"
+      client_secret=""
+      tenant_id="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+      workgroup="admin"
+      base_url="https://management.azure.com" />
+
+    <connection
+      user="ocid1.user.oc1..0000"
+      fingerprint="20:20:20:20:20:20:20:20:20:20:20:20:20:20:20:20"
+      tenancy="ocid1.tenancy.oc1..0000"
+      region="us-ashburn-1"
+      key_file="oapi.pub"
+      interconnect_type="oracle-fast-connect"
+      interconnect_id="ocid1.crossconnectgroup.oc1.iad.0000"
+      compartment_id="ocid1.compartment.oc1..0000"
+      workgroup="admin"
+      base_url="https://iaas.us-ashburn-1.oraclecloud.com" />
+    <connection
+      user="ocid1.user.oc1..0000"
+      fingerprint="20:20:20:20:20:20:20:20:20:20:20:20:20:20:20:20"
+      tenancy="ocid1.tenancy.oc1..0000"
+      region="us-ashburn-1"
+      key_file="oapi.pub"
+      interconnect_type="oracle-fast-connect"
+      interconnect_id="ocid1.crossconnectgroup.oc1.iad.0001"
+      compartment_id="ocid1.compartment.oc1..0000"
+      workgroup="admin"
+      base_url="https://iaas.us-ashburn-1.oraclecloud.com" />
+  </cloud>
 </config>

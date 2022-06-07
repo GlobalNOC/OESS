@@ -44,8 +44,10 @@ class CircuitHistory extends Component {
 
   async render(props) {
     let historyRows = '';
-    for (let i = 0; i < props.history.length; i++) {
-      let h = props.history[i];
+    let history = (props.history == null) ? [] : props.history;
+
+    for (let i = 0; i < history.length; i++) {
+      let h = history[i];
       historyRows += `<tr><td>${h.fullname}</td><td>${h.reason}</td><td>${h.activated}</td></tr>`;
     }
 
@@ -57,6 +59,51 @@ class CircuitHistory extends Component {
         <tbody>${historyRows}</tbody>
       </table>
 `;
+  }
+}
+
+class ResourceHistoryTable extends Component {
+  constructor(state) {
+    super();
+    this.state = state;
+  }
+
+  async render(props) {
+    
+    let historyRows = '';
+    let href = {
+      l3connection: function(data) { return `index.cgi?action=modify_cloud&vrf_id=${data.vrf_id}`; }
+    };
+    let history = (props.history == null) ? [] : props.history;
+
+    for (let i = 0; i < history.length; i++) {
+      let h = history[i];
+      h.object = JSON.parse(JSON.stringify(h.object));
+
+      let date = new Date(h.date * 1000).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
+      let time = new Date(h.date * 1000).toLocaleTimeString("en-US", {hour: 'numeric', minute: 'numeric', timeZoneName: 'short'});
+
+      historyRows += `
+        <tr class="table-hover">
+          <td>${h.full_name}</td>
+          <td><a href="${href[h.type](JSON.parse(h.object))}"><code>${h.resource_id}</code></a></td>
+          <td>${h.event}</td>
+          <td>l3connection</td>
+          <td>${date} ${time}</td>
+        </tr>
+      `;
+    }
+
+    return `
+      <table class="table table-hover" style="margin-top: 2em">
+        <thead style="font-weight: bold">
+          <tr><th>User</th><th>Resource ID</th><th>Event</th><th>Type</th><th>Date / Time</th></tr>
+        </thead>
+        <tbody>
+          ${historyRows}
+        </tbody>
+      </table>
+    `;
   }
 }
 
@@ -109,6 +156,7 @@ class CircuitHeader extends Component {
           <div style="display: inline-block;" id='header-description'>${props.description}</div>  
           <label for='connectionId' class='sr-only'>connection Id</label>
           <small id='connectionId'>${props.connectionId}</small>
+          <small id='connectionName'>${props.name}</small>
         </h2>
 
         <button id="change-description-button" class="btn-sm btn-link change-description-button" type="button" hidden>

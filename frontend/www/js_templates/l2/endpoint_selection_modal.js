@@ -228,6 +228,16 @@ class EndpointSelectionModal2 {
         list.innerHTML = '';
         list.style.display = 'none';
         return null;
+      } else {
+        if (!document.querySelector('.list-group-item.loading')){
+          list.innerHTML = '';
+          list.style.display = 'block';
+          let l = document.createElement('p');
+          l.setAttribute('class', 'list-group-item');
+          l.classList.add("loading");
+          l.innerText = "Loading...";
+          list.appendChild(l);
+        }
       }
 
       // If entity search hasn't yet executed restart the countdown; The
@@ -239,21 +249,31 @@ class EndpointSelectionModal2 {
           list.innerHTML = '';
           list.style.display = 'block';
 
-          for (let i = 0; i < entities.length; i++) {
-            let l = document.createElement('a');
-            l.setAttribute('href', '#');
-            l.setAttribute('class', 'list-group-item');
-            l.innerText = entities[i].name;
-            l.onclick = (e) => {
-              search.target.value = '';
-              list.innerHTML = '';
-              list.style.display = 'none';
+          if (search.target.value.length >= 2){
+            for (let i = 0; i < entities.length; i++) {
+              let l = document.createElement('a');
+              l.setAttribute('href', '#');
+              l.setAttribute('class', 'list-group-item');
+              l.innerText = entities[i].name;
+              l.onclick = (e) => {
+                search.target.value = '';
+                list.innerHTML = '';
+                list.style.display = 'none';
 
-              entities[i].index = index;
-              this.populateEntityForm(entities[i]);
-            };
-            list.appendChild(l);
+                entities[i].index = index;
+                this.populateEntityForm(entities[i]);
+              };
+              list.appendChild(l);
+            }
+
+            if (entities.length == 0){
+              let l = document.createElement('p');
+              l.setAttribute('class', 'list-group-item');
+              l.innerText = "No results found";
+              list.appendChild(l);
+            }
           }
+
         }.bind(this));
       }.bind(this), 800);
 
@@ -317,17 +337,22 @@ class EndpointSelectionModal2 {
       let child = entity.interfaces[i];
 
       let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
+      let hasAvailableBandwidth = true; // Only place bandwidth restrictions on cloud provider ports
+      if (entity.interfaces[i].cloud_interconnect_type && child.utilized_bandwidth >= parseInt(child.provisionable_bandwidth)) {
+          hasAvailableBandwidth = false;
+      }
 
       let checked = 'checked';
       let disabled = '';
       let notAllow = '';
 
 
-      if (autoSelectedInterface) {
+      if (autoSelectedInterface || !hasAvailableBandwidth) {
         checked = '';
         disabled = 'disabled';
         notAllow = 'cursor: not-allowed;';
       }
+
       let elem = document.createElement('li');
       elem.setAttribute('class', `list-group-item ${disabled}`);
       if (child.cloud_interconnect_type != null){
@@ -367,7 +392,7 @@ class EndpointSelectionModal2 {
         populateVLANs('.entity-vlans');
       });
 
-      if (!autoSelectedInterface) {
+      if (!autoSelectedInterface && hasAvailableBandwidth) {
         selectedInterface = child.name;
         selectedNode = child.node;
       }
@@ -430,6 +455,25 @@ class EndpointSelectionModal2 {
         vlanSelector.removeAttribute('disabled');
       }
 
+      let addButton = this.parent.querySelector('.add-entity-submit');
+      let requestButton = this.parent.querySelector('.add-entity-request-access');
+      if (entity.interfaces.length === 0) {
+        addButton.setAttribute('disabled', '');
+        requestButton.style.display = 'none';
+      }
+      if (vlans.length === 0) {
+        addButton.setAttribute('disabled', '');
+
+        if (entity.entity_id == 1 ) {
+          requestButton.style.display = 'none';
+        } else {
+          requestButton.style.display = 'inline-block';
+        }
+      } else {
+        addButton.removeAttribute('disabled');
+        requestButton.style.display = 'none';
+      }
+
       return vlans;
     };
 
@@ -453,13 +497,59 @@ class EndpointSelectionModal2 {
     let cloudAccountFormGroup = this.parent.querySelector('.entity-cloud-account');
     let cloudAccountLabel = this.parent.querySelector('.entity-cloud-account-label');
     let cloudAccountInput = this.parent.querySelector('.entity-cloud-account-id');
-    let cloudGatewayFormGroup = this.parent.querySelector('.form-group.entity-cloud-gateway-type');
-    let cloudGatewayTypeSelector = this.parent.querySelector('.form-control.entity-cloud-gateway-type');
+
+    let cloudGatewayTypeFormGroup = this.parent.querySelector('.form-group.entity-cloud-gateway-type');
+    let cloudGatewayTypeSelector = this.parent.querySelector('.entity-cloud-gateway-type .form-control');
+    let cloudGatewayTypeLabel = this.parent.querySelector('.entity-cloud-gateway-type .control-label');
+    let cloudGatewayTypeHelp = this.parent.querySelector('.entity-cloud-gateway-type .help');
+
     let vlanHelp = this.parent.querySelector('.entity-vlans-help');
 
+    function configureCloudGatewayTypeFormGroup(cloud_interconnect_type) {
+      while (cloudGatewayTypeSelector.options.length) cloudGatewayTypeSelector.remove(0);
+
+      if (cloud_interconnect_type === 'gcp-partner-interconnect') {
+        cloudGatewayTypeFormGroup.style.display = 'block';
+
+        let o1 = document.createElement('option');
+        o1.value = 1440;
+        o1.innerHTML = 1440;
+        cloudGatewayTypeSelector.appendChild(o1);
+
+        let o2 = document.createElement('option');
+        o2.value = 1500;
+        o2.innerHTML = 1500;
+        cloudGatewayTypeSelector.appendChild(o2);
+
+        cloudGatewayTypeSelector.selectedIndex = (endpoint.mtu == 1500) ? 1 : 0;
+        cloudGatewayTypeLabel.innerHTML = 'Cloud Interconnect MTU';
+        cloudGatewayTypeHelp.dataset.content = 'The <b>MTU</b> may be set to 1440 or 1500 depending on the use case. Read <a target="_blank" href="https://cloud.google.com/network-connectivity/docs/interconnect/concepts/overview#interconnect-mtu">here</a> for more information.';        
+      }
+      else if (cloud_interconnect_type === 'aws-hosted-connection') {
+        cloudGatewayTypeFormGroup.style.display = 'block';
+
+        let o1 = document.createElement('option');
+        o1.value = 'transit';
+        o1.innerHTML = 'Transit';
+        cloudGatewayTypeSelector.appendChild(o1);
+
+        let o2 = document.createElement('option');
+        o2.value = 'private';
+        o2.innerHTML = 'Virtual Private';
+        cloudGatewayTypeSelector.appendChild(o2);
+
+        cloudGatewayTypeSelector.selectedIndex = 1;
+        cloudGatewayTypeLabel.innerHTML = 'Direct Connect Gateway Type';
+        cloudGatewayTypeHelp.dataset.content = 'The <b>MTU</b> of AWS Hosted Connections varies depending on the Direct Connect Gateway type used with this Connection. Failure to select the appropriate gateway type may impact network performance.';
+      }
+      else {
+        cloudGatewayTypeFormGroup.style.display = 'none';
+      }
+    }
+
     cloudAccountFormGroup.style.display = 'none';
-    cloudGatewayFormGroup.style.display = 'none';
     cloudAccountInput.value = selectedCloudAccountId;
+    configureCloudGatewayTypeFormGroup(entity.cloud_interconnect_type);
 
     if (entity.cloud_interconnect_type !== null) {
       cloudAccountFormGroup.style.display = 'block';
@@ -474,7 +564,9 @@ class EndpointSelectionModal2 {
       } else if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
         cloudAccountLabel.innerText = 'AWS Account Owner';
         cloudAccountInput.setAttribute('placeholder', '012301230123');
-        cloudGatewayFormGroup.style.display = 'block';
+      } else if (entity.cloud_interconnect_type === 'oracle-fast-connect') {        
+        cloudAccountLabel.innerText = 'Oracle OCID';
+        cloudAccountInput.setAttribute('placeholder', 'ocid1.virtualcircuit...');
       } else {
         cloudAccountLabel.innerText = 'AWS Account Owner';
         cloudAccountInput.setAttribute('placeholder', '012301230123');
@@ -508,6 +600,13 @@ class EndpointSelectionModal2 {
         [300, '300 Mb/s'],
         [400, '400 Mb/s'],
         [500, '500 Mb/s'],
+        [1000, '1 Gb/s'],
+        [2000, '2 Gb/s'],
+        [5000, '5 Gb/s'],
+        [10000, '10 Gb/s']
+      ];
+    } else if (entity.cloud_interconnect_type === 'oracle-fast-connect') {
+      bandwidthOptions = [
         [1000, '1 Gb/s'],
         [2000, '2 Gb/s'],
         [5000, '5 Gb/s'],
@@ -548,6 +647,9 @@ class EndpointSelectionModal2 {
     } else if (entity.cloud_interconnect_type === 'azure-express-route') {
       jumboCheckbox.checked = false;
       jumboCheckbox.setAttribute('disabled', '');
+    } else if (entity.cloud_interconnect_type === 'oracle-fast-connect') {
+      jumboCheckbox.checked = true;
+      jumboCheckbox.removeAttribute('disabled');      
     } else {
       jumboCheckbox.checked = true;
       jumboCheckbox.removeAttribute('disabled');
@@ -579,6 +681,11 @@ class EndpointSelectionModal2 {
         } else {
           endpoint.mtu = 1500;
         }
+      }
+
+      if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
+        cloudGatewayType = cloudGatewayTypeSelector.options[cloudGatewayTypeSelector.selectedIndex].value;
+        endpoint.mtu = parseInt(cloudGatewayType);
       }
 
       endpoint.bandwidth = bandwidthSelector.options[bandwidthSelector.selectedIndex].value;

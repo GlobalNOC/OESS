@@ -101,7 +101,7 @@ ok($ent1a->description() eq 'Those that are included in this classification', 'E
 
 
 my $ent2 = OESS::Entity->new( entity_id => 14, db => $db );
-warn Dumper($ent2->to_hash());
+
 cmp_deeply(
     $ent2->to_hash(),
     {
@@ -116,11 +116,12 @@ cmp_deeply(
         contacts    => bag( 
                             {
                              'email' => 'user_121@foo.net',
-                             'is_admin' => '1',
+                             'is_admin' => '0',
                              'user_id' => '121',
                              'last_name' => 'User 121',
                              'first_name' => 'User 121',
-                             'username' => 'user_121@foo.net'
+                             'status' => 'active',
+                             'usernames' => ['user_121@foo.net']
                             },
                             {
                              'email' => 'user_881@foo.net',
@@ -128,7 +129,8 @@ cmp_deeply(
                              'user_id' => '881',
                              'last_name' => 'User 881',
                              'first_name' => 'User 881',
-                             'username' => 'user_881@foo.net'
+                             'status' => 'active',
+                             'usernames' => ['user_881@foo.net']
                             }
                           ),
         parents     => bag(
@@ -163,8 +165,6 @@ ok(!defined($ent2->update_db()), 'Entity 2: no DB errors when running update_db(
 
 my $ent2a = OESS::Entity->new( entity_id => 14, db => $db );
 
-warn Dumper($ent2a);
-
 cmp_deeply(
     $ent2a->to_hash(),
     {
@@ -182,7 +182,8 @@ cmp_deeply(
                               'user_id' => '881',
                               'last_name' => 'User 881',
                               'first_name' => 'User 881',
-                              'username' => 'user_881@foo.net'
+                              'status' => 'active',
+                              'usernames' => ['user_881@foo.net']
                              }
                             ),
         parents     => bag(                                                                                                                     

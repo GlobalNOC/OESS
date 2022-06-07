@@ -1177,6 +1177,40 @@ sub update {
     return OESS::DB::Circuit::update(db => $self->{db}, circuit => $self->to_hash);
 }
 
+
+=head2 decom
+
+    my $err = $circuit->decom;
+
+=cut
+sub decom {
+    my $self = shift;
+    my $args = {
+        user_id    => undef,
+        reason     => 'User requested removal of connection',
+        @_
+    };
+
+    # There's no state field on circuit endpoints so we just remove
+    # from the db. We might consider changing this in the future.
+    foreach my $ep (@{$self->endpoints}) {
+        my $err = $ep->remove;
+        return $err if defined $err;
+    }
+
+    foreach my $path (@{$self->paths}) {
+        my $err = $path->remove;
+        return $err if defined $err;
+    }
+
+    return OESS::DB::Circuit::remove(
+        db         => $self->{db},
+        circuit_id => $self->circuit_id,
+        reason     => $args->{reason},
+        user_id    => $args->{user_id}
+    );
+}
+
 =head2 remove
 
     my $err = $l2conn->remove(
@@ -1255,11 +1289,11 @@ sub nso_diff {
             $diff->{$ep->short_node_name} = "";
             $ep_index->{$ep->short_node_name} = {};
         }
-        $ep_index->{$ep->short_node_name}->{$ep->interface} = $ep;
+        $ep_index->{$ep->short_node_name}->{$ep->circuit_ep_id} = $ep;
     }
 
     foreach my $ep (@{$nsoc->{endpoint}}) {
-        if (!defined $ep_index->{$ep->{device}}->{$ep->{interface}}) {
+        if (!defined $ep_index->{$ep->{device}}->{$ep->{endpoint_id}}) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
             $diff->{$ep->{device}} .= "-  $ep->{interface}.$ep->{unit}\n";
             $diff->{$ep->{device}} .= "-    Bandwidth: $ep->{bandwidth}\n";
@@ -1267,16 +1301,23 @@ sub nso_diff {
             $diff->{$ep->{device}} .= "-    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
             next;
         }
-        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{interface}};
+        my $ref_ep = $ep_index->{$ep->{device}}->{$ep->{endpoint_id}};
 
         # Compare endpoints
         my $ok = 1;
+        
+        $ok = 0 if $ep->{interface} ne $ref_ep->interface;
         $ok = 0 if $ep->{bandwidth} != $ref_ep->bandwidth;
         $ok = 0 if $ep->{tag} != $ref_ep->tag;
         $ok = 0 if $ep->{inner_tag} != $ref_ep->inner_tag;
         if (!$ok) {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
-            $diff->{$ep->{device}} .= "  $ep->{interface}.$ep->{unit}\n";
+            if ($ep->{interface} ne $ref_ep->interface) {
+                $diff->{$ep->{device}} .= "-  $ep->{interface}.$ep->{unit}\n";
+                $diff->{$ep->{device}} .= "+  $ref_ep->{interface}.$ref_ep->{unit}\n";
+            } else {
+                $diff->{$ep->{device}} .= "  $ep->{interface}.$ep->{unit}\n";
+            }
         }
 
         if ($ep->{bandwidth} != $ref_ep->bandwidth) {
@@ -1292,7 +1333,7 @@ sub nso_diff {
             $diff->{$ep->{device}} .= "+    Inner Tag: $ref_ep->{inner_tag}\n" if defined $ref_ep->{inner_tag};
         }
 
-        delete $ep_index->{$ep->{device}}->{$ep->{interface}};
+        delete $ep_index->{$ep->{device}}->{$ep->{endpoint_id}};
     }
 
     foreach my $device_key (keys %{$ep_index}) {

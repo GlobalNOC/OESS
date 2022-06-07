@@ -1,5 +1,5 @@
 Name:		oess-core
-Version:	2.0.14
+Version:	2.0.15
 Release:	1%{?dist}
 Summary:	The core OESS service providers
 
@@ -20,7 +20,7 @@ Requires: /bin/bash
 Requires: /usr/bin/perl
 Requires: perl(base), perl(constant), perl(strict), perl(warnings)
 
-Requires: perl-OESS >= 2.0.14
+Requires: perl-OESS >= 2.0.15
 
 Requires: perl(AnyEvent), perl(AnyEvent::DBus), perl(AnyEvent::RabbitMQ)
 Requires: perl(CPAN), perl(CPAN::Shell)
@@ -84,7 +84,8 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess_scheduler.pl %{buildroot}/%{_bindir}
 %{__install} oess-nsi %{buildroot}/%{_bindir}
 %{__install} measurement/* %{buildroot}/%{_bindir}
-%{__install} mpls/* %{buildroot}/%{_bindir}
+%{__install} mpls/mpls_discovery.pl %{buildroot}/%{_bindir}
+%{__install} mpls/mpls_fwdctl.pl %{buildroot}/%{_bindir}
 %{__install} notification/* %{buildroot}/%{_bindir}
 %{__install} populate_remote_topologies.pl %{buildroot}/%{_bindir}
 %{__install} oess_topology_submitter.pl %{buildroot}/%{_bindir}
@@ -92,6 +93,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} oess_pull_gcp_interfaces.pl %{buildroot}/%{_bindir}
 %{__install} grouper_syncer.pl %{buildroot}/%{_bindir}
 %{__install} oess_pull_azure_interfaces.pl %{buildroot}/%{_bindir}
+%{__install} oess_pull_oracle_interfaces.pl %{buildroot}/%{_bindir}
 
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/dbus-1/system.d/
 %__mkdir -p -m 0755 $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
@@ -144,6 +146,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/oess_pull_aws_interfaces.pl
 %{_bindir}/oess_pull_gcp_interfaces.pl
 %{_bindir}/oess_pull_azure_interfaces.pl
+%{_bindir}/oess_pull_oracle_interfaces.pl
 
 %{_sysconfdir}/dbus-1/system.d/nddi-dbus.conf
 %{_sysconfdir}/init.d/oess-fwdctl

@@ -33,7 +33,8 @@ sleep 15
 sed -i "s/oess_test/oess/" /etc/oess/database.xml
 sed -i "s/test/$MYSQL_PASS/" /etc/oess/database.xml
 sed -i "s/vpn\-mpls/$OESS_NETWORK_TYPE/" /etc/oess/database.xml
-sed -i "s/NSO_HOST/$NSO_HOST/" /etc/oess/database.xml
+sed -i "s/OESS_PASSWORD/$OESS_PASSWORD/" /etc/oess/database.xml
+sed -i "s@NSO_HOST@$NSO_HOST@" /etc/oess/database.xml
 sed -i "s/NSO_PASSWORD/$NSO_PASSWORD/" /etc/oess/database.xml
 sed -i "s/NSO_USERNAME/$NSO_USERNAME/" /etc/oess/database.xml
 sed -i "s/OESS_LOCAL_ASN/$OESS_LOCAL_ASN/" /etc/oess/database.xml

@@ -1,5 +1,5 @@
 Name:		oess-frontend
-Version:	2.0.14
+Version:	2.0.15
 Release:	1%{?dist}
 Summary:	The OESS webservices and user interface
 
@@ -12,15 +12,16 @@ BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRequires: perl
 BuildRequires: python >= 2.6, python-libs >= 2.6
 BuildRequires: python-simplejson
+BuildRequires: rh-nodejs8-nodejs == 8.11.4
 
-Requires: oess-core >= 2.0.14
+Requires: oess-core >= 2.0.15
 Requires: yui
 Requires: httpd, mod_ssl
 Requires: nddi-tiles
 Requires: perl-Crypt-SSLeay
 Requires: xmlsec1, xmlsec1-openssl
 
-Requires: perl-OESS >= 2.0.14
+Requires: perl-OESS >= 2.0.15
 
 Requires: perl(strict), perl(warnings)
 Requires: perl(AnyEvent)
@@ -56,23 +57,39 @@ BuildArch:	noarch
 
 
 %define destdir %{_datadir}/%{name}/
-%define subdirs www webservice conf docs
+%define subdirs webservice conf docs www
+%define stddirs webservice conf docs
+%define wwwdirs www/*
 
 %prep
+rm -rf %{_builddir}
+
+%{__mkdir} -p -m 0755 %{_builddir}%{_datadir}/%{name}/new/admin
+cp -ar %{_sourcedir}/%{name}-%{version}/www/new/admin_new/. %{_builddir}%{_datadir}/%{name}/new/admin
+
 %setup -q
 
 
 %build
+cd %{_builddir}%{_datadir}/%{name}/new/admin
+npm install --include=dev
+npm run build
 
 
 %install
 rm -rf $RPM_BUILD_ROOT
 
-%{__mkdir} -p -m 0755 %{buildroot}/%{_datadir}/%{name}/
+%{__mkdir} -p -m 0755 %{buildroot}/%{_datadir}/%{name}
+%{__mkdir} -p -m 0755 %{buildroot}/%{_datadir}/%{name}/www
+%{__mkdir} -p -m 0755 %{buildroot}/%{_datadir}/%{name}/new/admin
+
 %{__mkdir} -p -m 0755 %{buildroot}/etc/httpd/conf.d/
 
 chmod 755 %{subdirs}
-cp -ar %{subdirs} %{buildroot}%{destdir}/
+
+cp -ar %{stddirs} %{buildroot}/%{_datadir}/%{name}
+cp -ar %{wwwdirs} %{buildroot}/%{_datadir}/%{name}/www
+cp -ar %{_builddir}%{_datadir}/%{name}/new/admin/dist/* %{buildroot}/%{_datadir}/%{name}/new/admin
 
 %{__install} conf/oe-ss.conf.example %{buildroot}/etc/httpd/conf.d/oe-ss.conf
 
@@ -87,10 +104,12 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) /etc/httpd/conf.d/oe-ss.conf
 %doc /%{destdir}/docs
 
+%pre
+rm -f %{_datadir}/%{name}/new/admin/*
+
 %post
 mkdir -p %{_sysconfdir}/oess/
 mkdir -p /var/run/oess/
 chmod a+rw /var/run/oess/
 
 %changelog
-

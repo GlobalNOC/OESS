@@ -1,16 +1,15 @@
-#!/usr/bin/perl
+package OESS::Node;
 
 use strict;
 use warnings;
 
-package OESS::Node;
-
 use OESS::DB::Node;
+
 
 =head2 new
 
 =cut
-sub new{
+sub new {
     my $that  = shift;
     my $class = ref($that) || $that;
 
@@ -22,18 +21,22 @@ sub new{
         short_name => undef,
         @_
     );
-    my $self = \%args;
 
+    my $self = \%args;
     bless $self, $class;
 
-
     if (defined $self->{db} && (defined $self->{name} || defined $self->{short_name} || defined $self->{node_id})) {
-        $self->_fetch_from_db();
-        return $self;
-    } else {
-        $self->{'logger'}->error("No Database Object specified");
-        return;
+        $self->{model} = OESS::DB::Node::fetch_v2(
+            db         => $self->{db},
+            name       => $self->{name},
+            node_id    => $self->{node_id},
+            short_name => $self->{short_name}
+        );
     }
+    return if !defined $self->{model};
+
+    $self->from_hash($self->{model});
+    return $self;
 }
 
 =head2 from_hash
@@ -48,17 +51,17 @@ sub from_hash {
     $self->{name} = $hash->{name};
     $self->{latitude} = $hash->{latitude};
     $self->{longitude} = $hash->{longitude};
-    $self->{vlan_tag_range} = $hash->{vlan_tag_range};
+    $self->{vlan_tag_range} = $hash->{vlan_range};
     $self->{operational_state_mpls} = $hash->{operational_state_mpls} || 'up';
     $self->{pending_diff} = $hash->{pending_diff} || 0;
     $self->{admin_state} = $hash->{admin_state} || 'active';
     $self->{short_name} = $hash->{short_name};
-    $self->{vendor} = $hash->{vendor};
+    $self->{make} = $hash->{make};
     $self->{model} = $hash->{model};
     $self->{sw_version} = $hash->{sw_version};
-    $self->{mgmt_addr} = $hash->{mgmt_addr};
+    $self->{ip_address} = $hash->{ip_address};
     $self->{loopback_address} = $hash->{loopback_address};
-    $self->{tcp_port} = $self->{tcp_port} || 830;
+    $self->{tcp_port} = $hash->{tcp_port} || 830;
 
     return 1;
 }
@@ -74,34 +77,39 @@ sub to_hash {
         name => $self->{'name'},
         latitude => $self->{'latitude'},
         longitude => $self->{'longitude'},
-        vlan_tag_range => $self->{vlan_tag_range},
+        vlan_range => $self->{vlan_tag_range},
         operational_state_mpls => $self->{operational_state_mpls},
         pending_diff => $self->{pending_diff},
         admin_state => $self->{admin_state},
         short_name => $self->{short_name},
-        vendor => $self->{vendor},
+        make => $self->{make},
         model => $self->{model},
         sw_version => $self->{sw_version},
-        mgmt_addr => $self->{mgmt_addr},
+        ip_address => $self->{ip_address},
         loopback_address => $self->{loopback_address},
         tcp_port => $self->{tcp_port}
     };
     return $obj;
 }
 
-=head2 _fetch_from_db
+=head2 create
+
+    my $err = $node->create;
 
 =cut
-sub _fetch_from_db{
+sub create {
     my $self = shift;
-    my $db = $self->{'db'};
-    my $hash = OESS::DB::Node::fetch(
-        db => $db,
-        name => $self->{name},
-        node_id => $self->{node_id},
-        short_name => $self->{short_name}
+
+    if (!defined $self->{db}) {
+        return "Couldn't create Node. Database handle is missing.";
+    }
+
+    my ($id, $err) = OESS::DB::Node::create(
+        db    => $self->{db},
+        model => $self->to_hash
     );
-    $self->from_hash($hash);
+    $self->{node_id} = $id;
+    return $err;
 }
 
 =head2 update
@@ -109,20 +117,26 @@ sub _fetch_from_db{
 =cut
 sub update {
     my $self = shift;
+    # If set assume higher lvl abstraction is handling the transaction
+    my $in_transaction = shift;
 
     if (!defined $self->{db}) {
         $self->{'logger'}->error("Could not update Node: No database object specified.");
         return;
     }
 
+    $self->{db}->start_transaction if !defined $in_transaction;
     my $err = OESS::DB::Node::update(
         db => $self->{db},
         node => $self->to_hash
     );
     if (defined $err) {
+        $self->{db}->rollback;
+        warn "Could not update Node: $err";
         $self->{'logger'}->error("Could not update Node: $err");
         return;
     }
+    $self->{db}->commit if !defined $in_transaction;
 
     return 1;
 }
@@ -194,17 +208,17 @@ sub longitude {
     return $self->{longitude};
 }
 
-=head2 mgmt_addr
+=head2 ip_address
 
 =cut
-sub mgmt_addr {
+sub ip_address {
     my $self = shift;
-    my $mgmt_addr = shift;
+    my $ip_address = shift;
 
-    if (defined $mgmt_addr) {
-         $self->{mgmt_addr} = $mgmt_addr;
+    if (defined $ip_address) {
+         $self->{ip_address} = $ip_address;
     }
-    return $self->{mgmt_addr};
+    return $self->{ip_address};
 }
 
 =head2 loopback_address
@@ -298,23 +312,23 @@ sub tcp_port {
     return $self->{tcp_port};
 }
 
-=head2 vendor
+=head2 make
 
 =cut
-sub vendor {
+sub make {
     my $self = shift;
-    my $vendor = shift;
+    my $make = shift;
 
-    if (defined $vendor) {
-         $self->{vendor} = $vendor;
+    if (defined $make) {
+         $self->{make} = $make;
     }
-    return $self->{vendor};
+    return $self->{make};
 }
 
-=head2 vlan_tag_range
+=head2 vlan_range
 
 =cut
-sub vlan_tag_range {
+sub vlan_range {
     my $self = shift;
     my $vlan_tag_range = shift;
 

@@ -2,30 +2,44 @@
   <div class="panel panel-default" style="padding: 0 15 0 15;">
 
     <div style="display:flex; flex-direction: row; flex-wrap: nowrap;">
-      <div>
-        <h3>Entity:&nbsp;</h3>
-        <h4>Node:&nbsp;</h3>
-        <h4>Port:&nbsp;</h4>
-        <h5 class="d1q">VLAN:&nbsp;</h5>
-        <h5 class="qnq">STag:</h5>
-        <h5 class="qnq">CTag:</h5>
-        <h6><b>Bandwidth:</b></h6>
-        <h6><b>MTU:</b></h6>
-      </div>
-
-      <div>
-        <h3 class="l2vpn-entity">NA</h3>
-        <h4 class="l2vpn-node"></h4>
-        <h4><span class="l2vpn-interface"></span> <small class="l2vpn-interface-description"></small></h4>
-        <h5 class="l2vpn-tag"></h5>
-        <h5 class="l2vpn-inner-tag"></h5>
-        <h6 class="l2vpn-bandwidth"></h6>
-        <h6 class="l2vpn-mtu"></h6>
-      </div>
+      <table style="margin-top:20px;">
+        <tr style="vertical-align:top;">
+          <td><h3 style="margin-top:0px;">Entity:&nbsp;</h3></td>
+          <td><h3 style="margin-top:0px;" class="l2vpn-entity">NA</h3></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h4 style="margin-top:0px;">Node:&nbsp;</h3></td>
+          <td><h4 style="margin-top:0px;" class="l2vpn-node"></h4></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h4 style="margin-top:0px;">Port:&nbsp;</h4></td>
+          <td><h4 style="margin-top:0px;"><span class="l2vpn-interface"></span> <small class="l2vpn-interface-description"></small></h4></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td>
+            <h5 style="margin-top:0px;" class="qnq">STag:</h5>
+            <h5 style="margin-top:0px;" class="d1q">VLAN:&nbsp;</h5>
+          </td>
+          <td><h5 style="margin-top:0px;" class="l2vpn-tag"></h5></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h5 style="margin-top:0px;" class="qnq">CTag:</h5></td>
+          <td><h5 style="margin-top:0px;" class="l2vpn-inner-tag"></h5></td>
+          <td></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h6 style="margin-top:0px;"><b>Bandwidth:</b></h6></td>
+          <td><h6 style="margin-top:0px;" class="l2vpn-bandwidth"></h6></td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td><h6 style="margin-top:0px;"><b>MTU:</b></h6></td>
+          <td><h6 style="margin-top:0px;" class="l2vpn-mtu"></h6></td>
+        </tr>
+      </table>
 
       <iframe class="l2vpn-graph" height="185" frameborder="0" style="flex: 1;"></iframe>
 
-      <div class="l2vpn-endpoint-buttons">
+      <div class="l2vpn-endpoint-buttons" style="flex-basis:60px;flex-shrink:0;flex-grow:0;">
         <button class="btn btn-link l2vpn-modify-button" type="button" onclick="" style="padding: 12 6 12 6;" title="Modify endpoint">
           <span class="glyphicon glyphicon-edit"></span>
         </button>

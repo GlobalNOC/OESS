@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.14
+Version: 2.0.15
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -77,6 +77,7 @@ Requires: perl(Net::DBus::Object)
 Requires: perl(Net::DBus::Reactor)
 Requires: perl(Net::Netconf)                >= 1.4.1
 Requires: perl(Net::Netconf::Manager)
+Requires: perl(Net::IP)
 Requires: perl(NetAddr::IP)
 Requires: perl(POSIX)
 Requires: perl(Proc::Daemon)
@@ -151,13 +152,21 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
+%doc %{_mandir}/man3/OESS::AccessController::Default.3pm.gz
 %doc %{_mandir}/man3/OESS::ACL.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::AWS.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::Azure.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::AzurePeeringConfig.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::AzureStub.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::AzureSyncer.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::AzureInterfaceSelector.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::BandwidthValidator.3pm.gz
 %doc %{_mandir}/man3/OESS::Cloud::GCP.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::Oracle.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::OracleStub.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::OracleSyncer.3pm.gz
+%doc %{_mandir}/man3/OESS::Cloud::PeeringConfig.3pm.gz
 %doc %{_mandir}/man3/OESS::Config.3pm.gz
 %doc %{_mandir}/man3/OESS::DB.3pm.gz
 %doc %{_mandir}/man3/OESS::DB::ACL.3pm.gz
@@ -231,6 +240,7 @@ rm -rf $RPM_BUILD_ROOT
 %{template_dir}/notification.tt.html
 %{template_dir}/notification_vrf.tt.html
 %{template_dir}/notification_templates_vrf.tmpl
+%{perl_vendorlib}/OESS/AccessController/Default.pm
 %{perl_vendorlib}/OESS/ACL.pm
 %{perl_vendorlib}/OESS/Circuit.pm
 %{perl_vendorlib}/OESS/Database.pm
@@ -254,9 +264,17 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_vendorlib}/OESS/Cloud.pm
 %{perl_vendorlib}/OESS/Cloud/AWS.pm
 %{perl_vendorlib}/OESS/Cloud/Azure.pm
+%{perl_vendorlib}/OESS/Cloud/AzurePeeringConfig.pm
+%{perl_vendorlib}/OESS/Cloud/AzureStub.pm
+%{perl_vendorlib}/OESS/Cloud/AzureSyncer.pm
 %{perl_vendorlib}/OESS/Cloud/AzureInterfaceSelector.pm
 %{perl_vendorlib}/OESS/Cloud/BandwidthValidator.pm
 %{perl_vendorlib}/OESS/Cloud/GCP.pm
+%{perl_vendorlib}/OESS/Cloud/Oracle.pm
+%{perl_vendorlib}/OESS/Cloud/OracleStub.pm
+%{perl_vendorlib}/OESS/Cloud/OracleSyncer.pm
+%{perl_vendorlib}/OESS/Cloud/PeeringConfig.pm
+
 %{perl_vendorlib}/OESS/Config.pm
 %{perl_vendorlib}/OESS/Endpoint.pm
 %{perl_vendorlib}/OESS/Entity.pm

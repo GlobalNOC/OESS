@@ -12,6 +12,7 @@ use Log::Log4perl;
 use GRNOC::WebService::Dispatcher;
 use GRNOC::WebService::Method;
 
+use OESS::Config;
 use OESS::Cloud;
 use OESS::DB;
 use OESS::DB::User;
@@ -28,11 +29,13 @@ use OESS::VRF;
 
 Log::Log4perl::init_and_watch('/etc/oess/logging.conf', 10);
 
+my $config = new OESS::Config();
+my $db     = new OESS::DB(config_obj => $config);
 
-my $db = OESS::DB->new();
 my $mq = OESS::RabbitMQ::Client->new(
-    topic   => 'OF.FWDCTL.RPC',
-    timeout => 120
+    topic      => 'OF.FWDCTL.RPC',
+    timeout    => 120,
+    config_obj => $config
 );
 
 my $ws = GRNOC::WebService::Dispatcher->new();
@@ -53,6 +56,12 @@ $get_circuits->add_input_parameter(
     pattern => $GRNOC::WebService::Regex::INTEGER,
     required => 0,
     description => 'Identifier of Circuit to filter results by.'
+);
+$get_circuits->add_input_parameter(
+    name => 'name',
+    pattern => $GRNOC::WebService::Regex::TEXT,
+    required => 0,
+    description => 'Name of Circuit to filter results by.'
 );
 $get_circuits->add_input_parameter(
     name => 'state',
@@ -90,6 +99,7 @@ sub get {
     my $circuits = [];
     my $circuit_datas = OESS::DB::Circuit::fetch_circuits(
         db => $db,
+        name => $args->{name}->{value},
         state => $args->{state}->{value},
         circuit_id => $args->{circuit_id}->{value},
         workgroup_id => $args->{workgroup_id}->{value}
@@ -217,19 +227,17 @@ sub provision {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
-                      username     => $ENV{REMOTE_USER},
-                      workgroup_id => $args->{workgroup_id}->{value},
-                      role         => 'normal');
-    if (defined $err) {
-        $method->set_error($err);
+    my ($in_workgroup, $in_workgroup_err) = $user->has_workgroup_access(
+        role         => 'normal',
+        workgroup_id => $args->{workgroup_id}{value}
+    );
+    my ($is_admin, undef) = $user->has_system_access(
+        role => 'normal'
+    );
+    if (!$in_workgroup && !$is_admin) {
+        $method->set_error($in_workgroup_err);
         return;
     }
-    my ($is_admin, $is_admin_err) = OESS::DB::User::has_system_access(
-        db       => $db,
-        role     => 'normal',
-        username => $ENV{REMOTE_USER}
-    );
 
     if (defined $args->{circuit_id}->{value} && $args->{circuit_id}->{value} != -1) {
         my $circuit = new OESS::L2Circuit(
@@ -240,12 +248,6 @@ sub provision {
             $method->set_error("Couldn't load Circuit from database.");
             return;
         }
-
-        if (!$user->is_admin && !$user->in_workgroup($circuit->workgroup_id)) {
-            $method->set_error("User '$user->{username}' isn't a member of this Circuit's workgroup.");
-            return;
-        }
-
         return update($method, $args);
     }
 
@@ -345,7 +347,11 @@ sub provision {
         } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
             $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
         } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
-            $ep->{mtu} = 1440;
+            if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
+                $ep->{mtu} = 1500;
+            } else {
+                $ep->{mtu} = 1440;
+            }
         } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
             $ep->{mtu} = 1500;
         } else {
@@ -414,7 +420,7 @@ sub provision {
 
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
-            OESS::Cloud::setup_endpoints($circuit->description, $circuit->endpoints, $is_admin);
+            OESS::Cloud::setup_endpoints($db, undef, $circuit->description, $circuit->endpoints, $is_admin);
 
             foreach my $ep (@{$circuit->endpoints}) {
                 # It's expected that layer2 connections to azure pass
@@ -463,10 +469,13 @@ sub update {
 
     $db->start_transaction;
 
-    my ($is_admin, $is_admin_err) = OESS::DB::User::has_system_access(
-        db       => $db,
-        role     => 'normal',
-        username => $ENV{REMOTE_USER}
+    my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
+    if (!defined $user) {
+        $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
+        return;
+    }
+    my ($is_admin, undef) = $user->has_system_access(
+        role => 'normal'
     );
 
     my $circuit = new OESS::L2Circuit(
@@ -487,6 +496,7 @@ sub update {
     $circuit->remote_url($args->{remote_url}->{value});
     $circuit->remote_requester($args->{remote_requester}->{value});
     $circuit->external_identifier($args->{external_identifier}->{value});
+    $circuit->user_id($user->{user_id});
 
     my $err = $circuit->update;
     if (defined $err) {
@@ -569,7 +579,11 @@ sub update {
             } elsif ($ep->{cloud_interconnect_type} eq 'aws-hosted-vinterface') {
                 $ep->{mtu} = (!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500;
             } elsif ($ep->{cloud_interconnect_type} eq 'gcp-partner-interconnect') {
-                $ep->{mtu} = 1440;
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
+                    $ep->{mtu} = 1500;
+                } else {
+                    $ep->{mtu} = 1440;
+                }
             } elsif ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
                 $ep->{mtu} = 1500;
             } else {
@@ -602,14 +616,18 @@ sub update {
             } elsif ($endpoint->cloud_interconnect_type eq 'aws-hosted-vinterface') {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
             } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
-                $endpoint->mtu(1440);
+                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
+                    $endpoint->mtu(1500);
+                } else {
+                    $endpoint->mtu(1440);
+                }
             } elsif ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
                 $endpoint->mtu(1500);
             } else {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9000 : 1500);
             }
 
-            my $err = $endpoint->update_db;
+	    my $err = $endpoint->update_db;
             if (defined $err) {
                 $method->set_error("Couldn't update Endpoint: $err");
                 $db->rollback;
@@ -661,7 +679,7 @@ sub update {
     if (!$args->{skip_cloud_provisioning}{value}) {
         eval {
             OESS::Cloud::cleanup_endpoints($del_endpoints);
-            OESS::Cloud::setup_endpoints($circuit->description, $add_endpoints, $is_admin);
+            OESS::Cloud::setup_endpoints($db, undef, $circuit->description, $add_endpoints, $is_admin);
 
             foreach my $ep (@{$circuit->endpoints}) {
                 # It's expected that layer2 connections to azure pass
@@ -753,22 +771,13 @@ $ws->register_method($remove);
 sub remove {
     my ($method, $args) = @_;
 
+    $db->start_transaction;
+
     my $user = new OESS::User(db => $db, username => $ENV{REMOTE_USER});
     if (!defined $user) {
         $method->set_error("User '$ENV{REMOTE_USER}' is invalid.");
         return;
     }
-
-    my ($permissions, $err) = OESS::DB::User::has_workgroup_access(db => $db,
-                      username     => $ENV{REMOTE_USER},
-                      workgroup_id => $args->{workgroup_id}->{value},
-                      role         => 'normal');
-    if (defined $err) {
-        $method->set_error($err);
-        return;
-    }
-
-    $db->start_transaction;
 
     my $circuit = new OESS::L2Circuit(
         db => $db,
@@ -779,15 +788,31 @@ sub remove {
         $db->rollback;
         return;
     }
-    if (!$user->is_admin && !$user->in_workgroup($circuit->workgroup_id)) {
-        $method->set_error("User '$user->{username}' isn't a member of this Circuit's workgroup.");
+
+    my ($in_workgroup, $in_workgroup_err) = $user->has_workgroup_access(
+        role         => 'normal',
+        workgroup_id => $circuit->workgroup_id
+    );
+    my ($is_admin, undef) = $user->has_system_access(
+        role => 'normal'
+    );
+    if (!$in_workgroup && !$is_admin) {
+        $method->set_error($in_workgroup_err);
+        $db->rollback;
         return;
     }
 
     $circuit->load_endpoints;
     $circuit->load_paths;
+    $circuit->load_workgroup;
 
     my $previous = $circuit->to_hash;
+    my $err = $circuit->decom(user_id => $user->user_id);
+    if (defined $err) {
+        $method->set_error($err);
+        $db->rollback;
+        return;
+    }
 
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
@@ -796,31 +821,6 @@ sub remove {
         if ($@) {
             warn "Couldn't cleanup Circuit's Cloud Endpoints: $@";
         }
-    }
-
-    foreach my $ep (@{$circuit->endpoints}) {
-        my $err = $ep->remove;
-        if (defined $err) {
-            $method->set_error("Couldn't remove Circuit: $err");
-            $db->rollback;
-            return;
-        }
-    }
-
-    foreach my $path (@{$circuit->paths}) {
-        my $err = $path->remove;
-        if (defined $err) {
-            $method->set_error("Couldn't remove Circuit: $err");
-            $db->rollback;
-            return;
-        }
-    }
-
-    my $err_rm = $circuit->remove(user_id => $user->{user_id});
-    if (defined $err_rm) {
-        $method->set_error("Couldn't remove Circuit: $err_rm");
-        $db->rollback;
-        return;
     }
 
     _send_remove_command($previous);

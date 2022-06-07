@@ -140,8 +140,13 @@ sub local_ip{
 =head2 ip_version
 
 =cut
-sub ip_version{
+sub ip_version {
     my $self = shift;
+    my $version = shift;
+
+    if (defined $version) {
+        $self->{'ip_version'} = $version;
+    }
     return $self->{'ip_version'};
 }
 

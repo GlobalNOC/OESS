@@ -27,6 +27,7 @@ sub new{
         interface_id => undef,
         logger       => Log::Log4perl->get_logger("OESS.Interface"),
         model        => undef,
+        bandwidth_validator_config => "/etc/oess/interface-speed-config.xml",
         @_
     );
 
@@ -75,6 +76,7 @@ sub from_hash{
     $self->{'utilized_bandwidth'} = $hash->{'utilized_bandwidth'} || 0;
     $self->{'bandwidth'} = $hash->{'bandwidth'} || 0;
     $self->{'provisionable_bandwidth'} = $hash->{'provisionable_bandwidth'};
+    $self->{'role'} = $hash->{'role'} || 'unknown';
     $self->{'mtu'} = $hash->{'mtu'} || 0;
 
     return 1;
@@ -94,10 +96,12 @@ sub to_hash{
         interface_id => $self->interface_id(),
         node_id => $self->{node_id},
         admin_state => $self->{'admin_state'},
+        mpls_vlan_tag_range => $self->{'mpls_vlan_tag_range'},
         operational_state => $self->{'operational_state'},
         workgroup_id => $self->workgroup_id(),
         utilized_bandwidth => $self->{'utilized_bandwidth'},
         bandwidth => $self->{'bandwidth'},
+        role => $self->{'role'},
         provisionable_bandwidth => $self->{'provisionable_bandwidth'},
         mtu => $self->{'mtu'}
     };
@@ -181,7 +185,7 @@ sub create {
 =head2 update_db
 
 =cut
-sub update_db{
+sub update_db {
     my $self = shift;
 
     if (!defined $self->{'db'}) {
@@ -287,23 +291,33 @@ sub name{
 =head2 cloud_interconnect_id
 
 =cut
-sub cloud_interconnect_id{
+sub cloud_interconnect_id {
     my $self = shift;
+    my $cloud_interconnect_id = shift;
+
+    if (defined $cloud_interconnect_id) {
+        $self->{cloud_interconnect_id} = $cloud_interconnect_id;
+    }
     return $self->{'cloud_interconnect_id'};
 }
 
 =head2 cloud_interconnect_type
 
 =cut
-sub cloud_interconnect_type{
+sub cloud_interconnect_type {
     my $self = shift;
+    my $cloud_interconnect_type = shift;
+
+    if (defined $cloud_interconnect_type) {
+        $self->{cloud_interconnect_type} = $cloud_interconnect_type;
+    }
     return $self->{'cloud_interconnect_type'};
 }
 
 =head2 description
 
 =cut
-sub description{
+sub description {
     my $self = shift;
     my $description = shift;
 
@@ -332,22 +346,36 @@ sub acls{
 
 =cut
 sub role{
-
+    my $self = shift;
+    return $self->{'role'};
 }
 
 =head2 node
 
 =cut
-sub node{
+sub node {
     my $self = shift;
     return $self->{'node'};
+}
+
+=head2 node_id
+
+=cut
+sub node_id {
+    my $self = shift;
+    return $self->{'node_id'};
 }
 
 =head2 workgroup_id
 
 =cut
-sub workgroup_id{
+sub workgroup_id {
     my $self = shift;
+    my $workgroup_id = shift;
+
+    if (defined $workgroup_id) {
+        $self->{workgroup_id} = $workgroup_id;
+    }
     return $self->{'workgroup_id'};
 }
 
@@ -361,9 +389,14 @@ sub vlan_tag_range{
 =head2 mpls_vlan_tag_range
 
 =cut
-sub mpls_vlan_tag_range{
+sub mpls_vlan_tag_range {
     my $self = shift;
-    return $self->{'mpls_vlan_tag_range'};
+    my $mpls_vlan_tag_range = shift;
+
+    if (defined $mpls_vlan_tag_range) {
+        $self->{mpls_vlan_tag_range} = $mpls_vlan_tag_range;
+    }
+    return $self->{mpls_vlan_tag_range};
 }
 
 =head2 used_vlans
@@ -496,8 +529,10 @@ sub is_bandwidth_valid {
         @_
     };
 
+    # Normal interfaces are not intended to limit the flow of traffic. Return 0
+    # if a user specifies a bandwidth other than 0 on this interface. 
     if (!defined $self->cloud_interconnect_type) {
-        return 1;
+        return ($args->{bandwidth} == 0) ? 1 : 0;
     }
 
     if ($self->cloud_interconnect_type eq 'aws-hosted-vinterface') {
@@ -505,8 +540,8 @@ sub is_bandwidth_valid {
     }
 
     my $validator = new OESS::Cloud::BandwidthValidator(
-        config => "/etc/oess/interface-speed-config.xml",
-        interface => $self
+        config_path => $self->{bandwidth_validator_config},
+        interface   => $self
     );
     $validator->load;
 

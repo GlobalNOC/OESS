@@ -13,7 +13,7 @@ use warnings;
 package OESS::DB;
 
 use GRNOC::Log;
-use GRNOC::Config;
+use OESS::Config;
 
 use OESS::DB::VRF;
 use OESS::DB::Node;
@@ -39,24 +39,24 @@ Minimal configuration:
     </configuration>
 
 =cut
-sub new{
+sub new {
     my $that  = shift;
     my $class = ref($that) || $that;
 
-    my $logger = Log::Log4perl->get_logger("OESS.DB");
-
     my %args = (
-        config => '/etc/oess/database.xml',
+        config     => '/etc/oess/database.xml',
+        config_obj => undef,
+        logger     => Log::Log4perl->get_logger("OESS.DB"),
         @_
-        );
+    );
 
     my $self = \%args;
 
     bless $self, $class;
 
-    $self->{'logger'} = $logger;
-
-    $self->_process_config($args{'config'});
+    if (!defined $self->{config_obj}) {
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
+    }
 
     $self->_connect_to_db();
     
@@ -69,39 +69,21 @@ sub new{
 sub _connect_to_db{
     my $self = shift;
    
-    my $creds = $self->{'configuration'}->{'credentials'};
-    my $database = $creds->{'database'};
-    my $username = $creds->{'username'};
-    my $password = $creds->{'password'};
+    my $database = $self->{config_obj}->mysql_database;
+    my $username = $self->{config_obj}->mysql_user;
+    my $password = $self->{config_obj}->mysql_pass;
+    my $host     = $self->{config_obj}->mysql_host;
+    my $port     = $self->{config_obj}->mysql_port;
 
-    my $dbh      = DBI->connect("DBI:mysql:$database", $username, $password,
-                                {mysql_auto_reconnect => 1 }
-        );
-    
-    if (! $dbh){
-        return ;
-    }
-    $dbh->{'mysql_auto_reconnect'}   = 1;   
+    $self->{dbh} = DBI->connect(
+        "DBI:mysql:database=$database;host=$host;port=$port",
+        $username,
+        $password,
+        { mysql_auto_reconnect => 1 }
+    );
+    return if !$self->{dbh};
 
-
-    $self->{'dbh'} = $dbh;
-}
-
-=head2 _process_config
-
-=cut
-sub _process_config{
-    my $self = shift;
-    my $config = shift;
-    
-    my $config_filename = $config;
-    $config = XML::Simple::XMLin($config_filename);
-    my $username = $config->{'credentials'}->{'username'};
-    my $password = $config->{'credentials'}->{'password'};
-    my $database = $config->{'credentials'}->{'database'};
-
-    $self->{'configuration'} = $config;
-
+    $self->{db}->{'mysql_auto_reconnect'} = 1;
 }
 
 =head2 execute_query

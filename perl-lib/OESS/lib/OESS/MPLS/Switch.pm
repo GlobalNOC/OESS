@@ -35,13 +35,12 @@ use JSON::XS;
 sub new {
     my $class = shift;
     my %args = (
-        rabbitMQ_host => undef,
-        rabbitMQ_port => undef,
-        rabbitMQ_user => undef,
-        rabbitMQ_pass => undef,
+        config    => '/etc/oess/database.xml',
+        id        => 0,
+        node      => undef,
+        topic     => undef,
+        type      => 'unknown', # Used to name switch procs viewed via `ps`
         use_cache => 1,
-        node => undef,
-        type => 'unknown', # Used to name switch procs viewed via `ps`
         @_
     );
 
@@ -49,41 +48,38 @@ sub new {
     bless $self, $class;
 
     $self->{'logger'} = Log::Log4perl->get_logger('OESS.MPLS.Switch.' . $self->{'id'});
-    $self->{'config'} = $args{'config'} || '/etc/oess/database.xml';
     $self->{'config_obj'} = new OESS::Config(config_filename => $self->{'config'});
-
-    $self->{'node'}->{'node_id'} = $self->{'id'};
     
-    if($self->{'use_cache'}){
-	$self->_update_cache();
+    if ($self->{'use_cache'}) {
+        $self->_update_cache();
+    } else {
+        $self->{'node'} = { node_id => $self->{'id'} };
     }
 
     $0 = "oess_mpls_switch.$self->{type}($self->{node}->{mgmt_addr})";
 
     $self->create_device_object();
-    if(!defined($self->{'device'})){
-	$self->{'logger'}->error("Unable to create Device instance!");
-	die;
+    if (!defined $self->{'device'}) {
+        $self->{'logger'}->error("Unable to create Device instance!");
+        die;
     }
-    
-    if(!defined($self->{'topic'})){
-	$self->{'topic'} = "MPLS.FWDCTL.Switch";
+    if (!defined $self->{topic}) {
+        $self->{topic} = "MPLS.FWDCTL.Switch.$self->{node}->{mgmt_addr}.$self->{node}->{tcp_port}";
     }
 
-    my $topic = $self->{'topic'} . "." .  $self->{'node'}->{'mgmt_addr'} . "." . $self->{'node'}->{'tcp_port'};
-    $self->{'logger'}->error("Listening to topic: " . $topic);
-
-    my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new( host => $args{'rabbitMQ_host'},
-                                                       port => $args{'rabbitMQ_port'},
-                                                       user => $args{'rabbitMQ_user'},
-                                                       pass => $args{'rabbitMQ_pass'},
-                                                       topic => $topic,
-                                                       exchange => 'OESS',
-                                                       exclusive => 1);
+    my $dispatcher = GRNOC::RabbitMQ::Dispatcher->new(
+        host => $self->{'config_obj'}->rabbitmq_host,
+        port => $self->{'config_obj'}->rabbitmq_port,
+        user => $self->{'config_obj'}->rabbitmq_user,
+        pass => $self->{'config_obj'}->rabbitmq_pass,
+        topic => $self->{topic},
+        exchange => 'OESS',
+        exclusive => 1
+    );
     $self->_register_rpc_methods( $dispatcher );
+    $self->{'logger'}->info("Listening to topic: " . $self->{topic});
 
-    #attempt to reconnect!
-    warn "Setting up reconnect timer\n";
+    # Setup reconnect timer
     $self->{'connect_timer'} = AnyEvent->timer(
         after    => 60,
         interval => 60,
@@ -92,15 +88,15 @@ sub new {
                 $self->{'logger'}->warn("Device is not connected. Attempting to connect");
                 return $self->{'device'}->connect();
             }
-        });
+        }
+    );
 
     #try and connect up right away
     my $ok = $self->{'device'}->connect();
     if (!$ok) {
-        warn "Unable to connect\n";
         $self->{'logger'}->error("Connection to device could not be established.");
     } else {
-        $self->{'logger'}->debug("Connection to device was established.");
+        $self->{'logger'}->info("Connection to $self->{node}->{mgmt_addr}:$self->{node}->{tcp_port} was established.");
     }
 
     $self->{'ckts'} = {};

@@ -24,6 +24,32 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `oess` /*!40100 DEFAULT CHARACTER SET u
 USE `oess`;
 
 --
+-- Table structure for table `acl_history`
+--
+
+DROP TABLE IF EXISTS `acl_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `acl_history` (
+  `history_id` int(10) NOT NULL,
+  `interface_acl_id` int(10) NOT NULL,
+  KEY `history_acl_history_fk` (`history_id`),
+  KEY `acl_acl_history_fk` (`interface_acl_id`),
+  CONSTRAINT `acl_history_ibfk_2` FOREIGN KEY (`interface_acl_id`) REFERENCES `interface_acl` (`interface_acl_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `acl_history_ibfk_1` FOREIGN KEY (`history_id`) REFERENCES `history` (`history_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `acl_history`
+--
+
+LOCK TABLES `acl_history` WRITE;
+/*!40000 ALTER TABLE `acl_history` DISABLE KEYS */;
+/*!40000 ALTER TABLE `acl_history` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `circuit`
 --
 
@@ -148,6 +174,66 @@ CREATE TABLE `circuit_instantiation` (
 LOCK TABLES `circuit_instantiation` WRITE;
 /*!40000 ALTER TABLE `circuit_instantiation` DISABLE KEYS */;
 /*!40000 ALTER TABLE `circuit_instantiation` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `history`
+--
+
+DROP TABLE IF EXISTS `history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `history` (
+  `history_id` int(10) NOT NULL AUTO_INCREMENT,
+  `date` int(10) NOT NULL,
+  `user_id` int(10) NOT NULL,
+  `workgroup_id` int(10) NOT NULL,
+  `event` varchar(255) DEFAULT NULL,
+  `state` enum('scheduled','deploying','active','decom','looped','reserved','provisioned') NOT NULL DEFAULT 'scheduled',
+  `type` varchar(255) DEFAULT NULL,
+  `object` text NOT NULL,
+  PRIMARY KEY (`history_id`),
+  KEY `datex` (`date`),
+  KEY `user_history_fk` (`user_id`),
+  KEY `workgroup_history_fk` (`workgroup_id`),
+  CONSTRAINT `history_ibfk_2` FOREIGN KEY (`workgroup_id`) REFERENCES `workgroup` (`workgroup_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `history_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `history`
+--
+
+LOCK TABLES `history` WRITE;
+/*!40000 ALTER TABLE `history` DISABLE KEYS */;
+/*!40000 ALTER TABLE `history` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `history`
+--
+
+DROP TABLE IF EXISTS `vrf_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `vrf_history` (
+  `history_id` int(10) NOT NULL,
+  `vrf_id` int(10) NOT NULL,
+  KEY `history_vrf_history_fk` (`history_id`),
+  KEY `vrf_vrf_history_fk` (`vrf_id`),
+  CONSTRAINT `vrf_history_ibfk_2` FOREIGN KEY (`vrf_id`) REFERENCES `vrf` (`vrf_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `vrf_history_ibfk_1` FOREIGN KEY (`history_id`) REFERENCES `history` (`history_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `vrf_history`
+--
+
+LOCK TABLES `vrf_history` WRITE;
+/*!40000 ALTER TABLE `vrf_history` DISABLE KEYS */;
+/*!40000 ALTER TABLE `vrf_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1114,7 +1200,7 @@ DROP TABLE IF EXISTS `workgroup`;
 CREATE TABLE `workgroup` (
   `workgroup_id` int(10) NOT NULL AUTO_INCREMENT,
   `description` varchar(255) NOT NULL,
-  `name` varchar(255) NOT NULL,
+  `name` varchar(20) NOT NULL,
   `external_id` varchar(255) DEFAULT NULL,
   `type` enum('demo','normal','admin') NOT NULL DEFAULT 'normal',
   `max_mac_address_per_end` int(10) DEFAULT '10',

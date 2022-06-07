@@ -31,11 +31,11 @@ OESS::Database - Database Interaction Module
 
 =head1 VERSION
 
-Version 2.0.14
+Version 2.0.15
 
 =cut
 
-our $VERSION = '2.0.14';
+our $VERSION = '2.0.15';
 
 =head1 SYNOPSIS
 
@@ -77,13 +77,14 @@ use XML::Simple;
 use Array::Utils qw(intersect);
 use XML::Writer;
 use GRNOC::Config;
+use OESS::Config;
 use OESS::Topology;
 use DateTime;
 use Data::Dumper;
 
 use Socket qw( inet_aton inet_ntoa);
 
-use constant VERSION => '2.0.14';
+use constant VERSION => '2.0.15';
 use constant MAX_VLAN_TAG => 4096;
 use constant MIN_VLAN_TAG => 1;
 use constant OESS_PW_FILE => "/etc/oess/.passwd.xml";
@@ -129,6 +130,7 @@ sub new {
     my %args = (
 	config => '/etc/oess/database.xml' ,
 	topo   => undef,
+    config_obj => undef,
 	@_,
 	);
     my $self = \%args;
@@ -184,13 +186,23 @@ sub new {
 	topo => $config->{'oscars'}->{'topo'}
     };
     
-    my $dbh      = DBI->connect("DBI:mysql:$database", $username, $password,
-				{mysql_auto_reconnect => 1 }
-        );
-
-    if (! $dbh){
-      return ;
+    if (!defined $self->{config_obj}) {
+        $self->{config_obj} = new OESS::Config(config_filename => $self->{config});
     }
+
+    $database = $self->{config_obj}->mysql_database;
+    $username = $self->{config_obj}->mysql_user;
+    $password = $self->{config_obj}->mysql_pass;
+    my $host  = $self->{config_obj}->mysql_host;
+    my $port  = $self->{config_obj}->mysql_port;
+
+    my $dbh = DBI->connect(
+        "DBI:mysql:database=$database;host=$host;port=$port",
+        $username,
+        $password,
+        { mysql_auto_reconnect => 1 }
+    );
+    return if !$dbh;
 
     # set the defualt vlan range, if not defined in config default to 1-4096
     $self->default_vlan_range(range => $config->{'default_vlan_range'} || '1-4096');
@@ -1867,7 +1879,6 @@ sub get_circuit_scheduled_events {
 
     return $events;
 }
-
 
 =head2 get_circuit_history
 
@@ -10995,10 +11006,8 @@ sub get_active_link_id_by_connectors{
 
     #find current link if any
     my $link = $self->get_link_by_a_or_z_end( interface_a_id => $interface_a_id, interface_z_id => $interface_z_id);
-    print STDERR "Found LInk: " . Dumper($link);
     if(defined($link)){
         $link = @{$link}[0];
-        print STDERR "Returning LinkID: " . $link->{'link_id'} . "\n";
         return ($link->{'link_id'},$link->{''});
     }
 

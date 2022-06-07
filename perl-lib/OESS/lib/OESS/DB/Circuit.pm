@@ -159,6 +159,7 @@ sub fetch_circuits {
         db           => undef,
         circuit_id   => undef,
         interface_id => undef,
+        name         => undef,
         node_id      => undef,
         workgroup_id => undef,
         state        => undef,
@@ -180,6 +181,10 @@ sub fetch_circuits {
     if (defined $args->{node_id}) {
         push @$params, "interface.node_id=?";
         push @$values, $args->{node_id};
+    }
+    if (defined $args->{name}) {
+        push @$params, "circuit.name=?";
+        push @$values, $args->{name};
     }
     if (defined $args->{workgroup_id}) {
         push @$params, "(circuit.workgroup_id=? OR interface.workgroup_id=?)";

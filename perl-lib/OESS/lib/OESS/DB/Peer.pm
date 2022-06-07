@@ -4,6 +4,7 @@ use warnings;
 package OESS::DB::Peer;
 
 use Data::Dumper;
+use Net::IP;
 
 =head1 OESS::DB::Peer
 
@@ -46,15 +47,38 @@ sub create {
 
     $args->{model}->{circuit_ep_id} = (exists $args->{model}->{circuit_ep_id}) ? $args->{model}->{circuit_ep_id} : undef;
     $args->{model}->{vrf_ep_id} = (exists $args->{model}->{vrf_ep_id}) ? $args->{model}->{vrf_ep_id} : undef;
-    $args->{model}->{operational_state} = (defined $args->{model}->{operational_state} && $args->{model}->{operational_state} eq 'up') ? 1 : 0;
+    my $operational_state = (defined $args->{model}->{operational_state} && $args->{model}->{operational_state} eq 'up') ? 1 : 0;
     $args->{model}->{bfd} = (defined $args->{model}->{bfd}) ? $args->{model}->{bfd} : 0;
 
+    # Attempt to auto-detect ip version if not provided
     if (!defined $args->{model}->{ip_version}) {
         if ($args->{model}->{local_ip} =~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
             $args->{model}->{ip_version} = 'ipv4';
         } else {
             $args->{model}->{ip_version} = 'ipv6';
         }
+    }
+
+    # Validate ip addresses
+    if ($args->{model}->{ip_version} eq 'ipv4') {
+        if ($args->{model}->{local_ip} !~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
+            return (undef, "IPv4 address validation failed for '$args->{model}->{local_ip}'.");
+        }
+        if ($args->{model}->{peer_ip} !~ /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$/) {
+            return (undef, "IPv4 address validation failed for '$args->{model}->{peer_ip}'.");
+        }
+    } else {
+        if ($args->{model}->{local_ip} !~ /^((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?(\/([0-9]|[0-9][0-9]|1[0-1][0-9]|12[0-8]))$/) {
+            return (undef, "IPv6 address validation failed for '$args->{model}->{local_ip}'.");
+        }
+        if ($args->{model}->{peer_ip} !~ /^((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?(\/([0-9]|[0-9][0-9]|1[0-1][0-9]|12[0-8]))$/) {
+            return (undef, "IPv6 address validation failed for '$args->{model}->{peer_ip}'.");
+        }
+    }
+
+    if ($args->{model}->{ip_version} eq 'ipv6') {
+        $args->{model}->{local_ip} = _short_ip($args->{model}->{local_ip});
+        $args->{model}->{peer_ip} = _short_ip($args->{model}->{peer_ip});
     }
 
     my $peer_id = $args->{db}->execute_query($q1, [
@@ -64,7 +88,7 @@ sub create {
         $args->{model}->{peer_asn},
         $args->{model}->{peer_ip},
         $args->{model}->{md5_key},
-        $args->{model}->{operational_state},
+        $operational_state,
         'active',
         $args->{model}->{bfd},
         $args->{model}->{ip_version}
@@ -180,6 +204,15 @@ sub update {
     my $params = [];
     my $values = [];
 
+    if (defined $args->{peer}->{ip_version}) {
+        push @$params, 'ip_version=?';
+        push @$values, $args->{peer}->{ip_version};
+
+        if ($args->{peer}->{ip_version} eq 'ipv6') {
+            $args->{peer}->{local_ip} = _short_ip($args->{peer}->{local_ip}) if defined $args->{peer}->{local_ip};
+            $args->{peer}->{peer_ip} = _short_ip($args->{peer}->{peer_ip}) if defined $args->{peer}->{peer_ip};
+        }
+    }
     if (defined $args->{peer}->{peer_ip}) {
         push @$params, 'peer_ip=?';
         push @$values, $args->{peer}->{peer_ip};
@@ -193,8 +226,9 @@ sub update {
         push @$values, $args->{peer}->{local_ip};
     }
     if (defined $args->{peer}->{operational_state}) {
+        my $operational_state = ($args->{peer}->{operational_state} eq 'up') ? 1 : 0;
         push @$params, 'operational_state=?';
-        push @$values, $args->{peer}->{operational_state};
+        push @$values, $operational_state;
     }
     if (defined $args->{peer}->{bfd}) {
         push @$params, 'bfd=?';
@@ -219,5 +253,23 @@ sub update {
     return;
 }
 
+=head2 _short_ip
+
+    my $addr = _short_ip('fd28:221e:28fa:61d3:0000:0000:0000:0002/126');
+    # => 'fd28:221e:28fa:61d3::2/126'                                                                                                                                                                                                                                   
+
+Return the IP in short format: IPv4 addresses: 194.5/16 IPv6 addresses: ab32:f000::
+
+=cut
+sub _short_ip {
+    my $addr = shift;
+
+    my @parts_a = split('/', $addr);
+    my $ipstr_a = $parts_a[0];
+    my $maskbits_a = $parts_a[1];
+
+    my $nip_a = new Net::IP($ipstr_a);
+    return $nip_a->short . '/' . $maskbits_a;
+}
 
 1;

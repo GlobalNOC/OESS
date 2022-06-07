@@ -244,8 +244,7 @@ sub set_cross_connection_state_to_provisioned {
         bandwidth        => undef,
         vlan             => undef,
         local_asn        => undef,
-        primary_prefix   => undef,
-        secondary_prefix => undef,
+        peering          => undef,
         @_
     };
 
@@ -257,34 +256,26 @@ sub set_cross_connection_state_to_provisioned {
     my $url = "$base_url/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}?api-version=2018-12-01";
 
     my $payload = {
-        id => "/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}",
+        id         => "/subscriptions/$sub/resourceGroups/$group/providers/Microsoft.Network/expressRouteCrossConnections/$args->{service_key}",
+        location   => $args->{region},
         properties => {
-            bandwidthInMbps => $args->{bandwidth},
+            bandwidthInMbps                  => $args->{bandwidth},
+            expressRouteCircuit              => { id => $args->{circuit_id} },
+            peeringLocation                  => $args->{peering_location},
+            peerings                         => [],
             serviceProviderProvisioningState => 'Provisioned',
-            peeringLocation => $args->{peering_location},
-            expressRouteCircuit => { id => $args->{circuit_id} }
-        },
-        location => $args->{region}
+        }
     };
 
     if (defined $args->{peering}) {
-        $payload->{properties}->{peerings} = [
-            {
-                name => 'AzurePrivatePeering',
-                properties => {
-                    peerASN => $args->{peering}->{local_asn},
-                    primaryPeerAddressPrefix => $args->{peering}->{primary_prefix},
-                    secondaryPeerAddressPrefix => $args->{peering}->{secondary_prefix},
-                    vlanId => $args->{peering}->{vlan},
-                    state => 'Enabled',
-                    # NOTE: private ipv6 peerings not supported by azure
-                    # ipv6PeeringConfig => {
-                    #     primaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::/126",
-                    #     secondaryPeerAddressPrefix => "3FFE:FFFF:0:CD30::4/126"
-                    # }
-                }
-            }
-        ];
+        my $peering_properties = $args->{peering};
+        $peering_properties->{peerASN} = $args->{local_asn};
+        $peering_properties->{vlanId}  = $args->{vlan};
+
+        $payload->{properties}->{peerings} = [{
+                name       => 'AzurePrivatePeering',
+                properties => $peering_properties
+        }];
     }
 
     my $req = HTTP::Request->new("PUT", $url);

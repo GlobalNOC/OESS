@@ -81,7 +81,6 @@ sub fetch_platform {
                 my $result = $results->{$node->{name}};
                 next if !defined $result;
 
-                $self->{db}->start_transaction;
                 my $device = new OESS::Node(db => $self->{db}, name => $node->{name});
                 if (!defined $device) {
                     warn "Couldn't find node $result->{name}.";
@@ -92,9 +91,8 @@ sub fetch_platform {
 
                 $device->model($result->{model});
                 $device->sw_version($result->{version});
-                $device->vendor('Cisco') if ($result->{name} eq 'ios-xr');
+                $device->make('Cisco') if ($result->{name} eq 'ios-xr');
                 $device->update;
-                $self->{db}->commit;
             }
             $cv->send;
         }
@@ -138,41 +136,25 @@ sub fetch_interfaces {
     $cv->begin(
         sub {
             my $cv = shift;
-
-            my $types = ["Bundle-Ether", "GigabitEthernet", "TenGigE", "FortyGigE", "HundredGigE", "FourHundredGigE"];
             my $ports = [];
-            # TODO Get negotiated interface capacity/speed via NSO; Required for correct Bundle-Ether capacity/speed
-            # if not set via device configuration.
-            my $default_speeds = {
-                "Bundle-Ether"    =>  10000,
-                "GigabitEthernet" =>   1000,
-                "TenGigE"         =>  10000,
-                "FortyGigE"       =>  40000,
-                "HundredGigE"     => 100000,
-                "FourHundredGigE" => 400000,
-            };
 
             foreach my $key (keys %{$self->{nodes}}) {
                 my $node   = $self->{nodes}->{$key};
                 my $result = $results->{$node->{name}};
                 next if !defined $result;
 
-                foreach my $type (@$types) {
-                    next if !defined $result->{$type};
-
-                    my $default_speed = $default_speeds->{$type};
-                    foreach my $port (@{$result->{$type}}) {
-                        my $port_info = {
-                            admin_state => (exists $port->{shutdown}) ? 'down' : 'up',
-                            bandwidth   => (exists $port->{speed}) ? $port->{speed} : $default_speed,
-                            description => (exists $port->{description}) ? $port->{description} : '',
-                            mtu         => (exists $port->{mtu}) ? $port->{mtu} : 0,
-                            name        => $type . $port->{id},
-                            node        => $node->{name},
-                            node_id     => $node->{node_id}
-                        };
-                        push @$ports, $port_info;
-                    }
+                foreach my $port (@$result) {
+                    my $port_info = {
+                        admin_state => $port->{admin_state},
+                        operational_state => $port->{operational_state},
+                        bandwidth   => $port->{bandwidth},
+                        description => $port->{description},
+                        mtu         => $port->{mtu},
+                        name        => $port->{name},
+                        node        => $node->{name},
+                        node_id     => $node->{node_id}
+                    };
+                    push @$ports, $port_info;
                 }
             }
 
@@ -181,7 +163,7 @@ sub fetch_interfaces {
                 my $port = new OESS::Interface(db => $self->{db}, node => $data->{node}, name => $data->{name});
                 if (defined $port) {
                     $port->admin_state($data->{admin_state});
-                    $port->operational_state($data->{admin_state}); # Using admin_state as best guess for now
+                    $port->operational_state($data->{operational_state});
                     $port->bandwidth($data->{bandwidth});
                     $port->description($data->{description});
                     $port->mtu($data->{mtu});
@@ -196,7 +178,7 @@ sub fetch_interfaces {
                         description => $data->{description},
                         mtu => $data->{mtu},
                         name => $data->{name},
-                        operational_state => $data->{admin_state} # Using admin_state as best guess for now
+                        operational_state => $data->{operational_state}
                     });
 
                     my ($port_id, $port_err) = $port->create(node_id => $data->{node_id});
@@ -216,7 +198,7 @@ sub fetch_interfaces {
         my $node = $self->{nodes}->{$key};
 
         $cv->begin;
-        $self->{nso}->get_interfaces(
+        $self->{nso}->get_interfaces_table(
             $node->{short_name},
             sub {
                 my ($result, $err) = @_;

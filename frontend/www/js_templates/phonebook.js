@@ -208,7 +208,7 @@ async function loadEntityList(parentEntity=null) {
       p.appendChild(name);
 
       if ((user.is_admin == 1 && user.type != 'read-only') || valid_users.includes( user.user_id)){
-        p.innerHTML += `<sup class ='entity-contact' style='cursor:pointer' onclick='x_onclick(${user_id}, ${entity.entity_id})'>  &#10006</sup>`;
+        p.innerHTML += `<sup class ='entity-contact' style='cursor:pointer' onclick='showRemoveUserPrompt(${user_id}, ${entity.entity_id}, "${entity.name}", "${contact.first_name}", "${contact.last_name}")'>  &#10006</sup>`;
       }
       p.innerHTML += '<br/>' + contact.email + '<br/>';
       entityContacts.appendChild(p);
@@ -281,7 +281,14 @@ function filterFunction() {
   }
 }
 
-async function x_onclick(user_id, entityID){
-  await remove_user(user_id, entityID);
-  await loadEntityList(entityID);
+function showRemoveUserPrompt(user_id, entity_id, entity_name, first_name, last_name) {
+  let ok = confirm(`Are you sure you want to remove ${first_name} ${last_name} from ${entity_name}?`);
+  if (ok) {
+    removeUser(user_id, entity_id);
+  }
+}
+
+async function removeUser(user_id, entity_id){
+  await remove_user(user_id, entity_id);
+  await loadEntityList(entity_id);
 }
