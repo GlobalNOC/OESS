@@ -564,7 +564,6 @@ class EndpointSelectionModal2 {
       } else if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
         cloudAccountLabel.innerText = 'AWS Account Owner';
         cloudAccountInput.setAttribute('placeholder', '012301230123');
-        cloudGatewayFormGroup.style.display = 'block';
       } else if (entity.cloud_interconnect_type === 'oracle-fast-connect') {        
         cloudAccountLabel.innerText = 'Oracle OCID';
         cloudAccountInput.setAttribute('placeholder', 'ocid1.virtualcircuit...');
