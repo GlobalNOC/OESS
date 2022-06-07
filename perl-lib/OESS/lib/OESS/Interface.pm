@@ -389,9 +389,14 @@ sub vlan_tag_range{
 =head2 mpls_vlan_tag_range
 
 =cut
-sub mpls_vlan_tag_range{
+sub mpls_vlan_tag_range {
     my $self = shift;
-    return $self->{'mpls_vlan_tag_range'};
+    my $mpls_vlan_tag_range = shift;
+
+    if (defined $mpls_vlan_tag_range) {
+        $self->{mpls_vlan_tag_range} = $mpls_vlan_tag_range;
+    }
+    return $self->{mpls_vlan_tag_range};
 }
 
 =head2 used_vlans

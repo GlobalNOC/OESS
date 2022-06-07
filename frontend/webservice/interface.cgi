@@ -379,13 +379,19 @@ sub edit_interface {
                     interface_id  => $interface->interface_id,
                     allow_deny    => 'allow',
                     eval_position => 10,
-                    start         => 2,
-                    end           => 4094,
+                    start         => 1,
+                    end           => 4095,
                     notes         => 'Default ACL'
                 }
             );
-            $acl->create;
+            my $acl_ok = $acl->create($user->user_id, $params->{workgroup_id}{value}, 1);
+            if (!$acl_ok) {
+                $method->set_error("Failed to edit interface while creating default ACL.");
+                $db->rollback;
+                return;
+            }
             $interface->workgroup_id($params->{workgroup_id}{value});
+            $interface->mpls_vlan_tag_range('1-4095');
         }
     }
 
@@ -397,7 +403,7 @@ sub edit_interface {
             $db->rollback;
             return;
         } 
-        $interface->{mpls_vlan_tag_range} = $vlan_tag_range;
+        $interface->mpls_vlan_tag_range($vlan_tag_range);
     }
     if ($params->{cloud_interconnect_id}{is_set}) {
         $interface->{cloud_interconnect_id} = $params->{cloud_interconnect_id}{value};
