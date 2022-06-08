@@ -13,12 +13,8 @@ provisioned.
 
 ```js
 {
-    // Required when editing an existing connection
+    // Required when editing an existing endpoint
     "circuit_ep_id":   123,
-    // Required
-    "name":             "connection",
-    // Required
-    "description":      "a demo connection",
     // Optional if both node and interface are provided
     "entity":           "customer a - network lab",
     // Optional if entity is provided. Only respected if both node and
