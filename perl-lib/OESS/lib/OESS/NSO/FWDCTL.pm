@@ -349,6 +349,10 @@ sub diff {
     # pending diff may now proceed.
     foreach my $short_node_name (keys %$network_diff) {
         my $node = new OESS::Node(db => $self->{db}, short_name => $short_node_name);
+        if (!defined $node) {
+            $self->{logger}->error("OESS connections were detected in NSO using nodes not tracked by this OESS instance. Ensure that $short_node_name is configured within OESS.");
+            next;
+        }
         my $diff_len = length $network_diff->{$short_node_name};
 
         if ($diff_len < 30) {
@@ -372,7 +376,7 @@ sub diff {
 
         $self->{logger}->debug("Diff for $short_node_name has length of $diff_len:\n$network_diff->{$short_node_name}");
     }
-    $self->{logger}->debug('Changes: ' . Dumper($changes));
+    $self->{logger}->debug('Pending changes: ' . Dumper($changes));
 
     foreach my $change (@$changes) {
         if ($change->{type} eq 'create-l2connection') {
