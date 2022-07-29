@@ -47,7 +47,7 @@ class Endpoint2 {
     }.bind(this));
 
     this.element.querySelector('.add-peering-button').addEventListener('click', function(e) {
-      let modal = new PeeringModal('#peering-modal', endpoint);
+      let modal = new PeeringModal('#peering-modal', endpoint, endpoint.cloud_interconnect_type);
       modal.onSubmit((peering) => {
         if (!'peerings' in endpoint) {
           endpoint.peers = [];
@@ -58,7 +58,8 @@ class Endpoint2 {
 
         update();
       });
-      modal.display(null);
+      modal.display(null, endpoint.cloud_interconnect_type);
+
 
     }.bind(this));
 
