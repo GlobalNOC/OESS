@@ -601,35 +601,6 @@ sub provision_vrf{
                     $peerings->{"$endpoint->{node} $endpoint->{interface} $peer->{local_ip}"} = 1;
                     next;
                 }
-                if ($interface->cloud_interconnect_type eq 'oracle-fast-connect') {
-                    my $prefix = $peering_config->prefix(
-                        $endpoint->cloud_account_id,
-                        $endpoint->interface_id,
-                        $peering->{ip_version}
-                    );
-
-                    my $peer = new OESS::Peer(
-                        db => $db,
-                        model => {
-                            peer_asn    => $oracle_asn,
-                            md5_key     => '',
-                            local_ip    => $peering_config->nth_address($prefix, 1),
-                            peer_ip     => $peering_config->nth_address($prefix, 2),
-                            ip_version  => $peering->{ip_version},
-                            bfd         => $peering->{bfd}
-                        }
-                    );
-                    my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
-                    if (defined $peer_err) {
-                        $method->set_error($peer_err);
-                        $db->rollback;
-                        return;
-                    }
-                    $endpoint->add_peer($peer);
-
-                    $peerings->{"$endpoint->{node} $endpoint->{interface} $peer->{local_ip}"} = 1;
-                    next;
-                }
 
                 # Peerings not auto-generated for non-cloud endpoints
                 if (defined $endpoint->{cloud_account_id} && $endpoint->{cloud_account_id} eq '') {
@@ -760,35 +731,6 @@ sub provision_vrf{
                         $endpoint->add_peer($peer);
 
                         $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"} = 1;
-                        next;
-                    }
-                    if ($endpoint->cloud_interconnect_type eq 'oracle-fast-connect') {
-                        my $prefix = $peering_config->prefix(
-                            $endpoint->cloud_account_id,
-                            $endpoint->interface_id,
-                            $peering->{ip_version}
-                        );
-
-                        my $peer = new OESS::Peer(
-                            db => $db,
-                            model => {
-                                peer_asn    => $oracle_asn,
-                                md5_key     => '',
-                                local_ip    => $peering_config->nth_address($prefix, 1),
-                                peer_ip     => $peering_config->nth_address($prefix, 2),
-                                ip_version  => $peering->{ip_version},
-                                bfd         => $peering->{bfd}
-                            }
-                        );
-                        my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
-                        if (defined $peer_err) {
-                            $method->set_error($peer_err);
-                            $db->rollback;
-                            return;
-                        }
-                        $endpoint->add_peer($peer);
-
-                        $peerings->{"$endpoint->{node} $endpoint->{interface} $peer->{local_ip}"} = 1;
                         next;
                     }
     
