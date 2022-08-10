@@ -1,5 +1,5 @@
 class PeeringModal {
-  constructor(query, peering) {
+  constructor(query, peering, cloud_interconnect_type) {
     let template = document.querySelector('#template-l3-peering-modal');
     this.element = document.importNode(template.content, true);
 
@@ -31,6 +31,12 @@ class PeeringModal {
       this.element.querySelector(`.oess-peer-ip`).value = null;
       this.element.querySelector(`.oess-peer-ip`).placeholder = '192.168.1.3/31';
       this.element.querySelector(`.oess-peer-ip`).setAttribute('disabled', true);
+    }
+
+    if (cloud_interconnect_type === 'oracle-fast-connect') {
+      this.element.querySelector(`.bgp-asn`).value = 31898;
+      this.element.querySelector(`.bgp-asn`).placeholder = 31898;
+      this.element.querySelector('.bgp-asn').setAttribute('disabled', true);
     }
 
     this.parent = document.querySelector(query);
@@ -100,13 +106,19 @@ class PeeringModal {
     }
   }
 
-  display(peering) {
+  display(peering, cloud_interconnect_type) {
     if (peering === null) {
       this.parent.querySelector(`.ip-version`).selectedIndex = 0;
       this.parent.querySelector(`.ip-version`).onchange = this.handleIpVersionChange;
 
-      this.parent.querySelector(`.bgp-asn`).value = null;
-      this.parent.querySelector(`.bgp-asn`).placeholder = 0;
+      if (cloud_interconnect_type === 'oracle-fast-connect') {
+        this.parent.querySelector(`.bgp-asn`).value = 31898;
+        this.parent.querySelector(`.bgp-asn`).placeholder = 31898;
+        this.parent.querySelector('.bgp-asn').setAttribute('disabled', true);
+      } else {
+        this.parent.querySelector(`.bgp-asn`).value = null;
+        this.parent.querySelector(`.bgp-asn`).placeholder = 0;
+      }
 
       this.parent.querySelector(`.bgp-key`).value = null;
       this.parent.querySelector(`.bgp-key`).placeholder = '';
