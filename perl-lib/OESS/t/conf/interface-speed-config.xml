@@ -60,6 +60,6 @@
     <speed rate="1000" />
     <speed rate="2000" />
     <speed rate="5000" />
-    <speed rate="10000" admin_only="1" />
+    <speed rate="10000" admin_only="1" requires_approval="1" />
   </interface-selector>
 </config>

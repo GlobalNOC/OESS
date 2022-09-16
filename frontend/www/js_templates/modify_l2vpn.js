@@ -123,6 +123,7 @@ document.querySelector('.l2vpn-new-endpoint-button').addEventListener('click', f
 let circuitHeader = null;
 let details = null;
 let history = null;
+let interfaceOptions = [];
 let events = null;
 let raw = null;
 
@@ -181,9 +182,13 @@ document.addEventListener('DOMContentLoaded', async function() {
   history = new CircuitHistory({workgroupID: session.data.workgroup_id});
   events = new CircuitEvents({workgroupID: session.data.workgroup_id});
   raw = new CircuitRaw({workgroupID: session.data.workgroup_id});
-
   circuitHeader = new CircuitHeader();
 
+  getInterfaceOptions().then(options => {
+    interfaceOptions = options;
+  }).catch(error => {
+    console.error(error);
+  });
 
   let map = new NDDIMap('map');
   map.on("loaded", function(){

@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use AnyEvent;
+use GRNOC::Config;
 use GRNOC::WebService::Method;
 use GRNOC::WebService::Dispatcher;
 
@@ -20,6 +21,7 @@ use OESS::VRF;
 use OESS::Webservice;
 use OESS::Workgroup;
 
+my $options_config_path = '/etc/oess/interface-speed-config.xml';
 
 my $config = new OESS::Config(config_filename => '/etc/oess/database.xml');
 my $db = new OESS::DB(config_obj => $config);
@@ -58,6 +60,13 @@ sub register_ro_methods {
                                   description => 'VRF ID of the VRF being edited (if one is being edited)');
 
     $svc->register_method($method);
+
+    my $get_options = GRNOC::WebService::Method->new(
+        name        => "get_options",
+        description => "get_options returns provisioning options for interfaces",
+        callback    => sub { get_options(@_) }
+    );
+    $svc->register_method($get_options);
 
     my $get_interface = GRNOC::WebService::Method->new(
         name        => "get_interface",
@@ -251,6 +260,16 @@ sub is_vlan_available {
     }
 
     return {results => {allowed => $interface->vlan_valid( workgroup_id => $workgroup_id, vlan => $vlan )}};
+}
+
+sub get_options {
+    my $method = shift;
+    my $params = shift;
+
+    my $config = new GRNOC::Config(config_file => $options_config_path, force_array => 1);
+    my $selectors = $config->get("/config/interface-selector");
+    
+    return {results => $selectors};
 }
 
 sub get_workgroup_interfaces {
