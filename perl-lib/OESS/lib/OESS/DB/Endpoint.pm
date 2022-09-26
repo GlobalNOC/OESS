@@ -154,7 +154,7 @@ sub fetch_all {
             JOIN node_instantiation ON node.node_id=node_instantiation.node_id and node_instantiation.end_epoch=-1
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.circuit_ep_id=circuit_ep.circuit_edge_id
             $where
-            AND circuit_ep.end_epoch = -1
+            AND circuit_ep.end_epoch = -1 AND circuit_ep.state != 'decom'
         ";
         my $circuit_endpoints = $args->{db}->execute_query($q, $values);
         if (!defined $circuit_endpoints) {
@@ -397,7 +397,8 @@ sub add_circuit_edge_membership{
             "extern_vlan_id, ".
             "inner_tag, ".
             "unit, ".
-            "mtu ".
+            "mtu, ".
+            "state ".
             ") VALUES (?, ?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
             [$endpoint->{interface_id},
              $endpoint->{bandwidth},
@@ -406,7 +407,8 @@ sub add_circuit_edge_membership{
              $endpoint->{tag},
              $endpoint->{inner_tag},
              $endpoint->{unit},
-             $endpoint->{mtu}]);
+             $endpoint->{mtu},
+             $endpoint->{state}]);
     return $result;
 }
 
@@ -427,6 +429,7 @@ sub update_circuit_edge_membership{
             "inner_tag=?, ".
             "unit=?, ".
             "mtu=? ".
+            "state=?".
             "WHERE circuit_edge_id=?",
             [$endpoint->{interface_id},
              $endpoint->{bandwidth},
@@ -435,6 +438,7 @@ sub update_circuit_edge_membership{
              $endpoint->{inner_tag},
              $endpoint->{unit},
              $endpoint->{mtu},
+             $endpoint->{state},
              $endpoint->{circuit_ep_id}
          ]);
 
@@ -491,7 +495,7 @@ sub add_vrf_ep {
           $endpoint->{'inner_tag'},
           $endpoint->{'bandwidth'},
           $endpoint->{vrf_id},
-          'active',
+          $endpoint->{state},
           $endpoint->{unit},
           $endpoint->{'mtu'} || 9000
       ]
@@ -636,7 +640,7 @@ sub find_available_unit{
                  and circuit.circuit_state!='decom'
                  and circuit_instantiation.circuit_state!='decom'
                  and circuit_instantiation.end_epoch=-1
-        ) and extern_vlan_id=?
+        ) and extern_vlan_id=? and state!='decom'
     ";
     my $l2a = [$args->{interface_id}, $args->{tag}];
     if (defined $args->{inner_tag}) {
@@ -654,7 +658,7 @@ sub find_available_unit{
                    and circuit_instantiation.end_epoch=-1
           ) and (
               (extern_vlan_id=? and inner_tag=?) or (extern_vlan_id=? and inner_tag is NULL)
-          )
+          ) and state!='decom'
         ";
         $l2a = [$args->{interface_id}, $args->{tag}, $args->{inner_tag}, $args->{tag}];
     }
@@ -696,7 +700,7 @@ sub find_available_unit{
                  and circuit.circuit_state!='decom'
                  and circuit_instantiation.circuit_state!='decom'
                  and circuit_instantiation.end_epoch=-1
-        )";
+        ) and state!='decom'";
     my $used_circuit_units = $args->{db}->execute_query($circuit_units_q, [$args->{interface_id}]);
 
     my %used;
