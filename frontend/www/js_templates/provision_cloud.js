@@ -82,7 +82,7 @@ let state = new GlobalState();
 
 let schedule = new Schedule('#schedule-picker');
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
-
+let interfaceOptions = [];
 
 async function update(props) {
   console.log(state);
@@ -130,6 +130,12 @@ document.addEventListener('DOMContentLoaded', function() {
   let addNetworkCancel = document.querySelector('#cancel-button');
   addNetworkCancel.addEventListener('click', function(event) {
     window.location.href = 'index.cgi?action=welcome';
+  });
+
+  getInterfaceOptions().then(options => {
+    interfaceOptions = options;
+  }).catch(error => {
+    console.error(error);
   });
 
   let url = new URL(window.location.href);
