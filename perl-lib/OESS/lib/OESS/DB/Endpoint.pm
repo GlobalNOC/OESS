@@ -147,7 +147,7 @@ sub fetch_all {
                    interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
                    node.node_id, node.name AS node, node.short_name AS short_node_name, node_instantiation.controller,
                    unit, extern_vlan_id AS tag, inner_tag,
-                   bandwidth, mtu, cloud_account_id, cloud_connection_id
+                   bandwidth, mtu, cloud_account_id, cloud_connection_id, circuit_ep.state
             FROM circuit_edge_interface_membership AS circuit_ep
             JOIN interface ON interface.interface_id=circuit_ep.interface_id
             JOIN node ON node.node_id=interface.node_id
@@ -211,7 +211,7 @@ sub fetch_all {
                    interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
                    node.node_id, node.name AS node, node.short_name AS short_node_name, node_instantiation.controller,
                    unit, tag, inner_tag,
-                   bandwidth, mtu, cloud_account_id, cloud_connection_id
+                   bandwidth, mtu, cloud_account_id, cloud_connection_id, vrf_ep.state
             FROM vrf_ep
             JOIN interface ON interface.interface_id=vrf_ep.interface_id
             JOIN node ON node.node_id=interface.node_id

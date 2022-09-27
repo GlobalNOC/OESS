@@ -506,6 +506,9 @@ sub provision_vrf{
                 return;
             }
 
+            my $requires_approval = $interface->bandwidth_requires_approval(bandwidth => $ep->{bandwidth}, is_admin => $is_admin);
+            $ep->{state} = ($requires_approval) ? 'in-review' : 'active';
+
             $ep->{type}         = 'vrf';
             $ep->{entity_id}    = $entity->{entity_id};
             $ep->{interface}    = $interface->{name};
@@ -546,7 +549,15 @@ sub provision_vrf{
                 return;
             }
             $vrf->add_endpoint($endpoint);
-            push @$add_endpoints, $endpoint;
+
+            if ($ep->{state} eq 'active') {
+                # Endpoints that aren't acitve (ex in-review) will not
+                # be provisioned by FWDCTL. Any cloud provisioning
+                # of these endpoints shall be avoided.
+                push @$add_endpoints, $endpoint;
+            } else {
+                warn "Endpoint will require admin approval";
+            }
 
             foreach my $peering (@{$ep->{peers}}) {
 

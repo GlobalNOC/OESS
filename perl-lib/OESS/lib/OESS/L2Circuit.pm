@@ -1285,6 +1285,8 @@ sub nso_diff {
     my $endpoints = $self->endpoints || [];
 
     foreach my $ep (@{$endpoints}) {
+        next if $ep->state ne 'active';
+
         if (!defined $ep_index->{$ep->short_node_name}) {
             $diff->{$ep->short_node_name} = "";
             $ep_index->{$ep->short_node_name} = {};
