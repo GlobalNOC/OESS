@@ -62,6 +62,7 @@ sub fetch_all {
         entity_id => undef,
         interface_id => undef,
         node_id => undef,
+        state => 'active',
         @_
     };
 
@@ -110,6 +111,10 @@ sub fetch_all {
         push @$params, 'cloud.cloud_account_id=?';
         push @$values, $args->{cloud_account_id};
     }
+    if (defined $args->{state}) {
+        push @$params, 'state=?';
+        push @$values, $args->{state};
+    }
 
     my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : 'WHERE 1 ';
 
@@ -154,7 +159,7 @@ sub fetch_all {
             JOIN node_instantiation ON node.node_id=node_instantiation.node_id and node_instantiation.end_epoch=-1
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.circuit_ep_id=circuit_ep.circuit_edge_id
             $where
-            AND circuit_ep.end_epoch = -1 AND circuit_ep.state != 'decom'
+            AND circuit_ep.end_epoch = -1
         ";
         my $circuit_endpoints = $args->{db}->execute_query($q, $values);
         if (!defined $circuit_endpoints) {
@@ -218,7 +223,6 @@ sub fetch_all {
             JOIN node_instantiation ON node.node_id=node_instantiation.node_id and node_instantiation.end_epoch=-1
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.vrf_ep_id=vrf_ep.vrf_ep_id
             $where
-            AND vrf_ep.state != 'decom'
         ";
 
         my $vrf_endpoints = $args->{db}->execute_query($q, $values);

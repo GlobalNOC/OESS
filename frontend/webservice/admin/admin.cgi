@@ -35,21 +35,26 @@ use Log::Log4perl;
 
 use GRNOC::WebService;
 
+use OESS::AccessController::Default;
+use OESS::Cloud;
 use OESS::Config;
 use OESS::Database;
 use OESS::DB;
 use OESS::DB::ACL;
+use OESS::DB::Endpoint;
 use OESS::DB::Interface;
 use OESS::DB::Link;
 use OESS::DB::User;
 use OESS::DB::Workgroup;
 use OESS::RabbitMQ::Client;
-use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_node);
+use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_node fwdctl_topic_for_connection);
 
 use OESS::ACL;
 use OESS::Endpoint;
 use OESS::Interface;
 use OESS::Workgroup;
+use OESS::L2Circuit;
+use OESS::VRF;
 
 #use Time::HiRes qw( gettimeofday tv_interval);
 
@@ -67,6 +72,7 @@ Log::Log4perl::init('/etc/oess/logging.conf');
 my $config = new OESS::Config();
 my $db = new OESS::Database();
 my $db2 = new OESS::DB();
+my $ac = new OESS::AccessController::Default(db => $db2);
 
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
@@ -871,6 +877,37 @@ sub register_webservice_methods {
         );
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_endpoints_in_review",
+        description     => "Returns a list of endpoints that require admin review.",
+        callback        => sub { get_endpoints_in_review(@_); },
+    );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "review_endpoint",
+        description     => "Approve or deny an endpoint in review.",
+        callback        => sub { review_endpoint(@_); },
+    );
+    $method->add_input_parameter(
+        name            => 'approve',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Set to 1 for approval or 0 for denial."
+    );
+    $method->add_input_parameter(
+        name            => 'circuit_ep_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "Circuit ID of the Endpoint"
+    );
+    $method->add_input_parameter(
+        name            => 'vrf_ep_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "VRF ID of the Endpoint"
+    );
+    $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
         name            => "set_diff_approval",
@@ -895,6 +932,193 @@ sub register_webservice_methods {
     $svc->register_method($method);
 
 
+}
+
+=head2 get_endpoints_in_review
+
+=cut
+sub get_endpoints_in_review {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $user_err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $user_err) {
+        $method->set_error($user_err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_system_access(role => 'read-only');
+    if (defined $access_err){
+        $method->set_error($access_err);
+        return;
+    }
+
+    my ($raw_eps, $raw_ep_err) = OESS::DB::Endpoint::fetch_all(db => $db2, state => 'in-review');
+    if (defined $raw_ep_err) {
+        $method->set_error($raw_ep_err);
+        return;
+    }
+
+    my $results = [];
+    foreach my $raw_ep (@$raw_eps) {
+        my $ep = new OESS::Endpoint(db => $db2, model => $raw_ep);
+        push @$results, $ep->to_hash;
+    } 
+
+    return { results => $results };
+}
+
+=head2 review_endpoint
+
+=cut
+sub review_endpoint {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $user_err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $user_err) {
+        $method->set_error($user_err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_system_access(role => 'normal');
+    if (defined $access_err){
+        $method->set_error($access_err);
+        return;
+    }
+
+    if (!$params->{circuit_ep_id}{is_set} && !$params->{vrf_ep_id}{is_set}) {
+        $method->set_error("circuit_ep_id or vrf_ep_id must be specified");
+        return;
+    }
+    if ($params->{approve}{value} ne "0" && $params->{approve}{value} ne "1") {
+        $method->set_error("approve must be 0 or 1");
+        return;
+    }
+
+    $db2->start_transaction;
+
+    my $ep;
+    if ($params->{circuit_ep_id}{is_set}) {
+        $ep = new OESS::Endpoint(db => $db2, circuit_ep_id => $params->{circuit_ep_id}{value});
+    } else {
+        $ep = new OESS::Endpoint(db => $db2, vrf_endpoint_id => $params->{vrf_ep_id}{value});
+    }
+
+    if ($params->{approve}{value} eq "0") {
+        $ep->state("decom");
+        $ep->update_db;
+        $db2->commit;
+        # There are no further actions to take on denied endpoints 
+        return { success => 1 };
+    } else {
+        $ep->state("active");
+        $ep->load_peers;
+    }
+
+
+    my $conn;
+    my $connection_id;
+    my $connection_name;
+
+    my $is_admin;
+
+    if ($params->{circuit_ep_id}{is_set}) {
+        $conn = new OESS::L2Circuit(db => $db2, circuit_id => $ep->circuit_id);
+        $connection_id = undef;
+        $connection_name = $conn->description;
+    } else {
+        $conn = new OESS::VRF(db => $db2, vrf_id => $ep->vrf_id);
+        $connection_id = $conn->vrf_id;
+        $connection_name = $conn->name;
+    }
+
+    eval {
+        my $endpoints = [$ep];
+        OESS::Cloud::setup_endpoints($db2, $connection_id, $connection_name, $endpoints, $is_admin);
+
+        foreach my $ep (@$endpoints) {
+            # It's expected that layer2 connections to azure pass
+            # all QnQ tagged traffic directly to the customer
+            # edge; All inner tagged traffic should be passed
+            # transparently. This is not the case for l3conns
+            # which should match specifically on the qnq tag to
+            # ensure proper peerings.
+            if ($params->{circuit_ep_id}{is_set}) {
+                if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                    $ep->{unit} = $ep->{tag};
+                    $ep->{inner_tag} = undef;
+                }
+            } else {
+                if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                    # We do nothing here as the QinQ tags have already
+                    # been selected and will not change for updates.
+                }
+
+            }
+
+            my $update_err = $ep->update_db;
+            die $update_err if (defined $update_err);
+        }
+    };
+    if ($@) {
+        $method->set_error("$@");
+        $db2->rollback;
+        return;
+    }
+
+    $db2->commit;
+
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic      => 'OF.FWDCTL.RPC',
+        timeout    => 120,
+        config_obj => $config
+    );
+    if (!defined $mq) {
+        warn "Couldn't create RabbitMQ Client.";
+    }
+
+    my ($topic, $err) = fwdctl_topic_for_connection($conn);
+    if (defined $err) {
+        warn $err;
+    }
+    $mq->{topic} = $topic;
+
+    if ($params->{circuit_ep_id}{is_set}) {
+        my $cv = AnyEvent->condvar;
+        $mq->update_cache(
+            circuit_id     => $ep->circuit_id,
+            async_callback => sub {
+                my $result = shift;
+                $cv->send($result);
+            }
+        );
+        my $result = $cv->recv();
+
+        if (!defined $result) {
+            warn "Error occurred while calling $topic.update_cache: Couldn't connect to RabbitMQ.";
+        }
+        if (defined $result->{error}) {
+            warn "Error occured while calling $topic.update_cache: $result->{error}";
+        }
+    } else {
+        my $cv = AnyEvent->condvar;
+        $mq->update_cache(
+            vrf_id         => $ep->vrf_id,
+            async_callback => sub {
+                my $result = shift;
+                $cv->send($result);
+            }
+        );
+        my $result = $cv->recv();
+
+        if (!defined $result) {
+            warn "Error occurred while calling $topic.update_cache: Couldn't connect to RabbitMQ.";
+        }
+        if (defined $result->{error}) {
+            warn "Error occured while calling $topic.update_cache: $result->{error}";
+        }
+    }
+
+    return { success => 1 };
 }
 
 =head2 get_diffs
