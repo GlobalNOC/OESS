@@ -176,7 +176,9 @@ sub load_endpoints {
 
     my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
         db => $self->{db},
-        vrf_id => $self->{vrf_id}
+        vrf_id => $self->{vrf_id},
+        state => undef,
+        state_not => 'decom'
     );
     $self->{logger}->warn($error) if defined $error;
 

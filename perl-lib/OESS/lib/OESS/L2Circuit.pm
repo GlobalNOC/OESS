@@ -1031,7 +1031,9 @@ sub load_endpoints {
 
     my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
         db => $self->{db},
-        circuit_id => $self->{circuit_id}
+        circuit_id => $self->{circuit_id},
+        state => undef,
+        state_not => 'decom'
     );
 
     $self->{endpoints} = [];

@@ -63,6 +63,7 @@ sub fetch_all {
         interface_id => undef,
         node_id => undef,
         state => 'active',
+        state_not => undef,
         @_
     };
 
@@ -114,6 +115,10 @@ sub fetch_all {
     if (defined $args->{state}) {
         push @$params, 'state=?';
         push @$values, $args->{state};
+    }
+    if (defined $args->{state_not}) {
+        push @$params, 'state!=?';
+        push @$values, $args->{state_not};
     }
 
     my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : 'WHERE 1 ';

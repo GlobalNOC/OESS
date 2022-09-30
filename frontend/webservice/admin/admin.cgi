@@ -1065,6 +1065,7 @@ sub review_endpoint {
         return;
     }
 
+    $conn->load_endpoints;
     $db2->commit;
 
     my $mq = OESS::RabbitMQ::Client->new(

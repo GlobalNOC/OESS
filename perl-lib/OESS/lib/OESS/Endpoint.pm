@@ -255,7 +255,8 @@ sub _fetch_from_db{
         my ($data, $err) = OESS::DB::Endpoint::fetch_all(
             db => $self->{db},
             circuit_id => $self->{circuit_id},
-            interface_id => $self->{interface_id}
+            interface_id => $self->{interface_id},
+            state => undef,
         );
         if (!defined $err) {
             $hash = $data->[0];
@@ -263,7 +264,8 @@ sub _fetch_from_db{
     } else {
         my ($data, $err) = OESS::DB::Endpoint::fetch_all(
             db => $db,
-            vrf_ep_id => $self->{vrf_endpoint_id}
+            vrf_ep_id => $self->{vrf_endpoint_id},
+            state => undef,
         );
         if (defined $err) {
             $self->{logger}->error($err);
