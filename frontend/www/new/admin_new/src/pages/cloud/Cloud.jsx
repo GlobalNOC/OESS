@@ -50,7 +50,7 @@ class Cloud extends React.Component {
           </button>
           &nbsp;
           <button type="button" className="btn btn-default btn-xs" onClick={() => this.onApprovalHandler(false, data["circuit_ep_id"], data["vrf_endpoint_id"])}>
-            <span className="glyphicon glyphicon-ok-sign" aria-hidden="true"></span>&nbsp;
+            <span className="glyphicon glyphicon-minus-sign" aria-hidden="true"></span>&nbsp;
             Deny
           </button>
         </div>

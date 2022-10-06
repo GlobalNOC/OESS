@@ -50,6 +50,10 @@ sed -i "s/test/$NETCONF_PASSWORD/" /etc/oess/.passwd.xml
 sed -i "s/900/$NETCONF_DIFF_INTERVAL/" /etc/oess/fwdctl.xml
 
 # Start OESS
+
+sed -i "s/inet_interfaces = localhost/inet_interfaces = 127.0.0.1/" /etc/postfix/main.cf
+
+/usr/sbin/postfix start &
 /usr/bin/oess-notify.pl &
 /usr/bin/mpls_discovery.pl &
 /usr/bin/mpls_fwdctl.pl &

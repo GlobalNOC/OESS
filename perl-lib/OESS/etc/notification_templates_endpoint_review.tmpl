@@ -1,0 +1,17 @@
+Greetings workgroup [%workgroup%],
+
+Connection: [% description %]
+Owned by: [% workgroup %]
+Last modified by: [% last_modified_by %] on [% human_time %]
+
+Endpoints
+The following Endpoints require administrative approval:
+
+[% FOREACH ep IN endpoints -%]
+Entity:            [% ep.entity %]
+Interface:         [% ep.node %] - [% ep.interface %]
+VLAN:              [% ep.tag %]
+Bandwidth:         [% ep.bandwidth %]
+Interconnect Type: [% ep.cloud_interconnect_type %]
+State:             [% ep.state %]
+[% END -%]

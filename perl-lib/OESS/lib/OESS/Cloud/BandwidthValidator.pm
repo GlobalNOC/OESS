@@ -94,16 +94,17 @@ sub requires_approval {
 
 
         if (defined $check->{requires_approval} && $check->{requires_approval} eq "1") {
-            if (defined $check->{admin_only} && $check->{admin_only} eq "1" && $args->{is_admin} == 1) {
-                # Admin users will never require approval when provisioning
-                # endpoints. Because of this:
-                # - Notifications for provisioning requests will never be sent
-                #   for admin users
-                # - Approval for these endpoints are auto-accepted
-                return 0;
-            } else {
-                return 1;
-            }
+            return 1;
+            # if (defined $check->{admin_only} && $check->{admin_only} eq "1" && $args->{is_admin} == 1) {
+            #     # Admin users will never require approval when provisioning
+            #     # endpoints. As a result, the follow hold true:
+            #     # - Notifications for provisioning requests will never be sent
+            #     #   for admin users
+            #     # - Approval for these endpoints are auto-accepted
+            #     return 0;
+            # } else {
+            #     return 1;
+            # }
         }
     }
 
