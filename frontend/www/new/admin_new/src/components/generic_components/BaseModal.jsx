@@ -18,6 +18,18 @@ class BaseModal extends Component {
 
   let onClose = (this.props.onClose) ? this.props.onClose : () => {};
 
+  let header = null;
+  if (this.props.header !== undefined) {
+    header = (
+      <div className="modal-header">
+        <button type="button" className="close" aria-label="Close" onClick={onClose}>
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <h4 className="modal-title" id={this.props.modalID}>{this.props.header}</h4>
+      </div>
+    );
+  }
+
 	return (
       <div>
         {backdrop}
@@ -25,12 +37,7 @@ class BaseModal extends Component {
         <div className={classes} style={style} id={this.props.modalID} tabIndex="-1" role="dialog" aria-labelledby={this.props.modalID}>
           <div className="modal-dialog" role="document">
             <div className="modal-content">
-              <div className="modal-header">
-                <button type="button" className="close" aria-label="Close" onClick={onClose}>
-                  <span aria-hidden="true">&times;</span>
-                </button>
-                <h4 className="modal-title" id={this.props.modalID}>{this.props.header}</h4>
-              </div>
+              {header}
               <div className="modal-body">
                   {this.props.children}
               </div>

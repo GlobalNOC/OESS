@@ -1,6 +1,8 @@
 import React from "react";
+import { config } from '../../config.jsx';
 
 import { PageContext } from "../../contexts/PageContext.jsx";
+import { BaseModal } from "../../components/generic_components/BaseModal.jsx";
 import { CustomTable } from "../../components/generic_components/CustomTable.jsx";
 import { getEndpointsInReview, reviewEndpoint } from "../../api/admin.js";
 
@@ -9,7 +11,8 @@ class Cloud extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      endpoints:        [],
+      endpoints: [],
+      onApprovalHandlerLoading: false,
     };
 
     this.onApprovalHandler = this.onApprovalHandler.bind(this);
@@ -25,18 +28,21 @@ class Cloud extends React.Component {
   }
 
   async onApprovalHandler(approve, circuitEpId, vrfEpId) {
+    this.setState({onApprovalHandlerLoading: true});
     try {
-      console.info(`app ${approve} circ ${circuitEpId} vrf ${vrfEpId}`);
-
       await reviewEndpoint(approve, circuitEpId, vrfEpId);
       let status = (approve) ? 'approved' : 'denied';
       this.context.setStatus({type: 'success', message: `Endpoint was successfully ${status}.`});
-
-      // Attempt to reload endpoints
+    } catch(error) {
+      this.context.setStatus({type: 'error', message: error.toString()});
+    }
+    this.setState({onApprovalHandlerLoading: false});
+    
+    try {
       let endpoints = await getEndpointsInReview();
       this.setState({ endpoints });
     } catch(error) {
-      this.context.setStatus({type: 'error', message: error.toString()});
+      console.error(error.toString());
     }
   }
 
@@ -67,17 +73,33 @@ class Cloud extends React.Component {
       { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];
     
+    let content = null;
+    if (this.state.endpoints.length === 0) {
+      content = (
+        <div className="col-sm-12">
+          <br/>
+          <br/>
+          <p style={{textAlign:"center", fontSize:"18px", fontWeight:"bold"}}>There are no pending requests</p>
+        </div>
+      );
+    } else {
+      content = <CustomTable columns={columns} rows={this.state.endpoints} filter={[]} />
+    }
+
     return (
       <div>
+        <BaseModal visible={this.state.onApprovalHandlerLoading} modalID="approve-handler-modal">
+          <center><img src={`${config.base_url}/media/loading.gif`} /></center>
+        </BaseModal>
+
         <div>
-        <p className="title"><b>Cloud</b></p>
-        <p className="title2"><b>Provisioning Requests</b></p>
-          <p className="subtitle">Approve or deny cloud provisioning requests</p>
+          <p className="title"><b>Cloud</b></p>
+          <p className="title2"><b>Endpoint Requests</b></p>
+          <p className="subtitle">Approve or deny endpoint provisioning requests</p>
         </div>
         <br />
 
-        <CustomTable columns={columns} rows={this.state.endpoints} filter={[]}>
-        </CustomTable>
+        {content}
       </div>
     );
   }

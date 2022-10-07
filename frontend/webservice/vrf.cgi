@@ -451,6 +451,7 @@ sub provision_vrf{
         $endpoints->{$ep->vrf_endpoint_id} = $ep;
     }
 
+    my $admin_approval_required = 0;
     my $add_endpoints = [];
     my $del_endpoints = [];
 
@@ -556,6 +557,7 @@ sub provision_vrf{
                 # of these endpoints shall be avoided.
                 push @$add_endpoints, $endpoint;
             } else {
+                $admin_approval_required = 1;
                 warn "Endpoint will require admin approval";
             }
 
@@ -961,6 +963,16 @@ sub provision_vrf{
             no_reply => 1
         );
     };
+
+    if ($admin_approval_required) {
+        eval {
+            $log_client->review_endpoint_notification(
+                connection_id   => $vrf->vrf_id,
+                connection_type => 'vrf',
+                no_reply => 1
+            );
+        };
+    }
 
     return { results => { success => 1, vrf_id => $vrf->vrf_id } };
 }
