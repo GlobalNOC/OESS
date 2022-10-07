@@ -7,6 +7,14 @@ class Endpoint2 {
 
     let entity = this.element.querySelector('.entity');
 
+    if (endpoint.state == 'in-review') {
+      this.element.querySelector('.panel').classList.remove('panel-default')
+      this.element.querySelector('.panel').classList.add('panel-warning')
+      this.element.querySelector('.panel-heading').innerHTML = 'Pending Approval';
+    } else {
+      this.element.querySelector('.panel-heading').style.display = 'none';
+    }
+
     this.element.querySelector('.entity').innerHTML = endpoint.entity || 'NA';
     this.element.querySelector('.node').innerHTML = endpoint.node;
     this.element.querySelector('.interface').innerHTML = endpoint.interface;
