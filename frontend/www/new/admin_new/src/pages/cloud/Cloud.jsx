@@ -72,19 +72,6 @@ class Cloud extends React.Component {
       { name: 'Date', key: 'tag' },
       { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];
-    
-    let content = null;
-    if (this.state.endpoints.length === 0) {
-      content = (
-        <div className="col-sm-12">
-          <br/>
-          <br/>
-          <p style={{textAlign:"center", fontSize:"18px", fontWeight:"bold"}}>There are no pending requests</p>
-        </div>
-      );
-    } else {
-      content = <CustomTable columns={columns} rows={this.state.endpoints} filter={[]} />
-    }
 
     return (
       <div>
@@ -99,7 +86,7 @@ class Cloud extends React.Component {
         </div>
         <br />
 
-        {content}
+        <CustomTable columns={columns} rows={this.state.endpoints} filter={[]} />
       </div>
     );
   }

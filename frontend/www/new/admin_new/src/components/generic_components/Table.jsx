@@ -27,7 +27,7 @@ const Table = (props) => {
   });
 
   return (
-    <table className="table table-striped">
+    <table className="table table-striped" style={{marginBottom: '0px'}}>
       <thead>
         <tr>
           {columns}
