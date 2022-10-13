@@ -28,6 +28,14 @@ class Cloud extends React.Component {
   }
 
   async onApprovalHandler(approve, circuitEpId, vrfEpId) {
+    if (approve) {
+      let ok = confirm(`Are you sure you want to 'approve' this endpoint?`);
+      if (!ok) return;
+    } else {
+      let ok = confirm(`Are you sure you want to 'deny' this endpoint?`);
+      if (!ok) return;
+    }
+    
     this.setState({onApprovalHandlerLoading: true});
     try {
       await reviewEndpoint(approve, circuitEpId, vrfEpId);
@@ -63,12 +71,24 @@ class Cloud extends React.Component {
       );
     };
 
+    const connectionLink = (data) => {
+      let url;
+      if (data.circuit_id) {
+        url = `../../index.cgi?action=modify_l2vpn&circuit_id=${data.circuit_id}`;
+      } else {
+        url = `../../index.cgi?action=modify_cloud&vrf_id=${data.vrf_id}`;
+      }
+
+      return ( <a href={url}><code>{data.circuit_id || data.vrf_id }</code></a> );
+    };
+
     let columns = [
-      { name: 'User', key: 'last_modified_by.email' },
+      { name: 'Connection', render: connectionLink },
       { name: 'Workgroup', key: 'workgroup.name' },
-      { name: 'Type', key: 'cloud_interconnect_type' },
-      { name: 'Entity', key: 'entity' },
+      { name: 'User', key: 'last_modified_by.email' },
       { name: 'Bandwidth (Mbps)', key: 'bandwidth' },
+      { name: 'Entity', key: 'entity' },
+      { name: 'Type', key: 'cloud_interconnect_type' },
       { name: 'Date', render: data => `${new Date(data.last_modified_on * 1000).toLocaleString()}` },
       { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];

@@ -992,9 +992,9 @@ sub review_endpoint {
         $method->set_error($user_err);
         return;
     }
-    my ($ok, $access_err) = $user->has_system_access(role => 'normal');
-    if (defined $access_err){
-        $method->set_error($access_err);
+    my ($is_admin, $is_admin_err) = $user->has_system_access(role => 'normal');
+    if (defined $is_admin_err){
+        $method->set_error($is_admin_err);
         return;
     }
 
@@ -1031,8 +1031,6 @@ sub review_endpoint {
     my $conn;
     my $connection_id;
     my $connection_name;
-
-    my $is_admin;
 
     if ($params->{circuit_ep_id}{is_set}) {
         $conn = new OESS::L2Circuit(db => $db2, circuit_id => $ep->circuit_id);
