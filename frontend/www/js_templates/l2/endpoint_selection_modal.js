@@ -405,7 +405,9 @@ class EndpointSelectionModal2 {
 
       let intf = null;
       for (let i = 0; i < entity.interfaces.length; i++) {
-        if (entity.interfaces[i].name == selectedInterface) {
+        let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
+        let userSelectedInterface = (entity.interfaces[i].node == selectedNode && entity.interfaces[i].name == selectedInterface);
+        if (autoSelectedInterface || userSelectedInterface) {
           intf = entity.interfaces[i];
           break;
         }
@@ -419,7 +421,7 @@ class EndpointSelectionModal2 {
       let activeOpt = null;
       for (let i = 0; i < interfaceOptions.length; i++) {
         let opt = interfaceOptions[i];
-        if (opt.cloud_interconnect_type == intf.cloud_interconnect_type && intf.bandwidth >= opt.min_bandwidth && intf.bandwidth <= opt.max_bandwidth) {
+        if (opt.cloud_interconnect_type == intf.cloud_interconnect_type && parseInt(intf.bandwidth) >= parseInt(opt.min_bandwidth) && parseInt(intf.bandwidth) <= parseInt(opt.max_bandwidth)) {
           activeOpt = opt;
         }
       }
@@ -435,7 +437,7 @@ class EndpointSelectionModal2 {
           continue;
         }
 
-        if (activeOpt.speed[i].admin_only && activeOpt.speed[i].admin_only == 1) {
+        if (activeOpt.speed[i].requires_approval && activeOpt.speed[i].requires_approval == 1) {
           approvalWarning.style.display = 'block';
           approvalWarning.innerHTML = '<b>Warning!</b> As configured, an additional fee may be required to provision this endpoint';
         } else {
@@ -468,7 +470,7 @@ class EndpointSelectionModal2 {
 
       for (let i = 0; i < interfaceOptions.length; i++) {
         let opt = interfaceOptions[i];
-        if (opt.cloud_interconnect_type == intf.cloud_interconnect_type && intf.bandwidth >= opt.min_bandwidth && intf.bandwidth <= opt.max_bandwidth) {
+        if (opt.cloud_interconnect_type == intf.cloud_interconnect_type && parseInt(intf.bandwidth) >= parseInt(opt.min_bandwidth) && parseInt(intf.bandwidth) <= parseInt(opt.max_bandwidth)) {
           iopt = opt;
           break;
         }
