@@ -64,12 +64,12 @@ class Cloud extends React.Component {
     };
 
     let columns = [
-      { name: 'User', key: 'tag' },
-      { name: 'Workgroup', key: 'tag' },
+      { name: 'User', key: 'last_modified_by.email' },
+      { name: 'Workgroup', key: 'workgroup.name' },
       { name: 'Type', key: 'cloud_interconnect_type' },
       { name: 'Entity', key: 'entity' },
       { name: 'Bandwidth (Mbps)', key: 'bandwidth' },
-      { name: 'Date', key: 'tag' },
+      { name: 'Date', render: data => `${new Date(data.last_modified_on * 1000).toLocaleString()}` },
       { name: '', render: rowButtons, style: {textAlign: 'right'} }
     ];
 
@@ -81,7 +81,6 @@ class Cloud extends React.Component {
 
         <div>
           <p className="title"><b>Cloud</b></p>
-          <p className="title2"><b>Endpoint Requests</b></p>
           <p className="subtitle">Approve or deny endpoint provisioning requests</p>
         </div>
         <br />

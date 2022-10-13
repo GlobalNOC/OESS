@@ -411,7 +411,7 @@ sub to_hash {
     my $hash = {
         remote_requester => $self->{remote_requester},
         external_identifier => $self->{external_identifier},
-	status => $self->{status},
+        status => $self->{status},
         state => $self->{state},
         remote_url => $self->{remote_url},
         created_on => $self->{created_on},
@@ -920,6 +920,36 @@ sub get_mpls_path_type{
     }
 
     return $self->{model}{'paths'}{$params{'path'}}{'mpls_path_type'};
+}
+
+=head2 last_modified
+
+    my $unixtime = $circuit->last_modified;
+
+=cut
+sub last_modified {
+    my $self = shift;
+    return $self->{last_modified_on_epoch};
+}
+
+=head2 last_modified_by
+
+    my $last_modified_by = $vrf->last_modified_by;
+
+or
+
+    $circuit->last_modified_by(new OESS::User(db => $db, user_id => $id));
+
+=cut
+sub last_modified_by {
+    my $self = shift;
+    my $last_modified_by = shift;
+
+    if (defined $last_modified_by) {
+        $self->{last_modified_by} = $last_modified_by;
+        $self->{last_modified_by_id} = $last_modified_by->user_id;
+    }
+    return $self->{last_modified_by};
 }
 
 =head2 get_mpls_hops

@@ -117,8 +117,8 @@ export const CustomTable = (props) => {
                 {tableFilter}
                 {menuItems}
             </div>
-            <div class="panel panel-default">
-                <div class="panel-body" style={{padding: '10px 0 0 0'}}>
+            <div className="panel panel-default">
+                <div className="panel-body" style={{padding: '10px 0 0 0'}}>
                     { filteredRows.length > 0 ? <Table columns={columns} rows={filteredRows} /> : <center style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100px"}}><p style={{textAlign:"center", fontSize:"11px", fontWeight:"bold"}}>No data to display</p></center> }
                 </div>
             </div>

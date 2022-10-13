@@ -14,7 +14,13 @@ const Table = (props) => {
   let rows = props.rows.map((row, ri) => {
     let cells = props.columns.map((column, ci) => {
       if ('key' in column) {
-        return <td key={ci} style={column.style}>{ row[column.key] }</td>;
+        // dot notation support: ex. workgroup.name
+        let keypath = column.key.split('.');
+        let value = row[keypath[0]];
+        for (let i = 1; i < keypath.length; i++) {
+          value = value[keypath[i]];
+        }
+        return <td key={ci} style={column.style}>{ (value === null || value === undefined) ? '' : value.toString() }</td>;
       }
       else if ('render' in column) {
         return <td key={ci} style={column.style}>{ column.render(row) }</td>;

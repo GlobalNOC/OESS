@@ -960,8 +960,21 @@ sub get_endpoints_in_review {
 
     my $results = [];
     foreach my $raw_ep (@$raw_eps) {
+        my $conn;
+        if ($raw_ep->{type} eq 'circuit') {
+            $conn = new OESS::L2Circuit(db => $db2, circuit_id => $raw_ep->{circuit_id});
+        } else {
+            $conn = new OESS::VRF(db => $db2, vrf_id => $raw_ep->{vrf_id});
+        }
+        $conn->load_users;
+        $conn->load_workgroup;
+
         my $ep = new OESS::Endpoint(db => $db2, model => $raw_ep);
-        push @$results, $ep->to_hash;
+        my $data = $ep->to_hash;
+        $data->{workgroup} = $conn->workgroup->to_hash;
+        $data->{last_modified_by} = $conn->last_modified_by->to_hash;
+        $data->{last_modified_on} = $conn->last_modified;
+        push @$results, $data;
     } 
 
     return { results => $results };
