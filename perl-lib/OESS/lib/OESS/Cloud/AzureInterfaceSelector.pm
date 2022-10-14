@@ -18,7 +18,6 @@ use OESS::DB::Interface;
 sub new {
     my $class = shift;
     my $args  = {
-        azure       => undef, # OESS::Cloud::Azure
         db          => undef, # OESS::DB
         entity      => undef, # OESS::Entity
         logger      => Log::Log4perl->get_logger("OESS.Cloud.AzureInterfaceSelector"),
@@ -41,6 +40,7 @@ sub new {
 =cut
 sub select_interface {
     my $self = shift;
+    my $conn = shift;
 
     my $intfs = $self->{entity}->interfaces;
     if (!$intfs) {
@@ -73,11 +73,6 @@ sub select_interface {
         $self->{selected_interfaces}->{$ep->{interface_id}} = 1;
     }
 
-    my $conn = $self->{azure}->expressRouteCrossConnection($interconnect_id, $self->{service_key});
-    if (defined $conn->{error}) {
-        $self->{logger}->error($conn->{error}->{message});
-        return;
-    }
     my $primary_id = $conn->{properties}->{primaryAzurePort};
     my $secondary_id = $conn->{properties}->{secondaryAzurePort};
 
