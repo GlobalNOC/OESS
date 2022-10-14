@@ -1,6 +1,7 @@
 OESS_VERSION=2.0.16
 OESS_NETWORK=oess
 TEST_FILES=
+MAILHOST=localhost
 
 include .env
 
@@ -47,6 +48,7 @@ dev:
 	--mount type=bind,src=${PWD}/app,dst=/usr/bin/oess \
 	--mount type=bind,src=${PWD}/docs,dst=/docs \
 	--mount type=bind,src=${PWD}/perl-lib/OESS/etc,dst=/usr/share/oess-core \
+	--hostname ${MAILHOST} \
 	oess:${OESS_VERSION} /bin/bash
 
 documentation:
