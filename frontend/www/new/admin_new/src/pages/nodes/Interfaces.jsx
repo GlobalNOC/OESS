@@ -100,8 +100,8 @@ class Interfaces extends React.Component {
                 </BaseModal>
 
                 <div>
-                    <p className="title"><b>Node Interfaces</b></p>
-                    <p className="subtitle">Edit Node Interfaces</p>
+                    <p className="title"><b>Interfaces:</b> <span style={{opacity: 0.85}}>{this.state.node.name}</span></p>
+                    <p className="subtitle">Edit Interfaces</p>
                 </div>
                 <br />
 
