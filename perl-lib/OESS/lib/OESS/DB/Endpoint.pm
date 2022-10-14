@@ -408,7 +408,7 @@ sub add_circuit_edge_membership{
             "unit, ".
             "mtu, ".
             "state ".
-            ") VALUES (?, ?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
+            ") VALUES (?, ?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?, ?)",
             [$endpoint->{interface_id},
              $endpoint->{bandwidth},
              $endpoint->{circuit_id},
@@ -437,8 +437,8 @@ sub update_circuit_edge_membership{
             "extern_vlan_id=?, ".
             "inner_tag=?, ".
             "unit=?, ".
-            "mtu=? ".
-            "state=?".
+            "mtu=?, ".
+            "state=? ".
             "WHERE circuit_edge_id=?",
             [$endpoint->{interface_id},
              $endpoint->{bandwidth},
