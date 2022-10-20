@@ -205,6 +205,7 @@ sub review_endpoint_notification {
 
     my $connection = undef;
     my $connection_id = $params->{connection_id}{value};
+    my $connection_href = undef;
 
     if ($params->{connection_type}{value} eq 'circuit') {
         $connection = new OESS::L2Circuit(db => $self->{db_new}, circuit_id => $connection_id);
@@ -216,8 +217,7 @@ sub review_endpoint_notification {
         $connection->load_users;
         $connection->load_workgroup;
 
-        $connection->{connection_id} = $connection->circuit_id;
-        $connection->{connection_href} = "$self->{base_url}/index.cgi?action=modify_l2vpn&circuit_id=$connection->{connection_id}";
+        $connection_href = "$self->{base_url}/index.cgi?action=modify_l2vpn&circuit_id=$connection_id";
     } else {
         $connection = new OESS::VRF(db => $self->{db_new}, vrf_id => $connection_id);
         if (!defined $connection) {
@@ -228,10 +228,12 @@ sub review_endpoint_notification {
         $connection->load_users;
         $connection->load_workgroup;
 
-        $connection->{connection_id} = $connection->vrf_id;
-        $connection->{connection_href} = "$self->{base_url}/index.cgi?action=modify_cloud&vrf_id=$connection->{connection_id}";
+        $connection_href = "$self->{base_url}/index.cgi?action=modify_cloud&vrf_id=$connection_id";
     }
+
     my $payload = $connection->to_hash;
+    $payload->{connection_id} = $connection_id;
+    $payload->{connection_href} = $connection_href;
 
     return $self->send_review_endpoint_notification(
         subject => $subject,
@@ -267,6 +269,8 @@ sub send_review_endpoint_notification {
     my $vars = {
         SUBJECT             => $args->{subject},
         base_url            => $self->{base_url},
+        connection_id       => $args->{connection}->{connection_id},
+        connection_href     => $args->{connection}->{connection_href},
         workgroup           => $args->{connection}->{workgroup}->{name},
         description         => $args->{connection}->{description},
         endpoints           => $endpoints,
@@ -281,7 +285,7 @@ sub send_review_endpoint_notification {
         RELATIVE=>0,
     };
 
-    my $to_string = $self->{'approval_email'};
+    my $to_string = $self->{approval_email};
     eval {
         my $message = MIME::Lite::TT::HTML->new(
             From => $self->{'from_address'},
