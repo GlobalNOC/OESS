@@ -37,7 +37,10 @@ sed -i "s/OESS_PASSWORD/$OESS_PASSWORD/" /etc/oess/database.xml
 sed -i "s@NSO_HOST@$NSO_HOST@" /etc/oess/database.xml
 sed -i "s/NSO_PASSWORD/$NSO_PASSWORD/" /etc/oess/database.xml
 sed -i "s/NSO_USERNAME/$NSO_USERNAME/" /etc/oess/database.xml
+sed -i "s@OESS_BASE_URL@$OESS_BASE_URL@" /etc/oess/database.xml
 sed -i "s/OESS_LOCAL_ASN/$OESS_LOCAL_ASN/" /etc/oess/database.xml
+sed -i "s/OESS_ADMIN_EMAIL/$OESS_ADMIN_EMAIL/" /etc/oess/database.xml
+sed -i "s/OESS_APPROVAL_EMAIL/$OESS_APPROVAL_EMAIL/" /etc/oess/database.xml
 sed -i "s@TSDS_URL@$TSDS_URL@" /etc/oess/database.xml
 sed -i "s/TSDS_PASSWORD/$TSDS_PASSWORD/" /etc/oess/database.xml
 sed -i "s/TSDS_USERNAME/$TSDS_USERNAME/" /etc/oess/database.xml

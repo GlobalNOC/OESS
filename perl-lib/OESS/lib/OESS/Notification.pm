@@ -215,6 +215,9 @@ sub review_endpoint_notification {
         $connection->load_endpoints;
         $connection->load_users;
         $connection->load_workgroup;
+
+        $connection->{connection_id} = $connection->circuit_id;
+        $connection->{connection_href} = "$self->{base_url}/index.cgi?action=modify_l2vpn&circuit_id=$connection->{connection_id}";
     } else {
         $connection = new OESS::VRF(db => $self->{db_new}, vrf_id => $connection_id);
         if (!defined $connection) {
@@ -224,6 +227,9 @@ sub review_endpoint_notification {
         $connection->load_endpoints;
         $connection->load_users;
         $connection->load_workgroup;
+
+        $connection->{connection_id} = $connection->vrf_id;
+        $connection->{connection_href} = "$self->{base_url}/index.cgi?action=modify_cloud&vrf_id=$connection->{connection_id}";
     }
     my $payload = $connection->to_hash;
 
@@ -241,11 +247,9 @@ sub send_review_endpoint_notification {
     my $args = {
         subject => undef,
         connection => undef,
-        connection_type => 'circuit',
         @_
     };
 
-    # TODO load endpoints into $clr
     my $endpoints = [];
 
     my $dt = DateTime->from_epoch( epoch => $args->{connection}->{last_modified} );
@@ -259,7 +263,6 @@ sub send_review_endpoint_notification {
 
         push @$endpoints, $ep;
     }
-    warn Dumper($args->{connection});
 
     my $vars = {
         SUBJECT             => $args->{subject},
@@ -278,8 +281,7 @@ sub send_review_endpoint_notification {
         RELATIVE=>0,
     };
 
-    # TODO generate $to_string
-    my $to_string = 'jonstout@globalnoc.iu.edu';
+    my $to_string = $self->{'approval_email'};
     eval {
         my $message = MIME::Lite::TT::HTML->new(
             From => $self->{'from_address'},
@@ -719,6 +721,7 @@ sub _process_config_file {
     $self->{'from_address'} = $config->{'smtp'}->{'from_address'};
     $self->{'image_base_url'} = $config->{'smtp'}->{'image_base_url'};
     $self->{'base_url'} = $config->{'base_url'};
+    $self->{'approval_email'} = $config->{'approval_email'} || 'root@localhost';
     return;
 }
 
