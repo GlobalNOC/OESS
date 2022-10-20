@@ -907,6 +907,13 @@ sub register_webservice_methods {
         required        => 0,
         description     => "VRF ID of the Endpoint"
     );
+    $method->add_input_parameter(
+        name        => 'skip_cloud_provisioning',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 0,
+        default     => 0,
+        description => "If set to 1 cloud provider configurations will not be performed."
+    );
     $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
@@ -1042,40 +1049,41 @@ sub review_endpoint {
         $connection_name = $conn->name;
     }
 
-    eval {
-        my $endpoints = [$ep];
-        OESS::Cloud::setup_endpoints($db2, $connection_id, $connection_name, $endpoints, $is_admin);
+    if (!$params->{skip_cloud_provisioning}->{value}) {
+        eval {
+            my $endpoints = [$ep];
+            OESS::Cloud::setup_endpoints($db2, $connection_id, $connection_name, $endpoints, $is_admin);
 
-        foreach my $ep (@$endpoints) {
-            # It's expected that layer2 connections to azure pass
-            # all QnQ tagged traffic directly to the customer
-            # edge; All inner tagged traffic should be passed
-            # transparently. This is not the case for l3conns
-            # which should match specifically on the qnq tag to
-            # ensure proper peerings.
-            if ($params->{circuit_ep_id}{is_set}) {
-                if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
-                    $ep->{unit} = $ep->{tag};
-                    $ep->{inner_tag} = undef;
-                }
-            } else {
-                if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
-                    # We do nothing here as the QinQ tags have already
-                    # been selected and will not change for updates.
+            foreach my $ep (@$endpoints) {
+                # It's expected that layer2 connections to azure pass
+                # all QnQ tagged traffic directly to the customer
+                # edge; All inner tagged traffic should be passed
+                # transparently. This is not the case for l3conns
+                # which should match specifically on the qnq tag to
+                # ensure proper peerings.
+                if ($params->{circuit_ep_id}{is_set}) {
+                    if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                        $ep->{unit} = $ep->{tag};
+                        $ep->{inner_tag} = undef;
+                    }
+                } else {
+                    if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                        # We do nothing here as the QinQ tags have already
+                        # been selected and will not change for updates.
+                    }
+
                 }
 
+                my $update_err = $ep->update_db;
+                die $update_err if (defined $update_err);
             }
-
-            my $update_err = $ep->update_db;
-            die $update_err if (defined $update_err);
+        };
+        if ($@) {
+            $method->set_error("$@");
+            $db2->rollback;
+            return;
         }
-    };
-    if ($@) {
-        $method->set_error("$@");
-        $db2->rollback;
-        return;
     }
-
     $conn->load_endpoints;
     $db2->commit;
 

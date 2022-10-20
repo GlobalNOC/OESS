@@ -419,6 +419,7 @@ sub to_hash {
         workgroup_id => $self->{workgroup_id},
         created_on_epoch => $self->{created_on_epoch},
         last_modified_on_epoch => $self->{last_modified_on_epoch},
+        last_modified => $self->{last_modified_on_epoch},
         name => $self->{name},
         reason => $self->{reason},
         description => $self->{description},
@@ -522,6 +523,9 @@ sub _process_circuit_details{
     if (defined $hash->{start_epoch}) {
         $self->{last_modified_on} = DateTime->from_epoch(epoch => $hash->{start_epoch})->strftime('%m/%d/%Y %H:%M:%S');
         $self->{last_modified_on_epoch} = $hash->{start_epoch};
+    } else {
+        $self->{last_modified_on} = $hash->{last_modified_on};
+        $self->{last_modified_on_epoch} = $hash->{last_modified_on_epoch};
     }
 
     # TODO Load primary links
