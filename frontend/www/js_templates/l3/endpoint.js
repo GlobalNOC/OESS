@@ -10,7 +10,7 @@ class Endpoint2 {
     if (endpoint.state == 'in-review') {
       this.element.querySelector('.panel').classList.remove('panel-default')
       this.element.querySelector('.panel').classList.add('panel-warning')
-      this.element.querySelector('.panel-heading').innerHTML = 'Pending Approval';
+      this.element.querySelector('.panel-heading').innerHTML = 'This endpoint is pending approval. Please contact <a href="mailto: [% approval_email %]">[% approval_email %]</a> for additional information.';
     } else {
       this.element.querySelector('.panel-heading').style.display = 'none';
     }

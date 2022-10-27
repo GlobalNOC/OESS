@@ -439,7 +439,7 @@ class EndpointSelectionModal2 {
 
         if (activeOpt.speed[i].requires_approval && activeOpt.speed[i].requires_approval == 1) {
           approvalWarning.style.display = 'block';
-          approvalWarning.innerHTML = '<b>Warning!</b> As configured, an additional fee may be required to provision this endpoint';
+          approvalWarning.innerHTML = '<b>Warning!</b> As configured, an additional fee may be required to provision this endpoint. Please contact <a href="mailto: [% approval_email %]">[% approval_email %]</a> for additional information.';
         } else {
           approvalWarning.style.display = 'none';
           approvalWarning.innerHTML = '';

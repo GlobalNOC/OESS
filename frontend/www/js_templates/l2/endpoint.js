@@ -5,7 +5,7 @@ function NewEndpoint(endpoint) {
   if (endpoint.state == 'in-review') {
     e.querySelector('.panel').classList.remove('panel-default')
     e.querySelector('.panel').classList.add('panel-warning')
-    e.querySelector('.panel-heading').innerHTML = 'Pending Approval';
+    e.querySelector('.panel-heading').innerHTML = 'This endpoint is pending approval. Please contact <a href="mailto: [% approval_email %]">[% approval_email %]</a> for additional information.';
   } else {
     e.querySelector('.panel-heading').style.display = 'none';
   }
