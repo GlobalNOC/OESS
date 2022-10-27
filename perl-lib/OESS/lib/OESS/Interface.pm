@@ -242,7 +242,7 @@ sub bandwidth{
         $self->{bandwidth} = $bandwidth;
     }
 
-    if($self->{'cloud_interconnect_type'} eq 'azure-express-route'){
+    if((defined $self->{'cloud_interconnect_type'}) && ($self->{'cloud_interconnect_type'} eq 'azure-express-route')){
         return $self->{'bandwidth'} * 4;
     }else{
         return $self->{'bandwidth'};
