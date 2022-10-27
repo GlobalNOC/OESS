@@ -113,7 +113,7 @@ sub new{
         return;
     }
 
-    if ((defined($self->circuit_id()) && $self->circuit_id() != -1) ||
+    if ((defined($self->circuit_ep_id()) && $self->circuit_ep_id() != -1) ||
         (defined($self->vrf_endpoint_id()) && $self->vrf_endpoint_id() != -1)){
         $self->{model} = $self->_fetch_from_db();
     }

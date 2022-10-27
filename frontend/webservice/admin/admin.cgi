@@ -76,6 +76,12 @@ my $ac = new OESS::AccessController::Default(db => $db2);
 
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
 
+my $log_client = new OESS::RabbitMQ::Client(
+    topic      => 'OF.FWDCTL.event',
+    timeout    => 15,
+    config_obj => $config
+);
+
 $| = 1;
 
 
@@ -938,7 +944,27 @@ sub register_webservice_methods {
         );
     $svc->register_method($method);
 
-
+    # left here for generating test emails
+    # $method = GRNOC::WebService::Method->new(
+    #     name            => "send_test",
+    #     description     => "Approves or rejects a large diff.",
+    #     callback        => sub { send_test( @_ ) },
+    #     method_deprecated => "This method has been deprecated"
+    # );
+    # $method->add_input_parameter(
+    #     name        => 'type',
+    #     pattern     => $GRNOC::WebService::Regex::TEXT,
+    #     required    => 1,
+    #     description => '',
+    # );
+    # $method->add_input_parameter(
+    #     name        => 'text',
+    #     pattern     => $GRNOC::WebService::Regex::TEXT,
+    #     required    => 0,
+    #     default     => 'default text message',
+    #     description => '',
+    # );
+    # $svc->register_method($method);
 }
 
 =head2 get_endpoints_in_review
@@ -987,6 +1013,32 @@ sub get_endpoints_in_review {
     return { results => $results };
 }
 
+# left here for generating test emails
+# =head2 send_test
+# 
+# =cut
+# sub send_test {
+#     my $method = shift;
+#     my $params = shift;
+#     eval {
+#         $log_client->review_endpoint_notification(
+#             no_reply => 1,
+#             type => $params->{type}{value},
+#             text => $params->{text}{value},
+#             # connection_id => 3000,
+#             # endpoint_id => 1,
+#             # connection_type => 'circuit',
+#             connection_id => 6000,
+#             endpoint_id => 1,
+#             connection_type => 'vrf',
+#         );
+#     };
+#     if ($@) {
+#         warn "Couldn't send endpoint failure notification.";
+#     }
+#     return {success => 1};
+# }
+
 =head2 review_endpoint
 
 =cut
@@ -1017,17 +1069,36 @@ sub review_endpoint {
     $db2->start_transaction;
 
     my $ep;
+    my $ep_id;
+    my $ep_type;
     if ($params->{circuit_ep_id}{is_set}) {
         $ep = new OESS::Endpoint(db => $db2, circuit_ep_id => $params->{circuit_ep_id}{value});
+        $ep_id = $params->{circuit_ep_id}{value};
+        $ep_type = 'circuit';
     } else {
         $ep = new OESS::Endpoint(db => $db2, vrf_endpoint_id => $params->{vrf_ep_id}{value});
+        $ep_id = $params->{vrf_ep_id}{value};
+        $ep_type = 'vrf';
     }
 
     if ($params->{approve}{value} eq "0") {
         $ep->state("decom");
         $ep->update_db;
         $db2->commit;
-        # There are no further actions to take on denied endpoints 
+
+        eval {
+            $log_client->review_endpoint_notification(
+                no_reply => 1,
+                connection_id => $ep->circuit_id || $ep->vrf_id,
+                endpoint_id => $ep_id,
+                connection_type => $ep_type,
+                notification_type => 'denial',
+            );
+        };
+        if ($@) {
+            warn "Couldn't send endpoint denial notification.";
+        }
+        # There are no further actions to take on denied endpoints
         return { success => 1 };
     } else {
         $ep->state("active");
@@ -1049,7 +1120,7 @@ sub review_endpoint {
         $connection_name = $conn->name;
     }
 
-    if (!$params->{skip_cloud_provisioning}->{value}) {
+    if (!$params->{skip_cloud_provisioning}{value}) {
         eval {
             my $endpoints = [$ep];
             OESS::Cloud::setup_endpoints($db2, $connection_id, $connection_name, $endpoints, $is_admin);
@@ -1081,11 +1152,37 @@ sub review_endpoint {
         if ($@) {
             $method->set_error("$@");
             $db2->rollback;
+
+            eval {
+                $log_client->review_endpoint_notification(
+                    no_reply => 1,
+                    connection_id => $connection_id,
+                    endpoint_id => $ep_id,
+                    connection_type => $ep_type,
+                    notification_type => 'failure',
+                );
+            };
+            if ($@) {
+                warn "Couldn't send endpoint failure notification.";
+            }
             return;
         }
     }
     $conn->load_endpoints;
     $db2->commit;
+
+    eval {
+        $log_client->review_endpoint_notification(
+            no_reply => 1,
+            connection_id => $connection_id,
+            endpoint_id => $ep_id,
+            connection_type => $ep_type,
+            notification_type => 'approval',
+        );
+    };
+    if ($@) {
+        warn "Couldn't send endpoint approval notification.";
+    }
 
     my $mq = OESS::RabbitMQ::Client->new(
         topic      => 'OF.FWDCTL.RPC',

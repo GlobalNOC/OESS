@@ -266,10 +266,41 @@
                                     <p style="margin: 0;">Last modified by: [% last_modified_by %] on [% human_time %]</p>
                                 </td>
                             </tr>
+                            [% IF TYPE == 'failure' -%]
+                            <tr>
+                                <td style="padding: 10px 20px; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #555555;">
+                                    <h2 style="margin: 0 0 10px 0; font-family: sans-serif; font-size: 18px; line-height: 22px; color: #333333; font-weight: bold;">Error</h2>
+                                    <p>An occurred during endpoint approval. If required, you
+                                        will be contacted for additional information. If you have any questions
+                                        in regards to this notification, please contact [% approval_email %].</p>
+                                    
+                                    <p style="color: #aa0000">[% TEXT %]</p>
+                                </td>
+                            </tr>
+                            [% END -%]
                             <tr>
                                 <td style="padding: 10px 20px; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #555555;">
                                     <h2 style="margin: 0 0 10px 0; font-family: sans-serif; font-size: 18px; line-height: 22px; color: #333333; font-weight: bold;">Endpoints</h2>
-                                    <p>The following Endpoints require administrative approval:</p>
+                                    
+                                    [% IF TYPE == 'request' -%]
+                                    <p>The following endpoints require administrative approval:</p>
+                                    [% ELSIF TYPE == 'approval' -%]
+                                    <p>The following endpoints were approved and provisioned:</p>
+                                    [% ELSIF TYPE == 'failure' -%]
+                                    <p>The following endpoints were affected:</p>
+                                    [% ELSIF TYPE == 'denial' -%]
+                                    <p>
+                                        The following endpoints were not approved and have been decommisioned.
+                                        If you have any questions in regards to this notification, please
+                                        contact [% approval_email %]:
+                                    </p>
+                                    [% ELSE -%]
+                                    <p>
+                                        The following Endpoints are associated with this unkown notification
+                                        type:
+                                    </p>
+                                    [% END -%]
+
                                     [% FOREACH ep IN endpoints -%]
                                     <pre style="margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 14px;">
 Entity:            [% ep.entity %]
@@ -288,7 +319,11 @@ State:             [% ep.state %]
                                     <table align="center" role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: auto;">
                                         <tr>
                                             <td class="button-td button-td-primary" style="border-radius: 4px; background: #222222;">
-											     <a class="button-a button-a-primary" href="[% base_url %]/new/admin/cloud" style="background: #222222; border: 1px solid #000000; font-family: sans-serif; font-size: 15px; line-height: 15px; text-decoration: none; padding: 13px 17px; color: #ffffff; display: block; border-radius: 4px;">Review Endpoints</a>
+                                                [% IF TYPE != 'request' %]
+                                                    <a class="button-a button-a-primary" href="[% connection_href %]" style="background: #222222; border: 1px solid #000000; font-family: sans-serif; font-size: 15px; line-height: 15px; text-decoration: none; padding: 13px 17px; color: #ffffff; display: block; border-radius: 4px;">View Connection</a>
+                                                [% ELSE %]
+                                                    <a class="button-a button-a-primary" href="[% base_url %]/new/admin/cloud" style="background: #222222; border: 1px solid #000000; font-family: sans-serif; font-size: 15px; line-height: 15px; text-decoration: none; padding: 13px 17px; color: #ffffff; display: block; border-radius: 4px;">Review Endpoints</a>
+                                                [% END %]
 											</td>
                                         </tr>
                                     </table>

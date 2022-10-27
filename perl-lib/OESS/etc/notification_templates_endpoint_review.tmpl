@@ -1,11 +1,33 @@
-Greetings workgroup [%workgroup%],
+Greetings workgroup [% workgroup %],
 
 Connection: [% description %] - [% connection_id %]
 Owned by: [% workgroup %]
 Last modified by: [% last_modified_by %] on [% human_time %]
 
+[% IF TYPE == 'failure' -%]
+Error
+The following error occurred during endpoint approval. If required, you
+will be contacted for additional information. If you have any questions
+in regards to this notification, please contact [% approval_email %]:
+
+[% TEXT %]
+[% END -%]
+
 Endpoints
-The following Endpoints require administrative approval:
+[% IF TYPE == 'request' -%]
+The following endpoints require administrative approval:
+[% ELSIF TYPE == 'approval' -%]
+The following endpoints were approved and provisioned:
+[% ELSIF TYPE == 'failure' -%]
+The following endpoints were affected:
+[% ELSIF TYPE == 'denial' -%]
+The following endpoints were not approved and have been decommisioned.
+If you have any questions in regards to this notification, please
+contact [% approval_email %]:
+[% ELSE -%]
+The following Endpoints are associated with this unkown notification
+type:
+[% END -%]
 
 [% FOREACH ep IN endpoints -%]
 Entity:            [% ep.entity %]
