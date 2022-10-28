@@ -62,6 +62,16 @@ sub upgrade{
     $sth = $dbh->prepare("ALTER TABLE circuit_edge_interface_membership ADD `state` enum('active','decom','in-review') DEFAULT NULL");
     $sth->execute() or die "Unable to 'state' columen to circuit_edge_interface_membership";
 
+    $sth = $dbh->prepare("update circuit_edge_interface_membership set state='active' where end_epoch = -1")
+    $sth->execute() or die "Unable to 'state' columen to circuit_edge_interface_membership";
+
+    $sth = $dbh->prepare("update circuit_edge_interface_membership set state='decom' where circuit_id in (
+        select circuit_instantiation.circuit_id
+        from circuit_instantiation
+        where circuit_instantiation.circuit_state='decom' and circuit_instantiation.end_epoch=-1
+    )");
+    $sth->execute() or die "Unable to 'state' columen to circuit_edge_interface_membership";
+
     $str = "update oess_version set version = '$version'";
     $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
     $sth->execute() or die "Unable to update version\n";

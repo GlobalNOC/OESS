@@ -82,6 +82,11 @@ sub fetch_all {
         push @$params, 'circuit_ep.circuit_id=?';
         push @$values, $args->{circuit_id};
     }
+    if (defined $args->{circuit_ep_id}) {
+        $type = 'circuit';
+        push @$params, 'circuit_ep.circuit_edge_id=?';
+        push @$values, $args->{circuit_ep_id};
+    }
     if (defined $args->{vrf_id}) {
         $type = 'vrf';
         push @$params, 'vrf_ep.vrf_id=?';

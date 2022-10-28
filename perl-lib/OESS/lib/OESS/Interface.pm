@@ -551,6 +551,9 @@ sub is_bandwidth_valid {
     );
 }
 
+=head2 bandwidth_requires_approval
+
+=cut
 sub bandwidth_requires_approval {
     my $self   = shift;
     my $args = {

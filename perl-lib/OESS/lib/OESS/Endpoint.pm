@@ -113,10 +113,16 @@ sub new{
         return;
     }
 
-    if ((defined($self->circuit_ep_id()) && $self->circuit_ep_id() != -1) ||
-        (defined($self->vrf_endpoint_id()) && $self->vrf_endpoint_id() != -1)){
-        $self->{model} = $self->_fetch_from_db();
+    if (defined $self->{circuit_id} && $self->{circuit_id} != -1 && defined $self->{interface_id} && $self->{interface_id} != -1) {
+        $self->{model} = $self->_fetch_from_db;
     }
+    elsif (defined $self->{circuit_ep_id} && $self->{circuit_ep_id} != -1) {
+        $self->{model} = $self->_fetch_from_db;
+    }
+    elsif (defined $self->{vrf_endpoint_id} && $self->{vrf_endpoint_id} != -1) {
+        $self->{model} = $self->_fetch_from_db;
+    }
+
     if (!defined $self->{model}) {
         $self->{logger}->error("Couldn't load Endpoint object from database or model.");
         return;
@@ -252,15 +258,28 @@ sub _fetch_from_db{
     my $hash;
 
     if ($self->{'type'} eq 'circuit') {
-        my ($data, $err) = OESS::DB::Endpoint::fetch_all(
-            db => $self->{db},
-            circuit_id => $self->{circuit_id},
-            interface_id => $self->{interface_id},
-            state => undef,
-        );
-        if (!defined $err) {
-            $hash = $data->[0];
+        if (defined $self->{circuit_id} && $self->{circuit_id} != -1 && defined $self->{interface_id} && $self->{interface_id} != -1) {
+            my ($data, $err) = OESS::DB::Endpoint::fetch_all(
+                db => $self->{db},
+                circuit_id => $self->{circuit_id},
+                interface_id => $self->{interface_id},
+                state => undef,
+            );
+            if (!defined $err) {
+                $hash = $data->[0];
+            }
         }
+        else {
+            my ($data, $err) = OESS::DB::Endpoint::fetch_all(
+                db => $self->{db},
+                circuit_ep_id => $self->{circuit_ep_id},
+                state => undef,
+            );
+            if (!defined $err) {
+                $hash = $data->[0];
+            }
+        }
+
     } else {
         my ($data, $err) = OESS::DB::Endpoint::fetch_all(
             db => $db,

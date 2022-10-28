@@ -78,28 +78,29 @@ my $entity = new OESS::Entity(
 );
 
 my $intf;
+my $intf_err;
 my $id = "00000000-0000-0000-0000-000000000000/us-east1/2";
 
-$intf = $entity->select_interface(workgroup_id => 1, tag => 10, cloud_account_id => $id);
+($intf, $intf_err) = $entity->select_interface(workgroup_id => 1, tag => 10, cloud_account_id => $id);
 ok(!defined $intf, "Can't lookup interface with out-of-range tag.");
 
-$intf = $entity->select_interface(workgroup_id => 1, tag => 4, cloud_account_id => $id);
+($intf, $intf_err) = $entity->select_interface(workgroup_id => 1, tag => 4, cloud_account_id => $id);
 ok(!defined $intf, "Can't lookup interface with in-use tag.");
 
 
-$intf = $entity->select_interface(workgroup_id => 1, tag => 5, cloud_account_id => $id);
+($intf, $intf_err) = $entity->select_interface(workgroup_id => 1, tag => 5, cloud_account_id => $id);
 ok(defined $intf, "Can lookup first interface with valid tag.");
 
 ok($intf->{interface_id} == 2, 'Verified first interface_id.');
 
 
-$intf = $entity->select_interface(workgroup_id => 1, tag => 5, cloud_account_id => $id);
+($intf, $intf_err) = $entity->select_interface(workgroup_id => 1, tag => 5, cloud_account_id => $id);
 ok(!defined $intf, "Can't lookup second interface with reserved tag.");
 
 
 $id = "00000000-0000-0000-0000-000000000000/us-east1/1";
 
-$intf = $entity->select_interface(workgroup_id => 1, tag => 5, cloud_account_id => $id);
+($intf, $intf_err) = $entity->select_interface(workgroup_id => 1, tag => 5, cloud_account_id => $id);
 ok(defined $intf, "Can lookup second interface with other cloud_account_id.");
 
 ok($intf->{interface_id} == 1, 'Verified second interface_id.');

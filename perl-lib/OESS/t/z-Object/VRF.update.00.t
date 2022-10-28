@@ -86,7 +86,7 @@ my $endpoints = [
 
 foreach my $ep (@$endpoints) {
     my $entity = new OESS::Entity(db => $db, name => $ep->{entity});
-    my $interface = $entity->select_interface(
+    my ($interface, $interface_err) = $entity->select_interface(
         inner_tag    => $ep->{inner_tag},
         tag          => $ep->{tag},
         workgroup_id => $workgroup_id
