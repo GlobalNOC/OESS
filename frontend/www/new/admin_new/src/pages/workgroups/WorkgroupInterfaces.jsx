@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
-import { withRouter } from "react-router-dom";
+import { withRouter, Link } from "react-router-dom";
 
 import { PageContext } from "../../contexts/PageContext.jsx";
 import { BaseModal } from "../../components/generic_components/BaseModal.jsx";
@@ -61,7 +61,12 @@ export const WorkgroupInterfaces = (props) => {
   }
 
   const rowButtons = (data) => {
-    return <button type="button" className="btn btn-default btn-xs" onClick={(e) => removeInterface(data)}>Remove Interface</button>;
+    return (
+      <>
+        <Link to={`/nodes/${data.node_id}/interfaces/${data.interface_id}/acls`} className="btn btn-default btn-xs">Manage ACLs</Link>&nbsp;
+        <button type="button" className="btn btn-default btn-xs" onClick={(e) => removeInterface(data)}>Remove Interface</button>
+      </>
+    );
   }
 
   let columns = [
