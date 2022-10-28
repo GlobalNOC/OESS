@@ -113,7 +113,7 @@ sub _get_signing_string {
             $value = "$method $1"; # Ex: get /20160918/virtualCircuits
         }
         elsif ($part eq 'host') {
-            $value = 'iaas.us-ashburn-1.oraclecloud.com';
+            $value = $req->{_uri}->host;
         }
         elsif ($part eq 'date') {
             $value = time2str(time);
