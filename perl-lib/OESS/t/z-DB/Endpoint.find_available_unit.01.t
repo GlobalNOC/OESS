@@ -257,9 +257,10 @@ ok(!defined $unit14, 'No Unit returned as sTag=3,cTag=3 already in use on L3 Con
 
 
 # Modify database state to make next available unit 5003 on interface 391.
+# A state of 'active' or 'in-review' is enough to reserve the unit
 my $to_decom = $db->execute_query(
-    "insert into circuit_edge_interface_membership (interface_id,circuit_id,end_epoch,start_epoch,extern_vlan_id,inner_tag,unit,bandwidth,mtu)
-     values (391,1861,-1,1,20,22,5000,50,9000)"
+    "insert into circuit_edge_interface_membership (interface_id,circuit_id,end_epoch,start_epoch,extern_vlan_id,inner_tag,unit,bandwidth,mtu,state)
+     values (391,1861,-1,1,20,22,5000,50,9000,'in-review')"
 );
 warn $to_decom;
 $db->execute_query(

@@ -276,6 +276,8 @@ sub provision {
         return;
     }
 
+    my $admin_approval_required = 0;
+
     # Endpoint: { entity: 'entity name', bandwidth: 0, tag: 100, inner_tag: 100, peerings: [{ version: 4 }]  }
     foreach my $value (@{$args->{endpoint}->{value}}) {
         my $ep;
@@ -289,6 +291,7 @@ sub provision {
 
         my $entity;
         my $interface;
+        my $interface_err;
 
         if (defined $ep->{node} && defined $ep->{interface}) {
             $interface = new OESS::Interface(
@@ -297,17 +300,20 @@ sub provision {
                 node => $ep->{node}
             );
         }
-        # if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
-        #     # Continue
-        # }
         else {
             $entity = new OESS::Entity(db => $db, name => $ep->{entity});
-            $interface = $entity->select_interface(
+            ($interface, $interface_err) = $entity->select_interface(
                 inner_tag    => $ep->{inner_tag},
                 tag          => $ep->{tag},
                 workgroup_id => $args->{workgroup_id}->{value},
+                bandwidth    => $ep->{bandwidth},
                 cloud_account_id => $ep->{cloud_account_id}
             );
+            if (defined $interface_err) {
+                $method->set_error("Cannot find a valid Interface for $ep->{entity}: $interface_err");
+                $db->rollback;
+                return;
+            }
         }
         if (!defined $interface) {
             $method->set_error("Couldn't create Circuit: Cannot find a valid Interface for $ep->{entity}.");
@@ -327,6 +333,9 @@ sub provision {
             $db->rollback;
             return;
         }
+
+        my $requires_approval = $interface->bandwidth_requires_approval(bandwidth => $ep->{bandwidth}, is_admin => $is_admin);
+        $ep->{state} = ($requires_approval) ? 'in-review' : 'active';
 
         # Populate Endpoint modal with selected Interface details.
         $ep->{type}         = 'circuit';
@@ -369,6 +378,15 @@ sub provision {
             return;
         }
         $circuit->add_endpoint($endpoint);
+
+        if ($ep->{state} eq 'active') {
+            # Endpoints that aren't acitve (ex in-review) will not
+            # be provisioned by FWDCTL. Any cloud provisioning
+            # of these endpoints shall be avoided.
+        } else {
+            $admin_approval_required = 1;
+            warn "Endpoint will require admin approval";
+        }
     }
 
     if (defined $args->{link}->{value}) {
@@ -420,7 +438,12 @@ sub provision {
 
     if (!$args->{skip_cloud_provisioning}->{value}) {
         eval {
-            OESS::Cloud::setup_endpoints($db, undef, $circuit->description, $circuit->endpoints, $is_admin);
+            my $add_endpoints = [];
+            foreach my $ep (@{$circuit->endpoints}) {
+                next if $ep->state ne 'active';
+                push @$add_endpoints, $ep;
+            }
+            OESS::Cloud::setup_endpoints($db, undef, $circuit->description, $add_endpoints, $is_admin);
 
             foreach my $ep (@{$circuit->endpoints}) {
                 # It's expected that layer2 connections to azure pass
@@ -459,6 +482,17 @@ sub provision {
         type    => 'provisioned',
         circuit => $conn
     );
+
+    if ($admin_approval_required) {
+        eval {
+            $mq->{topic} = 'OF.FWDCTL.event';
+            $mq->review_endpoint_notification(
+                connection_id   => $circuit->circuit_id,
+                connection_type => 'circuit',
+                no_reply => 1
+            );
+        };
+    }
 
     return { success => 1, circuit_id => $conn->{circuit_id} };
 }
@@ -511,6 +545,7 @@ sub update {
         $endpoints->{$ep->circuit_ep_id} = $ep;
     }
 
+    my $admin_approval_required = 0;
     my $add_endpoints = [];
     my $del_endpoints = [];
 
@@ -529,6 +564,7 @@ sub update {
 
             my $entity;
             my $interface;
+            my $interface_err;
 
             if (defined $ep->{node} && defined $ep->{interface}) {
                 $interface = new OESS::Interface(
@@ -537,17 +573,20 @@ sub update {
                     node => $ep->{node}
                 );
             }
-            # if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
-            #     # Continue
-            # }
             else {
                 $entity = new OESS::Entity(db => $db, name => $ep->{entity});
-                $interface = $entity->select_interface(
+                ($interface, $interface_err) = $entity->select_interface(
                     inner_tag    => $ep->{inner_tag},
                     tag          => $ep->{tag},
                     workgroup_id => $args->{workgroup_id}->{value},
+                    bandwidth    => $ep->{bandwidth},
                     cloud_account_id => $ep->{cloud_account_id}
                 );
+                if (defined $interface_err) {
+                    $method->set_error("Cannot find a valid Interface for $ep->{entity}: $interface_err");
+                    $db->rollback;
+                    return;
+                }
             }
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
@@ -560,6 +599,15 @@ sub update {
                 $db->rollback;
                 return;
             }
+
+            if(defined $interface->provisionable_bandwidth && ($ep->{bandwidth} + $interface->{utilized_bandwidth} > $interface->provisionable_bandwidth)){
+                $method->set_error("Couldn't create Connnection: Specified bandwidth exceeds provisionable bandwidth for '$ep->{entity}'.");
+                $db->rollback;
+                return;
+            }
+
+            my $requires_approval = $interface->bandwidth_requires_approval(bandwidth => $ep->{bandwidth}, is_admin => $is_admin);
+            $ep->{state} = ($requires_approval) ? 'in-review' : 'active';
 
             $ep->{type}         = 'circuit';
             $ep->{entity_id}    = $entity->{entity_id};
@@ -596,8 +644,16 @@ sub update {
                 workgroup_id => $args->{workgroup_id}->{value}
             );
             $circuit->add_endpoint($endpoint);
-            push @$add_endpoints, $endpoint;
 
+            if ($ep->{state} eq 'active') {
+                # Endpoints that aren't acitve (ex in-review) will not
+                # be provisioned by FWDCTL. Any cloud provisioning
+                # of these endpoints shall be avoided.
+                push @$add_endpoints, $endpoint;
+            } else {
+                $admin_approval_required = 1;
+                warn "Endpoint will require admin approval";
+            }
         } else {
             my $endpoint = $circuit->get_endpoint(
                 circuit_ep_id => $ep->{circuit_ep_id}
@@ -627,7 +683,7 @@ sub update {
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9000 : 1500);
             }
 
-	    my $err = $endpoint->update_db;
+            my $err = $endpoint->update_db;
             if (defined $err) {
                 $method->set_error("Couldn't update Endpoint: $err");
                 $db->rollback;
@@ -729,6 +785,17 @@ sub update {
 
         _send_update_cache($pending);
         _send_modify_command($circuit->circuit_id, $previous, $pending);
+    }
+
+    if ($admin_approval_required) {
+        eval {
+            $mq->{topic} = 'OF.FWDCTL.event';
+            $mq->review_endpoint_notification(
+                connection_id   => $circuit->circuit_id,
+                connection_type => 'circuit',
+                no_reply => 1
+            );
+        };
     }
 
     _send_event(

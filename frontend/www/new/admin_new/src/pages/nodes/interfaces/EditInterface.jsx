@@ -45,7 +45,7 @@ const editInterfaceComponent = (props) => {
   return (
     <div>
       <div>
-        <p className="title"><b>Edit Interface:</b> {intf.name}</p>
+        <p className="title"><b>Edit Interface:</b> <span style={{opacity: 0.85}}>{intf.name}</span></p>
         <p className="subtitle">Edit Interface.</p>
       </div>
       <br />

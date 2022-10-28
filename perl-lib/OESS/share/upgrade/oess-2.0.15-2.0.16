@@ -1,0 +1,104 @@
+#!/usr/bin/perl
+#-------------------------------------------------------------------
+#----- OESS 2.0.15 - 2.0.16 upgrade module                         
+#-----                                                               
+#----- Copyright(C) 2010 The Trustees of Indiana University          
+#--------------------------------------------------------------------
+#----- $HeadURL: $                                                   
+#----- $Id: $                                                        
+#-----                                                               
+#----- This is run when upgrading the database from     
+#----- version 2.0.15 to version 2.0.16                               
+#-------------------------------------------------------------------- 
+
+use strict;
+use warnings;
+use OESS::Database;
+
+my $prev_version = "2.0.15";
+my $version = "2.0.16";
+
+sub main{
+    print "*******************************************************************\n";
+    print "*********             OESS DB UPGRADE           ************\n";
+    print "*******************************************************************\n";
+    print "********* This will upgrade from $prev_version to $version **********\n";
+    print "********* of the OESS DB any other version will not work ************\n";
+
+    continue_parameter("Do you wish to continue");
+
+    my $dbq = new OESS::Database();
+    my $current_version = $dbq->get_oess_schema_version();
+    if($current_version eq $prev_version){
+        eval {
+            $dbq->{'dbh'}->begin_work();
+            upgrade($dbq);
+            $dbq->{'dbh'}->commit();
+        };
+        if ($@) {
+            $dbq->{'dbh'}->rollback();
+            print "$@\n";
+            exit;
+        }
+    } else{
+        print "Wrong version of OESS DB\n";
+        print "This script only upgrades from version $prev_version to $version\n";
+        exit;
+    }
+
+    print STDERR "Upgrade Successful!!\n";
+}
+
+sub upgrade{
+    my $dbq = shift;
+    my $term = shift;
+    my $dbh = $dbq->{'dbh'};
+    my $str;
+    my $sth;
+
+    $sth = $dbh->prepare("ALTER TABLE vrf_ep MODIFY `state` enum('active','decom','in-review') DEFAULT NULL");
+    $sth->execute() or die "Unable to update vrf_ep 'state' to include 'in-review' enum";
+
+    $sth = $dbh->prepare("ALTER TABLE circuit_edge_interface_membership ADD `state` enum('active','decom','in-review') DEFAULT NULL");
+    $sth->execute() or die "Unable to 'state' columen to circuit_edge_interface_membership";
+
+    $sth = $dbh->prepare("update circuit_edge_interface_membership set state='active' where end_epoch = -1")
+    $sth->execute() or die "Unable to 'state' columen to circuit_edge_interface_membership";
+
+    $sth = $dbh->prepare("update circuit_edge_interface_membership set state='decom' where circuit_id in (
+        select circuit_instantiation.circuit_id
+        from circuit_instantiation
+        where circuit_instantiation.circuit_state='decom' and circuit_instantiation.end_epoch=-1
+    )");
+    $sth->execute() or die "Unable to 'state' columen to circuit_edge_interface_membership";
+
+    $str = "update oess_version set version = '$version'";
+    $sth = $dbh->prepare($str) or die "Unable to prepare version update \n";
+    $sth->execute() or die "Unable to update version\n";
+}
+
+main();
+
+sub continue_parameter {
+    my $name = shift;
+
+    print "$name [y/n]: ";
+    my $yes_or_no = <>;
+    chomp($yes_or_no);
+
+    exit(0) if ($yes_or_no !~ /y/i || $yes_or_no =~ /n/i);
+}
+
+sub required_parameter {
+    my $name = shift;
+
+    while (1) {
+	print "$name (required): ";
+        my $response = <>;
+	chomp($response);
+
+        return $response if ($response);
+
+	print "\nThis option is required!\n\n";
+    }
+}

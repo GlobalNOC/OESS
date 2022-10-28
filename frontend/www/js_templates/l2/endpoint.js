@@ -2,6 +2,14 @@ function NewEndpoint(endpoint) {
   let t = document.querySelector('#template-l2-endpoint');
   let e = document.importNode(t.content, true);
 
+  if (endpoint.state == 'in-review') {
+    e.querySelector('.panel').classList.remove('panel-default')
+    e.querySelector('.panel').classList.add('panel-warning')
+    e.querySelector('.panel-heading').innerHTML = 'This endpoint is pending approval. Please contact <a href="mailto: [% approval_email %]">[% approval_email %]</a> for additional information.';
+  } else {
+    e.querySelector('.panel-heading').style.display = 'none';
+  }
+
   e.querySelector('.l2vpn-entity').innerHTML = endpoint.entity || 'NA';
   e.querySelector('.l2vpn-node').innerHTML = endpoint.node;
   e.querySelector('.l2vpn-interface').innerHTML = endpoint.interface;

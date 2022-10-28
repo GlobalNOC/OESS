@@ -34,7 +34,7 @@ export const EntityAutoComplte = (props) => {
   return (
     <div className="input-group">
       <AutoComplete id={props.id} name={props.name} placeholder="Search by entity" value={props.value} onChange={props.onChange} suggestions={suggestions} style={{borderRadius: "4px 0px 0px 4px"}} />
-      <span class="input-group-addon"><span class="glyphicon glyphicon-search" aria-hidden="true"></span></span>
+      <span className="input-group-addon"><span className="glyphicon glyphicon-search" aria-hidden="true"></span></span>
     </div>
   );
 };

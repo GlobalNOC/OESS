@@ -176,7 +176,9 @@ sub load_endpoints {
 
     my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
         db => $self->{db},
-        vrf_id => $self->{vrf_id}
+        vrf_id => $self->{vrf_id},
+        state => undef,
+        state_not => 'decom'
     );
     $self->{logger}->warn($error) if defined $error;
 
@@ -646,6 +648,8 @@ sub nso_diff {
     my $endpoints = $self->endpoints || [];
 
     foreach my $ep (@{$endpoints}) {
+        next if $ep->state ne 'active';
+
         if (!defined $ep_index->{$ep->short_node_name}) {
             $diff->{$ep->short_node_name} = "";
             $ep_index->{$ep->short_node_name} = {};

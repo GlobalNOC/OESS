@@ -77,6 +77,7 @@ let state = new GlobalState();
 
 let schedule = new Schedule('#l2vpn-schedule-picker');
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal2-div');
+let interfaceOptions = [];
 
 document.querySelector('.l2vpn-new-endpoint-button').addEventListener('click', function(e) {
   modal.display(null);
@@ -115,6 +116,12 @@ document.addEventListener('DOMContentLoaded', function() {
   let id = url.searchParams.get('circuit_id');
 
   let editable = (session.data.isAdmin || !session.data.isReadOnly);
+
+  getInterfaceOptions().then(options => {
+    interfaceOptions = options;
+  }).catch(error => {
+    console.error(error);
+  });
 
   state = new GlobalState();
   console.log('GlobalState:', state);

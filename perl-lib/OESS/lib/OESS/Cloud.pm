@@ -189,7 +189,10 @@ sub setup_endpoints {
             # Validate that configured bandwidth reservation allowed
             my $ep_intf = new OESS::Interface(db => $ep->{db}, interface_id => $ep->interface_id);
             if (!$ep_intf->is_bandwidth_valid(bandwidth => $conn->{properties}->{bandwidthInMbps}, is_admin  => $is_admin)) {
-                die "Bandwidth configured on Azure endpoint is not supported.";
+                die "Bandwidth configured via Azure portal is not supported by OESS.";
+            }
+            if ($ep->bandwidth != $conn->{properties}->{bandwidthInMbps}) {
+                die "Bandwidth set on Azure endpoint must match the bandwidth configured via Azure Portal.";
             }
 
             my $res = $azure->set_cross_connection_state_to_provisioned(

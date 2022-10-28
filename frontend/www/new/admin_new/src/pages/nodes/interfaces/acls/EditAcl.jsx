@@ -2,6 +2,8 @@ import React, { useContext, useEffect, useState } from "react";
 import { withRouter } from "react-router-dom";
 
 import { editAcl, getAcl } from "../../../../api/acls";
+import { getInterface } from "../../../../api/interfaces.js";
+
 import { AclForm } from "../../../../components/acls/AclForm";
 import { PageContext } from "../../../../contexts/PageContext";
 
@@ -12,9 +14,14 @@ export const editAclComponent = (props) => {
   
   useEffect(() => {
     getAcl(match.params["interfaceAclId"]).then(acl => {
-      setAcl(acl);
+      getInterface(match.params["interfaceId"]).then(intf => {
+        acl.interface = intf;
+        setAcl(acl);
+      }).catch(error => {
+        setStatus({type: 'error', message: error.toString()});
+      });
     }).catch(error => {
-      setStatus(error);
+      setStatus({type: 'error', message: error.toString()});
     });
   }, [match]);
 
@@ -32,14 +39,14 @@ export const editAclComponent = (props) => {
     history.goBack();
   };
 
-  if (acl == null) {
+  if (acl == null || !acl.interface) {
     return <p>Loading...</p>;
   }
   
   return (
     <div>
       <div>
-        <p className="title"><b>Edit ACL</b></p>
+        <p className="title"><b>Edit ACL:</b> <span style={{opacity: 0.85}}>{acl.interface.node} {acl.interface.name}</span></p>
         <p className="subtitle">Edit ACL entry.</p>
       </div>
       <br />

@@ -451,6 +451,7 @@ sub provision_vrf{
         $endpoints->{$ep->vrf_endpoint_id} = $ep;
     }
 
+    my $admin_approval_required = 0;
     my $add_endpoints = [];
     my $del_endpoints = [];
 
@@ -467,6 +468,7 @@ sub provision_vrf{
         if (!defined $ep->{vrf_endpoint_id}) {
             my $entity;
             my $interface;
+            my $interface_err;
 
             if (defined $ep->{node} && defined $ep->{interface}) {
                 $interface = new OESS::Interface(
@@ -475,17 +477,20 @@ sub provision_vrf{
                     node => $ep->{node}
                 );
             }
-            # if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
-            #     # Continue
-            # }
             else {
                 $entity = new OESS::Entity(db => $db, name => $ep->{entity});
-                $interface = $entity->select_interface(
+                ($interface, $interface_err) = $entity->select_interface(
                     inner_tag    => $ep->{inner_tag},
                     tag          => $ep->{tag},
                     workgroup_id => $model->{workgroup_id},
+                    bandwidth    => $ep->{bandwidth},
                     cloud_account_id => $ep->{cloud_account_id}
                 );
+                if (defined $interface_err) {
+                    $method->set_error("Cannot find a valid Interface for $ep->{entity}: $interface_err");
+                    $db->rollback;
+                    return;
+                }
             }
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
@@ -505,6 +510,9 @@ sub provision_vrf{
                 $db->rollback;
                 return;
             }
+
+            my $requires_approval = $interface->bandwidth_requires_approval(bandwidth => $ep->{bandwidth}, is_admin => $is_admin);
+            $ep->{state} = ($requires_approval) ? 'in-review' : 'active';
 
             $ep->{type}         = 'vrf';
             $ep->{entity_id}    = $entity->{entity_id};
@@ -546,7 +554,16 @@ sub provision_vrf{
                 return;
             }
             $vrf->add_endpoint($endpoint);
-            push @$add_endpoints, $endpoint;
+
+            if ($ep->{state} eq 'active') {
+                # Endpoints that aren't acitve (ex in-review) will not
+                # be provisioned by FWDCTL. Any cloud provisioning
+                # of these endpoints shall be avoided.
+                push @$add_endpoints, $endpoint;
+            } else {
+                $admin_approval_required = 1;
+                warn "Endpoint will require admin approval";
+            }
 
             foreach my $peering (@{$ep->{peers}}) {
 
@@ -950,6 +967,16 @@ sub provision_vrf{
             no_reply => 1
         );
     };
+
+    if ($admin_approval_required) {
+        eval {
+            $log_client->review_endpoint_notification(
+                connection_id   => $vrf->vrf_id,
+                connection_type => 'vrf',
+                no_reply => 1
+            );
+        };
+    }
 
     return { results => { success => 1, vrf_id => $vrf->vrf_id } };
 }

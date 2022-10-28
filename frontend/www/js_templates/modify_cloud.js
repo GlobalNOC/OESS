@@ -173,6 +173,7 @@ $(function () {
 let state = new GlobalState();
 let modal = new EndpointSelectionModal2('#endpoint-selection-modal');
 let history = new ResourceHistoryTable();
+let interfaceOptions = [];
 
 document.addEventListener('DOMContentLoaded', async function() {
   await loadUserMenu();
@@ -210,6 +211,12 @@ document.addEventListener('DOMContentLoaded', async function() {
   let addNetworkEndpoint = document.querySelector('#new-endpoint-button');
   addNetworkEndpoint.addEventListener('click', function(event) {
     modal.display(null);
+  });
+
+  getInterfaceOptions().then(options => {
+    interfaceOptions = options;
+  }).catch(error => {
+    console.error(error);
   });
 
   let map = new NDDIMap('map');

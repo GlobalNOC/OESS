@@ -71,7 +71,7 @@ sub fetch{
     $l2_utilized_bandwidth = (defined $l2_utilized_bandwidth->[0]->{utilized_bandwidth}) ? $l2_utilized_bandwidth->[0]->{utilized_bandwidth} : 0;
 
     my $l3_utilized_bandwidth = $db->execute_query(
-        "select sum(bandwidth) as utilized_bandwidth from vrf_ep where interface_id=? and state='active'",
+        "select sum(bandwidth) as utilized_bandwidth from vrf_ep where interface_id=? and (state='active' OR state='in-review')",
         [$interface_id]
     );
     if (!defined $l3_utilized_bandwidth || !defined $l3_utilized_bandwidth->[0]) {
