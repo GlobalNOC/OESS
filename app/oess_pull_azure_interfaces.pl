@@ -37,48 +37,65 @@ sub main {
     die $azure_err if defined $azure_err;
 
     foreach my $ep (@$endpoints) {
+        if (!defined $ep->cloud_connection_id) {
+            warn "Endpoint with missing cloud_connection_id found: " . Dumper($ep->to_hash);
+            next;
+        }
         my $conn = $conns->{$ep->cloud_connection_id};
-        my $remote_peers = $syncer->get_peering_addresses_from_azure($conn, $ep->cloud_interconnect_id);
-
-        $ep->load_peers;
-        my $local_peers = $ep->peers;
-
-        my $i = 0;
-        while ($i < @$remote_peers) {
-            my $peer;
-            if ($i+1 > @$local_peers) {
-                # While more remote_peers than local_peers create one
-                my $peer = new OESS::Peer(
-                    db => $db,
-                    model => {
-                        local_ip   => $remote_peers->[$i]->{local_ip},
-                        peer_asn   => $remote_peers->[$i]->{remote_asn},
-                        peer_ip    => $remote_peers->[$i]->{remote_ip},
-                        status     => 'up',
-                        ip_version => $remote_peers->[$i]->{ip_version}
-                    }
-                );
-                $peer->create(vrf_ep_id => $ep->vrf_endpoint_id);
-            } else {
-                $local_peers->[$i]->local_ip($remote_peers->[$i]->{local_ip});
-                $local_peers->[$i]->peer_asn($remote_peers->[$i]->{remote_asn});
-                $local_peers->[$i]->peer_ip($remote_peers->[$i]->{remote_ip});
-                $local_peers->[$i]->ip_version($remote_peers->[$i]->{ip_version});
-                $local_peers->[$i]->update;
-            }
-
-            $i++;
+        if (defined $conn->{error} || defined $conn->{Error}) {
+            warn "Error fetching connection details from azure for " . $ep->cloud_connection_id;
+            warn Dumper($conn);
+            next;
         }
 
-        while ($i < @$local_peers) {
-            # While more local_peers than remote_peers remove one
-            $local_peers->[$i]->decom;
-            $i++;
+        # Only sync peers for l3 connections
+        if (defined $ep->vrf_endpoint_id) {
+            my $remote_peers = $syncer->get_peering_addresses_from_azure($conn, $ep->cloud_interconnect_id);
+
+            $ep->load_peers;
+            my $local_peers = $ep->peers;
+
+            my $i = 0;
+            while ($i < @$remote_peers) {
+                my $peer;
+                if ($i+1 > @$local_peers) {
+                    # While more remote_peers than local_peers create one
+                    my $peer = new OESS::Peer(
+                        db => $db,
+                        model => {
+                            local_ip   => $remote_peers->[$i]->{local_ip},
+                            peer_asn   => $remote_peers->[$i]->{remote_asn},
+                            peer_ip    => $remote_peers->[$i]->{remote_ip},
+                            status     => 'up',
+                            ip_version => $remote_peers->[$i]->{ip_version}
+                        }
+                    );
+                    $peer->create(vrf_ep_id => $ep->vrf_endpoint_id);
+                } else {
+                    $local_peers->[$i]->local_ip($remote_peers->[$i]->{local_ip});
+                    $local_peers->[$i]->peer_asn($remote_peers->[$i]->{remote_asn});
+                    $local_peers->[$i]->peer_ip($remote_peers->[$i]->{remote_ip});
+                    $local_peers->[$i]->ip_version($remote_peers->[$i]->{ip_version});
+                    $local_peers->[$i]->update;
+                }
+
+                $i++;
+            }
+
+            while ($i < @$local_peers) {
+                # While more local_peers than remote_peers remove one
+                $local_peers->[$i]->decom;
+                $i++;
+            }
         }
 
         if ($ep->bandwidth != $conn->{properties}->{bandwidthInMbps}) {
+            if (defined $ep->circuit_ep_id) {
+                warn "Setting bandwidth of $ep->{bandwidth} on l2ep $ep->{circuit_ep_id} for circuit $ep->{circuit_id}";
+            }
             $ep->bandwidth($conn->{properties}->{bandwidthInMbps});
-            $ep->update_db;
+            my $bandwidth_err = $ep->update_db;
+            warn "Error setting bandwidth: $bandwidth_err" if defined $bandwidth_err;
         }
     }
 }
