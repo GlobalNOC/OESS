@@ -44,6 +44,9 @@ class GlobalState extends Component {
       }
 
       this.connection.endpoints.forEach(function(endpoint, eIndex) {
+        if (endpoint.cloud_interconnect_type == 'gcp-partner-interconnect') {
+          endpoint.cloud_gateway_type = (endpoint.mtu == 1500) ? '1500' : '1440'
+        }
 
         let select = document.createElement('select');
         select.setAttribute('class', 'form-control peer-selection');

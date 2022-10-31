@@ -24,6 +24,7 @@ sub main{
 
     $client->set_url($config->base_url() . "/services/vrf.cgi");
     my $vrfs = $client->get_vrfs(workgroup_id => $workgroup_id);
+    die $client->get_error if !defined $vrfs;
 
     my $gcp_ints = get_gcp_virtual_interface($config);
 
@@ -46,6 +47,7 @@ sub find_gcp_workgroup{
 
     $client->set_url($config->base_url() . "/services/user.cgi");
     my $res = $client->get_current();
+    die $client->get_error if !defined $res;
 
     my $workgroups = $res->{'results'}->[0]->{'workgroups'};
     foreach my $wg (@$workgroups){
@@ -63,7 +65,7 @@ sub connect_to_ws {
     my $creds = $config->get_cloud_config();
 
     my $client = GRNOC::WebService::Client->new(
-        url     => $config->base_url() . "services/vrf.cgi",
+        url     => $config->base_url() . "/services/vrf.cgi",
         uid     => $creds->{'user'},
         passwd  => $creds->{'password'},
         realm   => $creds->{'realm'},
@@ -116,8 +118,13 @@ sub compare_and_update_vrfs{
 
             warn "get_vrf_gcp_details";
             my $peering = get_vrf_gcp_details(gcp_ints => $gcp_ints, cloud_connection_id => $connection_id);
-	    next if(!defined($peering) || $peering eq '');
+            next if(!defined($peering) || $peering eq '');
+
             my $update = update_endpoint_values($endpoint->{'peers'}->[0], $peering);
+            if ($endpoint->{mtu} != $peering->{mtu}) {
+                $update = 1;
+                $endpoint->{mtu} = $peering->{mtu}
+            }
             if($update){
                 update_oess_vrf($vrf,$client);
             }else{
@@ -156,6 +163,7 @@ sub update_oess_vrf{
                                                   inner_tag => $ep->{'inner_tag'},
                                                   vrf_endpoint_id => $ep->{'vrf_endpoint_id'},
                                                   circuit_ep_id => $ep->{'circuit_ep_id'},
+                                                  cloud_gateway_type => $ep->{'mtu'},
                                                   peers => \@peerings}));
     }
 
