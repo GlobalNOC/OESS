@@ -93,6 +93,7 @@ $error = OESS::DB::ACL::add_acl_history(
     state => 'active'
 );
 ok(!defined $error, "Created history entry when creating a new acl");
+sleep 1;
 
 $error = OESS::DB::ACL::add_acl_history(
     db => $db,
@@ -103,6 +104,7 @@ $error = OESS::DB::ACL::add_acl_history(
     state => 'active'
 );
 ok(!defined $error, "Created history entry when editing an acl");
+sleep 1;
 
 $error = OESS::DB::ACL::add_acl_history(
     db => $db,
@@ -113,14 +115,18 @@ $error = OESS::DB::ACL::add_acl_history(
     state => 'decom'
 );
 ok(!defined $error, "Created history entry when deleting an acl");
+sleep 1;
 
 my $events = OESS::DB::ACL::get_acl_history( db => $db, interface_acl_id => $acl->{interface_acl_id});
 ok(defined $events, "No errors getting acl history events");
 warn Dumper($events) if !defined $events;
 ok(scalar(@$events) == 3, "Three history events created and stored");
-ok($events->[0]->{event} eq 'create', "First event is a create");
-warn Dumper($events->[0]) if $events->[0]->{event} ne 'create';
+
+# ACL History returned in reverse order: most recent or highest epoch
+# time first
+ok($events->[0]->{event} eq 'decom', "Third event is a decom");
+warn Dumper($events->[0]) if $events->[0]->{event} ne 'decom';
 ok($events->[1]->{event} eq 'edit', "Second event is a edit");
 warn Dumper($events->[1]) if $events->[1]->{event} ne 'edit';
-ok($events->[2]->{event} eq 'decom', "Third event is a decom");
-warn Dumper($events->[2]) if $events->[2]->{event} ne 'decom';
+ok($events->[2]->{event} eq 'create', "First event is a create");
+warn Dumper($events->[2]) if $events->[2]->{event} ne 'create';

@@ -56,6 +56,7 @@ OESS-VRF-1:
 - Workgroup: Workgroup 21
 -  e15/6.300
 -    Bandwidth: 200
+-    MTU:       9000
 -    Tag:       300
 -    Peer: 1
 -      Local ASN: 64600

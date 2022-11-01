@@ -52,6 +52,7 @@ my $nso_conn1 = {
             "device" => "N11",
             "interface" => "e15/6",
             "tag" => 300,
+            "mtu" => 1440,
             "unit" => 300,
             "bandwidth" => 200,
             "peer" => [
@@ -75,6 +76,7 @@ my $nso_conn1 = {
             "interface" => "e15/6",
             "tag" => 301,
             "unit" => 301,
+            "mtu" => 1440,
             "bandwidth" => 100,
             "peer" => [
                 {
@@ -95,6 +97,7 @@ my $diff1 = {
 - Workgroup: Unknown
 -  e15/6.300
 -    Bandwidth: 200
+-    MTU:       1440
 -    Tag:       300
 -    Peer: 1
 -      Local ASN: 64600
@@ -104,6 +107,7 @@ my $diff1 = {
 -      BFD:       1
 -  e15/6.301
 -    Bandwidth: 100
+-    MTU:       1440
 -    Tag:       301
 -    Peer: 2
 -      Local ASN: 64600
@@ -135,6 +139,7 @@ my $nso_conn2 = {
             "device" => "N11",
             "interface" => "e15/6",
             "tag" => 300,
+            "mtu" => 9000,
             "unit" => 300,
             "bandwidth" => 200,
             "peer" => [
@@ -157,6 +162,7 @@ my $nso_conn2 = {
             "device" => "N11",
             "interface" => "e15/6",
             "tag" => 301,
+            "mtu" => 9000,
             "unit" => 301,
             "bandwidth" => 100,
             "peer" => [
@@ -247,6 +253,7 @@ my $nso_conn3 = {
             "device" => "N11",
             "interface" => "e15/6",
             "tag" => 300,
+            "mtu" => 9000,
             "unit" => 300,
             "bandwidth" => 200,
             "peer" => [
@@ -269,6 +276,7 @@ my $nso_conn3 = {
             "device" => "N11",
             "interface" => "e15/6",
             "tag" => 301,
+            "mtu" => 1500,
             "unit" => 301,
             "bandwidth" => 100,
             "peer" => [
@@ -298,6 +306,8 @@ my $diff3 = {
 -      BFD:       1
 +      BFD:       0
    e15/6.301
+-    MTU:       1500
++    MTU:       9000
      Peer: 2
 -      Local IP:  192.168.2.2/31
 +      Local IP:  192.168.4.2/31
@@ -389,6 +399,7 @@ my $nso_conn4 = {
             "device" => "N11",
             "interface" => "e15/6",
             "tag" => 300,
+            "mtu" => 9000,
             "unit" => 300,
             "bandwidth" => 200,
             "peer" => [
@@ -411,6 +422,7 @@ my $nso_conn4 = {
             "device" => "N11",
             "interface" => "e15/6",
             "tag" => 301,
+            "mtu" => 9000,
             "unit" => 301,
             "bandwidth" => 100,
             "peer" => [
