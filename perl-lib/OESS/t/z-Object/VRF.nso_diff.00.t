@@ -46,6 +46,7 @@ my $expect1 = {
     'N31' => 'OESS-VRF-1:
 +  e15/4.200
 +    Bandwidth: 100
++    MTU:       9000
 +    Tag:       2010
 +    Peer: 2
 +      Local ASN: 7
@@ -79,6 +80,7 @@ my $expect1 = {
     'xr1' => 'OESS-VRF-1:
 -  GigabitEthernet0/1.300
 -    Bandwidth: 100
+-    MTU:       1500
 -    Tag:       300
 -    Peer: 2
 -      Local ASN: 64600

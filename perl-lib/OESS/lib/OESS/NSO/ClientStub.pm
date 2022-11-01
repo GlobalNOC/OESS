@@ -207,6 +207,7 @@ sub get_l3connections {
                     "interface" => "e15/6",
                     "tag" => 300,
                     "unit" => 300,
+                    "mtu" => 9000,
                     "bandwidth" => 200,
                     "peer" => [
                         {
@@ -231,6 +232,7 @@ sub get_l3connections {
                     "interface" => "GigabitEthernet0/1",
                     "tag" => 300,
                     "unit" => 300,
+                    "mtu" => 1500,
                     "bandwidth" => 100,
                     "peer" => [
                         {
