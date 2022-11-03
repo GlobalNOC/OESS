@@ -1,6 +1,6 @@
 Summary: OESS Perl Libraries
 Name: perl-OESS
-Version: 2.0.15
+Version: 2.0.16
 Release: 1%{?dist}
 License: APL 2.0
 Group: Network
@@ -129,8 +129,10 @@ make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L3VPN
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{template_dir}
 %__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{template_dir}/
-%__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_templates_endpoint_review.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_templates_vrf.tmpl $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_endpoint_review.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_vrf.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
@@ -236,10 +238,12 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::NSO::Discovery.3pm.gz
 %doc %{_mandir}/man3/OESS::NSO::FWDCTL.3pm.gz
 %doc %{_mandir}/man3/OESS::NSO::FWDCTLService.3pm.gz
-%{template_dir}/notification_templates.tmpl
 %{template_dir}/notification.tt.html
+%{template_dir}/notification_endpoint_review.tt.html
 %{template_dir}/notification_vrf.tt.html
+%{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_templates_vrf.tmpl
+%{template_dir}/notification_templates_endpoint_review.tmpl
 %{perl_vendorlib}/OESS/AccessController/Default.pm
 %{perl_vendorlib}/OESS/ACL.pm
 %{perl_vendorlib}/OESS/Circuit.pm

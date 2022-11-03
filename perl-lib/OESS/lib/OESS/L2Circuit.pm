@@ -411,7 +411,7 @@ sub to_hash {
     my $hash = {
         remote_requester => $self->{remote_requester},
         external_identifier => $self->{external_identifier},
-	status => $self->{status},
+        status => $self->{status},
         state => $self->{state},
         remote_url => $self->{remote_url},
         created_on => $self->{created_on},
@@ -419,6 +419,7 @@ sub to_hash {
         workgroup_id => $self->{workgroup_id},
         created_on_epoch => $self->{created_on_epoch},
         last_modified_on_epoch => $self->{last_modified_on_epoch},
+        last_modified => $self->{last_modified_on_epoch},
         name => $self->{name},
         reason => $self->{reason},
         description => $self->{description},
@@ -522,6 +523,9 @@ sub _process_circuit_details{
     if (defined $hash->{start_epoch}) {
         $self->{last_modified_on} = DateTime->from_epoch(epoch => $hash->{start_epoch})->strftime('%m/%d/%Y %H:%M:%S');
         $self->{last_modified_on_epoch} = $hash->{start_epoch};
+    } else {
+        $self->{last_modified_on} = $hash->{last_modified_on};
+        $self->{last_modified_on_epoch} = $hash->{last_modified_on_epoch};
     }
 
     # TODO Load primary links
@@ -922,6 +926,36 @@ sub get_mpls_path_type{
     return $self->{model}{'paths'}{$params{'path'}}{'mpls_path_type'};
 }
 
+=head2 last_modified
+
+    my $unixtime = $circuit->last_modified;
+
+=cut
+sub last_modified {
+    my $self = shift;
+    return $self->{last_modified_on_epoch};
+}
+
+=head2 last_modified_by
+
+    my $last_modified_by = $vrf->last_modified_by;
+
+or
+
+    $circuit->last_modified_by(new OESS::User(db => $db, user_id => $id));
+
+=cut
+sub last_modified_by {
+    my $self = shift;
+    my $last_modified_by = shift;
+
+    if (defined $last_modified_by) {
+        $self->{last_modified_by} = $last_modified_by;
+        $self->{last_modified_by_id} = $last_modified_by->user_id;
+    }
+    return $self->{last_modified_by};
+}
+
 =head2 get_mpls_hops
 
 get_mpls_hops returns an array of IPs representing the next hops from
@@ -1031,7 +1065,9 @@ sub load_endpoints {
 
     my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
         db => $self->{db},
-        circuit_id => $self->{circuit_id}
+        circuit_id => $self->{circuit_id},
+        state => undef,
+        state_not => 'decom'
     );
 
     $self->{endpoints} = [];
@@ -1285,6 +1321,8 @@ sub nso_diff {
     my $endpoints = $self->endpoints || [];
 
     foreach my $ep (@{$endpoints}) {
+        next if $ep->state ne 'active';
+
         if (!defined $ep_index->{$ep->short_node_name}) {
             $diff->{$ep->short_node_name} = "";
             $ep_index->{$ep->short_node_name} = {};

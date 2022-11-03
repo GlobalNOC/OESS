@@ -50,7 +50,8 @@ B<Example 0:>
             cloud_account_id    => undef,
             cloud_connection_id => undef,
             mtu                 => 9000,
-            operational_state   => 'up'
+            operational_state   => 'up',
+            state               => 'active',
         }
     )
 
@@ -65,7 +66,8 @@ B<Example 1:>
         bandwidth           => 100,        # Acts as an interface selector and validator
         workgroup_id        => 10,         # Acts as an interface selector and validator
         mtu                 => 9000,
-        unit                => 345
+        unit                => 345,
+        state               => 'active',
     };
     my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);
 
@@ -81,7 +83,8 @@ B<Example 2:>
         bandwidth           => 100,        # Acts as an interface validator
         workgroup_id        => 10,         # Acts as an interface validator
         mtu                 => 9000,
-        unit                => 345
+        unit                => 345,
+        state               => 'active',
     };
     my $endpoint = OESS::Endpoint->new(db => $db, type => 'vrf', model => $json);
 
@@ -110,10 +113,16 @@ sub new{
         return;
     }
 
-    if ((defined($self->circuit_id()) && $self->circuit_id() != -1) ||
-        (defined($self->vrf_endpoint_id()) && $self->vrf_endpoint_id() != -1)){
-        $self->{model} = $self->_fetch_from_db();
+    if (defined $self->{circuit_id} && $self->{circuit_id} != -1 && defined $self->{interface_id} && $self->{interface_id} != -1) {
+        $self->{model} = $self->_fetch_from_db;
     }
+    elsif (defined $self->{circuit_ep_id} && $self->{circuit_ep_id} != -1) {
+        $self->{model} = $self->_fetch_from_db;
+    }
+    elsif (defined $self->{vrf_endpoint_id} && $self->{vrf_endpoint_id} != -1) {
+        $self->{model} = $self->_fetch_from_db;
+    }
+
     if (!defined $self->{model}) {
         $self->{logger}->error("Couldn't load Endpoint object from database or model.");
         return;
@@ -146,6 +155,7 @@ sub to_hash{
     $obj->{cloud_connection_id} = $self->cloud_connection_id();
     # cloud_interconnect_id omitted from hash to ensure hidden
     $obj->{cloud_interconnect_type} = $self->cloud_interconnect_type;
+    $obj->{'state'} = $self->{'state'};
 
     $obj->{'mtu'} = $self->mtu();
     $obj->{'jumbo'} = ($self->mtu() > 1500) ? 1 : 0;
@@ -211,6 +221,9 @@ sub from_hash{
     $self->{cloud_connection_id} = $hash->{cloud_connection_id};
     $self->{cloud_interconnect_id} = $hash->{cloud_interconnect_id};
     $self->{cloud_interconnect_type} = $hash->{cloud_interconnect_type};
+    # Since l2 endpoints lacked state at one point in time, endpoints
+    # with an undef state are assumed active on load.
+    $self->{'state'} = $hash->{'state'} || 'active';
     $self->{'mtu'} = $hash->{'mtu'};
     $self->{'unit'} = $hash->{'unit'};
 
@@ -245,18 +258,33 @@ sub _fetch_from_db{
     my $hash;
 
     if ($self->{'type'} eq 'circuit') {
-        my ($data, $err) = OESS::DB::Endpoint::fetch_all(
-            db => $self->{db},
-            circuit_id => $self->{circuit_id},
-            interface_id => $self->{interface_id}
-        );
-        if (!defined $err) {
-            $hash = $data->[0];
+        if (defined $self->{circuit_id} && $self->{circuit_id} != -1 && defined $self->{interface_id} && $self->{interface_id} != -1) {
+            my ($data, $err) = OESS::DB::Endpoint::fetch_all(
+                db => $self->{db},
+                circuit_id => $self->{circuit_id},
+                interface_id => $self->{interface_id},
+                state => undef,
+            );
+            if (!defined $err) {
+                $hash = $data->[0];
+            }
         }
+        else {
+            my ($data, $err) = OESS::DB::Endpoint::fetch_all(
+                db => $self->{db},
+                circuit_ep_id => $self->{circuit_ep_id},
+                state => undef,
+            );
+            if (!defined $err) {
+                $hash = $data->[0];
+            }
+        }
+
     } else {
         my ($data, $err) = OESS::DB::Endpoint::fetch_all(
             db => $db,
-            vrf_ep_id => $self->{vrf_endpoint_id}
+            vrf_ep_id => $self->{vrf_endpoint_id},
+            state => undef,
         );
         if (defined $err) {
             $self->{logger}->error($err);
@@ -630,6 +658,18 @@ sub start_epoch{
         $self->{start_epoch} = $start_epoch;
     }
     return $self->{start_epoch};
+}
+
+=head2 state
+
+=cut
+sub state {
+    my $self = shift;
+    my $state = shift;
+    if (defined $state) {
+        $self->{'state'} = $state;
+    }
+    return $self->{'state'};
 }
 
 =head2 circuit_ep_id

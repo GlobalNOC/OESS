@@ -63,7 +63,6 @@ use OESS::Cloud::AzureInterfaceSelector;
 # my $azure = new OESS::Cloud::Azure();
 
 
-my $db = new OESS::DB(config => "$path/../conf/database.xml");
 
 warn "resetting";
 OESSDatabaseTester::resetOESSDB(
@@ -71,6 +70,8 @@ OESSDatabaseTester::resetOESSDB(
     dbdump => "$path/../conf/oess_known_state.sql"
 );
 warn "reseted";
+
+my $db = new OESS::DB(config => "$path/../conf/database.xml");
 
 $db->start_transaction;
 $db->execute_query("insert into entity (name) values ('azure')");
@@ -88,22 +89,22 @@ $db->commit;
 
 
 my $azure = new AzureStub();
+my $conn = $azure->expressRouteCrossConnection;
 
 # BEGIN Verify interfaces may be selected one after another
 #
 my $selector = new OESS::Cloud::AzureInterfaceSelector(
     db => $db,
-    azure => $azure,
     entity => new OESS::Entity(db => $db, entity_id => 124),
     service_key => "00000000-0000-0000-0000-000000000000"
 );
-my $pri = $selector->select_interface;
+my $pri = $selector->select_interface($conn);
 ok(defined $pri && $pri->{interface_id} == 45901, "Got primary interface");
 
-my $sec = $selector->select_interface;
+my $sec = $selector->select_interface($conn);
 ok(defined $sec && $sec->{interface_id} == 45911, "Got secondary interface");
 
-my $tri = $selector->select_interface;
+my $tri = $selector->select_interface($conn);
 ok(!defined $tri, "Got no interface");
 
 
@@ -121,15 +122,14 @@ $db->execute_query("
 
 my $selector2 = new OESS::Cloud::AzureInterfaceSelector(
     db => $db,
-    azure => $azure,
     entity => new OESS::Entity(db => $db, entity_id => 124),
     service_key => "00000000-0000-0000-0000-000000000000"
 );
 
-my $sec2 = $selector2->select_interface;
+my $sec2 = $selector2->select_interface($conn);
 ok(defined $sec2 && $sec2->{interface_id} == 45911, "Got secondary interface");
 
-my $tri2 = $selector2->select_interface;
+my $tri2 = $selector2->select_interface($conn);
 ok(!defined $tri2, "Got no interface");
 
 
@@ -150,16 +150,14 @@ $db->execute_query("
 
 my $selector3 = new OESS::Cloud::AzureInterfaceSelector(
     db => $db,
-    azure => $azure,
     entity => new OESS::Entity(db => $db, entity_id => 124),
     service_key => "00000000-0000-0000-0000-000000000000"
 );
 
-my $pri3 = $selector3->select_interface;
+my $pri3 = $selector3->select_interface($conn);
 ok(defined $pri3 && $pri3->{interface_id} == 45901, "Got primary interface");
 
-my $tri3 = $selector3->select_interface;
-#warn Dumper($tri3);
+my $tri3 = $selector3->select_interface($conn);
 ok(!defined $tri3, "Got no interface");
 
 
@@ -177,10 +175,9 @@ $db->execute_query("
 
 my $selector4 = new OESS::Cloud::AzureInterfaceSelector(
     db => $db,
-    azure => $azure,
     entity => new OESS::Entity(db => $db, entity_id => 124),
     service_key => "00000000-0000-0000-0000-000000000000"
 );
 
-my $tri4 = $selector4->select_interface;
+my $tri4 = $selector4->select_interface($conn);
 ok(!defined $tri4, "Got no interface");

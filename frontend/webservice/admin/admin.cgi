@@ -35,21 +35,26 @@ use Log::Log4perl;
 
 use GRNOC::WebService;
 
+use OESS::AccessController::Default;
+use OESS::Cloud;
 use OESS::Config;
 use OESS::Database;
 use OESS::DB;
 use OESS::DB::ACL;
+use OESS::DB::Endpoint;
 use OESS::DB::Interface;
 use OESS::DB::Link;
 use OESS::DB::User;
 use OESS::DB::Workgroup;
 use OESS::RabbitMQ::Client;
-use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_node);
+use OESS::RabbitMQ::Topic qw(fwdctl_topic_for_node fwdctl_topic_for_connection);
 
 use OESS::ACL;
 use OESS::Endpoint;
 use OESS::Interface;
 use OESS::Workgroup;
+use OESS::L2Circuit;
+use OESS::VRF;
 
 #use Time::HiRes qw( gettimeofday tv_interval);
 
@@ -67,8 +72,15 @@ Log::Log4perl::init('/etc/oess/logging.conf');
 my $config = new OESS::Config();
 my $db = new OESS::Database();
 my $db2 = new OESS::DB();
+my $ac = new OESS::AccessController::Default(db => $db2);
 
 my $svc = GRNOC::WebService::Dispatcher->new(method_selector => ['method', 'action']);
+
+my $log_client = new OESS::RabbitMQ::Client(
+    topic      => 'OF.FWDCTL.event',
+    timeout    => 15,
+    config_obj => $config
+);
 
 $| = 1;
 
@@ -871,6 +883,44 @@ sub register_webservice_methods {
         );
     $svc->register_method($method);
 
+    $method = GRNOC::WebService::Method->new(
+        name            => "get_endpoints_in_review",
+        description     => "Returns a list of endpoints that require admin review.",
+        callback        => sub { get_endpoints_in_review(@_); },
+    );
+    $svc->register_method($method);
+
+    $method = GRNOC::WebService::Method->new(
+        name            => "review_endpoint",
+        description     => "Approve or deny an endpoint in review.",
+        callback        => sub { review_endpoint(@_); },
+    );
+    $method->add_input_parameter(
+        name            => 'approve',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 1,
+        description     => "Set to 1 for approval or 0 for denial."
+    );
+    $method->add_input_parameter(
+        name            => 'circuit_ep_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "Circuit ID of the Endpoint"
+    );
+    $method->add_input_parameter(
+        name            => 'vrf_ep_id',
+        pattern         => $GRNOC::WebService::Regex::INTEGER,
+        required        => 0,
+        description     => "VRF ID of the Endpoint"
+    );
+    $method->add_input_parameter(
+        name        => 'skip_cloud_provisioning',
+        pattern     => $GRNOC::WebService::Regex::INTEGER,
+        required    => 0,
+        default     => 0,
+        description => "If set to 1 cloud provider configurations will not be performed."
+    );
+    $svc->register_method($method);
 
     $method = GRNOC::WebService::Method->new(
         name            => "set_diff_approval",
@@ -894,7 +944,300 @@ sub register_webservice_methods {
         );
     $svc->register_method($method);
 
+    # left here for generating test emails
+    # $method = GRNOC::WebService::Method->new(
+    #     name            => "send_test",
+    #     description     => "Approves or rejects a large diff.",
+    #     callback        => sub { send_test( @_ ) },
+    #     method_deprecated => "This method has been deprecated"
+    # );
+    # $method->add_input_parameter(
+    #     name        => 'type',
+    #     pattern     => $GRNOC::WebService::Regex::TEXT,
+    #     required    => 1,
+    #     description => '',
+    # );
+    # $method->add_input_parameter(
+    #     name        => 'text',
+    #     pattern     => $GRNOC::WebService::Regex::TEXT,
+    #     required    => 0,
+    #     default     => 'default text message',
+    #     description => '',
+    # );
+    # $svc->register_method($method);
+}
 
+=head2 get_endpoints_in_review
+
+=cut
+sub get_endpoints_in_review {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $user_err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $user_err) {
+        $method->set_error($user_err);
+        return;
+    }
+    my ($ok, $access_err) = $user->has_system_access(role => 'read-only');
+    if (defined $access_err){
+        $method->set_error($access_err);
+        return;
+    }
+
+    my ($raw_eps, $raw_ep_err) = OESS::DB::Endpoint::fetch_all(db => $db2, state => 'in-review');
+    if (defined $raw_ep_err) {
+        $method->set_error($raw_ep_err);
+        return;
+    }
+
+    my $results = [];
+    foreach my $raw_ep (@$raw_eps) {
+        my $conn;
+        if ($raw_ep->{type} eq 'circuit') {
+            $conn = new OESS::L2Circuit(db => $db2, circuit_id => $raw_ep->{circuit_id});
+        } else {
+            $conn = new OESS::VRF(db => $db2, vrf_id => $raw_ep->{vrf_id});
+        }
+        $conn->load_users;
+        $conn->load_workgroup;
+
+        my $ep = new OESS::Endpoint(db => $db2, model => $raw_ep);
+        my $data = $ep->to_hash;
+        $data->{workgroup} = $conn->workgroup->to_hash;
+        $data->{last_modified_by} = $conn->last_modified_by->to_hash;
+        $data->{last_modified_on} = $conn->last_modified;
+        push @$results, $data;
+    } 
+
+    return { results => $results };
+}
+
+# left here for generating test emails
+# =head2 send_test
+# 
+# =cut
+# sub send_test {
+#     my $method = shift;
+#     my $params = shift;
+#     eval {
+#         $log_client->review_endpoint_notification(
+#             no_reply => 1,
+#             type => $params->{type}{value},
+#             text => $params->{text}{value},
+#             # connection_id => 3000,
+#             # endpoint_id => 1,
+#             # connection_type => 'circuit',
+#             connection_id => 6000,
+#             endpoint_id => 1,
+#             connection_type => 'vrf',
+#         );
+#     };
+#     if ($@) {
+#         warn "Couldn't send endpoint failure notification.";
+#     }
+#     return {success => 1};
+# }
+
+=head2 review_endpoint
+
+=cut
+sub review_endpoint {
+    my $method = shift;
+    my $params = shift;
+
+    my ($user, $user_err) = $ac->get_user(username => $ENV{REMOTE_USER});
+    if (defined $user_err) {
+        $method->set_error($user_err);
+        return;
+    }
+    my ($is_admin, $is_admin_err) = $user->has_system_access(role => 'normal');
+    if (defined $is_admin_err){
+        $method->set_error($is_admin_err);
+        return;
+    }
+
+    if (!$params->{circuit_ep_id}{is_set} && !$params->{vrf_ep_id}{is_set}) {
+        $method->set_error("circuit_ep_id or vrf_ep_id must be specified");
+        return;
+    }
+    if ($params->{approve}{value} ne "0" && $params->{approve}{value} ne "1") {
+        $method->set_error("approve must be 0 or 1");
+        return;
+    }
+
+    $db2->start_transaction;
+
+    my $ep;
+    my $ep_id;
+    my $ep_type;
+    if ($params->{circuit_ep_id}{is_set}) {
+        $ep = new OESS::Endpoint(db => $db2, circuit_ep_id => $params->{circuit_ep_id}{value});
+        $ep_id = $params->{circuit_ep_id}{value};
+        $ep_type = 'circuit';
+    } else {
+        $ep = new OESS::Endpoint(db => $db2, vrf_endpoint_id => $params->{vrf_ep_id}{value});
+        $ep_id = $params->{vrf_ep_id}{value};
+        $ep_type = 'vrf';
+    }
+
+    if ($params->{approve}{value} eq "0") {
+        $ep->state("decom");
+        $ep->update_db;
+        $db2->commit;
+
+        eval {
+            $log_client->review_endpoint_notification(
+                no_reply => 1,
+                connection_id => $ep->circuit_id || $ep->vrf_id,
+                endpoint_id => $ep_id,
+                connection_type => $ep_type,
+                type => 'denial',
+            );
+        };
+        if ($@) {
+            warn "Couldn't send endpoint denial notification.";
+        }
+        # There are no further actions to take on denied endpoints
+        return { success => 1 };
+    } else {
+        $ep->state("active");
+        $ep->load_peers;
+    }
+
+
+    my $conn;
+    my $connection_id;
+    my $connection_name;
+
+    if ($params->{circuit_ep_id}{is_set}) {
+        $conn = new OESS::L2Circuit(db => $db2, circuit_id => $ep->circuit_id);
+        $connection_id = undef;
+        $connection_name = $conn->description;
+    } else {
+        $conn = new OESS::VRF(db => $db2, vrf_id => $ep->vrf_id);
+        $connection_id = $conn->vrf_id;
+        $connection_name = $conn->name;
+    }
+
+    if (!$params->{skip_cloud_provisioning}{value}) {
+        eval {
+            my $endpoints = [$ep];
+            OESS::Cloud::setup_endpoints($db2, $connection_id, $connection_name, $endpoints, $is_admin);
+
+            foreach my $ep (@$endpoints) {
+                # It's expected that layer2 connections to azure pass
+                # all QnQ tagged traffic directly to the customer
+                # edge; All inner tagged traffic should be passed
+                # transparently. This is not the case for l3conns
+                # which should match specifically on the qnq tag to
+                # ensure proper peerings.
+                if ($params->{circuit_ep_id}{is_set}) {
+                    if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                        $ep->{unit} = $ep->{tag};
+                        $ep->{inner_tag} = undef;
+                    }
+                } else {
+                    if ($ep->{cloud_interconnect_type} eq 'azure-express-route') {
+                        # We do nothing here as the QinQ tags have already
+                        # been selected and will not change for updates.
+                    }
+
+                }
+
+                my $update_err = $ep->update_db;
+                die $update_err if (defined $update_err);
+            }
+        };
+        if ($@) {
+            my $terr = "$@";
+            $method->set_error($terr);
+            $db2->rollback;
+
+            eval {
+                $log_client->review_endpoint_notification(
+                    no_reply => 1,
+                    connection_id => $connection_id,
+                    endpoint_id => $ep_id,
+                    connection_type => $ep_type,
+                    type => 'failure',
+                    text => $terr,
+                );
+            };
+            if ($@) {
+                warn "Couldn't send endpoint failure notification.";
+            }
+            return;
+        }
+    }
+    $conn->load_endpoints;
+    $db2->commit;
+
+    eval {
+        $log_client->review_endpoint_notification(
+            no_reply => 1,
+            connection_id => $connection_id,
+            endpoint_id => $ep_id,
+            connection_type => $ep_type,
+            type => 'approval',
+        );
+    };
+    if ($@) {
+        warn "Couldn't send endpoint approval notification.";
+    }
+
+    my $mq = OESS::RabbitMQ::Client->new(
+        topic      => 'OF.FWDCTL.RPC',
+        timeout    => 120,
+        config_obj => $config
+    );
+    if (!defined $mq) {
+        warn "Couldn't create RabbitMQ Client.";
+    }
+
+    my ($topic, $err) = fwdctl_topic_for_connection($conn);
+    if (defined $err) {
+        warn $err;
+    }
+    $mq->{topic} = $topic;
+
+    if ($params->{circuit_ep_id}{is_set}) {
+        my $cv = AnyEvent->condvar;
+        $mq->update_cache(
+            circuit_id     => $ep->circuit_id,
+            async_callback => sub {
+                my $result = shift;
+                $cv->send($result);
+            }
+        );
+        my $result = $cv->recv();
+
+        if (!defined $result) {
+            warn "Error occurred while calling $topic.update_cache: Couldn't connect to RabbitMQ.";
+        }
+        if (defined $result->{error}) {
+            warn "Error occured while calling $topic.update_cache: $result->{error}";
+        }
+    } else {
+        my $cv = AnyEvent->condvar;
+        $mq->update_cache(
+            vrf_id         => $ep->vrf_id,
+            async_callback => sub {
+                my $result = shift;
+                $cv->send($result);
+            }
+        );
+        my $result = $cv->recv();
+
+        if (!defined $result) {
+            warn "Error occurred while calling $topic.update_cache: Couldn't connect to RabbitMQ.";
+        }
+        if (defined $result->{error}) {
+            warn "Error occured while calling $topic.update_cache: $result->{error}";
+        }
+    }
+
+    return { success => 1 };
 }
 
 =head2 get_diffs

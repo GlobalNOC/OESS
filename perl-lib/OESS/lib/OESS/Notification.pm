@@ -19,6 +19,7 @@ use GRNOC::WebService::Regex;
 use OESS::RabbitMQ::Client;
 use OESS::RabbitMQ::Dispatcher;
 use OESS::Circuit;
+use OESS::L2Circuit;
 use Log::Log4perl;
 
 #new stuff
@@ -143,6 +144,47 @@ sub _register_notification_events{
     $d->register_method($method);
 
     $self->{'log'}->debug("Register Notification events");
+    $method = GRNOC::RabbitMQ::Method->new(
+        name        => "review_endpoint_notification",
+        topic       => 'OF.FWDCTL.event',
+        callback    => sub {$self->review_endpoint_notification(@_) },
+        description => "Signals endpoint review required notification event"
+    );
+    $method->add_input_parameter(
+        name => "type",
+        description => "Type of review notification",
+        required => 0,
+        default => "request",
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $method->add_input_parameter(
+        name => "text",
+        description => "Error text displayed for notifications of type failure",
+        required => 0,
+        default => "No error message provided",
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $method->add_input_parameter(
+        name => "connection_id",
+        description => "Id of related connection",
+        required => 1,
+        schema => { 'type' => 'integer'}
+    );
+    $method->add_input_parameter(
+        name => "endpoint_id",
+        description => "Id of related connection",
+        required => 0,
+        schema => { 'type' => 'integer'}
+    );
+    $method->add_input_parameter(
+        name => "connection_type",
+        description => "Type of related connection",
+        required => 1,
+        pattern => $GRNOC::WebService::Regex::TEXT
+    );
+    $d->register_method($method);
+
+    $self->{'log'}->debug("Register Notification events");
     $method = GRNOC::RabbitMQ::Method->new( name => "vrf_notification",
                                             topic => 'OF.FWDCTL.event',
                                                callback => sub {$self->vrf_notification(@_) },
@@ -171,6 +213,174 @@ sub _register_notification_events{
 
 }
 
+=head2 review_endpoint_notification
+
+=cut
+sub review_endpoint_notification {
+    my $self = shift;
+    my $method = shift;
+    my $params = shift;
+
+    my $connection = undef;
+    my $endpoint = undef;
+    my $connection_id = $params->{connection_id}{value};
+    my $connection_href = undef;
+
+    if ($params->{connection_type}{value} eq 'circuit') {
+        $connection = new OESS::L2Circuit(db => $self->{db_new}, circuit_id => $connection_id);
+        if (!defined $connection) {
+            warn "L2 connection $connection_id could not be loaded";
+            $self->{log}->error("L2 connection $connection_id could not be loaded");
+            return;
+        }
+        $connection->load_endpoints;
+        $connection->load_users;
+        $connection->load_workgroup;
+
+        $connection_href = "$self->{base_url}/index.cgi?action=modify_l2vpn&circuit_id=$connection_id";
+
+        if ($params->{endpoint_id}{value}) {
+            foreach my $ep (@{$connection->endpoints}) {
+                if ($ep->circuit_ep_id == $params->{endpoint_id}{value}) {
+                    $endpoint = $ep;
+                }
+            }
+        }
+    } else {
+        $connection = new OESS::VRF(db => $self->{db_new}, vrf_id => $connection_id);
+        if (!defined $connection) {
+            warn "L3 connection $connection_id could not be loaded";
+            $self->{log}->error("L3 connection $connection_id could not be loaded");
+            return;
+        }
+        $connection->load_endpoints;
+        $connection->load_users;
+        $connection->load_workgroup;
+
+        $connection_href = "$self->{base_url}/index.cgi?action=modify_cloud&vrf_id=$connection_id";
+
+        if ($params->{endpoint_id}{value}) {
+            foreach my $ep (@{$connection->endpoints}) {
+                if ($ep->vrf_endpoint_id == $params->{endpoint_id}{value}) {
+                    $endpoint = $ep;
+                }
+            }
+        }
+    }
+    # http://localhost:8080/oess/services/admin/admin.cgi?method=send_test&type=approval&text=an%20unknown%20error%20occurred
+    my $payload = $connection->to_hash;
+    $payload->{connection_id} = $connection_id;
+    $payload->{connection_href} = $connection_href;
+
+    my $ep_payload;
+    if (defined $endpoint) {
+        $ep_payload = $endpoint->to_hash;
+    }
+
+    return $self->send_review_endpoint_notification(
+        type => $params->{type}{value},
+        text => $params->{text}{value},
+        connection => $payload,
+        endpoint => $ep_payload,
+    );
+}
+
+=head2 send_review_endpoint_notification
+
+=cut
+sub send_review_endpoint_notification {
+    my $self = shift;
+    my $args = {
+        type       => undef,
+        text       => undef,
+        connection => undef,
+        endpoint   => undef,
+        @_
+    };
+
+    my $endpoints = [];
+
+    my $dt = DateTime->from_epoch( epoch => $args->{connection}->{last_modified} );
+    my $human_time = $dt->day_name() . ", " . $dt->month_name() . " " . $dt->day() . ", " . $dt->year() . ", at " . $dt->hms() . " UTC";
+
+    if ($args->{type} eq 'request') {
+        foreach my $ep (@{$args->{connection}->{endpoints}}) {
+            next if ($ep->{state} ne 'in-review');
+
+            $ep->{cloud_interconnect_type} = (defined $ep->{cloud_interconnect_type}) ? $ep->{cloud_interconnect_type} : 'Unkown';
+            $ep->{entity} = (defined $ep->{entity}) ? $ep->{entity} : 'Unkown';
+
+            push @$endpoints, $ep;
+        }
+    } else {
+        $endpoints = [$args->{endpoint}];
+    }
+
+    my $subject;
+    if ($args->{type} eq 'approval') {
+        $subject = "OESS - Provisioning Request Approved";
+    } elsif ($args->{type} eq 'denial') {
+        $subject = "OESS - Provisioning Request Denied";
+    } elsif ($args->{type} eq 'failure') {
+        $subject = "OESS - Provisioning Request Failed";
+    } else {
+        $subject = "OESS - Provisioning Request Received";
+    }
+
+    my $vars = {
+        SUBJECT             => $subject,
+        TYPE                => $args->{type},
+        TEXT                => $args->{text},
+        approval_email      => $self->{approval_email},
+        base_url            => $self->{base_url},
+        connection_id       => $args->{connection}->{connection_id},
+        connection_href     => $args->{connection}->{connection_href},
+        workgroup           => $args->{connection}->{workgroup}->{name},
+        description         => $args->{connection}->{description},
+        endpoints           => $endpoints,
+        from_signature_name => $self->{from_name},
+        last_modified_by    => "$args->{connection}->{last_modified_by}->{first_name} $args->{connection}->{last_modified_by}->{last_name}",
+        image_base_url      => $self->{image_base_url},
+        human_time          => $human_time
+    };
+
+    my $tmpl_options = {
+        ABSOLUTE=>1,
+        RELATIVE=>0,
+    };
+
+    my $to_addrs = [$self->{approval_email}];
+    if ($args->{type} eq 'request') {
+        # 'request'
+        # only approval_email is notified
+    } else {
+        # 'approval', 'denial', 'failure'
+        push @$to_addrs, $args->{connection}->{last_modified_by}->{email};
+    }
+    eval {
+        my $message = MIME::Lite::TT::HTML->new(
+            From => $self->{'from_address'},
+            To   => $to_addrs,
+            Subject  => $subject,
+            Encoding => 'quoted-printable',
+            Timezone => 'UTC',
+            Template => {
+                html => "$self->{template_path}/notification_endpoint_review.tt.html",
+                text => "$self->{template_path}/notification_templates_endpoint_review.tmpl"
+            },
+            TmplParams  => $vars,
+            TmplOptions => $tmpl_options,
+        );
+        $message->send('smtp', 'localhost');
+    };
+    if ($@) {
+        warn "Error sending Notification: $@";
+        $self->{log}->error("Error sending Notification: " . $@);
+        return;
+    }
+
+    return 1;
+}
 
 =head2 vrf_notification
 
@@ -588,6 +798,7 @@ sub _process_config_file {
     $self->{'from_address'} = $config->{'smtp'}->{'from_address'};
     $self->{'image_base_url'} = $config->{'smtp'}->{'image_base_url'};
     $self->{'base_url'} = $config->{'base_url'};
+    $self->{'approval_email'} = $config->{'approval_email'} || 'root@localhost';
     return;
 }
 

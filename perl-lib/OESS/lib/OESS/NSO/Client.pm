@@ -68,6 +68,8 @@ sub create_l2connection {
 
     my $eps = [];
     foreach my $ep (@{$conn->endpoints}) {
+        next if $ep->state ne 'active';
+
         my $obj = {
             endpoint_id => $ep->circuit_ep_id,
             bandwidth   => $ep->bandwidth,
@@ -155,6 +157,8 @@ sub edit_l2connection {
 
     my $eps = [];
     foreach my $ep (@{$conn->endpoints}) {
+        next if $ep->state ne 'active';
+
         my $obj = {
             endpoint_id => $ep->circuit_ep_id,
             bandwidth   => $ep->bandwidth,
@@ -307,6 +311,8 @@ sub create_l3connection {
 
     my $eps = [];
     foreach my $ep (@{$conn->endpoints}) {
+        next if $ep->state ne 'active';
+
         my $obj = {
             endpoint_id => $ep->vrf_endpoint_id,
             bandwidth   => $ep->bandwidth,
@@ -417,6 +423,8 @@ sub edit_l3connection {
 
     my $eps = [];
     foreach my $ep (@{$conn->endpoints}) {
+        next if $ep->state ne 'active';
+
         my $obj = {
             endpoint_id => $ep->vrf_endpoint_id,
             bandwidth   => $ep->bandwidth,

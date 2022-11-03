@@ -370,9 +370,26 @@ sub remove_all {
     return (0,"db is a required parameter") if !defined $args->{db};
     return (0,"interface_id is a required parameter") if !defined $args->{interface_id};
 
-    my $query = "DELETE FROM interface_acl WHERE interface_id = ?";
-    my $count = $args->{db}->execute_query($query,[$args->{interface_id}]);
+    my $acls = $args->{db}->execute_query(
+        "SELECT * FROM interface_acl WHERE interface_id=?",
+        [$args->{interface_id}]
+    );
+    if (!defined $acls) {
+        return (-1, $args->{db}->get_error);
+    }
 
+    foreach my $acl (@$acls) {
+        my $history_update = $args->{db}->execute_query(
+            "DELETE FROM acl_history WHERE interface_acl_id=?",
+            [$acl->{interface_acl_id}]
+        );
+        if (!defined $history_update) {
+            return (-1, $args->{db}->get_error);
+        }
+    }
+
+    my $query = "DELETE FROM interface_acl WHERE interface_id=?";
+    my $count = $args->{db}->execute_query($query, [$args->{interface_id}]);
     if (!defined $count) {
         return (-1, "Error removing acls");
     }

@@ -78,21 +78,22 @@ my $entity = new OESS::Entity(
 );
 
 my $intf;
+my $intf_err;
 
-$intf = $entity->select_interface(workgroup_id => 1, tag => 10);
+($intf, $intf_err) = $entity->select_interface(workgroup_id => 1, tag => 10);
 ok(!defined $intf, "Can't lookup interface with out-of-range tag.");
 
-$intf = $entity->select_interface(workgroup_id => 1, tag => 4);
+($intf, $intf_err) = $entity->select_interface(workgroup_id => 1, tag => 4);
 ok(!defined $intf, "Can't lookup interface with in-use tag.");
 
 
-$intf = $entity->select_interface(workgroup_id => 1, tag => 5);
+($intf, $intf_err) = $entity->select_interface(workgroup_id => 1, tag => 5);
 ok(defined $intf, "Can lookup first interface with valid tag.");
 
 ok($intf->{interface_id} == 1, 'Verified first interface_id.');
 
 
-$intf = $entity->select_interface(workgroup_id => 1, tag => 5);
+($intf, $intf_err) = $entity->select_interface(workgroup_id => 1, tag => 5);
 ok(defined $intf, "Can lookup second interface with valid tag.");
 
 ok($intf->{interface_id} == 2, 'Verified second interface_id.');

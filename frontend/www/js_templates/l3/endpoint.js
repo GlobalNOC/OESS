@@ -7,6 +7,14 @@ class Endpoint2 {
 
     let entity = this.element.querySelector('.entity');
 
+    if (endpoint.state == 'in-review') {
+      this.element.querySelector('.panel').classList.remove('panel-default')
+      this.element.querySelector('.panel').classList.add('panel-warning')
+      this.element.querySelector('.panel-heading').innerHTML = 'This endpoint is pending approval. Please contact <a href="mailto: [% approval_email %]">[% approval_email %]</a> for additional information.';
+    } else {
+      this.element.querySelector('.panel-heading').style.display = 'none';
+    }
+
     this.element.querySelector('.entity').innerHTML = endpoint.entity || 'NA';
     this.element.querySelector('.node').innerHTML = endpoint.node;
     this.element.querySelector('.interface').innerHTML = endpoint.interface;
@@ -47,7 +55,7 @@ class Endpoint2 {
     }.bind(this));
 
     this.element.querySelector('.add-peering-button').addEventListener('click', function(e) {
-      let modal = new PeeringModal('#peering-modal', endpoint);
+      let modal = new PeeringModal('#peering-modal', endpoint, endpoint.cloud_interconnect_type);
       modal.onSubmit((peering) => {
         if (!'peerings' in endpoint) {
           endpoint.peers = [];
@@ -58,7 +66,8 @@ class Endpoint2 {
 
         update();
       });
-      modal.display(null);
+      modal.display(null, endpoint.cloud_interconnect_type);
+
 
     }.bind(this));
 

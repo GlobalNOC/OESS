@@ -390,6 +390,7 @@ class EndpointSelectionModal2 {
         selectedNode = child.node;
 
         populateVLANs('.entity-vlans');
+        populateBandwidths('.entity-bandwidth');
       });
 
       if (!autoSelectedInterface && hasAvailableBandwidth) {
@@ -398,6 +399,104 @@ class EndpointSelectionModal2 {
       }
       list.appendChild(elem);
     }
+
+    const populateApprovalWarning = () => {
+      let approvalWarning = document.querySelector('#approval-warning')
+
+      let intf = null;
+      for (let i = 0; i < entity.interfaces.length; i++) {
+        let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
+        let userSelectedInterface = (entity.interfaces[i].node == selectedNode && entity.interfaces[i].name == selectedInterface);
+        if (autoSelectedInterface || userSelectedInterface) {
+          intf = entity.interfaces[i];
+          break;
+        }
+      }
+      if (intf == null) {
+        approvalWarning.style.display = 'none';
+        approvalWarning.innerHTML = '';
+        return;
+      }
+
+      let activeOpt = null;
+      for (let i = 0; i < interfaceOptions.length; i++) {
+        let opt = interfaceOptions[i];
+        if (opt.cloud_interconnect_type == intf.cloud_interconnect_type && parseInt(intf.bandwidth) >= parseInt(opt.min_bandwidth) && parseInt(intf.bandwidth) <= parseInt(opt.max_bandwidth)) {
+          activeOpt = opt;
+        }
+      }
+
+      if (activeOpt == null) {
+        approvalWarning.style.display = 'none';
+        approvalWarning.innerHTML = '';
+        return;
+      }
+
+      for (let i = 0; i < activeOpt.speed.length; i++) {
+        if (activeOpt.speed[i].rate != bandwidthSelector.value) {
+          continue;
+        }
+
+        if (activeOpt.speed[i].requires_approval && activeOpt.speed[i].requires_approval == 1) {
+          approvalWarning.style.display = 'block';
+          approvalWarning.innerHTML = '<b>Warning!</b> As configured, an additional fee may be required to provision this endpoint. Please contact <a href="mailto: [% approval_email %]">[% approval_email %]</a> for additional information.';
+        } else {
+          approvalWarning.style.display = 'none';
+          approvalWarning.innerHTML = '';
+        }
+      }
+    }
+
+    const populateBandwidths = (selector) => {
+      let bwSelector = this.parent.querySelector(selector);
+      bwSelector.innerHTML = '';
+
+      let bwOptions = [[0, 'Unlimited']];
+      let intf = null;
+      let iopt = null;
+
+      for (let i = 0; i < entity.interfaces.length; i++) {
+        let autoSelectedInterface = (entity.interfaces[i].cloud_interconnect_type == "azure-express-route" || entity.interfaces[i].cloud_interconnect_type == "gcp-cloud-interconnect");
+        let userSelectedInterface = (entity.interfaces[i].node == selectedNode && entity.interfaces[i].name == selectedInterface);
+        if (autoSelectedInterface || userSelectedInterface) {
+          intf = entity.interfaces[i];
+          break;
+        }
+      }
+      if (intf == null) {
+        populateApprovalWarning();
+        return;
+      }
+
+      for (let i = 0; i < interfaceOptions.length; i++) {
+        let opt = interfaceOptions[i];
+        if (opt.cloud_interconnect_type == intf.cloud_interconnect_type && parseInt(intf.bandwidth) >= parseInt(opt.min_bandwidth) && parseInt(intf.bandwidth) <= parseInt(opt.max_bandwidth)) {
+          iopt = opt;
+          break;
+        }
+      }
+
+      if (iopt != null) {
+        bwOptions = [];
+        iopt.speed.forEach((v) => {
+          let text = `${v.rate} Mb/s`;
+          if (parseInt(v.rate)/1000 >= 1) {
+            text = `${parseInt(v.rate)/1000} Gb/s`;
+          }
+          bwOptions.push([v.rate, text]);
+        });
+      }
+
+      bwOptions.forEach((v, i) => {
+        let o = document.createElement('option');
+        if (i == 0) o.setAttribute('selected', true);
+        o.innerText = `${v[1]}`;
+        o.setAttribute('value', v[0]);
+        bwSelector.appendChild(o);
+      });
+
+      populateApprovalWarning();
+    };
 
     // VLAN Select - Populates a select element with the VLANs
     // available for the currently selected (node, interface).
@@ -477,6 +576,10 @@ class EndpointSelectionModal2 {
       return vlans;
     };
 
+    let bandwidthSelector = this.parent.querySelector('.entity-bandwidth');
+    bandwidthSelector.onchange = populateApprovalWarning;
+
+    populateBandwidths('.entity-bandwidth');
     let vlans = populateVLANs('.entity-vlans');
     let vlan = -1;
     if (vlans.length > 0) {
@@ -575,58 +678,7 @@ class EndpointSelectionModal2 {
       vlanHelp.dataset.content = `VLAN Identifier of the tagged interface connecting to <b>${entity.name}.</b>`;
     }
 
-    // Max Bandwidth
-    let bandwidthSelector = this.parent.querySelector('.entity-bandwidth');
-    bandwidthSelector.innerHTML = '';
-
-    let bandwidthOptions  = [[0, 'Unlimited']];
-    if (entity.cloud_interconnect_type === 'aws-hosted-connection') {
-      bandwidthOptions = [
-        [50, '50 Mb/s'],
-        [100, '100 Mb/s'],
-        [200, '200 Mb/s'],
-        [300, '300 Mb/s'],
-        [400, '400 Mb/s'],
-        [500, '500 Mb/s'],
-        [1000, '1 Gb/s'],
-        [2000, '2 Gb/s'],
-        [5000, '5 Gb/s']
-      ];
-    } else if (entity.cloud_interconnect_type === 'gcp-partner-interconnect') {
-      bandwidthOptions = [
-        [50, '50 Mb/s'],
-        [100, '100 Mb/s'],
-        [200, '200 Mb/s'],
-        [300, '300 Mb/s'],
-        [400, '400 Mb/s'],
-        [500, '500 Mb/s'],
-        [1000, '1 Gb/s'],
-        [2000, '2 Gb/s'],
-        [5000, '5 Gb/s'],
-        [10000, '10 Gb/s']
-      ];
-    } else if (entity.cloud_interconnect_type === 'oracle-fast-connect') {
-      bandwidthOptions = [
-        [1000, '1 Gb/s'],
-        [2000, '2 Gb/s'],
-        [5000, '5 Gb/s'],
-        [10000, '10 Gb/s']
-      ];
-    }
-
-    bandwidthOptions.forEach((b, i) => {
-      let o = document.createElement('option');
-      o.innerText = `${b[1]}`;
-      o.setAttribute('value', b[0]);
-
-      if ( (selectedBandwidth === null && i == 0) || b[0] == selectedBandwidth) {
-        o.setAttribute('selected', true);
-      }
-
-      bandwidthSelector.appendChild(o);
-    });
-
-    if (vlan === -1 || bandwidthOptions.length === 1) {
+    if (vlan === -1 || bandwidthSelector.children.length <= 1) {
       bandwidthSelector.setAttribute('disabled', '');
     } else {
       bandwidthSelector.removeAttribute('disabled');

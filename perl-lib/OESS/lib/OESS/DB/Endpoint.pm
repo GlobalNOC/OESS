@@ -62,6 +62,8 @@ sub fetch_all {
         entity_id => undef,
         interface_id => undef,
         node_id => undef,
+        state => 'active',
+        state_not => undef,
         @_
     };
 
@@ -79,6 +81,11 @@ sub fetch_all {
         $type = 'circuit';
         push @$params, 'circuit_ep.circuit_id=?';
         push @$values, $args->{circuit_id};
+    }
+    if (defined $args->{circuit_ep_id}) {
+        $type = 'circuit';
+        push @$params, 'circuit_ep.circuit_edge_id=?';
+        push @$values, $args->{circuit_ep_id};
     }
     if (defined $args->{vrf_id}) {
         $type = 'vrf';
@@ -109,6 +116,14 @@ sub fetch_all {
     if (defined $args->{cloud_account_id}) {
         push @$params, 'cloud.cloud_account_id=?';
         push @$values, $args->{cloud_account_id};
+    }
+    if (defined $args->{state}) {
+        push @$params, 'state=?';
+        push @$values, $args->{state};
+    }
+    if (defined $args->{state_not}) {
+        push @$params, 'state!=?';
+        push @$values, $args->{state_not};
     }
 
     my $where = (@$params > 0) ? 'WHERE ' . join(' AND ', @$params) : 'WHERE 1 ';
@@ -147,7 +162,7 @@ sub fetch_all {
                    interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
                    node.node_id, node.name AS node, node.short_name AS short_node_name, node_instantiation.controller,
                    unit, extern_vlan_id AS tag, inner_tag,
-                   bandwidth, mtu, cloud_account_id, cloud_connection_id
+                   bandwidth, mtu, cloud_account_id, cloud_connection_id, circuit_ep.state
             FROM circuit_edge_interface_membership AS circuit_ep
             JOIN interface ON interface.interface_id=circuit_ep.interface_id
             JOIN node ON node.node_id=interface.node_id
@@ -211,14 +226,13 @@ sub fetch_all {
                    interface.description, interface.cloud_interconnect_id, interface.cloud_interconnect_type,
                    node.node_id, node.name AS node, node.short_name AS short_node_name, node_instantiation.controller,
                    unit, tag, inner_tag,
-                   bandwidth, mtu, cloud_account_id, cloud_connection_id
+                   bandwidth, mtu, cloud_account_id, cloud_connection_id, vrf_ep.state
             FROM vrf_ep
             JOIN interface ON interface.interface_id=vrf_ep.interface_id
             JOIN node ON node.node_id=interface.node_id
             JOIN node_instantiation ON node.node_id=node_instantiation.node_id and node_instantiation.end_epoch=-1
             LEFT JOIN cloud_connection_vrf_ep as cloud on cloud.vrf_ep_id=vrf_ep.vrf_ep_id
             $where
-            AND vrf_ep.state != 'decom'
         ";
 
         my $vrf_endpoints = $args->{db}->execute_query($q, $values);
@@ -397,8 +411,9 @@ sub add_circuit_edge_membership{
             "extern_vlan_id, ".
             "inner_tag, ".
             "unit, ".
-            "mtu ".
-            ") VALUES (?, ?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?)",
+            "mtu, ".
+            "state ".
+            ") VALUES (?, ?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?, ?)",
             [$endpoint->{interface_id},
              $endpoint->{bandwidth},
              $endpoint->{circuit_id},
@@ -406,7 +421,8 @@ sub add_circuit_edge_membership{
              $endpoint->{tag},
              $endpoint->{inner_tag},
              $endpoint->{unit},
-             $endpoint->{mtu}]);
+             $endpoint->{mtu},
+             $endpoint->{state}]);
     return $result;
 }
 
@@ -426,7 +442,8 @@ sub update_circuit_edge_membership{
             "extern_vlan_id=?, ".
             "inner_tag=?, ".
             "unit=?, ".
-            "mtu=? ".
+            "mtu=?, ".
+            "state=? ".
             "WHERE circuit_edge_id=?",
             [$endpoint->{interface_id},
              $endpoint->{bandwidth},
@@ -435,6 +452,7 @@ sub update_circuit_edge_membership{
              $endpoint->{inner_tag},
              $endpoint->{unit},
              $endpoint->{mtu},
+             $endpoint->{state},
              $endpoint->{circuit_ep_id}
          ]);
 
@@ -491,7 +509,7 @@ sub add_vrf_ep {
           $endpoint->{'inner_tag'},
           $endpoint->{'bandwidth'},
           $endpoint->{vrf_id},
-          'active',
+          $endpoint->{state},
           $endpoint->{unit},
           $endpoint->{'mtu'} || 9000
       ]
@@ -636,7 +654,7 @@ sub find_available_unit{
                  and circuit.circuit_state!='decom'
                  and circuit_instantiation.circuit_state!='decom'
                  and circuit_instantiation.end_epoch=-1
-        ) and extern_vlan_id=?
+        ) and extern_vlan_id=? and state!='decom'
     ";
     my $l2a = [$args->{interface_id}, $args->{tag}];
     if (defined $args->{inner_tag}) {
@@ -654,7 +672,7 @@ sub find_available_unit{
                    and circuit_instantiation.end_epoch=-1
           ) and (
               (extern_vlan_id=? and inner_tag=?) or (extern_vlan_id=? and inner_tag is NULL)
-          )
+          ) and state!='decom'
         ";
         $l2a = [$args->{interface_id}, $args->{tag}, $args->{inner_tag}, $args->{tag}];
     }
@@ -696,7 +714,7 @@ sub find_available_unit{
                  and circuit.circuit_state!='decom'
                  and circuit_instantiation.circuit_state!='decom'
                  and circuit_instantiation.end_epoch=-1
-        )";
+        ) and state!='decom'";
     my $used_circuit_units = $args->{db}->execute_query($circuit_units_q, [$args->{interface_id}]);
 
     my %used;

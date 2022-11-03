@@ -56,6 +56,61 @@ sub load {
     $self->{interface_selectors} = $selectors;
 }
 
+=head2 requires_approval
+
+requires_approval returns 1 if the provided bandwidth and user type
+require administrative approval prior to provisioning on this
+validator's interface.
+
+=cut
+sub requires_approval {
+    my $self = shift;
+    my $args = {
+        bandwidth => undef,
+        is_admin => undef,
+        @_
+    };
+
+    my $active_selector;
+    foreach my $selector (@{$self->{interface_selectors}}) {
+        if ($self->{interface}->cloud_interconnect_type ne $selector->{cloud_interconnect_type}) {
+            next;
+        }
+        # 1. Matched on interface interconnect type
+
+        if ($self->{interface}->{'bandwidth'} > $selector->{max_bandwidth} || $self->{interface}->{'bandwidth'} < $selector->{min_bandwidth}) {
+            next;
+        }
+        # 2. Matched on interface speed
+
+        $active_selector = $selector;
+        last;
+    }
+
+    foreach my $check (@{$active_selector->{speed}}) {
+        if ($check->{rate} != $args->{bandwidth}) {
+            next;
+        }
+
+
+        if (defined $check->{requires_approval} && $check->{requires_approval} eq "1") {
+            return 1;
+            # if (defined $check->{admin_only} && $check->{admin_only} eq "1" && $args->{is_admin} == 1) {
+            #     # Admin users will never require approval when provisioning
+            #     # endpoints. As a result, the follow hold true:
+            #     # - Notifications for provisioning requests will never be sent
+            #     #   for admin users
+            #     # - Approval for these endpoints are auto-accepted
+            #     return 0;
+            # } else {
+            #     return 1;
+            # }
+        }
+    }
+
+    return 0;
+}
+
 =head2 is_bandwidth_valid
 
 The arguments passsed to C<is_bandwidth_valid> are checked against

@@ -29,6 +29,7 @@ import { CreateAcl } from "./pages/nodes/interfaces/acls/CreateAcl.jsx";
 import { EditAcl } from "./pages/nodes/interfaces/acls/EditAcl.jsx";
 import { EditInterface } from "./pages/nodes/interfaces/EditInterface.jsx";
 import { AdminRoute } from "./pages/AdminRoute.jsx";
+import { Cloud } from "./pages/cloud/Cloud.jsx";
 
 const App = () => {
   return (
@@ -50,6 +51,8 @@ const App = () => {
               <AdminRoute exact path="/">
                 <Redirect to="/users" />
               </AdminRoute>
+
+              <AdminRoute path="/cloud" component={Cloud} />
 
               <AdminRoute path="/users/new"><CreateUser /></AdminRoute>
               <AdminRoute path="/users/:id" component={EditUser} />

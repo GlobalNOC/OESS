@@ -41,7 +41,7 @@ const editWorkgroupComponent = (props) => {
   return (
     <div>
       <div>
-        <p className="title"><b>Edit Workgroup:</b> {workgroup.name}</p>
+        <p className="title"><b>Edit Workgroup:</b> <span style={{opacity: 0.85}}>{workgroup.name}</span></p>
         <p className="subtitle">Edit and Manage Workgroup Users and Interfaces.</p>
       </div>
       <br />

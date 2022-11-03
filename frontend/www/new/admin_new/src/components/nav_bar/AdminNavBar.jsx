@@ -6,7 +6,8 @@ const adminNavBar = (props) => {
   const { location } = props;
 
   let links = [
-    { name: 'Nodes',    url: '/nodes' },
+    { name: 'Cloud',      url: '/cloud' },
+    { name: 'Nodes',      url: '/nodes' },
     { name: 'Links',      url: '/links' },
     { name: 'Users',      url: '/users' },
     { name: 'Workgroups', url: '/workgroups' }

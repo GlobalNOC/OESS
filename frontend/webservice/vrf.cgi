@@ -451,6 +451,7 @@ sub provision_vrf{
         $endpoints->{$ep->vrf_endpoint_id} = $ep;
     }
 
+    my $admin_approval_required = 0;
     my $add_endpoints = [];
     my $del_endpoints = [];
 
@@ -467,6 +468,7 @@ sub provision_vrf{
         if (!defined $ep->{vrf_endpoint_id}) {
             my $entity;
             my $interface;
+            my $interface_err;
 
             if (defined $ep->{node} && defined $ep->{interface}) {
                 $interface = new OESS::Interface(
@@ -475,17 +477,20 @@ sub provision_vrf{
                     node => $ep->{node}
                 );
             }
-            # if (defined $interface && (!defined $interface->{cloud_interconnect_type} || $interface->{cloud_interconnect_type} eq 'aws-hosted-connection')) {
-            #     # Continue
-            # }
             else {
                 $entity = new OESS::Entity(db => $db, name => $ep->{entity});
-                $interface = $entity->select_interface(
+                ($interface, $interface_err) = $entity->select_interface(
                     inner_tag    => $ep->{inner_tag},
                     tag          => $ep->{tag},
                     workgroup_id => $model->{workgroup_id},
+                    bandwidth    => $ep->{bandwidth},
                     cloud_account_id => $ep->{cloud_account_id}
                 );
+                if (defined $interface_err) {
+                    $method->set_error("Cannot find a valid Interface for $ep->{entity}: $interface_err");
+                    $db->rollback;
+                    return;
+                }
             }
             if (!defined $interface) {
                 $method->set_error("Cannot find a valid Interface for $ep->{entity}.");
@@ -505,6 +510,9 @@ sub provision_vrf{
                 $db->rollback;
                 return;
             }
+
+            my $requires_approval = $interface->bandwidth_requires_approval(bandwidth => $ep->{bandwidth}, is_admin => $is_admin);
+            $ep->{state} = ($requires_approval) ? 'in-review' : 'active';
 
             $ep->{type}         = 'vrf';
             $ep->{entity_id}    = $entity->{entity_id};
@@ -546,7 +554,16 @@ sub provision_vrf{
                 return;
             }
             $vrf->add_endpoint($endpoint);
-            push @$add_endpoints, $endpoint;
+
+            if ($ep->{state} eq 'active') {
+                # Endpoints that aren't acitve (ex in-review) will not
+                # be provisioned by FWDCTL. Any cloud provisioning
+                # of these endpoints shall be avoided.
+                push @$add_endpoints, $endpoint;
+            } else {
+                $admin_approval_required = 1;
+                warn "Endpoint will require admin approval";
+            }
 
             foreach my $peering (@{$ep->{peers}}) {
 
@@ -586,35 +603,6 @@ sub provision_vrf{
                             md5_key     => '',
                             local_ip    => $azure_peering_config->nth_address($prefix, 1),
                             peer_ip     => $azure_peering_config->nth_address($prefix, 2),
-                            ip_version  => $peering->{ip_version},
-                            bfd         => $peering->{bfd}
-                        }
-                    );
-                    my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
-                    if (defined $peer_err) {
-                        $method->set_error($peer_err);
-                        $db->rollback;
-                        return;
-                    }
-                    $endpoint->add_peer($peer);
-
-                    $peerings->{"$endpoint->{node} $endpoint->{interface} $peer->{local_ip}"} = 1;
-                    next;
-                }
-                if ($interface->cloud_interconnect_type eq 'oracle-fast-connect') {
-                    my $prefix = $peering_config->prefix(
-                        $endpoint->cloud_account_id,
-                        $endpoint->interface_id,
-                        $peering->{ip_version}
-                    );
-
-                    my $peer = new OESS::Peer(
-                        db => $db,
-                        model => {
-                            peer_asn    => $oracle_asn,
-                            md5_key     => '',
-                            local_ip    => $peering_config->nth_address($prefix, 1),
-                            peer_ip     => $peering_config->nth_address($prefix, 2),
                             ip_version  => $peering->{ip_version},
                             bfd         => $peering->{bfd}
                         }
@@ -672,18 +660,17 @@ sub provision_vrf{
         } else {
             my $endpoint = $vrf->get_endpoint(vrf_ep_id => $ep->{vrf_endpoint_id});
 
-            $endpoint->bandwidth($ep->{bandwidth});
-            $endpoint->inner_tag($ep->{inner_tag});
-            $endpoint->tag($ep->{tag});
-
+            # We disable modification of MTU on AWS endpoints as not enough
+            # data is stored to properly determine and maintain the user
+            # defined cloud_gateway_type.
             if ($endpoint->cloud_interconnect_type eq 'aws-hosted-connection') {
-                if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq 'transit') {
-                    $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 8500 : 1500);
-                } else {
-                    $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
-                }
+                # if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq 'transit') {
+                #     $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 8500 : 1500);
+                # } else {
+                #     $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
+                # }
             } elsif ($endpoint->cloud_interconnect_type eq 'aws-hosted-vinterface') {
-                $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
+                # $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9001 : 1500);
             } elsif ($endpoint->cloud_interconnect_type eq 'gcp-partner-interconnect') {
                 if (defined $ep->{cloud_gateway_type} && $ep->{cloud_gateway_type} eq '1500') {
                     $endpoint->mtu(1500);
@@ -693,8 +680,12 @@ sub provision_vrf{
             } elsif ($endpoint->cloud_interconnect_type eq 'azure-express-route') {
                 $endpoint->mtu(1500);
             } else {
+                $endpoint->bandwidth($ep->{bandwidth});
+                $endpoint->inner_tag($ep->{inner_tag});
+                $endpoint->tag($ep->{tag});
                 $endpoint->mtu((!defined $ep->{jumbo} || $ep->{jumbo} == 1) ? 9000 : 1500);
             }
+            $endpoint->update_db;
 
             $endpoint->load_peers;
 
@@ -760,35 +751,6 @@ sub provision_vrf{
                         $endpoint->add_peer($peer);
 
                         $peerings->{"$endpoint->{node} $endpoint->{interface} $peering->{local_ip}"} = 1;
-                        next;
-                    }
-                    if ($endpoint->cloud_interconnect_type eq 'oracle-fast-connect') {
-                        my $prefix = $peering_config->prefix(
-                            $endpoint->cloud_account_id,
-                            $endpoint->interface_id,
-                            $peering->{ip_version}
-                        );
-
-                        my $peer = new OESS::Peer(
-                            db => $db,
-                            model => {
-                                peer_asn    => $oracle_asn,
-                                md5_key     => '',
-                                local_ip    => $peering_config->nth_address($prefix, 1),
-                                peer_ip     => $peering_config->nth_address($prefix, 2),
-                                ip_version  => $peering->{ip_version},
-                                bfd         => $peering->{bfd}
-                            }
-                        );
-                        my ($peer_id, $peer_err) = $peer->create(vrf_ep_id => $endpoint->vrf_endpoint_id);
-                        if (defined $peer_err) {
-                            $method->set_error($peer_err);
-                            $db->rollback;
-                            return;
-                        }
-                        $endpoint->add_peer($peer);
-
-                        $peerings->{"$endpoint->{node} $endpoint->{interface} $peer->{local_ip}"} = 1;
                         next;
                     }
     
@@ -1008,6 +970,16 @@ sub provision_vrf{
             no_reply => 1
         );
     };
+
+    if ($admin_approval_required) {
+        eval {
+            $log_client->review_endpoint_notification(
+                connection_id   => $vrf->vrf_id,
+                connection_type => 'vrf',
+                no_reply => 1
+            );
+        };
+    }
 
     return { results => { success => 1, vrf_id => $vrf->vrf_id } };
 }

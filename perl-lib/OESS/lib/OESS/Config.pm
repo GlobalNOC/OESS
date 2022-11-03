@@ -56,6 +56,22 @@ sub new {
     return $self;
 }
 
+=head2 admin_email
+
+=cut
+sub admin_email {
+    my $self = shift;
+    return $ENV{OESS_ADMIN_EMAIL} || $self->{config}->{admin_email} || 'root@localhost';
+}
+
+=head2 approval_email
+
+=cut
+sub approval_email {
+    my $self = shift;
+    return $ENV{OESS_APPROVAL_EMAIL} || $self->{config}->{approval_email} || 'root@localhost';
+}
+
 =head2 local_as
 
 returns the configured local_as number

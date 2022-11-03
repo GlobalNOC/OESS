@@ -24,6 +24,24 @@ async function getInterfaces(workgroupID, nodeName, trunk=1) {
 }
 
 /**
+ * getInterfaceOptions returns a list of all interface options that may
+ * be used for provisioning.
+ */
+ async function getInterfaceOptions() {
+
+  let url = `[% path %]services/interface.cgi?method=get_options`;
+
+  try {
+    const resp = await fetch(url, {method: 'get', credentials: 'include'});
+    const data = await resp.json();
+    return data.results;
+  } catch(error) {
+    console.error('Failure occurred in getInterfaceOptions:', error);
+    return [];
+  }
+}
+
+/**
  * getInterfacesByWorkgroup returns a list of all interfaces on the
  * network that may be used for provisioning by workgroupID.
  *

@@ -176,7 +176,9 @@ sub load_endpoints {
 
     my ($ep_datas, $error) = OESS::DB::Endpoint::fetch_all(
         db => $self->{db},
-        vrf_id => $self->{vrf_id}
+        vrf_id => $self->{vrf_id},
+        state => undef,
+        state_not => 'decom'
     );
     $self->{logger}->warn($error) if defined $error;
 
@@ -646,6 +648,8 @@ sub nso_diff {
     my $endpoints = $self->endpoints || [];
 
     foreach my $ep (@{$endpoints}) {
+        next if $ep->state ne 'active';
+
         if (!defined $ep_index->{$ep->short_node_name}) {
             $diff->{$ep->short_node_name} = "";
             $ep_index->{$ep->short_node_name} = {};
@@ -658,6 +662,7 @@ sub nso_diff {
             $diff->{$ep->{device}} = "" if !defined $diff->{$ep->{device}};
             $diff->{$ep->{device}} .= "-  $ep->{interface}.$ep->{unit}\n";
             $diff->{$ep->{device}} .= "-    Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->{device}} .= "-    MTU:       $ep->{mtu}\n";
             $diff->{$ep->{device}} .= "-    Tag:       $ep->{tag}\n";
             $diff->{$ep->{device}} .= "-    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
 
@@ -686,6 +691,11 @@ sub nso_diff {
             $ep_ok = 0;
             $ep_diff .= "-    Bandwidth: $ep->{bandwidth}\n";
             $ep_diff .= "+    Bandwidth: $ref_ep->{bandwidth}\n";
+        }
+        if ($ep->{mtu} != $ref_ep->mtu) {
+            $ep_ok = 0;
+            $ep_diff .= "-    MTU:       $ep->{mtu}\n";
+            $ep_diff .= "+    MTU:       $ref_ep->{mtu}\n";
         }
         if ($ep->{tag} != $ref_ep->tag) {
             $ep_ok = 0;
@@ -788,6 +798,7 @@ sub nso_diff {
 
             $diff->{$ep->short_node_name} .= "+  $ep->{interface}.$ep->{unit}\n";
             $diff->{$ep->short_node_name} .= "+    Bandwidth: $ep->{bandwidth}\n";
+            $diff->{$ep->short_node_name} .= "+    MTU:       $ep->{mtu}\n";
             $diff->{$ep->short_node_name} .= "+    Tag:       $ep->{tag}\n";
             $diff->{$ep->short_node_name} .= "+    Inner Tag: $ep->{inner_tag}\n" if defined $ep->{inner_tag};
 

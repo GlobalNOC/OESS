@@ -242,7 +242,7 @@ sub bandwidth{
         $self->{bandwidth} = $bandwidth;
     }
 
-    if($self->{'cloud_interconnect_type'} eq 'azure-express-route'){
+    if((defined $self->{'cloud_interconnect_type'}) && ($self->{'cloud_interconnect_type'} eq 'azure-express-route')){
         return $self->{'bandwidth'} * 4;
     }else{
         return $self->{'bandwidth'};
@@ -546,6 +546,35 @@ sub is_bandwidth_valid {
     $validator->load;
 
     return $validator->is_bandwidth_valid(
+        bandwidth => $args->{bandwidth},
+        is_admin  => $args->{is_admin}
+    );
+}
+
+=head2 bandwidth_requires_approval
+
+=cut
+sub bandwidth_requires_approval {
+    my $self   = shift;
+    my $args = {
+        bandwidth => undef,
+        is_admin  => undef,
+        @_
+    };
+
+    # Normal interfaces are not intended to limit the flow of traffic. For this
+    # reason we return 1 when bandwidth is not zero on standard interfaces.
+    if (!defined $self->cloud_interconnect_type) {
+        return ($args->{bandwidth} != 0) ? 1 : 0;
+    }
+
+    my $validator = new OESS::Cloud::BandwidthValidator(
+        config_path => $self->{bandwidth_validator_config},
+        interface   => $self
+    );
+    $validator->load;
+
+    return $validator->requires_approval(
         bandwidth => $args->{bandwidth},
         is_admin  => $args->{is_admin}
     );

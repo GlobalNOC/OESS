@@ -229,6 +229,8 @@ sub to_hash{
 
 =head2 select_interface
 
+    my ($intf, $intf_err) = $entity->select_interface( ... );
+
 =cut
 sub select_interface {
     my $self = shift;
@@ -236,6 +238,7 @@ sub select_interface {
         inner_tag        => undef,
         tag              => undef,
         workgroup_id     => undef,
+        bandwidth        => undef,
         cloud_account_id => undef,
         @_
     };
@@ -255,7 +258,7 @@ sub select_interface {
         my ($eps, $eps_err) = OESS::DB::Endpoint::fetch_all(db => $self->{db}, cloud_account_id => $args->{cloud_account_id});
         if (defined $eps_err) {
             $self->{logger}->error($eps_err);
-            return undef;
+            return (undef, $eps_err);
         }
         $cloud_account_ep_count = (defined $eps) ? scalar @$eps : 0;
         warn "$cloud_account_ep_count Endpoints used with this cloud_account_id";
@@ -264,7 +267,7 @@ sub select_interface {
     foreach my $intf (@{$self->{interfaces}}) {
         if (defined $intf->cloud_interconnect_type && $intf->cloud_interconnect_type eq 'gcp-partner-interconnect') {
             if (!defined $args->{cloud_account_id}) {
-                return undef;
+                return (undef, "cloud_account_id not provided.");
             }
 
             my @part = split(/\//, $args->{cloud_account_id});
@@ -280,8 +283,7 @@ sub select_interface {
 
         if (defined $intf->cloud_interconnect_type && $intf->cloud_interconnect_type eq 'azure-express-route') {
             if (!defined $args->{cloud_account_id}) {
-                warn 'Azure Service key was not provided.';
-                return;
+                return (undef, "cloud_account_id not provided.");
             }
 
             # This selector goes through all interfaces associated
@@ -290,16 +292,24 @@ sub select_interface {
             # entities interfaces is to determine the 'type' of the
             # entity; Really this should be a part of the entity's
             # definition.
+            my $azure = new OESS::Cloud::Azure();
+            my $conn = $azure->expressRouteCrossConnection($intf->cloud_interconnect_id, $args->{cloud_account_id});
+            if (defined $conn->{error}) {
+                $self->{logger}->error($conn->{error}->{message});
+                return (undef, $conn->{error}->{message});
+            }
+            if ($conn->{properties}->{bandwidthInMbps} != $args->{bandwidth}) {
+                return (undef, "Bandwidth set on Azure endpoint must match the bandwidth configured via Azure Portal.");
+            }
+
             my $intf_selector = new OESS::Cloud::AzureInterfaceSelector(
                 db          => $self->{db},
-                azure       => new OESS::Cloud::Azure(),
                 entity      => $self,
                 service_key => $args->{cloud_account_id}
             );
-            $intf = $intf_selector->select_interface;
+            $intf = $intf_selector->select_interface($conn);
             if (!defined $intf) {
-                warn "Couldn't find an available interface for azure connection.";
-                return;
+                return (undef, "Couldn't find an available interface for azure connection.");
             }
         }
 
@@ -317,11 +327,11 @@ sub select_interface {
             }
             if (!defined $self->{reservations}->{$intf->{interface_id}}->{$args->{tag}}) {
                 $self->{reservations}->{$intf->{interface_id}}->{$args->{tag}} = 1;
-                return $intf;
+                return ($intf, undef);
             }
         }
     }
-    return undef;
+    return (undef, "Unknown error occurred.");
 }
 
 =head2 users
