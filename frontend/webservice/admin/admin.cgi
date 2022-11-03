@@ -1150,7 +1150,8 @@ sub review_endpoint {
             }
         };
         if ($@) {
-            $method->set_error("$@");
+            my $terr = "$@";
+            $method->set_error($terr);
             $db2->rollback;
 
             eval {
@@ -1160,7 +1161,7 @@ sub review_endpoint {
                     endpoint_id => $ep_id,
                     connection_type => $ep_type,
                     type => 'failure',
-                    text => "@$",
+                    text => $terr,
                 );
             };
             if ($@) {
