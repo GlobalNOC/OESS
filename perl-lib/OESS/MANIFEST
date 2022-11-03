@@ -1,9 +1,11 @@
 entrypoint.dev.sh
 entrypoint.sh
 etc/notification.tt.html
-etc/notification_templates.tmpl
-etc/notification_templates_vrf.tmpl
+etc/notification_endpoint_review.tt.html
 etc/notification_vrf.tt.html
+etc/notification_templates.tmpl
+etc/notification_templates_endpoint_review.tmpl
+etc/notification_templates_vrf.tmpl
 lib/OESS/AccessController/Default.pm
 lib/OESS/ACL.pm
 lib/OESS/Circuit.pm

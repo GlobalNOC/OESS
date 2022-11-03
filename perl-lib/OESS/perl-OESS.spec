@@ -129,8 +129,10 @@ make pure_install
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{docdir}/share/mpls/templates/juniper/13.3R8/L3VPN
 %__mkdir -p -m 0775 $RPM_BUILD_ROOT%{template_dir}
 %__install etc/notification_templates.tmpl $RPM_BUILD_ROOT/%{template_dir}/
-%__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_templates_endpoint_review.tmpl $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_templates_vrf.tmpl $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification.tt.html $RPM_BUILD_ROOT/%{template_dir}/
+%__install etc/notification_endpoint_review.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install etc/notification_vrf.tt.html $RPM_BUILD_ROOT/%{template_dir}/
 %__install share/nddi.sql $RPM_BUILD_ROOT/%{docdir}/share/
 %__install share/upgrade/* $RPM_BUILD_ROOT/%{docdir}/share/upgrade/
