@@ -238,10 +238,12 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_mandir}/man3/OESS::NSO::Discovery.3pm.gz
 %doc %{_mandir}/man3/OESS::NSO::FWDCTL.3pm.gz
 %doc %{_mandir}/man3/OESS::NSO::FWDCTLService.3pm.gz
-%{template_dir}/notification_templates.tmpl
 %{template_dir}/notification.tt.html
+%{template_dir}/notification_endpoint_review.tt.html
 %{template_dir}/notification_vrf.tt.html
+%{template_dir}/notification_templates.tmpl
 %{template_dir}/notification_templates_vrf.tmpl
+%{template_dir}/notification_templates_endpoint_review.tmpl
 %{perl_vendorlib}/OESS/AccessController/Default.pm
 %{perl_vendorlib}/OESS/ACL.pm
 %{perl_vendorlib}/OESS/Circuit.pm
