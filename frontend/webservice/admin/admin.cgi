@@ -1092,7 +1092,7 @@ sub review_endpoint {
                 connection_id => $ep->circuit_id || $ep->vrf_id,
                 endpoint_id => $ep_id,
                 connection_type => $ep_type,
-                notification_type => 'denial',
+                type => 'denial',
             );
         };
         if ($@) {
@@ -1159,7 +1159,8 @@ sub review_endpoint {
                     connection_id => $connection_id,
                     endpoint_id => $ep_id,
                     connection_type => $ep_type,
-                    notification_type => 'failure',
+                    type => 'failure',
+                    text => "@$",
                 );
             };
             if ($@) {
@@ -1177,7 +1178,7 @@ sub review_endpoint {
             connection_id => $connection_id,
             endpoint_id => $ep_id,
             connection_type => $ep_type,
-            notification_type => 'approval',
+            type => 'approval',
         );
     };
     if ($@) {
