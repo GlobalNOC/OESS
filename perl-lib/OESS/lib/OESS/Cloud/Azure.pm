@@ -262,7 +262,7 @@ sub set_cross_connection_state_to_provisioned {
             bandwidthInMbps                  => $args->{bandwidth},
             expressRouteCircuit              => { id => $args->{circuit_id} },
             peeringLocation                  => $args->{peering_location},
-            peerings                         => [],
+            # peerings                         => undef, Historically not included
             serviceProviderProvisioningState => 'Provisioned',
         }
     };
