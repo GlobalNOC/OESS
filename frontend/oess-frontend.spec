@@ -1,6 +1,6 @@
 Name:		oess-frontend
 Version:	2.0.16
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	The OESS webservices and user interface
 
 Group:		Network
