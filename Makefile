@@ -1,7 +1,7 @@
 OESS_VERSION=2.0.16
 OESS_NETWORK=oess
 TEST_FILES=
-MAILHOST=localhost
+
 
 include .env
 

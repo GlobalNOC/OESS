@@ -92,22 +92,41 @@ sub sub_called {
     return undef;
 }
 
-sub AUTOLOAD {
+=head2 sub_called_config
+
+    my $hash = sub_called_config(
+      name  => 'sum'
+    );
+
+sub_called_config returns a hash of the registered subs config along
+with the most recently used arguments.
+
+=cut
+sub sub_called_config {
     my $self = shift;
     my %args = @_;
+
+    my $name = $args{name};
+
+    return $self->{$name};
+}
+
+sub AUTOLOAD {
+    my $self = shift;
+    my @args = @_;
 
     my @sub  = split('::', $AUTOLOAD);
     my $name = $sub[@sub - 1];
 
     if (!defined $self->{$name}) {
         $self->{$name} = {
-            args   => \%args,
+            args   => \@args,
             count  => 0,
-            result => undef
+            result => undef,
         };
     }
 
-    $self->{$name}->{args} = \%args;
+    $self->{$name}->{args}  = \@args;
     $self->{$name}->{count} += 1;
     return $self->{$name}->{result};
 }
