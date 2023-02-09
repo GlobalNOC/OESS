@@ -474,7 +474,7 @@ sub get_entities{
             foreach my $acl (@{$int->acls()}){
                 next if (!defined $acl->{'entity_id'}) || ($acl->{'entity_id'} != $entity->entity_id);
                 next if (!defined $acl->{'allow_deny'}) || ($acl->{'allow_deny'} ne 'allow');
-                next if (!defined $acl->{'workgroup_id'}) || ($acl->{'workgroup_id'} != $workgroup_id);
+                next if (defined($acl->{'workgroup_id'}) && $acl->{'workgroup_id'} != $workgroup_id);
 
                 for (my $i=$acl->{'start'}; $i<=$acl->{'end'}; $i++) {
                     if ($int->vlan_valid(workgroup_id => $workgroup_id, vlan => $i)) {
