@@ -184,7 +184,10 @@ sub setup_endpoints {
             # Configure peering information only on layer 3
             # connections.
             my $conn = $azure->expressRouteCrossConnection($ep->cloud_interconnect_id, $ep->cloud_account_id);
-            my $peering = $azure_peering_config->cross_connection_peering($ep->cloud_account_id);
+            my $peering;
+            if (defined $vrf_id) {
+                $peering = $azure_peering_config->cross_connection_peering($ep->cloud_account_id);
+            }
 
             # Validate that configured bandwidth reservation allowed
             my $ep_intf = new OESS::Interface(db => $ep->{db}, interface_id => $ep->interface_id);

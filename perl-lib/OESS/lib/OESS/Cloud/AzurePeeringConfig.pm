@@ -228,7 +228,7 @@ sub cross_connection_peering {
         $result->{primaryPeerAddressPrefix} = $self->primary_prefix($service, 'ipv4');
         $result->{secondaryPeerAddressPrefix} = $self->secondary_prefix($service, 'ipv4');
         $result->{state} = 'Enabled';
-        $result->{peeringType} = 'AzurePrivatePeering';
+        # $result->{peeringType} = 'AzurePrivatePeering'; Historically not included
     }
 
     # I thought IPv6 support was added but it's not fully implemented.

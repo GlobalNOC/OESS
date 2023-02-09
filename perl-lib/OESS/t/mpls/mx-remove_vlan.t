@@ -207,10 +207,10 @@ my $expected_config = "<configuration><groups><name>OESS</name>
 my $err = $mock->sub_called(
     name  => 'edit_config',
     count => 2,
-    args  => {
-        target => 'candidate',
-        config => $expected_config
-    }
+    args  => [
+        'target', 'candidate',
+        'config', $expected_config
+    ]
 );
 
 ok(!defined $err, "edit_config called 2 times with expected NetConf payload.");
