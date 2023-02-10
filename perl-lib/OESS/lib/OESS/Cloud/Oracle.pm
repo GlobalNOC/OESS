@@ -45,6 +45,8 @@ sub new {
     }
     $self->{base_url} = $self->{config_obj}->oracle()->{$self->{interconnect_id}}->{base_url};
     $self->{compartment_id} = $self->{config_obj}->oracle()->{$self->{interconnect_id}}->{compartment_id};
+    $self->{public_key} = $self->{config_obj}->oracle()->{$self->{interconnect_id}}->{public_key};
+    $self->{private_key} = $self->{config_obj}->oracle()->{$self->{interconnect_id}}->{private_key};
 
     # We intercept and sign every request sent using $self->{conn} via the
     # request_send handler. https://metacpan.org/pod/LWP::UserAgent#add_handler
@@ -166,7 +168,7 @@ sub _compute_signature {
     # my $signature = $rsa->sign($signing_string);
     # return encode_base64($signature);
 
-    return `printf '%b' "$signing_string" | openssl dgst -sha256 -sign /etc/oess/oracle_rsa | openssl enc -e -base64 | tr -d '\n'`;
+    return `printf '%b' "$signing_string" | openssl dgst -sha256 -sign $self->{private_key} | openssl enc -e -base64 | tr -d '\n'`;
 }
 
 =head2 get_virtual_circuit
