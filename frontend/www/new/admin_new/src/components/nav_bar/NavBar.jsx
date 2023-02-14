@@ -56,7 +56,8 @@ export default class NavBar extends React.Component{
                 <NavLink linkTo={`${path}/index.cgi?action=provision_cloud`} text="Layer 3" />
               </NavDropdown>
               <NavLink linkTo={`${path}/index.cgi?action=phonebook`} text="Explore" />
-              <NavLink linkTo={`${path}/index.cgi?action=acl`} text="Workgroup" />
+              <NavLink linkTo={`${path}/index.cgi?action=acl`} text="Interface ACLs" />
+              <NavLink linkTo={`${path}/../../grouper-ui`} target="_blank" text="Workgroup Management" />
             </ul>
             <ul className="nav navbar-nav navbar-right">
               {adminLink}
